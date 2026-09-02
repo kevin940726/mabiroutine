@@ -1,0 +1,276 @@
+import { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { TaskRow } from "@/components/TaskRow";
+import { Tooltip } from "@/components/ui/tooltip";
+import type { Task } from "@/lib/types";
+import { useAppStore, barterToTask } from "@/store/useAppStore";
+import barterJson from "@/data/barter.json";
+import { cn } from "@/lib/utils";
+import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+
+type Props = {
+  title: string;
+  icon: string;
+  tasks: Task[];
+  isAccount: boolean;
+  onEditTask?: (t: Task) => void;
+};
+
+export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Props) {
+  const char = useAppStore((s) => s.getActiveChar());
+  const accountValues = useAppStore((s) => s.accountValues);
+  const getEffective = useAppStore((s) => s.getEffectivePinsForActive);
+  const effectivePins = getEffective();
+  const isForked = useAppStore((s) => s.isForked());
+  const clearSection = useAppStore((s) => s.clearSection);
+  const reorder = useAppStore((s) => s.reorderTasks);
+  const reorderBarter = useAppStore((s) => s.reorderBarterPins);
+  const globalOrder = useAppStore((s) => s.globalTaskOrder);
+  const hideCompleted = useAppStore((s) => s.prefs.hideCompleted);
+  const [barterExpanded, setBarterExpanded] = useState(true);
+  const [hiddenExpanded, setHiddenExpanded] = useState(false);
+
+  // daily barter subtasks: effective pins for active char, rendered as collapsable sub-category (not flat)
+  const barterSubtasks = useMemo(() => {
+    if (tasks[0]?.section !== "daily") return [] as Task[];
+    return effectivePins
+      .map((id) => {
+        const b = (barterJson as unknown as Array<(typeof barterJson)[number]>).find((x) => x.id === id);
+        return b ? barterToTask(b) : null;
+      })
+      .filter(Boolean) as Task[];
+  }, [tasks, effectivePins]);
+
+  const barterSubtasksFiltered = useMemo(() => {
+    if (!char) return barterSubtasks;
+    let list = barterSubtasks.filter((t) => !char.hiddenTaskIds.includes(t.id));
+    if (hideCompleted) {
+      list = list.filter((t) => {
+        const v = char.taskValues[t.id];
+        if (t.type === "check") return !v;
+        const n = typeof v === "number" ? v : 0;
+        return n < (t.max ?? 0);
+      });
+    }
+    return list;
+  }, [barterSubtasks, char, hideCompleted]);
+
+  // hidden: dimmed + moved to bottom sub-category (same primitive as 以物易物)
+  const hiddenBarter = useMemo(() => {
+    if (!char) return [] as Task[];
+    return barterSubtasks.filter((t) => char.hiddenTaskIds.includes(t.id));
+  }, [barterSubtasks, char]);
+
+  const hiddenTasks = useMemo(() => {
+    if (isAccount || !char) return [] as Task[];
+    let list = tasks.filter((t) => char.hiddenTaskIds.includes(t.id));
+    list.sort((a, b) => {
+      const oa = globalOrder?.[a.id] ?? a.order;
+      const ob = globalOrder?.[b.id] ?? b.order;
+      return oa - ob;
+    });
+    return list;
+  }, [tasks, char, globalOrder, isAccount]);
+
+  const hiddenAll = useMemo(() => [...hiddenTasks, ...hiddenBarter], [hiddenTasks, hiddenBarter]);
+
+  // main tasks (without injecting barter subtasks — they live in sub-category)
+  const allTasks = useMemo(() => {
+    let list = [...tasks];
+    // apply global order
+    list.sort((a, b) => {
+      const oa = globalOrder?.[a.id] ?? a.order;
+      const ob = globalOrder?.[b.id] ?? b.order;
+      return oa - ob;
+    });
+    // filter hidden per character (account section not hidden per char? keep same logic)
+    if (!isAccount && char) {
+      list = list.filter((t) => !char.hiddenTaskIds.includes(t.id));
+    }
+    if (hideCompleted) {
+      list = list.filter((t) => {
+        const v = isAccount ? accountValues[t.id] : char?.taskValues[t.id];
+        if (t.type === "check") return !v;
+        const n = typeof v === "number" ? v : 0;
+        return n < (t.max ?? 0);
+      });
+    }
+    return list;
+  }, [tasks, globalOrder, char, accountValues, isAccount, hideCompleted]);
+
+  const { done, total, percent } = useMemo(() => {
+    // include subtasks in progress for daily
+    const combined = [...allTasks, ...barterSubtasksFiltered];
+    let d = 0;
+    for (const t of combined) {
+      const v = isAccount ? accountValues[t.id] : char?.taskValues[t.id];
+      if (t.type === "check") {
+        if (v) d++;
+      } else {
+        const cur = typeof v === "number" ? v : 0;
+        if (cur >= (t.max ?? 1)) d++;
+        else if (cur > 0) d += cur / (t.max ?? 1) * 0.5; // partial
+      }
+    }
+    const tot = combined.length;
+    return { done: Math.round(d), total: tot, percent: tot ? Math.round((d / tot) * 100) : 0 };
+  }, [allTasks, barterSubtasksFiltered, char, accountValues, isAccount]);
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = allTasks.findIndex((t) => t.id === active.id);
+    const newIndex = allTasks.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = [...allTasks];
+    const [moved] = newOrder.splice(oldIndex, 1);
+    newOrder.splice(newIndex, 0, moved);
+    reorder(newOrder.map((t) => t.id));
+  };
+
+  const handleBarterDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = barterSubtasksFiltered.findIndex((t) => t.id === active.id);
+    const newIndex = barterSubtasksFiltered.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = [...barterSubtasksFiltered];
+    const [moved] = newOrder.splice(oldIndex, 1);
+    newOrder.splice(newIndex, 0, moved);
+    reorderBarter(newOrder.map((t) => t.id));
+  };
+
+  // section key for clear
+  const sectionKey = tasks[0]?.section ?? "daily";
+  const kind = tasks[0]?.kind;
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <span className="text-lg">{icon}</span>
+            {title}
+            <Badge variant="secondary" className="ml-1 font-mono text-xs">
+              {done}/{total} · {percent}%
+            </Badge>
+          </CardTitle>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => clearSection(sectionKey, kind)}>
+            <RotateCcw className="h-3 w-3" />
+            清除本區
+          </Button>
+        </div>
+        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={allTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            {allTasks.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]}
+                isAccount={isAccount}
+                onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+
+        {/* 以物易物 subtasks as collapsable sub-category under 每日 (only daily section) */}
+        {tasks[0]?.section === "daily" && effectivePins.length > 0 && (
+          <div
+            className={cn(
+              "rounded-lg border bg-card overflow-hidden",
+              isForked ? "border-sky-200 dark:border-sky-900" : "border-emerald-200 dark:border-emerald-900"
+            )}
+          >
+            <button
+              onClick={() => setBarterExpanded((v) => !v)}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
+            >
+              <span className="text-base">🔄</span>
+              <span className="text-sm font-medium">以物易物 已釘選</span>
+              <Tooltip content={isForked ? `個人模式：僅 ${char?.name} 有效（藍色）` : "共用模式：所有角色共享（綠色）"}>
+                <Badge className={cn("text-[10px] text-white", isForked ? "bg-sky-600" : "bg-emerald-600")}>
+                  {isForked ? "個人" : "共用"} {barterSubtasksFiltered.length}/{effectivePins.length}
+                </Badge>
+              </Tooltip>
+              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+                {barterExpanded ? "收合" : "展開"} {barterExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </span>
+            </button>
+            {barterExpanded && (
+              <div className="border-t bg-muted/20">
+                <div className="px-2 py-2 space-y-2">
+                  {barterSubtasksFiltered.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-3">已全部完成或已隱藏</p>
+                  ) : (
+                    <DndContext collisionDetection={closestCenter} onDragEnd={handleBarterDragEnd}>
+                      <SortableContext items={barterSubtasksFiltered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                        {barterSubtasksFiltered.map((bt) => (
+                          <TaskRow key={bt.id} task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  )}
+                  {barterSubtasks.length !== barterSubtasksFiltered.length && (
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      已隱藏 {barterSubtasks.length - barterSubtasksFiltered.length} 項（完成或手動隱藏）
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 已隱藏項目 — same primitive, dimmed + bottom, undo via Eye */}
+        {hiddenAll.length > 0 && (
+          <div className="rounded-lg border bg-card overflow-hidden border-dashed opacity-90">
+            <button
+              onClick={() => setHiddenExpanded((v) => !v)}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
+            >
+              <span className="text-base">🙈</span>
+              <span className="text-sm font-medium">已隱藏項目</span>
+              <Badge variant="secondary" className="text-[10px]">
+                {hiddenAll.length}
+              </Badge>
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">點擊 👁️ 可復原，會移回上方</span>
+              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+                {hiddenExpanded ? "收合" : "展開"} {hiddenExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </span>
+            </button>
+            {hiddenExpanded && (
+              <div className="border-t bg-muted/20">
+                <div className="px-2 py-2 space-y-2">
+                  {hiddenTasks.map((t) => (
+                    <div key={t.id} className="opacity-60">
+                      <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} />
+                    </div>
+                  ))}
+                  {hiddenBarter.map((bt) => (
+                    <div key={bt.id} className="opacity-60">
+                      <TaskRow task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {allTasks.length === 0 && barterSubtasksFiltered.length === 0 && hiddenAll.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-6">沒有任務（已隱藏或已完成）</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
