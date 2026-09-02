@@ -230,55 +230,55 @@ export function BarterExplorer() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      {/* list view like daily tab — single column, uniform 116px rows */}
+      <div className="space-y-2">
         {filtered.map((b) => {
           const scope = isForkedGetter() && barterByChar
             ? (barterByChar[activeChar?.id ?? ""] ?? []).includes(b.id) ? "personal" as const : "none" as const
             : barterPins.includes(b.id) ? "shared" as const : "none" as const;
           const pinned = scope !== "none";
-          // which other chars also have it (after fork)
           const otherChars = isForked
             ? chars.filter((c) => c.id !== activeChar?.id && (barterByChar?.[c.id] ?? []).includes(b.id)).map((c) => c.name)
             : [];
           return (
-            <Card
+            <div
               key={b.id}
               className={cn(
-                "transition-colors",
-                scope === "shared" && "ring-1 ring-emerald-500 border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20",
-                scope === "personal" && "ring-1 ring-sky-500 border-sky-200 dark:border-sky-900 bg-sky-50/50 dark:bg-sky-950/20"
+                "flex items-center gap-3 rounded-lg border bg-card px-3 py-3 h-[116px] transition-colors",
+                scope === "shared" && "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20",
+                scope === "personal" && "border-sky-200 dark:border-sky-900 bg-sky-50/50 dark:bg-sky-950/20"
               )}
               onContextMenu={(e) => {
-                // allow right-click on card too
                 e.preventDefault();
                 useAppStore.getState().toggleBarterPinForChar(b.id);
               }}
             >
-              <CardContent className="p-4 flex gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-sm font-medium">{b.name}</span>
-                    <Badge variant={b.priority === "must" ? "default" : b.priority === "skip" ? "outline" : "secondary"} className={cn("text-[10px]", b.priority === "must" && "bg-red-600 hover:bg-red-700")}>
-                      {PRIORITY_LABEL[b.priority as BarterPriority]}
-                    </Badge>
-                    <Badge variant="outline" className="text-[10px]">{b.town}</Badge>
-                    {pinned && (
-                      <Tooltip content={scope === "personal" ? `僅 ${activeChar?.name} 個人釘選${otherChars.length ? ` · 其他 ${otherChars.join("、")} 也有` : ""}` : `共用釘選 · 所有角色共享${otherChars.length ? ` · ${otherChars.length} 角色` : ""}`}>
-                        <Badge className={cn("text-[10px] text-white", scope === "personal" ? "bg-sky-600" : "bg-emerald-600")}>
-                          {scope === "personal" ? "個人" : "共用"}
-                        </Badge>
-                      </Tooltip>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">{b.give} → {b.get}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    {b.gatherSkill} · {b.perChar ? "每角色獨立" : "帳號限一次"}
-                    {otherChars.length > 0 && isForked && <span className="ml-1 text-sky-700 dark:text-sky-300">· 其他：{otherChars.join("、")}</span>}
-                  </p>
+              <span className="text-xl leading-none select-none" aria-hidden>
+                🔄
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-sm font-medium truncate">{b.name}</span>
+                  <Badge variant={b.priority === "must" ? "default" : b.priority === "skip" ? "outline" : "secondary"} className={cn("text-[10px]", b.priority === "must" && "bg-red-600 hover:bg-red-700")}>
+                    {PRIORITY_LABEL[b.priority as BarterPriority]}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    {b.town}
+                  </Badge>
+                  {pinned && (
+                    <Tooltip content={scope === "personal" ? `僅 ${activeChar?.name} 個人釘選${otherChars.length ? ` · 其他 ${otherChars.join("、")} 也有` : ""}` : `共用釘選 · 所有角色共享${otherChars.length ? ` · ${otherChars.length} 角色` : ""}`}>
+                      <Badge className={cn("text-[10px] text-white", scope === "personal" ? "bg-sky-600" : "bg-emerald-600")}>{scope === "personal" ? "個人" : "共用"}</Badge>
+                    </Tooltip>
+                  )}
                 </div>
-                <PinButton barterId={b.id} />
-              </CardContent>
-            </Card>
+                <p className="text-xs text-muted-foreground leading-snug break-words whitespace-pre-wrap mt-0.5 line-clamp-2 min-h-[32px]">{b.give} → {b.get}</p>
+                <p className="text-[11px] text-muted-foreground mt-1 truncate">
+                  {b.limit} · {b.perChar ? "每角色獨立" : "帳號限一次"}
+                  {otherChars.length > 0 && isForked && <span className="ml-1 text-sky-700 dark:text-sky-300">· 其他：{otherChars.join("、")}</span>}
+                </p>
+              </div>
+              <PinButton barterId={b.id} />
+            </div>
           );
         })}
       </div>

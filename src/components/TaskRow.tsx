@@ -71,7 +71,7 @@ export function TaskRow({ task, value, isAccount, onEdit }: Props) {
           <Button
             variant={checked ? "default" : "outline"}
             size="icon"
-            className={cn("h-8 w-8 rounded-full", checked && "bg-emerald-600 hover:bg-emerald-700 border-emerald-600")}
+            className={cn("h-8 w-8 rounded-md", checked && "bg-emerald-600 hover:bg-emerald-700 border-emerald-600")}
             onClick={() => toggleCheck(task.id, isAccount)}
             aria-label={task.name}
             role="checkbox"
