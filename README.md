@@ -71,7 +71,7 @@ Edit the JSON by hand (`id` must stay stable — progress keys off it), then `pn
 
 ## Deploy
 
-- **Cloudflare Workers Static Assets (free, recommended over Pages for new projects):** `wrangler.toml` points `[assets]` at `./dist`, no Worker script needed. Dashboard: Workers & Pages → Create → connect GitHub → build `pnpm build` → auto deploy on push. Or `npx wrangler deploy`. Static requests free, same as Pages.
+- **Vercel Hobby (free):** import the GitHub repo, framework preset Vite (build `pnpm build`, output `dist` auto-detected) → auto deploy on push. Free URL is `<project-name>.vercel.app` (name it `mabiroutine`). No `vercel.json` needed: single-page app with no router, so no rewrites required.
 - No env vars, static only.
 
 ## Project Structure

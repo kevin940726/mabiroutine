@@ -1,8 +1,0 @@
-# Workers Static Assets — static SPA, no Worker script needed.
-# Deploy via dashboard (Workers & Pages → Create → connect GitHub repo,
-# build `pnpm build`) or: npx wrangler deploy
-name = "mabiroutine"
-compatibility_date = "2026-09-03"
-
-[assets]
-directory = "./dist"
