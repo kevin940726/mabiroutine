@@ -5,7 +5,8 @@
  *   - https://mabinogi-mobile-notebook.vercel.app/barter-data.js — window.MABINOGI_BARTER_DATA, verified:"tw" (70) / "kr" (18)
  *   - https://mabi.yenyen.dev/ — 86 rows (all TW) with 地區+推薦度
  * nipponhashi barter 226 is cross-ref only (never seed).
- * Usage: node scripts/update-barter.mjs [--dry-run]
+ * Usage: node scripts/update-barter.mjs [--dry-run] [--merge-yenyen]
+ *   --merge-yenyen: union notebook 70 + yenyen 16 extra = 86 (default now when yenyen fetch succeeds)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -15,6 +16,7 @@ const YENYEN_URL = "https://mabi.yenyen.dev/";
 const NIPPON_URL = "https://mabinogimobile.nipponhashi.com/barter/"; // diff only
 const DEST = path.resolve("src/data/barter.json");
 const DRY = process.argv.includes("--dry-run");
+const NO_MERGE = process.argv.includes("--no-merge");
 
 async function fetchText(url) {
   console.log(`Fetching ${url} ...`);
@@ -33,7 +35,6 @@ function parseNotebook(js) {
 }
 
 function mapNotebookRec(rec) {
-  // notebook rec: 必換/推薦/首次必換/視需求 → our priority
   if (rec === "必換") return "must";
   if (rec === "推薦") return "extra";
   if (rec === "首次必換") return "once";
@@ -61,24 +62,85 @@ function mapNotebookToBarter(item, regions) {
   };
 }
 
+// yenyen parsing
+function parseYenyen(html) {
+  const rows = [...html.matchAll(/<li class="lrow">([\s\S]*?)<\/li>/g)];
+  const items = [];
+  for (const [, row] of rows) {
+    const npc = row.match(/class="lnpc">([^<]+)</)?.[1]?.trim() ?? "";
+    const region = row.match(/class="lregion">([^<]+)</)?.[1]?.trim() ?? "";
+    // give/get: inside lgive/lget, strip tags
+    const giveBlock = row.match(/class="lgive">([\s\S]*?)<\/span>\s*<span class="lflow"/)?.[1] ?? "";
+    const getBlock = row.match(/class="lget">([\s\S]*?)<\/span>\s*<div class="lnote"/)?.[1] ?? "";
+    const strip = (s) => s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    const give = strip(giveBlock).replace(/\s*×\s*/g, " ×");
+    const get = strip(getBlock).replace(/\s*×\s*/g, " ×");
+    const prioRaw = row.match(/prio-([^"\s]+)/)?.[1]?.trim() ?? "";
+    const limit = row.match(/llimit[^>]*>([^<]+)</)?.[1]?.trim() ?? "";
+    const note = row.match(/lnote[^>]*>([^<]+)</)?.[1]?.trim() ?? "";
+    // map prio
+    let priority = "extra";
+    let rec = "視需求";
+    if (prioRaw === "must") { priority = "must"; rec = "必換"; }
+    else if (prioRaw === "recommended") { priority = "extra"; rec = "推薦"; }
+    else if (prioRaw === "once" || prioRaw.includes("once")) { priority = "once"; rec = "首次必換"; }
+    else if (prioRaw === "situational" || prioRaw.includes("situational")) { priority = "situational"; rec = "視需求"; }
+    else if (prioRaw === "skip") { priority = "skip"; rec = "別換"; }
+    // yenyen's prio text is in the span inner, but class is reliable
+    // also check inner text for 必換 etc as fallback
+    const prioText = row.match(/prio-[^"]*">([^<]+)</)?.[1]?.trim();
+    if (prioText === "必換") { priority = "must"; rec = "必換"; }
+    else if (prioText === "推薦") { priority = "extra"; rec = "推薦"; }
+    else if (prioText === "首次必換") { priority = "once"; rec = "首次必換"; }
+
+    if (!npc || !give || !get) continue;
+    items.push({ npc, region, give, get, priority, rec, limit, note, prioRaw });
+  }
+  return items;
+}
+
+function yenyenToBarter(y, idx) {
+  // generate stable id for yenyen-only rows
+  const slug = `${y.npc}-${y.give}-${y.get}`.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, "").slice(0, 20) || `yen${idx}`;
+  const id = `yen-${slug}-${idx}`;
+  const town = y.region || "未知";
+  return {
+    id,
+    name: `${y.npc} ${y.get} ← ${y.give}`.slice(0, 80),
+    give: y.give,
+    get: y.get,
+    town,
+    priority: y.priority,
+    gatherSkill: town,
+    perChar: !y.limit.includes("帳號") && !y.limit.includes("伺服器"),
+    limit: y.limit || "每日 1 次",
+    rec: y.rec,
+    verified: "tw",
+    npc: y.npc,
+    note: y.note,
+    _yenyen: true,
+  };
+}
+
 async function main() {
   const notebookJs = await fetchText(NOTEBOOK_URL);
   const { regions, tw, kr } = parseNotebook(notebookJs);
   console.log(`Notebook: TW=${tw.length} / KR=${kr.length} / total=${tw.length + kr.length}`);
 
-  // yenyen: try to fetch, but site is client-rendered; fallback to count only
-  let yenyenCount = null;
+  let yenyenItems = [];
   try {
     const yenyenHtml = await fetchText(YENYEN_URL);
-    const yCount = (yenyenHtml.match(/地區/g) || []).length;
-    console.log(`Yenyen HTML fetched (${yenyenHtml.length} chars), heuristic region mentions=${yCount} (expect 86 rows all TW)`);
-    yenyenCount = 86; // known per AGENTS.md; full parse would need JS execution
+    yenyenItems = parseYenyen(yenyenHtml);
+    console.log(`Yenyen parsed: ${yenyenItems.length} rows (distinct NPC ${new Set(yenyenItems.map(x=>x.npc)).size})`);
+    // debug prio distribution
+    const prioCounts = {};
+    for (const y of yenyenItems) prioCounts[y.priority] = (prioCounts[y.priority]||0)+1;
+    console.log(`Yenyen prio:`, prioCounts);
   } catch (e) {
-    console.warn("Yenyen fetch failed, using AGENTS.md count 86:", e.message);
-    yenyenCount = 86;
+    console.warn("Yenyen parse failed, using notebook only:", e.message);
+    yenyenItems = [];
   }
 
-  // nipponhashi diff only (not golden)
   try {
     const nipHtml = await fetchText(NIPPON_URL);
     console.log(`Nipponhashi HTML ${nipHtml.length} chars (diff only, not seeded)`);
@@ -87,21 +149,41 @@ async function main() {
   }
 
   const normalized = tw.map((i) => mapNotebookToBarter(i, regions));
-  // optional union with yenyen 16 extra could be added here if we parse yenyen fully
 
-  console.log(`\nSeed set: notebook TW ${normalized.length} rows (must=${normalized.filter((x) => x.priority === "must").length})`);
+  // union with yenyen extra (if not --no-merge and yenyen fetched)
+  let extra = [];
+  if (!NO_MERGE && yenyenItems.length) {
+    const key = (x) => `${x.npc}|${x.give}|${x.get}`;
+    const notebookKeys = new Set(normalized.map(n => key({ npc: n.npc, give: n.give, get: n.get })));
+    // also consider normalized give/get may have different spacing; normalize
+    const norm = (s) => s.replace(/\s+/g, "").replace(/×/g, "×");
+    const notebookKeysNorm = new Set(normalized.map(n => `${n.npc}|${norm(n.give)}|${norm(n.get)}`));
+    for (let i=0;i<yenyenItems.length;i++) {
+      const y = yenyenItems[i];
+      const k = `${y.npc}|${norm(y.give)}|${norm(y.get)}`;
+      if (!notebookKeysNorm.has(k)) {
+        extra.push(yenyenToBarter(y, i));
+      }
+    }
+    console.log(`Yenyen extra not in notebook: ${extra.length} (e.g. ${extra.slice(0,5).map(e=>e.npc+':'+e.get).join(', ')})`);
+  }
+
+  const combined = [...normalized, ...extra];
+  // sort by priority then town
+  const order = { must:0, extra:1, once:2, situational:3, skip:4 };
+  combined.sort((a,b) => (order[a.priority]??9)-(order[b.priority]??9) || a.town.localeCompare(b.town));
+
+  console.log(`\nSeed set: notebook TW ${normalized.length} + yenyen extra ${extra.length} = ${combined.length} rows (must=${combined.filter(x=>x.priority==="must").length})`);
   console.log(`Skipped KR preview: ${kr.length} rows (${kr.map((x) => x.id).join(", ").slice(0, 120)}...)`);
-  console.log(`Yenyen TW 86 overlaps this set; 16 extra yenyen rows not in notebook would be added in full union.`);
 
-  // map to our barter.json schema (keep full fields for traceability)
-  const out = normalized.map((r) => ({
+  const out = combined.map((r) => ({
     id: r.id,
     name: `${r.npc} ${r.get} ← ${r.give}`.replace(/\s+/g, " ").slice(0, 80),
     give: r.give,
     get: r.get,
     town: r.town,
     priority: r.priority,
-    gatherSkill: r.town, // notebook has no gatherSkill; use town as grouping proxy
+    gatherSkill: r.town,
     perChar: r.perChar,
     limit: r.limit,
     rec: r.rec,
@@ -113,6 +195,10 @@ async function main() {
   if (DRY) {
     console.log(`\n[dry-run] would write ${out.length} rows to ${DEST}`);
     console.log(JSON.stringify(out.slice(0, 2), null, 2));
+    if (extra.length) {
+      console.log("\n[yenyen extra sample]");
+      console.log(JSON.stringify(extra.slice(0, 2), null, 2));
+    }
     console.log("\nTo apply: node scripts/update-barter.mjs");
     return;
   }

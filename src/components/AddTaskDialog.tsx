@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import type { Task, ResetKind, TaskSection } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -67,8 +67,13 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
             </div>
             <div>
               <Label>圖示</Label>
-              <Select value={icon} onChange={(e) => setIcon(e.target.value)}>
-                {ICONS.map((i) => <option key={i} value={i}>{i}</option>)}
+              <Select value={icon} onValueChange={(v) => setIcon(v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="選擇圖示" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ICONS.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
           </div>
@@ -83,28 +88,43 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>區段</Label>
-              <Select value={section} onChange={(e) => setSection(e.target.value as TaskSection)}>
-                <option value="daily">☀️ 每日</option>
-                <option value="weekly">🗓️ 每週</option>
-                <option value="account">👥 帳號共通</option>
+              <Select value={section} onValueChange={(v) => setSection(v as TaskSection)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="選擇區段" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">☀️ 每日</SelectItem>
+                  <SelectItem value="weekly">🗓️ 每週</SelectItem>
+                  <SelectItem value="account">👥 帳號共通</SelectItem>
+                </SelectContent>
               </Select>
             </div>
             <div>
               <Label>重置</Label>
-              <Select value={kind} onChange={(e) => setKind(e.target.value as ResetKind)}>
-                <option value="daily">每日 06:00</option>
-                <option value="weekly">每週 Mon 06:00</option>
-                <option value="account-daily">帳號每日</option>
-                <option value="account-weekly">帳號每週</option>
+              <Select value={kind} onValueChange={(v) => setKind(v as ResetKind)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="選擇重置" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">每日 06:00</SelectItem>
+                  <SelectItem value="weekly">每週 Mon 06:00</SelectItem>
+                  <SelectItem value="account-daily">帳號每日</SelectItem>
+                  <SelectItem value="account-weekly">帳號每週</SelectItem>
+                </SelectContent>
               </Select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>類型</Label>
-              <Select value={type} onChange={(e) => setType(e.target.value as "check"|"counter")}>
-                <option value="check">勾選</option>
-                <option value="counter">計數</option>
+              <Select value={type} onValueChange={(v) => setType(v as "check"|"counter")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="選擇類型" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="check">勾選</SelectItem>
+                  <SelectItem value="counter">計數</SelectItem>
+                </SelectContent>
               </Select>
             </div>
             {type==="counter" && (

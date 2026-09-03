@@ -1,8 +1,9 @@
+import { useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, EyeOff, Eye, GripVertical, Trash2, Pencil } from "lucide-react";
+import { EyeOff, Eye, GripVertical, Trash2, Pencil } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -15,7 +16,6 @@ type Props = {
 
 export function TaskRow({ task, value, isAccount, onEdit }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
-  const incCounter = useAppStore((s) => s.incCounter);
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const char = useAppStore((s) => s.getActiveChar());
@@ -27,78 +27,95 @@ export function TaskRow({ task, value, isAccount, onEdit }: Props) {
   const checked = isCheck ? Boolean(value) : false;
   const count = !isCheck ? (typeof value === "number" ? value : 0) : 0;
   const isDone = isCheck ? checked : count >= (task.max ?? 0) && (task.max ?? 0) > 0;
-  const progressPct = !isCheck && task.max ? Math.min(100, (count / task.max) * 100) : 0;
 
   const isCustom = task.source === "custom";
+  const isBarter = task.source === "barter";
+  const [npcImgError, setNpcImgError] = useState(false);
+  const showNpc = isBarter && task.npc && !npcImgError;
+  const getRes = isBarter ? (task.barterMeta?.get ?? "").replace(/ ×\d+$/, "") : "";
   return (
     <div
       ref={setNodeRef}
       style={style}
+      data-task-row="true"
       className={cn(
-        // fixed height so check vs counter (progress) rows match — 116px covers 2-line desc + progress
-        "group relative flex items-center gap-3 rounded-lg border px-3 py-3 transition-colors h-[116px] md:h-[116px]",
+        // compact: progress lives inside the action tile, so no reserved bar height
+        "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors min-h-[88px]",
         isCustom ? "pr-20" : "pr-14",
         isDone ? "bg-muted/50 border-muted" : "bg-card hover:bg-accent/50",
         isHidden ? "opacity-50" : ""
       )}
-    >
+     >
       <button {...attributes} {...listeners} className="cursor-grab p-1 opacity-40 hover:opacity-100 touch-none" aria-label="drag">
         <GripVertical className="h-4 w-4" />
       </button>
-      <span className="text-xl leading-none select-none" aria-hidden>
-        {task.icon}
-      </span>
+      {showNpc ? (
+        <img
+          src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+          alt={task.npc!}
+          className="h-[50px] w-[50px] rounded-full object-cover shrink-0 border border-border/50 bg-muted"
+          loading="lazy"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "/npc/placeholder.png";
+            setNpcImgError(false);
+          }}
+        />
+      ) : (
+        <span className="h-[50px] w-[50px] shrink-0 grid place-items-center text-2xl leading-none select-none" aria-hidden>
+          {task.icon}
+        </span>
+      )}
+      {isBarter ? (
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className={cn("text-sm font-bold text-primary truncate", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
+            {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">一定要換</span>}
+            <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
+              <span className="font-medium truncate">{task.npc}</span>
+              <span className="text-muted-foreground truncate">· {task.town}</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
+            <span className="truncate">
+              你給 {task.barterMeta?.give} → 你拿 {task.barterMeta?.get}
+            </span>
+            <span className="ml-auto shrink-0">{task.barterMeta?.limit}</span>
+          </div>
+          {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic line-clamp-1">📝 {task.notes}</p>}
+        </div>
+      ) : (
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn("text-sm font-medium truncate", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
           {task.timeGated && <span className="rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-1.5 py-0.5 text-[10px]">{task.timeGated}</span>}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
-          {task.source === "barter" && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px]">{task.town}</span>}
+          {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px]">{task.town}</span>}
         </div>
         <p className="text-xs text-muted-foreground leading-snug break-words whitespace-pre-wrap mt-0.5 line-clamp-2 min-h-[32px] md:min-h-[32px] md:line-clamp-2">
           {task.desc || "\u00A0"}
         </p>
         {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic line-clamp-1">📝 {task.notes}</p>}
-        {/* reserve progress height for all rows so counter rows not taller */}
-        <div className={cn("mt-1.5 h-1.5 w-full rounded-full overflow-hidden", isCheck || !task.max ? "invisible" : "bg-muted")}>
-          {!isCheck && task.max ? <div className="h-full bg-primary transition-all" style={{ width: `${progressPct}%` }} /> : null}
-        </div>
       </div>
+      )}
 
-      <div className="flex items-center gap-1 shrink-0">
+      {/* fixed-width action slot — identical width for check and counter so text never shifts */}
+      <div className="flex items-center justify-center shrink-0 w-[64px]">
         {isCheck ? (
-          <Button
-            variant={checked ? "default" : "outline"}
-            size="icon"
-            className={cn("h-8 w-8 rounded-md", checked && "bg-emerald-600 hover:bg-emerald-700 border-emerald-600")}
+          <button
+            className={cn(
+              "h-14 w-14 rounded-xl border grid place-items-center transition-colors",
+              checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
+            )}
             onClick={() => toggleCheck(task.id, isAccount)}
             aria-label={task.name}
             role="checkbox"
             aria-checked={checked}
           >
-            <span className="text-base leading-none">{checked ? "✓" : ""}</span>
-          </Button>
+            <span className="text-xl leading-none">{checked ? "✓" : ""}</span>
+          </button>
         ) : (
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="icon" className="h-7 w-7 rounded-full" disabled={count <= 0} onClick={() => incCounter(task.id, -1, isAccount)} aria-label="-1">
-              <Minus className="h-3 w-3" />
-            </Button>
-            <span className="min-w-[48px] text-center text-sm font-mono">
-              {count}
-              <span className="text-muted-foreground"> / {task.max}</span>
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-7 w-7 rounded-full"
-              disabled={count >= (task.max ?? 999)}
-              onClick={() => incCounter(task.id, 1, isAccount)}
-              aria-label="+1"
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
+          <CounterTile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} />
         )}
       </div>
 
@@ -119,5 +136,64 @@ export function TaskRow({ task, value, isAccount, onEdit }: Props) {
         )}
       </div>
     </div>
+  );
+}
+
+// Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
+// right-click / 550ms long-press = −1. Progress is the fill rising inside the tile.
+function CounterTile({ taskId, count, max, isAccount }: { taskId: string; count: number; max: number; isAccount: boolean }) {
+  const incCounter = useAppStore((s) => s.incCounter);
+  const setCounter = useAppStore((s) => s.setCounter);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longFired = useRef(false);
+  const pct = max ? Math.min(100, (count / max) * 100) : 0;
+  const done = max > 0 && count >= max;
+  const clear = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  return (
+    <button
+      className={cn(
+        "relative h-14 w-14 rounded-xl border overflow-hidden select-none transition-colors",
+        done ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
+      )}
+      title={done ? "已完成，再點一下歸零" : "點一下 +1，右鍵/長按 −1"}
+      onClick={() => {
+        if (longFired.current) {
+          longFired.current = false;
+          return;
+        }
+        if (done) setCounter(taskId, 0, isAccount);
+        else incCounter(taskId, 1, isAccount);
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        incCounter(taskId, -1, isAccount);
+      }}
+      onPointerDown={() => {
+        longFired.current = false;
+        clear();
+        timer.current = setTimeout(() => {
+          longFired.current = true;
+          incCounter(taskId, -1, isAccount);
+        }, 550);
+      }}
+      onPointerUp={clear}
+      onPointerLeave={clear}
+      aria-label={`${count} / ${max}，點一下加一`}
+    >
+      {!done && <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />}
+      <span className="absolute inset-0 grid place-items-center">
+        {done ? (
+          <span className="text-xl leading-none">✓</span>
+        ) : (
+          <span className="font-mono leading-none">
+            <span className="text-lg font-bold">{count}</span>
+            <span className="text-[10px] text-muted-foreground">/{max}</span>
+          </span>
+        )}
+      </span>
+    </button>
   );
 }

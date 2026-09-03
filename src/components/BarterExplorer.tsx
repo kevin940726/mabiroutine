@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select } from "@/components/ui/select";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useLongPress } from "@/hooks/useLongPress";
 import { cn } from "@/lib/utils";
@@ -192,17 +192,32 @@ export function BarterExplorer() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Select value={priority} onChange={(e) => setPriority(e.target.value as BarterPriority | "all")}>
-              <option value="all">全部優先度</option>
-              {PRIORITY_ORDER.map((p) => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
+            <Select value={priority} onValueChange={(v) => setPriority(v as BarterPriority | "all")}>
+              <SelectTrigger className="w-auto">
+                <SelectValue placeholder="全部優先度" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部優先度</SelectItem>
+                {PRIORITY_ORDER.map((p) => <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>)}
+              </SelectContent>
             </Select>
-            <Select value={town} onChange={(e) => setTown(e.target.value)}>
-              <option value="all">全部城鎮</option>
-              {TOWNS.map((t) => <option key={t} value={t}>{t}</option>)}
+            <Select value={town} onValueChange={(v) => setTown(v)}>
+              <SelectTrigger className="w-auto">
+                <SelectValue placeholder="全部城鎮" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部城鎮</SelectItem>
+                {TOWNS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
             </Select>
-            <Select value={skill} onChange={(e) => setSkill(e.target.value)}>
-              <option value="all">全部採集技能</option>
-              {SKILLS.map((s) => <option key={s} value={s}>{s}</option>)}
+            <Select value={skill} onValueChange={(v) => setSkill(v)}>
+              <SelectTrigger className="w-auto">
+                <SelectValue placeholder="全部採集技能" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部採集技能</SelectItem>
+                {SKILLS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
             </Select>
             <span className="text-xs text-muted-foreground self-center">
               顯示 {filtered.length} / {barterJson.length} 筆 · {activeChar?.name} 有效 {effective.length}
@@ -230,13 +245,12 @@ export function BarterExplorer() {
         </CardContent>
       </Card>
 
-      {/* list view like daily tab — single column, uniform 116px rows */}
+      {/* list view — compact single-line cards */}
       <div className="space-y-2">
         {filtered.map((b) => {
           const scope = isForkedGetter() && barterByChar
             ? (barterByChar[activeChar?.id ?? ""] ?? []).includes(b.id) ? "personal" as const : "none" as const
             : barterPins.includes(b.id) ? "shared" as const : "none" as const;
-          const pinned = scope !== "none";
           const otherChars = isForked
             ? chars.filter((c) => c.id !== activeChar?.id && (barterByChar?.[c.id] ?? []).includes(b.id)).map((c) => c.name)
             : [];
@@ -244,7 +258,7 @@ export function BarterExplorer() {
             <div
               key={b.id}
               className={cn(
-                "flex items-center gap-3 rounded-lg border bg-card px-3 py-3 h-[116px] transition-colors",
+                "flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-colors",
                 scope === "shared" && "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20",
                 scope === "personal" && "border-sky-200 dark:border-sky-900 bg-sky-50/50 dark:bg-sky-950/20"
               )}
@@ -253,29 +267,31 @@ export function BarterExplorer() {
                 useAppStore.getState().toggleBarterPinForChar(b.id);
               }}
             >
-              <span className="text-xl leading-none select-none" aria-hidden>
-                🔄
-              </span>
+              <img
+                src={`/npc/${encodeURIComponent(b.npc)}.png`}
+                alt={b.npc}
+                className="h-10 w-10 shrink-0 rounded-full object-cover border border-border/50 bg-muted"
+                loading="lazy"
+                onError={(e) => ((e.target as HTMLImageElement).src = "/npc/placeholder.png")}
+              />
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-sm font-medium truncate">{b.name}</span>
-                  <Badge variant={b.priority === "must" ? "default" : b.priority === "skip" ? "outline" : "secondary"} className={cn("text-[10px]", b.priority === "must" && "bg-red-600 hover:bg-red-700")}>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-primary truncate">{b.get.replace(/ ×\d+$/, "")}</span>
+                  <Badge variant={b.priority === "must" ? "default" : b.priority === "skip" ? "outline" : "secondary"} className={cn("text-[10px] shrink-0", b.priority === "must" && "bg-red-600 hover:bg-red-700")}>
                     {PRIORITY_LABEL[b.priority as BarterPriority]}
                   </Badge>
-                  <Badge variant="outline" className="text-[10px]">
-                    {b.town}
-                  </Badge>
-                  {pinned && (
-                    <Tooltip content={scope === "personal" ? `僅 ${activeChar?.name} 個人釘選${otherChars.length ? ` · 其他 ${otherChars.join("、")} 也有` : ""}` : `共用釘選 · 所有角色共享${otherChars.length ? ` · ${otherChars.length} 角色` : ""}`}>
-                      <Badge className={cn("text-[10px] text-white", scope === "personal" ? "bg-sky-600" : "bg-emerald-600")}>{scope === "personal" ? "個人" : "共用"}</Badge>
-                    </Tooltip>
-                  )}
+                  <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
+                    <span className="font-medium truncate">{b.npc}</span>
+                    <span className="text-muted-foreground truncate">· {b.town}</span>
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground leading-snug break-words whitespace-pre-wrap mt-0.5 line-clamp-2 min-h-[32px]">{b.give} → {b.get}</p>
-                <p className="text-[11px] text-muted-foreground mt-1 truncate">
-                  {b.limit} · {b.perChar ? "每角色獨立" : "帳號限一次"}
-                  {otherChars.length > 0 && isForked && <span className="ml-1 text-sky-700 dark:text-sky-300">· 其他：{otherChars.join("、")}</span>}
-                </p>
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
+                  <span className="truncate">
+                    你給 {b.give} → 你拿 {b.get}
+                    {otherChars.length > 0 && isForked && <span className="ml-1 text-sky-700 dark:text-sky-300">· 其他：{otherChars.join("、")}</span>}
+                  </span>
+                  <span className="ml-auto shrink-0">{b.limit}</span>
+                </div>
               </div>
               <PinButton barterId={b.id} />
             </div>
