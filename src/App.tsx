@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Task } from "@/lib/types";
 import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
+import { Analytics } from "@vercel/analytics/react";
 
 const BUILTIN_TASKS = trackerJson as Task[];
 
@@ -474,6 +475,7 @@ export default function App() {
       </main>
 
       <AddTaskDialog open={addOpen} onOpenChange={(v) => { setAddOpen(v); if (!v) setEditingTask(null); }} editing={editingTask} />
+      <Analytics />
     </div>
   );
 }

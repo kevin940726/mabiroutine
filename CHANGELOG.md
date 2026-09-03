@@ -31,6 +31,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 
 ### Chores
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)
+- Vercel Analytics mounted at app root (`@vercel/analytics/react`)
 
 ## 2026-09-03 (`37eb111`)
 
