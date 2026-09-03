@@ -2,7 +2,7 @@
 
 Reader-facing log of user-visible changes. Newest first. Each entry links its commit.
 
-## Unreleased
+## 2026-09-03 — Unreleased batch (pins, data, perf, branding)
 
 ### Features
 - `tracker.json` replaces `builtin.ts`: both data files are hand-owned JSON sources of truth
