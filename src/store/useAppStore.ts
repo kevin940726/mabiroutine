@@ -140,7 +140,7 @@ export function barterToTask(b: BarterJsonItem): Task {
 const DEFAULT_MUST_PINS: string[] = (barterJson as BarterJsonItem[]).filter((b) => b.priority === "must").map((b) => b.id);
 
 const initial: AppState = {
-  version: 4,
+  version: 5,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -492,7 +492,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => localStorage),
-      version: 4,
+      version: 5,
       migrate: (persisted: unknown, version: number) => {
         const s = persisted as AppState & { version?: number };
         if (version < 3) {
@@ -508,6 +508,40 @@ export const useAppStore = create<Store>()(
             s.barterPins = [...DEFAULT_MUST_PINS];
           }
           s.version = 4;
+        }
+        if (version < 5) {
+          // v4 → v5: barter.json switched from synthetic barter-001..030 (30 rows) to notebook TW 70 (tir-*/dug-*/dun-*).
+          // Old synthetic ids are all stale (startWith barter-), reseed to new must (10) so 一定要換/必換 appears by default.
+          const valid = new Set((barterJson as BarterJsonItem[]).map((b) => b.id));
+          const hasSynthetic = (arr: string[]) => arr.some((id) => id.startsWith("barter-"));
+          if (s.barterPins && (hasSynthetic(s.barterPins) || s.barterPins.some((id) => !valid.has(id)))) {
+            const filtered = s.barterPins.filter((id) => valid.has(id));
+            // if any synthetic or >50% invalid, reseed to must defaults
+            if (hasSynthetic(s.barterPins) || filtered.length === 0 || filtered.length < s.barterPins.length / 2) {
+              s.barterPins = [...DEFAULT_MUST_PINS];
+            } else {
+              s.barterPins = filtered;
+            }
+          }
+          if (s.barterPinsByChar) {
+            for (const [k, arr] of Object.entries(s.barterPinsByChar)) {
+              const a = arr as string[];
+              if (hasSynthetic(a) || a.some((id) => !valid.has(id))) {
+                const filtered = a.filter((id) => valid.has(id));
+                if (hasSynthetic(a) || filtered.length === 0 || filtered.length < a.length / 2) {
+                  s.barterPinsByChar[k] = [...DEFAULT_MUST_PINS];
+                } else {
+                  s.barterPinsByChar[k] = filtered;
+                }
+              }
+            }
+          }
+          // if still empty and not forked, seed must
+          const hasPinsNow =
+            (s.barterPins && s.barterPins.length > 0) ||
+            (s.barterPinsByChar && Object.values(s.barterPinsByChar).some((a) => (a as string[]).length > 0));
+          if (!hasPinsNow && !s.isBarterForked) s.barterPins = [...DEFAULT_MUST_PINS];
+          s.version = 5;
         }
         return s as AppState;
       },

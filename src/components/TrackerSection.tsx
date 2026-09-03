@@ -31,6 +31,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   const reorderBarter = useAppStore((s) => s.reorderBarterPins);
   const globalOrder = useAppStore((s) => s.globalTaskOrder);
   const hideCompleted = useAppStore((s) => s.prefs.hideCompleted);
+  const [collapsed, setCollapsed] = useState(false);
   const [barterExpanded, setBarterExpanded] = useState(true);
   const [hiddenExpanded, setHiddenExpanded] = useState(false);
 
@@ -151,24 +152,44 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-base">
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          className="flex w-full items-center justify-between gap-2 text-left rounded-md -mx-1 px-1 py-1 hover:bg-accent/50 transition-colors"
+        >
+          <CardTitle className="flex items-center gap-2 text-base m-0">
+            {collapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
             <span className="text-lg">{icon}</span>
             {title}
             <Badge variant="secondary" className="ml-1 font-mono text-xs">
               {done}/{total} · {percent}%
             </Badge>
           </CardTitle>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => clearSection(sectionKey, kind)}>
+          <span className="text-xs text-muted-foreground hidden sm:inline">{collapsed ? "展開" : "收合"}</span>
+        </button>
+        <div className="flex items-center gap-2 mt-2">
+          <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} />
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              clearSection(sectionKey, kind);
+            }}
+          >
             <RotateCcw className="h-3 w-3" />
             清除本區
           </Button>
         </div>
-        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-          <div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} />
-        </div>
       </CardHeader>
-      <CardContent className="space-y-2">
+      {collapsed ? (
+        <CardContent className="py-3">
+          <p className="text-xs text-muted-foreground text-center">已收合 — 點擊上方展開</p>
+        </CardContent>
+      ) : (
+        <CardContent className="space-y-2">
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={allTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             {allTasks.map((t) => (
@@ -270,7 +291,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
         {allTasks.length === 0 && barterSubtasksFiltered.length === 0 && hiddenAll.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-6">沒有任務（已隱藏或已完成）</p>
         )}
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }
