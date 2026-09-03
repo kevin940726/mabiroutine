@@ -101,6 +101,13 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 4. Renaming a row id → add an explicit id-remap in the new step (prune would drop the old progress otherwise); tell the user first.
 5. `pnpm build` must pass; user-facing impact goes in `CHANGELOG.md` + README storage section.
 
+## Changelog — pre-commit rule (agents: update before every commit)
+
+- Every commit must update `CHANGELOG.md` **in the same commit** — no code/data/docs commit lands without a changelog entry.
+- Newest first: add bullets under the top `## … — Unreleased batch` section; once the hash is known, give the batch its own dated section (`## 2026-09-03 (\`abc1234\`)`) so each entry links its commit.
+- User-facing changes → `### Features` / `### Fixes`; internal/agent-only changes → `### Chores`.
+- If you spot a past commit with no entry, backfill it in the next commit — never let the gap grow.
+
 ## Pre-push Gate (agents: run this before every push)
 
 `pnpm check` = `lint` + `test:migrations` + `build`. All three must pass:

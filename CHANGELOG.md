@@ -19,6 +19,20 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Barter rows: removed 需先換 suffixes
 - Character rename form contrast and padding; footer credit/link removed; uniform 釘選/已釘選 button width
 
+### Chores
+- Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)
+
+## 2026-09-03 (`37eb111`)
+
+### Features
+- Mobile-only layouts via `useIsMobile` (<640px); desktop UI frozen pixel-identical to the released build (`37eb111`)
+- Mobile tracker rows go two-line with zero ellipsis: badges on their own line, 44px tap tiles, ghost eye / ⋯ menu, edge-hug drag grip, full-bleed sections (`37eb111`)
+- Mobile compact pill goes single-line: progress + ‹ character › stepper + add + ⋯ menu with inline rename (`37eb111`)
+- Mobile header goes single-line (O1): wordmark only + stacked daily/weekly countdown on the right (`37eb111`)
+
+### Chores
+- Pill / header throwaway prototypes (`?variant=`, DEV-only) stay wired for the next loop (`37eb111`)
+
 ## 2026-09-03 (`314509e`)
 
 ### Features
