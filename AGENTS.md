@@ -59,6 +59,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 - **Full:** `nipponhashi 226` — currently all 226 appear in TW mode, but treat as TW *unless* row has `verified:"kr"` in notebook or `data-available="kr-only"` / hidden when `tw` active.
 - Demo `src/data/barter.json` 30 rows sample the `must` (TW) slice. Full seed should be notebook 70 tw as base, optionally extended to yenyen 86 after diff, never include notebook 18 kr.
 - `perChar` / `limit` / `rec` / `region` come from notebook/yenyen, not invented.
+- **Default pins are a hand-owned list:** `src/data/defaultPins.json` (`pins` array of barter ids) — NOT derived from `priority==="must"`. Curate it by hand; `pnpm suggest-barter` appends `pinSuggestions` (`add` = fetched must ∉ list, `remove` = listed id whose fetched priority ≠ must, `stale` = listed id ∉ barter.json) for manual apply. Store sanitizes the list against barter.json ids at load (unknown ids dropped, order kept).
 
 ## Filtering Rules — manual-first, fetch is suggestion-only
 

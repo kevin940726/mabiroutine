@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
+import defaultPinsJson from "@/data/defaultPins.json";
 import type { AppState, BarterFilters, Character, Task, BarterPriority } from "@/lib/types";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiDateKey, getTaipeiWeekKey } from "@/lib/reset";
 import { idleStorage } from "@/lib/storage";
@@ -135,7 +136,12 @@ export function barterToTask(b: BarterJsonItem): Task {
   };
 }
 
-const DEFAULT_MUST_PINS: string[] = (barterJson as BarterJsonItem[]).filter((b) => b.priority === "must").map((b) => b.id);
+// Default pins are a hand-owned list (src/data/defaultPins.json), NOT derived
+// from barter.json priorities — curate it by hand; `pnpm suggest-barter`
+// proposes additions/removals when source priorities drift.
+const DEFAULT_MUST_PINS: string[] = [...new Set((defaultPinsJson.pins ?? []) as string[])].filter((id) =>
+  (barterJson as BarterJsonItem[]).some((b) => b.id === id)
+);
 
 const DEFAULT_BARTER_FILTERS: BarterFilters = { priority: "all", town: "all", skill: "all", onlyPinned: false };
 

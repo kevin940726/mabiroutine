@@ -11,6 +11,7 @@ const mem = new Map<string, string>();
 
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
+import defaultPinsJson from "@/data/defaultPins.json";
 const { migratePersisted } = await import("@/store/useAppStore");
 
 type AnyRec = Record<string, unknown>;
@@ -23,7 +24,10 @@ function assert(cond: unknown, msg: string): void {
 }
 
 const trackerIds = new Set((trackerJson as { id: string }[]).map((t) => t.id));
-const mustIds = (barterJson as { id: string; priority: string }[]).filter((b) => b.priority === "must").map((b) => b.id);
+// default pins come from the hand-owned defaultPins.json (sanitized like the store)
+const mustIds = [...new Set((defaultPinsJson.pins ?? []) as string[])].filter((id) =>
+  (barterJson as { id: string }[]).some((b) => b.id === id)
+);
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
 // A: versionless ancient save -> full chain to v9 with seeded defaults
