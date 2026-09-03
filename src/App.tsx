@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import trackerJson from "@/data/tracker.json";
 import { CharacterTabs } from "@/components/CharacterTabs";
-import { PillPrototype, PillSwitcher, type PillVariant } from "@/components/PillPrototype"; // PROTOTYPE (DEV-only takeover)
-import { HeaderPrototype, HeaderSwitcher, type HeaderVariant } from "@/components/HeaderPrototype"; // PROTOTYPE (DEV-only takeover)
 import { TrackerSection } from "@/components/TrackerSection";
 import { BarterExplorer } from "@/components/BarterExplorer";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
@@ -130,25 +128,6 @@ export default function App() {
 
   if (!hasHydrated) {
     return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">載入中...</div>;
-  }
-
-  // PROTOTYPE takeover (DEV-only)
-  const protoParam = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("variant") : null;
-  if (protoParam === "o1" || protoParam === "o2" || protoParam === "o3") {
-    return (
-      <div className="min-h-screen bg-background">
-        <HeaderPrototype variant={protoParam as HeaderVariant} />
-        <HeaderSwitcher />
-      </div>
-    );
-  }
-  if (protoParam === "m1" || protoParam === "m2" || protoParam === "m3" || protoParam === "n1" || protoParam === "n2" || protoParam === "n3") {
-    return (
-      <div className="min-h-screen bg-background">
-        <PillPrototype variant={protoParam as PillVariant} />
-        <PillSwitcher />
-      </div>
-    );
   }
 
   return (
