@@ -129,7 +129,7 @@ export default function App() {
         <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-3xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold text-sm">M</div>
+            <img src="/logo-96.png" alt="MabiRoutine" className="h-8 w-8 object-contain" />
             <div>
               <h1 className="text-base font-semibold leading-none">MabiRoutine</h1>
               <p className="text-xs text-muted-foreground">瑪奇 Mobile 日課追蹤 · 06:00 重置 (Asia/Taipei)</p>
