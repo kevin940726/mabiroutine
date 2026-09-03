@@ -487,7 +487,7 @@ export const useAppStore = create<Store>()(
         }
       },
       resetAll: () => {
-        if (!confirm("確定重置所有資料？此動作無法復原。")) return;
+        // confirmation lives in the UI (two-tap inline confirm); this is the point of no return
         const fresh = defaultChar("角色 1");
         set({
           ...initial,

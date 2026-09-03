@@ -34,6 +34,7 @@ export default function App() {
   const [tab, setTab] = useState<"tracker" | "barter">("tracker");
   const [addOpen, setAddOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const { dailyText, weeklyText } = useCountdown();
   const [compact, setCompact] = useState(false);
   const [pillMenuOpen, setPillMenuOpen] = useState(false);
@@ -457,10 +458,29 @@ export default function App() {
               <Upload className="h-4 w-4" />
               匯入 JSON
             </Button>
-            <Button variant="ghost" size="sm" onClick={resetAll} className="text-destructive hover:text-destructive">
-              <Trash2 className="h-4 w-4" />
-              重置所有資料
-            </Button>
+            {confirmingReset ? (
+              <span className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-2.5 py-1.5">
+                <span className="text-xs font-medium text-destructive">確定清除全部資料？無法復原。</span>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    resetAll();
+                    setConfirmingReset(false);
+                  }}
+                >
+                  確認清除
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmingReset(false)}>
+                  取消
+                </Button>
+              </span>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => setConfirmingReset(true)} className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+                重置所有資料
+              </Button>
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>角色數 {chars.length}</span>
