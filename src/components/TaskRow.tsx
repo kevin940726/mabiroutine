@@ -3,7 +3,8 @@ import { useAppStore } from "@/store/useAppStore";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { EyeOff, Eye, GripVertical, Trash2, Pencil } from "lucide-react";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -14,7 +15,261 @@ type Props = {
   onEdit?: () => void;
 };
 
-export function TaskRow({ task, value, isAccount, onEdit }: Props) {
+export function TaskRow(props: Props) {
+  const isMobile = useIsMobile();
+  return isMobile ? <TaskRowMobile {...props} /> : <TaskRowDesktop {...props} />;
+}
+
+function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
+  const toggleCheck = useAppStore((s) => s.toggleCheck);
+  const toggleHidden = useAppStore((s) => s.toggleHidden);
+  const removeCustom = useAppStore((s) => s.removeCustomTask);
+  const char = useAppStore((s) => s.getActiveChar());
+  const isHidden = char?.hiddenTaskIds.includes(task.id) ?? false;
+
+  const isCheck = task.type === "check";
+  const checked = isCheck ? Boolean(value) : false;
+  const count = !isCheck ? (typeof value === "number" ? value : 0) : 0;
+  const isDone = isCheck ? checked : count >= (task.max ?? 0) && (task.max ?? 0) > 0;
+
+  const isCustom = task.source === "custom";
+  const isBarter = task.source === "barter";
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
+  const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
+  const [npcImgError, setNpcImgError] = useState(false);
+  const showNpc = isBarter && task.npc && !npcImgError;
+  const getRes = isBarter ? (task.barterMeta?.get ?? "").replace(/ ×\d+$/, "") : "";
+
+  // two-line row, no ellipsis: title line (name only, ⋯/👁 top-right) +
+  // badge line (always its own line so long names never orphan) + body line
+  // (desc block with 44px tile vertically centered). Right column is w-11.
+  const badges = isBarter
+    ? (task.priority === "must" ? (
+      <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">一定要換</span>
+    ) : null)
+    : (<>
+      {task.timeGated && <span className="rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">{task.timeGated}</span>}
+      {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必做</span>}
+      {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">自訂</span>}
+      {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">{task.town}</span>}
+    </>);
+
+  const title = isBarter ? (
+    <div>
+      <div className="flex items-center gap-1.5 text-sm font-bold text-primary">
+        {showNpc ? (
+          <img
+            src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+            alt=""
+            aria-hidden
+            className="h-5 w-5 shrink-0 rounded-full object-cover border border-border/50 bg-muted"
+            loading="lazy"
+            onError={() => setNpcImgError(true)}
+          />
+        ) : (
+          <span className="shrink-0" aria-hidden>{task.icon}</span>
+        )}
+        <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
+      </div>
+      {task.priority === "must" && <div className="mt-1 flex flex-wrap gap-1">{badges}</div>}
+    </div>
+  ) : (
+    <div>
+      <div className="flex items-center gap-1.5 text-sm font-medium">
+        <span className="shrink-0" aria-hidden>{task.icon}</span>
+        <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
+      </div>
+      {(task.timeGated || task.priority === "must" || task.source === "custom" || isBarter) && (
+        <div className="mt-1 flex flex-wrap gap-1">{badges}</div>
+      )}
+    </div>
+  );
+
+  const body = isBarter ? (
+    <div className="min-w-0 flex-1">
+      <div className="text-xs text-muted-foreground break-words">
+        {task.npc} · {task.town} · {task.barterMeta?.limit}
+      </div>
+      <div className="text-xs text-muted-foreground break-words">
+        你給 {task.barterMeta?.give} → 你拿 {task.barterMeta?.get}
+      </div>
+      {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
+    </div>
+  ) : (
+    <div className="min-w-0 flex-1">
+      <p className="text-xs text-muted-foreground leading-snug break-words whitespace-pre-wrap">
+        {task.desc || "\u00A0"}
+      </p>
+      {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
+    </div>
+  );
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      data-task-row="true"
+      className={cn(
+        "rounded-lg border bg-card p-3 transition-colors relative",
+        isDone ? "bg-muted/50 border-muted" : "hover:bg-accent/50",
+        isHidden ? "opacity-50" : ""
+      )}
+     >
+      <button {...attributes} {...listeners} className="cursor-grab w-5 py-1 opacity-40 hover:opacity-100 touch-none absolute left-1 top-1/2 -translate-y-1/2 flex justify-center" aria-label="drag">
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <div className="min-w-0 pl-5">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">{title}</div>
+        <div className="w-11 shrink-0 flex justify-end">
+          {isCustom ? (
+            <RowMenu
+              isHidden={isHidden}
+              onEdit={onEdit}
+              onToggleHidden={() => toggleHidden(task.id)}
+              onRemove={() => removeCustom(task.id)}
+            />
+          ) : (
+            <button
+              onClick={() => toggleHidden(task.id)}
+              className="h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label={isHidden ? "顯示" : "隱藏"}
+            >
+              {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 mt-1">
+        {body}
+        <div className="w-11 shrink-0 flex justify-center">
+          {isCheck ? (
+            <button
+              className={cn(
+                "h-11 w-11 rounded-xl border grid place-items-center transition-colors",
+                checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
+              )}
+              onClick={() => toggleCheck(task.id, isAccount)}
+              aria-label={task.name}
+              role="checkbox"
+              aria-checked={checked}
+            >
+              <span className="text-lg leading-none">{checked ? "✓" : ""}</span>
+            </button>
+          ) : (
+            <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} />
+          )}
+        </div>
+      </div>
+      </div>
+    </div>
+  );
+}
+
+function RowMenu({ isHidden, onEdit, onToggleHidden, onRemove }: {
+  isHidden: boolean;
+  onEdit?: () => void;
+  onToggleHidden: () => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const run = (fn?: () => void) => () => {
+    fn?.();
+    setOpen(false);
+  };
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="h-7 w-7 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+        aria-label="row actions"
+        aria-expanded={open}
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-8 z-10 w-28 rounded-md border bg-popover p-1 shadow-md">
+          {onEdit && (
+            <button onClick={run(onEdit)} className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent">
+              <Pencil className="h-3.5 w-3.5" />編輯
+            </button>
+          )}
+          <button onClick={run(onToggleHidden)} className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent">
+            {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}{isHidden ? "顯示" : "隱藏"}
+          </button>
+          <button onClick={run(onRemove)} className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs text-destructive hover:bg-accent">
+            <Trash2 className="h-3.5 w-3.5" />刪除
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
+// right-click / 550ms long-press = −1. Progress is the fill rising inside the tile.
+function CounterTileMobile({ taskId, count, max, isAccount }: { taskId: string; count: number; max: number; isAccount: boolean }) {
+  const incCounter = useAppStore((s) => s.incCounter);
+  const setCounter = useAppStore((s) => s.setCounter);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longFired = useRef(false);
+  const pct = max ? Math.min(100, (count / max) * 100) : 0;
+  const done = max > 0 && count >= max;
+  const clear = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  return (
+    <button
+      className={cn(
+        "relative h-11 w-11 rounded-xl border overflow-hidden select-none transition-colors",
+        done ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
+      )}
+      title={done ? "已完成，再點一下歸零" : "點一下 +1，右鍵/長按 −1"}
+      onClick={() => {
+        if (longFired.current) {
+          longFired.current = false;
+          return;
+        }
+        if (done) setCounter(taskId, 0, isAccount);
+        else incCounter(taskId, 1, isAccount);
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        incCounter(taskId, -1, isAccount);
+      }}
+      onPointerDown={() => {
+        longFired.current = false;
+        clear();
+        timer.current = setTimeout(() => {
+          longFired.current = true;
+          incCounter(taskId, -1, isAccount);
+        }, 550);
+      }}
+      onPointerUp={clear}
+      onPointerLeave={clear}
+      aria-label={`${count} / ${max}，點一下加一`}
+    >
+      {!done && <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />}
+      <span className="absolute inset-0 grid place-items-center">
+        {done ? (
+          <span className="text-lg leading-none">✓</span>
+        ) : (
+          <span className="font-mono leading-none">
+            <span className="text-base font-bold">{count}</span>
+            <span className="text-[10px] text-muted-foreground">/{max}</span>
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Desktop: released UI, frozen. All RWD iteration happens in TaskRowMobile.
+// ---------------------------------------------------------------------------
+
+function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
@@ -115,7 +370,7 @@ export function TaskRow({ task, value, isAccount, onEdit }: Props) {
             <span className="text-xl leading-none">{checked ? "✓" : ""}</span>
           </button>
         ) : (
-          <CounterTile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} />
+          <CounterTileDesktop taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} />
         )}
       </div>
 
@@ -141,7 +396,7 @@ export function TaskRow({ task, value, isAccount, onEdit }: Props) {
 
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click / 550ms long-press = −1. Progress is the fill rising inside the tile.
-function CounterTile({ taskId, count, max, isAccount }: { taskId: string; count: number; max: number; isAccount: boolean }) {
+function CounterTileDesktop({ taskId, count, max, isAccount }: { taskId: string; count: number; max: number; isAccount: boolean }) {
   const incCounter = useAppStore((s) => s.incCounter);
   const setCounter = useAppStore((s) => s.setCounter);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

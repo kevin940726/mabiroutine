@@ -2,19 +2,22 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import trackerJson from "@/data/tracker.json";
 import { CharacterTabs } from "@/components/CharacterTabs";
+import { PillPrototype, PillSwitcher, type PillVariant } from "@/components/PillPrototype"; // PROTOTYPE (DEV-only takeover)
+import { HeaderPrototype, HeaderSwitcher, type HeaderVariant } from "@/components/HeaderPrototype"; // PROTOTYPE (DEV-only takeover)
 import { TrackerSection } from "@/components/TrackerSection";
 import { BarterExplorer } from "@/components/BarterExplorer";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useCountdown } from "@/hooks/useCountdown";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Task } from "@/lib/types";
-import { Download, Upload, Plus, Pencil, Check, X, Trash2 } from "lucide-react";
+import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
 
 const BUILTIN_TASKS = trackerJson as Task[];
 
@@ -33,8 +36,13 @@ export default function App() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { dailyText, weeklyText } = useCountdown();
   const [compact, setCompact] = useState(false);
+  const [pillMenuOpen, setPillMenuOpen] = useState(false);
+  const [pillRenaming, setPillRenaming] = useState(false);
+  const [pillDraft, setPillDraft] = useState("");
+  // desktop pill (released UI, frozen) still uses its own rename state
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  const isMobile = useIsMobile();
 
   // periodic reset check
   useEffect(() => {
@@ -123,6 +131,25 @@ export default function App() {
     return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">載入中...</div>;
   }
 
+  // PROTOTYPE takeover (DEV-only)
+  const protoParam = import.meta.env.DEV ? new URLSearchParams(window.location.search).get("variant") : null;
+  if (protoParam === "o1" || protoParam === "o2" || protoParam === "o3") {
+    return (
+      <div className="min-h-screen bg-background">
+        <HeaderPrototype variant={protoParam as HeaderVariant} />
+        <HeaderSwitcher />
+      </div>
+    );
+  }
+  if (protoParam === "m1" || protoParam === "m2" || protoParam === "m3" || protoParam === "n1" || protoParam === "n2" || protoParam === "n3") {
+    return (
+      <div className="min-h-screen bg-background">
+        <PillPrototype variant={protoParam as PillVariant} />
+        <PillSwitcher />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -132,16 +159,31 @@ export default function App() {
             <img src="/logo-96.png" alt="MabiRoutine" className="h-8 w-8 object-contain" />
             <div>
               <h1 className="text-base font-semibold leading-none">MabiRoutine</h1>
-              <p className="text-xs text-muted-foreground">瑪奇 Mobile 日課追蹤 · 06:00 重置 (Asia/Taipei)</p>
+              {isMobile ? null : (
+                <p className="text-xs text-muted-foreground">瑪奇 Mobile 日課追蹤 · 06:00 重置 (Asia/Taipei)</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-3 text-xs font-mono border rounded-full px-3 py-1.5 bg-card">
-              <span>每日重置 <b>{dailyText}</b></span>
-              <Separator orientation="vertical" className="h-4" />
-              <span>每週重置 <b>{weeklyText}</b></span>
-            </div>
-            <ThemeToggle />
+            {isMobile ? (
+              <>
+                <span className="text-[11px] tabular-nums leading-tight text-muted-foreground text-right shrink-0">
+                  每日重置 <b className="text-foreground font-semibold">{dailyText}</b>
+                  <br />
+                  每週重置 <b className="text-foreground font-semibold">{weeklyText}</b>
+                </span>
+                <ThemeToggle />
+              </>
+            ) : (
+              <>
+                <div className="hidden sm:flex items-center gap-3 text-xs font-mono border rounded-full px-3 py-1.5 bg-card">
+                  <span>每日重置 <b>{dailyText}</b></span>
+                  <Separator orientation="vertical" className="h-4" />
+                  <span>每週重置 <b>{weeklyText}</b></span>
+                </div>
+                <ThemeToggle />
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -177,7 +219,120 @@ export default function App() {
         </div>
       </div>
 
-      {/* compact pill — fixed overlay below header (76px) + margin, fades in sliding down */}
+      {isMobile ? (
+      <>
+      {/* compact pill — single line: progress + ‹ char › stepper + add + ⋯ menu */}
+      <div
+        className={`fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${compact ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
+        style={{ top: 70 }}
+      >
+        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 whitespace-nowrap max-w-[calc(100vw-2rem)] text-xs">
+          <span className="font-bold shrink-0 text-xs">{overall.pct}%</span>
+          <div className="h-1.5 w-14 shrink-0 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-primary transition-all" style={{ width: `${overall.pct}%` }} />
+          </div>
+          <div className="h-4 w-px bg-border shrink-0" />
+          {pillRenaming ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (active && pillDraft.trim()) useAppStore.getState().renameCharacter(active.id, pillDraft.trim());
+                setPillRenaming(false);
+              }}
+              className="flex items-center gap-1"
+            >
+              <input
+                autoFocus
+                value={pillDraft}
+                onChange={(e) => setPillDraft(e.target.value)}
+                onFocus={(e) => e.target.select()}
+                className="h-7 w-24 rounded-full text-xs px-2.5 bg-background border border-input"
+                placeholder="名稱"
+              />
+              <button type="submit" className="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-primary text-primary-foreground" aria-label="save rename">
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => setPillRenaming(false)} className="h-7 w-7 shrink-0 grid place-items-center rounded-full hover:bg-accent" aria-label="cancel rename">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </form>
+          ) : (
+            <>
+              <span className="flex items-center shrink-0">
+                <button
+                  onClick={() => {
+                    if (!chars.length || !active) return;
+                    const idx = Math.max(0, chars.findIndex((c) => c.id === active.id));
+                    useAppStore.getState().setActiveChar(chars[(idx - 1 + chars.length) % chars.length].id);
+                  }}
+                  className="h-7 w-6 grid place-items-center rounded-full hover:bg-accent"
+                  aria-label="prev character"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="max-w-[72px] truncate text-xs font-medium">{active?.name}</span>
+                <button
+                  onClick={() => {
+                    if (!chars.length || !active) return;
+                    const idx = Math.max(0, chars.findIndex((c) => c.id === active.id));
+                    useAppStore.getState().setActiveChar(chars[(idx + 1) % chars.length].id);
+                  }}
+                  className="h-7 w-6 grid place-items-center rounded-full hover:bg-accent"
+                  aria-label="next character"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </span>
+              <button
+                type="button"
+                className="h-7 w-7 shrink-0 grid place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
+                onClick={() => useAppStore.getState().addCharacter()}
+                disabled={chars.length >= 6}
+                aria-label="add character"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <span className="relative shrink-0">
+                <button
+                  onClick={() => setPillMenuOpen((v) => !v)}
+                  className="h-7 w-7 grid place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="character actions"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+                {pillMenuOpen && (
+                  <span className="absolute right-0 top-8 z-10 block w-32 rounded-md border bg-popover p-1 shadow-md">
+                    <button
+                      onClick={() => {
+                        setPillMenuOpen(false);
+                        if (active) setPillDraft(active.name);
+                        setPillRenaming(true);
+                      }}
+                      className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent"
+                    >
+                      重新命名
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (active && chars.length > 1) useAppStore.getState().removeCharacter(active.id);
+                        setPillMenuOpen(false);
+                      }}
+                      disabled={chars.length <= 1}
+                      className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      刪除角色
+                    </button>
+                  </span>
+                )}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+      </>
+      ) : (
+      <>
+      {/* desktop pill — released UI, frozen */}
       <div
         className={`fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${compact ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
         style={{ top: 88 }}
@@ -259,6 +414,8 @@ export default function App() {
           </label>
         </div>
       </div>
+      </>
+      )}
 
       <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
 

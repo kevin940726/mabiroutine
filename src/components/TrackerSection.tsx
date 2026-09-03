@@ -147,8 +147,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   const kind = tasks[0]?.kind;
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-2">
+    <Card className="overflow-hidden -mx-4 rounded-none border-x-0 sm:mx-0 sm:rounded-xl sm:border">
+      <CardHeader className="pb-2 px-3 sm:px-6">
         <button
           onClick={() => setCollapsed((v) => !v)}
           className="flex w-full items-center justify-between gap-2 text-left rounded-md -mx-1 px-1 py-1 hover:bg-accent/50 transition-colors"
@@ -186,7 +186,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
           <p className="text-xs text-muted-foreground text-center">已收合 — 點擊上方展開</p>
         </CardContent>
       ) : (
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-2 px-3 sm:px-6">
         <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={allTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             {allTasks.map((t) => (
