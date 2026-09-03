@@ -97,8 +97,8 @@ function CharacterTabsMobile() {
 function CharacterTabsDesktop() {
   const { chars, active, setActive, addChar, removeChar, rename, editing, setEditing, draft, setDraft } = useCharState();
   return (
-    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
-      <div className="flex gap-1.5 flex-nowrap">
+    <div className="flex items-center gap-2">
+      <div className="flex gap-1.5 flex-wrap">
         {chars.map((c) => (
           <div
             key={c.id}
