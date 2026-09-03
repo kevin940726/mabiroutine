@@ -133,20 +133,24 @@ function CharacterTabsDesktop() {
                 <button onClick={() => setActive(c.id)} className={cn("rounded-full px-3 py-1 text-sm font-medium", active === c.id ? "" : "")}>
                   {c.name}
                 </button>
-                <button
-                  onClick={() => {
-                    setEditing(c.id);
-                    setDraft(c.name);
-                  }}
-                  className={cn("rounded-full p-1 opacity-60 hover:opacity-100", active === c.id ? "hover:bg-primary-foreground/20" : "hover:bg-accent")}
-                  aria-label="rename"
-                >
-                  <Pencil className="h-3 w-3" />
-                </button>
-                {chars.length > 1 && (
+                {/* edit/remove live only on the active pill: inactive pills stay
+                    name-only, which keeps the row narrow without wrapping */}
+                {active === c.id && (
+                  <button
+                    onClick={() => {
+                      setEditing(c.id);
+                      setDraft(c.name);
+                    }}
+                    className="rounded-full p-1 opacity-60 hover:opacity-100 hover:bg-primary-foreground/20"
+                    aria-label="rename"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
+                {chars.length > 1 && active === c.id && (
                   <button
                     onClick={() => removeChar(c.id)}
-                    className={cn("rounded-full p-1 opacity-60 hover:opacity-100 hover:text-destructive", active === c.id ? "hover:bg-primary-foreground/20" : "")}
+                    className="rounded-full p-1 opacity-60 hover:opacity-100 hover:text-destructive hover:bg-primary-foreground/20"
                     aria-label="delete"
                   >
                     <Trash2 className="h-3 w-3" />

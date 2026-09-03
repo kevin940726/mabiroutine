@@ -21,6 +21,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Footer action buttons wrap on narrow viewports so 重置所有資料 no longer overflows
 - 重置所有資料 uses an inline two-tap confirm (確認清除 / 取消) instead of the native blocking dialog
 - Mobile top header padding-y tightened to 10px (desktop stays 12px)
+- Desktop character tabs show rename/delete only on the active pill; inactive pills are name-only
 
 ### Chores
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)
