@@ -14,6 +14,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Deferred search input: keystrokes stay instant while the 98-row list updates in background
 - Suggest-only fetchers (`suggest-tracker` / `suggest-barter`); `pnpm check` gate (lint + migration fixtures + build)
 - Mobile barter rows: two-line layout with 20px NPC avatar in the title, priority chip on its own line, bare give → get with no truncation, and hidden `note` surfaced as a 📝 line (desktop rows unchanged)
+- Mobile barter filter card: selects/pills collapse behind a native 展開篩選 disclosure and the skill chart is desktop-only (pure RWD, desktop pixel-identical); search placeholder shortens to 搜尋, pin toggle matches input height, and the pinned-notes legend stays visible outside the collapse
 
 ### Fixes
 - Tracker rows: dropped hunt / 以物易物-check / life-weekly / acc-guild-weekly; added weekly-goals / guild-challenges / friend-challenges

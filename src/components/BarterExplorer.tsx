@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { Pin, PinOff, Search } from "lucide-react";
+import { Pin, PinOff, Search, ChevronDown } from "lucide-react";
 import type { BarterPriority } from "@/lib/types";
 
 const PRIORITY_LABEL: Record<BarterPriority, string> = {
@@ -223,6 +223,83 @@ export function BarterExplorer() {
   }, []);
   const maxCount = Math.max(...[...skillCountMap.values()], 1);
 
+  // filter controls below are rendered twice from these consts (pure RWD, no
+  // JS split): once inside a mobile-only <details>, once in the desktop flow.
+  const filterSelects = (
+    <div className="flex flex-wrap gap-2">
+      <Select value={priority} onValueChange={(v) => setPriority(v as BarterPriority | "all")}>
+        <SelectTrigger className="w-auto">
+          <SelectValue placeholder="全部優先度" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">全部優先度</SelectItem>
+          {PRIORITY_ORDER.map((p) => <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={town} onValueChange={(v) => setTown(v)}>
+        <SelectTrigger className="w-auto">
+          <SelectValue placeholder="全部城鎮" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">全部城鎮</SelectItem>
+          {TOWNS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={skill} onValueChange={(v) => setSkill(v)}>
+        <SelectTrigger className="w-auto">
+          <SelectValue placeholder="全部採集技能" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">全部採集技能</SelectItem>
+          {SKILLS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <span className="text-xs text-muted-foreground self-center">
+        顯示 {filtered.length} / {barterJson.length} 筆 · 已釘選 {barterPins.length}
+      </span>
+    </div>
+  );
+
+  const filterPills = (
+    <div className="flex flex-wrap gap-1.5">
+      {PRIORITY_ORDER.map((p) => (
+        <button
+          key={p}
+          onClick={() => setPriority(priority === p ? "all" : p)}
+          className={cn("rounded-full border px-3 py-1 text-xs", priority === p ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-accent")}
+        >
+          {PRIORITY_LABEL[p]}
+        </button>
+      ))}
+    </div>
+  );
+
+  const filterLegend = (
+    <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+      <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600" /> 已釘選（綠）會出現在追蹤頁每日區</span>
+    </div>
+  );
+
+  const skillChart = (
+    <div className="space-y-1">
+      <p className="text-xs text-muted-foreground">各採集技能的換物需求（次）</p>
+      <div className="grid gap-1">
+        {allSkillOrder.map((name) => {
+          const n = skillCountMap.get(name) ?? 0;
+          return (
+            <div key={name} className="flex items-center gap-2 text-xs">
+              <span className="w-20 shrink-0 text-right">{name}</span>
+              <div className="flex-1 h-3 rounded bg-muted overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${(n / maxCount) * 100}%` }} />
+              </div>
+              <span className="w-8 font-mono">{n}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <Card>
@@ -241,82 +318,40 @@ export function BarterExplorer() {
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="搜尋：輸入你有的或想要的（例如：皮革、星光）" className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
+              <Input placeholder="搜尋" className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
             </div>
-            <Button variant={onlyPinned ? "default" : "outline"} size="sm" onClick={() => setOnlyPinned(!onlyPinned)}>
+            <Button variant={onlyPinned ? "default" : "outline"} size="sm" className="h-9" onClick={() => setOnlyPinned(!onlyPinned)}>
               {onlyPinned ? <Pin className="h-3 w-3" /> : <PinOff className="h-3 w-3" />}
               {onlyPinned ? `只看已釘選` : "全部"}
             </Button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Select value={priority} onValueChange={(v) => setPriority(v as BarterPriority | "all")}>
-              <SelectTrigger className="w-auto">
-                <SelectValue placeholder="全部優先度" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部優先度</SelectItem>
-                {PRIORITY_ORDER.map((p) => <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={town} onValueChange={(v) => setTown(v)}>
-              <SelectTrigger className="w-auto">
-                <SelectValue placeholder="全部城鎮" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部城鎮</SelectItem>
-                {TOWNS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={skill} onValueChange={(v) => setSkill(v)}>
-              <SelectTrigger className="w-auto">
-                <SelectValue placeholder="全部採集技能" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部採集技能</SelectItem>
-                {SKILLS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <span className="text-xs text-muted-foreground self-center">
-              顯示 {filtered.length} / {barterJson.length} 筆 · 已釘選 {barterPins.length}
-            </span>
-          </div>
-
-          {/* quick filters for must */}
-          <div className="flex flex-wrap gap-1.5">
-            {PRIORITY_ORDER.map((p) => (
-              <button
-                key={p}
-                onClick={() => setPriority(priority === p ? "all" : p)}
-                className={cn("rounded-full border px-3 py-1 text-xs", priority === p ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-accent")}
-              >
-                {PRIORITY_LABEL[p]}
-              </button>
-            ))}
-          </div>
-
-          {/* legend */}
-          <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600" /> 已釘選（綠）會出現在追蹤頁每日區</span>
-          </div>
-
-          {/* skill chart — bottom of filter section, constant height: all skills always render */}
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">各採集技能的換物需求（次）</p>
-            <div className="grid gap-1">
-              {allSkillOrder.map((name) => {
-                const n = skillCountMap.get(name) ?? 0;
-                return (
-                  <div key={name} className="flex items-center gap-2 text-xs">
-                    <span className="w-20 shrink-0 text-right">{name}</span>
-                    <div className="flex-1 h-3 rounded bg-muted overflow-hidden">
-                      <div className="h-full bg-primary transition-all" style={{ width: `${(n / maxCount) * 100}%` }} />
-                    </div>
-                    <span className="w-8 font-mono">{n}</span>
-                  </div>
-                );
-              })}
+          {/* mobile-only collapse (pure RWD: the whole <details> hides on sm+) */}
+          <details className="sm:hidden group">
+            <summary className="flex w-full cursor-pointer list-none items-center justify-between py-1 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">
+              <span>展開篩選</span>
+              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="space-y-4 pt-3">
+              {filterSelects}
+              {filterPills}
             </div>
+          </details>
+
+          {/* desktop filters — same boxes as before, hidden below sm */}
+          <div className="hidden sm:block">
+            <div className="space-y-4">
+              {filterSelects}
+              {filterPills}
+            </div>
+          </div>
+
+          {/* legend — always visible, inside and outside the collapse */}
+          {filterLegend}
+
+          {/* skill chart — desktop only (pure RWD) */}
+          <div className="hidden sm:block">
+            {skillChart}
           </div>
         </CardContent>
       </Card>
