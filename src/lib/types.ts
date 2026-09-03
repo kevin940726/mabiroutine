@@ -51,6 +51,8 @@ export type AppState = {
   activeCharId: string;
   // account-wide tasks (not per char)
   accountValues: Record<string, number | boolean>;
+  // hidden account-section tasks: global (one tap hides for every character)
+  hiddenAccountTaskIds: string[];
   // barter pins: single global list, applies to every character
   barterPins: string[];
   customTasks: Task[];

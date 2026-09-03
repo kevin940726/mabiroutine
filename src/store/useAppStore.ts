@@ -11,6 +11,13 @@ const BUILTIN_TASKS = trackerJson as Task[];
 
 type BarterJsonItem = (typeof barterJson)[number];
 
+// Account-section tasks are shared state (accountValues), so hiding one hides
+// it for every character. Everything else hides per character.
+function isAccountTaskId(id: string, customTasks: Task[]): boolean {
+  const t = [...BUILTIN_TASKS, ...customTasks].find((x) => x.id === id);
+  return t?.section === "account";
+}
+
 function uid() {
   return Math.random().toString(36).slice(2, 9);
 }
@@ -104,6 +111,8 @@ type Store = AppState & {
   updateCustomTask: (id: string, patch: Partial<Task>) => void;
   removeCustomTask: (id: string) => void;
   toggleHidden: (taskId: string) => void;
+  // section-aware hide read: account-section ids consult the global list
+  isTaskHidden: (taskId: string) => boolean;
   reorderTasks: (orderedIds: string[]) => void;
   reorderBarterPins: (orderedIds: string[]) => void;
   setBarterFilters: (patch: Partial<BarterFilters>) => void;
@@ -160,10 +169,11 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 9,
+  version: 10,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
+  hiddenAccountTaskIds: [],
   barterPins: [...DEFAULT_MUST_PINS],
   customTasks: [],
   lastDailyReset: null,
@@ -192,6 +202,7 @@ function normalizePersisted(input: unknown): AppState {
     characters: chars,
     activeCharId: activeOk ? (d.activeCharId as string) : chars[0].id,
     accountValues: d.accountValues && typeof d.accountValues === "object" ? d.accountValues : {},
+    hiddenAccountTaskIds: Array.isArray(d.hiddenAccountTaskIds) ? d.hiddenAccountTaskIds : [],
     barterPins: Array.isArray(d.barterPins) ? d.barterPins : [...DEFAULT_MUST_PINS],
     customTasks: Array.isArray(d.customTasks) ? d.customTasks : [],
     lastDailyReset: d.lastDailyReset ?? null,
@@ -254,6 +265,7 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
       c.hiddenTaskIds = pruneArr(c.hiddenTaskIds);
     }
     s.accountValues = pruneRec(s.accountValues);
+    s.hiddenAccountTaskIds = pruneArr(s.hiddenAccountTaskIds);
     s.barterPins = pruneArr(s.barterPins);
     if (s.globalTaskOrder) s.globalTaskOrder = pruneRec(s.globalTaskOrder);
     s.version = 6;
@@ -275,6 +287,26 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     // v8 → v9: search text no longer persisted (session-only) — sanitize drops it.
     s.barterFilters = sanitizeBarterFilters(s.barterFilters);
     s.version = 9;
+  }
+  if (from < 10) {
+    // v9 → v10: account-section hide goes global. Move any account ids users
+    // hid per-character into hiddenAccountTaskIds (union, progress untouched),
+    // strip them from the per-char lists, prune the global list against live ids.
+    const validAccount = new Set<string>([
+      ...(trackerJson as Task[]).filter((t) => t.section === "account").map((t) => t.id),
+      ...(s.customTasks ?? []).filter((t) => t.section === "account").map((t) => t.id),
+    ]);
+    const global = new Set(s.hiddenAccountTaskIds ?? []);
+    for (const c of s.characters ?? []) {
+      const keep: string[] = [];
+      for (const id of c.hiddenTaskIds ?? []) {
+        if (validAccount.has(id)) global.add(id);
+        else keep.push(id);
+      }
+      c.hiddenTaskIds = keep;
+    }
+    s.hiddenAccountTaskIds = [...global].filter((id) => validAccount.has(id));
+    s.version = 10;
   }
   return s as AppState;
 }
@@ -441,11 +473,21 @@ export const useAppStore = create<Store>()(
               hiddenTaskIds: c.hiddenTaskIds.filter((x) => x !== id),
             })),
             accountValues: Object.fromEntries(Object.entries(s.accountValues).filter(([k]) => k !== id)),
+            hiddenAccountTaskIds: (s.hiddenAccountTaskIds ?? []).filter((x) => x !== id),
             barterPins: s.barterPins.filter((x) => x !== id),
           };
         }),
       toggleHidden: (taskId) =>
         set((s) => {
+          // account-section tasks hide globally (shared state, like accountValues)
+          if (isAccountTaskId(taskId, s.customTasks)) {
+            const isHidden = (s.hiddenAccountTaskIds ?? []).includes(taskId);
+            return {
+              hiddenAccountTaskIds: isHidden
+                ? s.hiddenAccountTaskIds.filter((x) => x !== taskId)
+                : [...s.hiddenAccountTaskIds, taskId],
+            };
+          }
           const char = s.getActiveChar();
           if (!char) return s;
           const isHidden = char.hiddenTaskIds.includes(taskId);
@@ -457,6 +499,11 @@ export const useAppStore = create<Store>()(
             ),
           };
         }),
+      isTaskHidden: (taskId) => {
+        const s = get();
+        if (isAccountTaskId(taskId, s.customTasks)) return (s.hiddenAccountTaskIds ?? []).includes(taskId);
+        return s.getActiveChar()?.hiddenTaskIds.includes(taskId) ?? false;
+      },
       reorderTasks: (orderedIds) =>
         set((s) => {
           const map: Record<string, number> = {};
@@ -510,7 +557,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 9,
+      version: 10,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
@@ -528,6 +575,7 @@ export const useAppStore = create<Store>()(
         characters: s.characters,
         activeCharId: s.activeCharId,
         accountValues: s.accountValues,
+        hiddenAccountTaskIds: s.hiddenAccountTaskIds,
         barterPins: s.barterPins,
         customTasks: s.customTasks,
         lastDailyReset: s.lastDailyReset,

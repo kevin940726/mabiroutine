@@ -24,8 +24,8 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
-  const char = useAppStore((s) => s.getActiveChar());
-  const isHidden = char?.hiddenTaskIds.includes(task.id) ?? false;
+  const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
+  const hideScope = task.section === "account" ? "（所有角色共用）" : "";
 
   const isCheck = task.type === "check";
   const checked = isCheck ? Boolean(value) : false;
@@ -125,6 +125,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
           {isCustom ? (
             <RowMenu
               isHidden={isHidden}
+              hideScope={hideScope}
               onEdit={onEdit}
               onToggleHidden={() => toggleHidden(task.id)}
               onRemove={() => removeCustom(task.id)}
@@ -133,7 +134,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
             <button
               onClick={() => toggleHidden(task.id)}
               className="h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label={isHidden ? "顯示" : "隱藏"}
+              aria-label={`${isHidden ? "顯示" : "隱藏"}${hideScope}`}
             >
               {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
             </button>
@@ -166,8 +167,9 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   );
 }
 
-function RowMenu({ isHidden, onEdit, onToggleHidden, onRemove }: {
+function RowMenu({ isHidden, hideScope, onEdit, onToggleHidden, onRemove }: {
   isHidden: boolean;
+  hideScope?: string;
   onEdit?: () => void;
   onToggleHidden: () => void;
   onRemove: () => void;
@@ -195,7 +197,7 @@ function RowMenu({ isHidden, onEdit, onToggleHidden, onRemove }: {
             </button>
           )}
           <button onClick={run(onToggleHidden)} className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent">
-            {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}{isHidden ? "顯示" : "隱藏"}
+            {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}{isHidden ? "顯示" : "隱藏"}{hideScope}
           </button>
           <button onClick={run(onRemove)} className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs text-destructive hover:bg-accent">
             <Trash2 className="h-3.5 w-3.5" />刪除
@@ -273,8 +275,8 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
-  const char = useAppStore((s) => s.getActiveChar());
-  const isHidden = char?.hiddenTaskIds.includes(task.id) ?? false;
+  const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
+  const hideScope = task.section === "account" ? "（所有角色共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
 
@@ -381,7 +383,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
             <Pencil className="h-3 w-3" />
           </Button>
         )}
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleHidden(task.id)} aria-label={isHidden ? "show" : "hide"}>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleHidden(task.id)} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
           {isHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
         </Button>
         {task.source === "custom" && (

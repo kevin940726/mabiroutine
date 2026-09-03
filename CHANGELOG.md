@@ -27,6 +27,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Mobile top header padding-y tightened to 10px (desktop stays 12px)
 - Desktop character tabs show rename/delete only on the active pill; inactive pills are name-only
 - Desktop character tab row wraps instead of scrolling when it overflows
+- Account-section hide is now global: one tap hides for every character (daily/weekly stay per-character); saves with per-char-hidden account ids migrate automatically (store v9→v10)
 
 ### Chores
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)

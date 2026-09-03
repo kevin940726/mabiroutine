@@ -33,7 +33,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 // A: versionless ancient save -> full chain to v9 with seeded defaults
 {
   const out = migratePersisted({}, 0) as AnyRec;
-  assert(out.version === 9, "A: versionless reaches v9");
+  assert(out.version === 10, "A: versionless reaches v10");
   const chars = out.characters as AnyRec[];
   assert(chars.length === 1 && typeof chars[0].id === "string", "A: one default character");
   assert(sameSet(out.barterPins as string[], mustIds), "A: must pins seeded");
@@ -54,7 +54,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     4
   ) as AnyRec;
-  assert(out.version === 9, "B: reaches v9");
+  assert(out.version === 10, "B: reaches v10");
   assert(!(out.barterPins as string[]).some((id) => id.startsWith("barter-")), "B: synthetic pins gone");
   assert(sameSet(out.barterPins as string[], mustIds), "B: pins reseeded to must");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
@@ -76,7 +76,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     prefs: { hideCompleted: true },
   };
   const out = migratePersisted(structuredClone(input), 9) as AnyRec;
-  assert(out.version === 9, "C: stays v9");
+  assert(out.version === 10, "C: stays v10");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
   assert((c.taskValues as AnyRec).barrier === 7, "C: counter kept");
   assert((c.hiddenTaskIds as string[]).includes("custom1"), "C: custom hidden kept (custom ids are valid)");
@@ -116,7 +116,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     6
   ) as AnyRec;
-  assert(out.version === 9, "E: reaches v9");
+  assert(out.version === 10, "E: reaches v10");
   assert(sameSet(out.barterPins as string[], mustIds), "E: pins reset to must defaults");
   assert(!("barterPinsByChar" in out), "E: fork container dropped");
   assert(!("isBarterForked" in out), "E: fork flag dropped");
@@ -137,11 +137,45 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     7
   ) as AnyRec;
-  assert(out.version === 9, "F: reaches v9");
+  assert(out.version === 10, "F: reaches v10");
   const f = out.barterFilters as AnyRec;
   assert(f.priority === "must" && f.onlyPinned === true, "F: live filter values kept");
   assert(f.town === "all", "F: stale town reset to all");
   assert(!("q" in f), "F: search text dropped (session-only)");
+}
+
+// G: v9 save with an account id hidden per-char -> moved to the global list
+{
+  assert(trackerIds.has("acc-silver") && trackerIds.has("parttime"), "G premise: acc-silver + parttime exist (update fixture if removed)");
+  const out = migratePersisted(
+    {
+      version: 9,
+      characters: [
+        { id: "c1", name: "A", taskValues: {}, hiddenTaskIds: ["acc-silver", "parttime"] },
+        { id: "c2", name: "B", taskValues: {}, hiddenTaskIds: ["acc-silver"] },
+      ],
+      activeCharId: "c1",
+    },
+    9
+  ) as AnyRec;
+  assert(out.version === 10, "G: reaches v10");
+  assert(sameSet(out.hiddenAccountTaskIds as string[], ["acc-silver"]), "G: account hide moved global");
+  const [g1, g2] = out.characters as AnyRec[];
+  assert(sameSet(g1.hiddenTaskIds as string[], ["parttime"]), "G: daily hide stays per-char");
+  assert(sameSet(g2.hiddenTaskIds as string[], []), "G: account id stripped from char list");
+}
+
+// G2: v10 save with a global account hide passes through untouched
+{
+  const input = {
+    version: 10,
+    characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
+    activeCharId: "c1",
+    hiddenAccountTaskIds: ["acc-silver"],
+  };
+  const out = migratePersisted(structuredClone(input), 10) as AnyRec;
+  assert(out.version === 10, "G2: stays v10");
+  assert(sameSet(out.hiddenAccountTaskIds as string[], ["acc-silver"]), "G2: global hide kept");
 }
 
 console.log("\nAll migration fixtures passed.");

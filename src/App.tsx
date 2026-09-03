@@ -24,6 +24,7 @@ export default function App() {
   const chars = useAppStore((s) => s.characters);
   const active = useAppStore((s) => s.getActiveChar());
   const accountValues = useAppStore((s) => s.accountValues);
+  const hiddenAccountTaskIds = useAppStore((s) => s.hiddenAccountTaskIds);
   const prefs = useAppStore((s) => s.prefs);
   const hasHydrated = useAppStore((s) => s._hasHydrated);
   const exportJson = useAppStore((s) => s.exportJson);
@@ -91,7 +92,7 @@ export default function App() {
   // overall progress for active char + account (hidden tasks excluded)
   const overall = (() => {
     if (!active) return { pct: 0, done: 0, total: 0 };
-    const hidden = new Set(active.hiddenTaskIds);
+    const hidden = new Set([...active.hiddenTaskIds, ...hiddenAccountTaskIds]);
     const all = [...BUILTIN_TASKS].filter((t) => !hidden.has(t.id));
     // include custom + barter pins? simplified: use builtin total for header
     let done = 0;

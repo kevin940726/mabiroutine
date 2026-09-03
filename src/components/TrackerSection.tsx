@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +28,14 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   const reorderBarter = useAppStore((s) => s.reorderBarterPins);
   const globalOrder = useAppStore((s) => s.globalTaskOrder);
   const hideCompleted = useAppStore((s) => s.prefs.hideCompleted);
+  // global account-hide list subscribed so the memos below recompute on toggle
+  const hiddenAccountTaskIds = useAppStore((s) => s.hiddenAccountTaskIds);
+  // account-section tasks hide globally, everything else per character
+  const isHiddenFor = useCallback(
+    (t: Task) =>
+      t.section === "account" ? hiddenAccountTaskIds.includes(t.id) : (char?.hiddenTaskIds.includes(t.id) ?? false),
+    [char, hiddenAccountTaskIds]
+  );
   const [collapsed, setCollapsed] = useState(false);
   const [barterExpanded, setBarterExpanded] = useState(true);
   const [hiddenExpanded, setHiddenExpanded] = useState(false);
@@ -65,14 +73,14 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
 
   const hiddenTasks = useMemo(() => {
     if (!char) return [] as Task[];
-    let list = tasks.filter((t) => char.hiddenTaskIds.includes(t.id));
+    let list = tasks.filter((t) => isHiddenFor(t));
     list.sort((a, b) => {
       const oa = globalOrder?.[a.id] ?? a.order;
       const ob = globalOrder?.[b.id] ?? b.order;
       return oa - ob;
     });
     return list;
-  }, [tasks, char, globalOrder]);
+  }, [tasks, char, globalOrder, isHiddenFor]);
 
   const hiddenAll = useMemo(() => [...hiddenTasks, ...hiddenBarter], [hiddenTasks, hiddenBarter]);
 
@@ -85,9 +93,9 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
       const ob = globalOrder?.[b.id] ?? b.order;
       return oa - ob;
     });
-    // filter hidden per character (all sections incl. account move to bottom sub-category)
+    // filter hidden: per character, except account-section tasks hide globally
     if (char) {
-      list = list.filter((t) => !char.hiddenTaskIds.includes(t.id));
+      list = list.filter((t) => !isHiddenFor(t));
     }
     if (hideCompleted) {
       list = list.filter((t) => {
@@ -98,7 +106,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
       });
     }
     return list;
-  }, [tasks, globalOrder, char, accountValues, isAccount, hideCompleted]);
+  }, [tasks, globalOrder, char, accountValues, isAccount, hideCompleted, isHiddenFor]);
 
   const { done, total, percent } = useMemo(() => {
     // include subtasks in progress for daily
