@@ -1,0 +1,400 @@
+[
+  {
+    "npc": "阿爾米斯",
+    "town": "庫漢",
+    "ids": [
+      "col-a1",
+      "col-a2",
+      "col-a3",
+      "col-a4",
+      "col-a5"
+    ],
+    "raw": "public/npc-raw/阿爾米斯.png",
+    "out": "public/npc/阿爾米斯.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "佛格斯",
+    "town": "提爾克那",
+    "ids": [
+      "tir-f1",
+      "tir-f2",
+      "tir-f3",
+      "tir-f4"
+    ],
+    "raw": "public/npc-raw/佛格斯.png",
+    "out": "public/npc/佛格斯.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "凱琳",
+    "town": "提爾克那",
+    "ids": [
+      "tir-c1",
+      "tir-c2"
+    ],
+    "raw": "public/npc-raw/凱琳.png",
+    "out": "public/npc/凱琳.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "安黛莉",
+    "town": "提爾克那",
+    "ids": [
+      "yen-安黛莉凱琳特製全麥麵包1-12"
+    ],
+    "raw": "public/npc-raw/安黛莉.png",
+    "out": "public/npc/安黛莉.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "麗莎",
+    "town": "提爾克那",
+    "ids": [
+      "tir-l1",
+      "tir-l2",
+      "tir-l3"
+    ],
+    "raw": "public/npc-raw/麗莎.png",
+    "out": "public/npc/麗莎.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "特蕾西",
+    "town": "杜加德走廊",
+    "ids": [
+      "dug-t1",
+      "dug-t2",
+      "dug-t3",
+      "dug-t4",
+      "dug-t5"
+    ],
+    "raw": "public/npc-raw/特蕾西.png",
+    "out": "public/npc/特蕾西.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "艾爾文",
+    "town": "杜加德走廊",
+    "ids": [
+      "dug-e1",
+      "dug-e2",
+      "dug-e3",
+      "dug-e4"
+    ],
+    "raw": "public/npc-raw/艾爾文.png",
+    "out": "public/npc/艾爾文.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "傑羅姆",
+    "town": "杜巴頓",
+    "ids": [
+      "yen-傑羅姆奶油醬牛排高級絲綢-2",
+      "yen-傑羅姆瑞可塔起司沙拉絲綢-27"
+    ],
+    "raw": "public/npc-raw/傑羅姆.png",
+    "out": "public/npc/傑羅姆.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "卡利克斯",
+    "town": "杜巴頓",
+    "ids": [
+      "dun-ka1",
+      "dun-ka2",
+      "dun-ka3"
+    ],
+    "raw": "public/npc-raw/卡利克斯.png",
+    "out": "public/npc/卡利克斯.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "奈麗絲",
+    "town": "杜巴頓",
+    "ids": [
+      "yen-奈麗絲合金鋼錠2特殊鋼錠-3",
+      "yen-奈麗絲銅礦石高級生皮-7"
+    ],
+    "raw": "public/npc-raw/奈麗絲.png",
+    "out": "public/npc/奈麗絲.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "格莉娜",
+    "town": "杜巴頓",
+    "ids": [
+      "dun-g1",
+      "dun-g2",
+      "dun-g3"
+    ],
+    "raw": "public/npc-raw/格莉娜.png",
+    "out": "public/npc/格莉娜.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "潔米",
+    "town": "杜巴頓",
+    "ids": [
+      "yen-潔米蘋果鮮奶油蛋糕高級布-1",
+      "yen-潔米蘋果舒芙蕾高級布料4-25"
+    ],
+    "raw": "public/npc-raw/潔米.png",
+    "out": "public/npc/潔米.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "卡琳",
+    "town": "冰霜峽谷臨時哨所",
+    "ids": [
+      "yen-卡琳馬鈴薯湯3寵物飼料1-38"
+    ],
+    "raw": "public/npc-raw/卡琳.png",
+    "out": "public/npc/卡琳.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "貓商人",
+    "town": "地下城",
+    "ids": [
+      "dungeon-1",
+      "dungeon-2",
+      "dungeon-3",
+      "dungeon-4",
+      "dungeon-5"
+    ],
+    "raw": "public/npc-raw/貓商人.png",
+    "out": "public/npc/貓商人.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "凱雅拉",
+    "town": "庫漢",
+    "ids": [
+      "yen-凱雅拉冰草莓飲2高級暴擊-26",
+      "yen-凱雅拉高級木材10毒囊3-67",
+      "yen-凱雅拉聖水10裝水的瓶子-83",
+      "yen-凱雅拉高級木材10凝聚的-84"
+    ],
+    "raw": "public/npc-raw/凱雅拉.png",
+    "out": "public/npc/凱雅拉.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "康納",
+    "town": "庫漢",
+    "ids": [
+      "col-c1",
+      "col-c2",
+      "col-c3",
+      "col-c4"
+    ],
+    "raw": "public/npc-raw/康納.png",
+    "out": "public/npc/康納.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "愛麗沙",
+    "town": "提爾克那",
+    "ids": [
+      "tir-a1",
+      "tir-a2",
+      "tir-a3",
+      "tir-a4"
+    ],
+    "raw": "public/npc-raw/愛麗沙.png",
+    "out": "public/npc/愛麗沙.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "梅文",
+    "town": "提爾克那",
+    "ids": [
+      "yen-梅文凱琳特製全麥麵包聖水-44"
+    ],
+    "raw": "public/npc-raw/梅文.png",
+    "out": "public/npc/梅文.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "迪莉絲",
+    "town": "提爾克那",
+    "ids": [
+      "tir-di1"
+    ],
+    "raw": "public/npc-raw/迪莉絲.png",
+    "out": "public/npc/迪莉絲.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "雷納德",
+    "town": "提爾克那",
+    "ids": [
+      "tir-r1"
+    ],
+    "raw": "public/npc-raw/雷納德.png",
+    "out": "public/npc/雷納德.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "瓦爾特",
+    "town": "杜巴頓",
+    "ids": [
+      "dun-w1",
+      "dun-w2",
+      "dun-w3",
+      "dun-w4",
+      "dun-w5",
+      "dun-w6"
+    ],
+    "raw": "public/npc-raw/瓦爾特.png",
+    "out": "public/npc/瓦爾特.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "阿蘭雯",
+    "town": "杜巴頓",
+    "ids": [
+      "yen-阿蘭雯馬鈴薯沙拉2絕招秘-29",
+      "yen-阿蘭雯職業大師勳章精靈痕-57"
+    ],
+    "raw": "public/npc-raw/阿蘭雯.png",
+    "out": "public/npc/阿蘭雯.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "基利安",
+    "town": "庫漢",
+    "ids": [
+      "col-k1",
+      "col-k2",
+      "col-k3",
+      "col-k4"
+    ],
+    "raw": "public/npc-raw/基利安.png",
+    "out": "public/npc/基利安.png",
+    "priority": "once",
+    "status": "done"
+  },
+  {
+    "npc": "麥爾坎",
+    "town": "提爾克那",
+    "ids": [
+      "tir-m1",
+      "tir-m2",
+      "tir-m3"
+    ],
+    "raw": "public/npc-raw/麥爾坎.png",
+    "out": "public/npc/麥爾坎.png",
+    "priority": "once",
+    "status": "done"
+  },
+  {
+    "npc": "西蒙",
+    "town": "杜巴頓",
+    "ids": [
+      "dun-s1",
+      "dun-s2",
+      "dun-s3",
+      "dun-s4"
+    ],
+    "raw": "public/npc-raw/西蒙.png",
+    "out": "public/npc/西蒙.png",
+    "priority": "once",
+    "status": "done"
+  },
+  {
+    "npc": "蘿拉",
+    "town": "提爾克那",
+    "ids": [
+      "yen-蘿拉麥爾坎的鬆軟羊毛枕頭-64"
+    ],
+    "raw": "public/npc-raw/蘿拉.png",
+    "out": "public/npc/蘿拉.png",
+    "priority": "situational",
+    "status": "done"
+  },
+  {
+    "npc": "迪恩",
+    "town": "提爾克那",
+    "ids": [
+      "tir-d1"
+    ],
+    "raw": "public/npc-raw/迪恩.png",
+    "out": "public/npc/迪恩.png",
+    "priority": "situational",
+    "status": "done"
+  },
+  {
+    "npc": "史帝華",
+    "town": "杜巴頓",
+    "ids": [
+      "dun-st1",
+      "dun-st2",
+      "dun-st3",
+      "dun-st4",
+      "dun-st5",
+      "dun-st6",
+      "dun-st7"
+    ],
+    "raw": "public/npc-raw/史帝華.png",
+    "out": "public/npc/史帝華.png",
+    "priority": "situational",
+    "status": "done"
+  },
+  {
+    "npc": "芙蘿拉",
+    "town": "杜巴頓",
+    "ids": [
+      "yen-芙蘿拉格莉娜手工蛋糕2無-65"
+    ],
+    "raw": "public/npc-raw/芙蘿拉.png",
+    "out": "public/npc/芙蘿拉.png",
+    "priority": "situational",
+    "status": "done"
+  },
+  {
+    "npc": "蕾拉",
+    "town": "杜巴頓",
+    "ids": [
+      "yen-蕾拉無主的小說書紙10需-73"
+    ],
+    "raw": "public/npc-raw/蕾拉.png",
+    "out": "public/npc/蕾拉.png",
+    "priority": "situational",
+    "status": "done"
+  },
+  {
+    "npc": "馬努斯",
+    "town": "杜巴頓",
+    "ids": [
+      "dun-ma1"
+    ],
+    "raw": "public/npc-raw/馬努斯.png",
+    "out": "public/npc/馬努斯.png",
+    "priority": "situational",
+    "status": "done"
+  }
+]

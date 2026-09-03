@@ -206,16 +206,19 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
 
         {/* 以物易物 subtasks as collapsable sub-category under 每日 (only daily section) */}
         {tasks[0]?.section === "daily" && effectivePins.length > 0 && (
+          // bleed band: wrapper stretches past the rows (-mx-2) so rows stay
+          // pixel-equal to top-level items; header is w-full in the same box
           <div
             className={cn(
-              "rounded-lg border bg-card overflow-hidden",
-              isForked ? "border-sky-200 dark:border-sky-900" : "border-emerald-200 dark:border-emerald-900"
+              "-mx-2 rounded-xl px-2 py-2",
+              isForked ? "bg-sky-500/10 dark:bg-sky-400/[0.12]" : "bg-emerald-500/10 dark:bg-emerald-400/[0.12]"
             )}
           >
             <button
               onClick={() => setBarterExpanded((v) => !v)}
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
+              className="flex w-full items-center gap-2 px-[5px] py-2.5 text-left rounded-md hover:bg-accent/50 transition-colors"
             >
+              <span className={cn("h-4 w-1 rounded-full shrink-0", isForked ? "bg-sky-500" : "bg-emerald-500")} />
               <span className="text-base">🔄</span>
               <span className="text-sm font-medium">以物易物 已釘選</span>
               <Tooltip content={isForked ? `個人模式：僅 ${char?.name} 有效（藍色）` : "共用模式：所有角色共享（綠色）"}>
@@ -228,25 +231,23 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
               </span>
             </button>
             {barterExpanded && (
-              <div className="border-t bg-muted/20">
-                <div className="px-2 py-2 space-y-2">
-                  {barterSubtasksFiltered.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-3">已全部完成或已隱藏</p>
-                  ) : (
-                    <DndContext collisionDetection={closestCenter} onDragEnd={handleBarterDragEnd}>
-                      <SortableContext items={barterSubtasksFiltered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-                        {barterSubtasksFiltered.map((bt) => (
-                          <TaskRow key={bt.id} task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
-                        ))}
-                      </SortableContext>
-                    </DndContext>
-                  )}
-                  {barterSubtasks.length !== barterSubtasksFiltered.length && (
-                    <p className="text-[11px] text-muted-foreground text-center">
-                      已隱藏 {barterSubtasks.length - barterSubtasksFiltered.length} 項（完成或手動隱藏）
-                    </p>
-                  )}
-                </div>
+              <div className="space-y-2">
+                {barterSubtasksFiltered.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-3">已全部完成或已隱藏</p>
+                ) : (
+                  <DndContext collisionDetection={closestCenter} onDragEnd={handleBarterDragEnd}>
+                    <SortableContext items={barterSubtasksFiltered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                      {barterSubtasksFiltered.map((bt) => (
+                        <TaskRow key={bt.id} task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
+                )}
+                {barterSubtasks.length !== barterSubtasksFiltered.length && (
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    已隱藏 {barterSubtasks.length - barterSubtasksFiltered.length} 項（完成或手動隱藏）
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -254,11 +255,12 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
 
         {/* 已隱藏項目 — same primitive, dimmed + bottom, undo via Eye */}
         {hiddenAll.length > 0 && (
-          <div className="rounded-lg border bg-card overflow-hidden border-dashed opacity-90">
+          <div className="-mx-2 rounded-xl px-2 py-2 bg-zinc-500/10 dark:bg-zinc-400/10">
             <button
               onClick={() => setHiddenExpanded((v) => !v)}
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
+              className="flex w-full items-center gap-2 px-[5px] py-2.5 text-left rounded-md hover:bg-accent/50 transition-colors"
             >
+              <span className="h-4 w-1 rounded-full shrink-0 bg-muted-foreground/50" />
               <span className="text-base">🙈</span>
               <span className="text-sm font-medium">已隱藏項目</span>
               <Badge variant="secondary" className="text-[10px]">
@@ -270,19 +272,17 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
               </span>
             </button>
             {hiddenExpanded && (
-              <div className="border-t bg-muted/20">
-                <div className="px-2 py-2 space-y-2">
-                  {hiddenTasks.map((t) => (
-                    <div key={t.id} className="opacity-60">
-                      <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} />
-                    </div>
-                  ))}
-                  {hiddenBarter.map((bt) => (
-                    <div key={bt.id} className="opacity-60">
-                      <TaskRow task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
-                    </div>
-                  ))}
-                </div>
+              <div className="space-y-2">
+                {hiddenTasks.map((t) => (
+                  <div key={t.id} className="opacity-60">
+                    <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} />
+                  </div>
+                ))}
+                {hiddenBarter.map((bt) => (
+                  <div key={bt.id} className="opacity-60">
+                    <TaskRow task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
+                  </div>
+                ))}
               </div>
             )}
           </div>

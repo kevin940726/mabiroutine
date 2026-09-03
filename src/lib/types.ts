@@ -17,7 +17,8 @@ export type Task = {
   // barter only
   town?: string;
   priority?: BarterPriority;
-  barterMeta?: { give: string; get: string; gatherSkill?: string };
+  npc?: string;
+  barterMeta?: { give: string; get: string; gatherSkill?: string; limit?: string };
   // custom extras
   notes?: string;
   timeGated?: string; // e.g. "06:00,18:00"
@@ -68,6 +69,8 @@ export type BarterItem = {
   gatherSkill: string;
   perChar: boolean;
   desc?: string;
+  npc?: string;
+  limit?: string;
 };
 
 export const TAIPEI_TZ = "Asia/Taipei";

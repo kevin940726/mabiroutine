@@ -8,11 +8,13 @@ import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useCountdown } from "@/hooks/useCountdown";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import type { Task } from "@/lib/types";
-import { Download, Upload, Plus, Trash2 } from "lucide-react";
+import { Download, Upload, Plus, Pencil, Check, X, Trash2 } from "lucide-react";
 
 export default function App() {
   const checkResets = useAppStore((s) => s.checkResets);
@@ -28,6 +30,9 @@ export default function App() {
   const [addOpen, setAddOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const { dailyText, weeklyText } = useCountdown();
+  const [compact, setCompact] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   // periodic reset check
   useEffect(() => {
@@ -43,6 +48,14 @@ export default function App() {
       document.removeEventListener("visibilitychange", onFocus);
     };
   }, [hasHydrated, checkResets]);
+
+  // compact pill toggles at a simple scroll threshold
+  useEffect(() => {
+    const onScroll = () => setCompact(window.scrollY > 200);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const handleExport = () => {
     const blob = new Blob([exportJson()], { type: "application/json" });
@@ -130,24 +143,22 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
-        {/* progress + char */}
-        <div className="grid gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="text-sm">
-                <span className="text-muted-foreground">今日進度 · {active?.name ?? ""}</span>{" "}
-                <b className="text-lg">{overall.pct}%</b>
-                <span className="text-muted-foreground text-xs ml-1">
-                  {overall.done}/{overall.total}
-                </span>
-              </div>
-              <div className="h-2 w-32 rounded-full bg-muted overflow-hidden hidden sm:block">
+      {/* nav bar — plain in-flow, scrolls away naturally, no sticky needed */}
+      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="mx-auto max-w-3xl px-4 py-2.5">
+          {/* row 1: progress + hide */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{overall.pct}%</span>
+              <div className="h-2 w-28 rounded-full bg-muted overflow-hidden">
                 <div className="h-full bg-primary transition-all" style={{ width: `${overall.pct}%` }} />
               </div>
+              <span className="text-xs text-muted-foreground">
+                {active?.name} {overall.done}/{overall.total}
+              </span>
             </div>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="hideDone" className="text-xs">
+            <div className="flex items-center gap-2 shrink-0">
+              <Label htmlFor="hideDone" className="text-xs whitespace-nowrap">
                 隱藏已完成
               </Label>
               <Switch
@@ -156,19 +167,97 @@ export default function App() {
               />
             </div>
           </div>
-
-          {/* mobile countdown */}
-          <div className="sm:hidden flex gap-2 text-xs font-mono">
-            <span className="border rounded-full px-3 py-1 bg-card">每日 {dailyText}</span>
-            <span className="border rounded-full px-3 py-1 bg-card">每週 {weeklyText}</span>
-          </div>
-
-          <CharacterTabs />
-
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span>進度只儲存在此裝置的瀏覽器（免登入）。每日 06:00、每週一 06:00（台灣時間）自動重置。</span>
+          {/* row 2: character tabs — full width */}
+          <div className="mt-2">
+            <CharacterTabs />
           </div>
         </div>
+      </div>
+
+      {/* compact pill — fixed overlay below header (76px) + margin, fades in sliding down */}
+      <div
+        className={`fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${compact ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
+        style={{ top: 88 }}
+      >
+        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 w-max max-w-[calc(100vw-2rem)] flex-wrap justify-center text-xs">
+          <span className="font-bold shrink-0 text-xs">{overall.pct}%</span>
+          <div className="h-1.5 w-14 shrink-0 rounded-full bg-muted overflow-hidden">
+            <div className="h-full bg-primary transition-all" style={{ width: `${overall.pct}%` }} />
+          </div>
+          <div className="h-4 w-px bg-border shrink-0" />
+          {renamingId === active?.id ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (active) useAppStore.getState().renameCharacter(active.id, renameDraft);
+                setRenamingId(null);
+              }}
+              className="flex items-center gap-1"
+            >
+              <Input autoFocus value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)} className="h-7 w-24 rounded-full text-xs px-2.5" placeholder="名稱" />
+              <button type="submit" className="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-primary text-primary-foreground" aria-label="save rename">
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button type="button" onClick={() => setRenamingId(null)} className="h-7 w-7 shrink-0 grid place-items-center rounded-full border hover:bg-accent" aria-label="cancel rename">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </form>
+          ) : (
+            <>
+              <Select
+                value={active?.id ?? ""}
+                onValueChange={(v) => useAppStore.getState().setActiveChar(v)}
+              >
+                <SelectTrigger className="h-7 w-auto min-w-[120px] rounded-full text-xs px-2.5">
+                  <SelectValue placeholder="選擇角色" />
+                </SelectTrigger>
+                <SelectContent>
+                  {chars.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 rounded-full"
+                onClick={() => {
+                  if (!active) return;
+                  setRenamingId(active.id);
+                  setRenameDraft(active.name);
+                }}
+                aria-label="rename character"
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0 rounded-full"
+                onClick={() => useAppStore.getState().addCharacter()}
+                disabled={chars.length >= 6}
+                aria-label="add character"
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </>
+          )}
+          <div className="h-4 w-px bg-border shrink-0" />
+          <label className="flex items-center gap-1.5 text-xs shrink-0">
+            <span>隱藏已完成</span>
+            <Switch
+              checked={prefs.hideCompleted}
+              onCheckedChange={(v) => useAppStore.setState((s) => ({ prefs: { ...s.prefs, hideCompleted: v } }))}
+            />
+          </label>
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
 
         {/* tabs */}
         <div className="flex items-center gap-2 border-b">

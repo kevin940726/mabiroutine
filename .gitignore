@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# npc raw is local only (single-bg screenshots, not for git)
+public/npc-raw/
+# keep public/npc 76x76 circles tracked
+__pycache__/
+scripts/__pycache__/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

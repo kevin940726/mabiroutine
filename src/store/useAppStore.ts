@@ -121,6 +121,9 @@ type Store = AppState & {
 
 // Build tasks from barter json for pinning: they become Tasks lazily
 export function barterToTask(b: BarterJsonItem): Task {
+  // 每日 N 次：N>1 → counter（每角色每天 N 次）；N=1 或 不限次數 → check
+  const dayCount = Number((b.limit ?? "").match(/每日\s*(\d+)\s*次/)?.[1] ?? 0);
+  const isCounter = dayCount > 1;
   return {
     id: b.id,
     name: b.name,
@@ -128,11 +131,13 @@ export function barterToTask(b: BarterJsonItem): Task {
     desc: `${b.give} → ${b.get} · ${b.town} · ${b.gatherSkill}`,
     section: "daily",
     kind: "daily",
-    type: "check",
+    type: isCounter ? "counter" : "check",
+    max: isCounter ? dayCount : undefined,
     source: "barter",
     town: b.town,
     priority: b.priority as BarterPriority,
-    barterMeta: { give: b.give, get: b.get, gatherSkill: b.gatherSkill },
+    npc: (b as unknown as { npc?: string }).npc,
+    barterMeta: { give: b.give, get: b.get, gatherSkill: b.gatherSkill, limit: b.limit },
     order: 80, // after builtins daily but before weekly
   };
 }
