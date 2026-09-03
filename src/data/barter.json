@@ -1,0 +1,303 @@
+[
+  {
+    "id": "barter-001",
+    "name": "星光碎片 → 祝福藥水",
+    "give": "星光碎片 x10",
+    "get": "祝福藥水 x1",
+    "town": "堤爾柯涅爾",
+    "priority": "must",
+    "gatherSkill": "藥草採集",
+    "perChar": true,
+    "desc": "每日限換1次，每角色獨立"
+  },
+  {
+    "id": "barter-002",
+    "name": "粗糙皮革 → 高級皮革",
+    "give": "粗糙皮革 x20",
+    "get": "高級皮革 x1",
+    "town": "敦巴倫",
+    "priority": "must",
+    "gatherSkill": "剪羊毛",
+    "perChar": true
+  },
+  {
+    "id": "barter-003",
+    "name": "原木 → 堅固木材",
+    "give": "原木 x30",
+    "get": "堅固木材 x1",
+    "town": "堤爾柯涅爾",
+    "priority": "must",
+    "gatherSkill": "伐木",
+    "perChar": true
+  },
+  {
+    "id": "barter-004",
+    "name": "銅礦石 → 鐵礦石",
+    "give": "銅礦石 x15",
+    "get": "鐵礦石 x1",
+    "town": "班克爾",
+    "priority": "must",
+    "gatherSkill": "挖礦",
+    "perChar": true
+  },
+  {
+    "id": "barter-005",
+    "name": "普通魚餌 → 稀有魚餌",
+    "give": "普通魚餌 x10",
+    "get": "稀有魚餌 x1",
+    "town": "艾明馬夏",
+    "priority": "extra",
+    "gatherSkill": "釣魚",
+    "perChar": true
+  },
+  {
+    "id": "barter-006",
+    "name": "雜草 → 藥草束",
+    "give": "雜草 x20",
+    "get": "藥草束 x1",
+    "town": "堤爾柯涅爾",
+    "priority": "must",
+    "gatherSkill": "藥草採集",
+    "perChar": true
+  },
+  {
+    "id": "barter-007",
+    "name": "蘋果 → 蜂蜜",
+    "give": "蘋果 x10",
+    "get": "蜂蜜 x1",
+    "town": "敦巴倫",
+    "priority": "once",
+    "gatherSkill": "採收",
+    "perChar": false
+  },
+  {
+    "id": "barter-008",
+    "name": "昆蟲標本 → 古代遺物",
+    "give": "昆蟲標本 x5",
+    "get": "古代遺物 x1",
+    "town": "艾明馬夏",
+    "priority": "situational",
+    "gatherSkill": "昆蟲採集",
+    "perChar": true
+  },
+  {
+    "id": "barter-009",
+    "name": "小麥 → 麵粉",
+    "give": "小麥 x20",
+    "get": "麵粉 x1",
+    "town": "塔拉",
+    "priority": "extra",
+    "gatherSkill": "採收",
+    "perChar": true
+  },
+  {
+    "id": "barter-010",
+    "name": "松木 → 紅木",
+    "give": "松木 x25",
+    "get": "紅木 x1",
+    "town": "堤爾柯涅爾",
+    "priority": "must",
+    "gatherSkill": "伐木",
+    "perChar": true
+  },
+  {
+    "id": "barter-011",
+    "name": "銀礦石 → 金礦石",
+    "give": "銀礦石 x10",
+    "get": "金礦石 x1",
+    "town": "班克爾",
+    "priority": "must",
+    "gatherSkill": "挖礦",
+    "perChar": true
+  },
+  {
+    "id": "barter-012",
+    "name": "淡水魚 → 深海魚",
+    "give": "淡水魚 x15",
+    "get": "深海魚 x1",
+    "town": "艾明馬夏",
+    "priority": "must",
+    "gatherSkill": "釣魚",
+    "perChar": true
+  },
+  {
+    "id": "barter-013",
+    "name": "莓果 → 果醬",
+    "give": "莓果 x12",
+    "get": "果醬 x1",
+    "town": "敦巴倫",
+    "priority": "extra",
+    "gatherSkill": "日常採集",
+    "perChar": true
+  },
+  {
+    "id": "barter-014",
+    "name": "羊毛 → 高級布料",
+    "give": "羊毛 x15",
+    "get": "高級布料 x1",
+    "town": "敦巴倫",
+    "priority": "must",
+    "gatherSkill": "剪羊毛",
+    "perChar": true
+  },
+  {
+    "id": "barter-015",
+    "name": "蘑菇孢子 → 魔力蘑菇",
+    "give": "蘑菇孢子 x10",
+    "get": "魔力蘑菇 x1",
+    "town": "堤爾柯涅爾",
+    "priority": "situational",
+    "gatherSkill": "藥草採集",
+    "perChar": true
+  },
+  {
+    "id": "barter-016",
+    "name": "橡木 → 精製木材",
+    "give": "橡木 x20",
+    "get": "精製木材 x1",
+    "town": "塔拉",
+    "priority": "must",
+    "gatherSkill": "伐木",
+    "perChar": true
+  },
+  {
+    "id": "barter-017",
+    "name": "鐵礦石 → 鋼錠",
+    "give": "鐵礦石 x10",
+    "get": "鋼錠 x1",
+    "town": "班克爾",
+    "priority": "extra",
+    "gatherSkill": "挖礦",
+    "perChar": true
+  },
+  {
+    "id": "barter-018",
+    "name": "貝殼 → 珍珠",
+    "give": "貝殼 x30",
+    "get": "珍珠 x1",
+    "town": "艾明馬夏",
+    "priority": "once",
+    "gatherSkill": "釣魚",
+    "perChar": false
+  },
+  {
+    "id": "barter-019",
+    "name": "藥草種子 → 稀有藥草",
+    "give": "藥草種子 x8",
+    "get": "稀有藥草 x1",
+    "town": "堤爾柯涅爾",
+    "priority": "must",
+    "gatherSkill": "藥草採集",
+    "perChar": true
+  },
+  {
+    "id": "barter-020",
+    "name": "蜂蜜 → 王室蜂蜜",
+    "give": "蜂蜜 x5",
+    "get": "王室蜂蜜 x1",
+    "town": "塔拉",
+    "priority": "must",
+    "gatherSkill": "昆蟲採集",
+    "perChar": true
+  },
+  {
+    "id": "barter-021",
+    "name": "碎石 → 寶石原石",
+    "give": "碎石 x50",
+    "get": "寶石原石 x1",
+    "town": "班克爾",
+    "priority": "extra",
+    "gatherSkill": "挖礦",
+    "perChar": true
+  },
+  {
+    "id": "barter-022",
+    "name": "枯枝 → 火把",
+    "give": "枯枝 x15",
+    "get": "火把 x1",
+    "town": "堤爾柯涅爾",
+    "priority": "skip",
+    "gatherSkill": "伐木",
+    "perChar": true
+  },
+  {
+    "id": "barter-023",
+    "name": "金幣袋 → 銀幣箱",
+    "give": "金幣袋 x1",
+    "get": "銀幣箱 x1",
+    "town": "敦巴倫",
+    "priority": "must",
+    "gatherSkill": "日常採集",
+    "perChar": true
+  },
+  {
+    "id": "barter-024",
+    "name": "鱗片 → 龍皮",
+    "give": "鱗片 x20",
+    "get": "龍皮 x1",
+    "town": "艾明馬夏",
+    "priority": "situational",
+    "gatherSkill": "釣魚",
+    "perChar": true
+  },
+  {
+    "id": "barter-025",
+    "name": "野花 → 花束",
+    "give": "野花 x10",
+    "get": "花束 x1",
+    "town": "堤爾柯涅爾",
+    "priority": "once",
+    "gatherSkill": "日常採集",
+    "perChar": false
+  },
+  {
+    "id": "barter-026",
+    "name": "木炭 → 火藥",
+    "give": "木炭 x10",
+    "get": "火藥 x1",
+    "town": "班克爾",
+    "priority": "extra",
+    "gatherSkill": "伐木",
+    "perChar": true
+  },
+  {
+    "id": "barter-027",
+    "name": "蜘蛛絲 → 絲綢",
+    "give": "蜘蛛絲 x12",
+    "get": "絲綢 x1",
+    "town": "敦巴倫",
+    "priority": "must",
+    "gatherSkill": "昆蟲採集",
+    "perChar": true
+  },
+  {
+    "id": "barter-028",
+    "name": "海草 → 海帶",
+    "give": "海草 x20",
+    "get": "海帶 x1",
+    "town": "艾明馬夏",
+    "priority": "extra",
+    "gatherSkill": "釣魚",
+    "perChar": true
+  },
+  {
+    "id": "barter-029",
+    "name": "南瓜 → 南瓜派",
+    "give": "南瓜 x8",
+    "get": "南瓜派 x1",
+    "town": "塔拉",
+    "priority": "once",
+    "gatherSkill": "採收",
+    "perChar": false
+  },
+  {
+    "id": "barter-030",
+    "name": "以太碎片 → 以太結晶",
+    "give": "以太碎片 x15",
+    "get": "以太結晶 x1",
+    "town": "堤爾柯涅爾",
+    "priority": "must",
+    "gatherSkill": "日常採集",
+    "perChar": true
+  }
+]
