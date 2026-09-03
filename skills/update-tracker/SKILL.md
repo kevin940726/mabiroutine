@@ -1,37 +1,43 @@
-# Skill: update-tracker — TW-only deterministic seeder
+# Skill: update-tracker — manual-first, fetch-as-suggestion
 
-Invoke via coding agent (not raw `pnpm update-barter`) when seeding `src/data/*`.
+The human owns `src/data/*` by hand. Fetchers only produce reference diffs.
+No script or agent step writes `tracker.json` / `barter.json` without an explicit
+human "apply this" for the specific rows.
 
 ## When to use
-- Any automated `tracker` or `barter` seeding, or after `AGENTS.md` item table changes.
-- Before committing `src/data/builtin.ts` or `src/data/barter.json`.
+- After `AGENTS.md` item table changes (human edited it first).
+- When the human asks "what changed upstream?" — answer with a suggestion diff.
 
 ## Inputs (read first)
 - `AGENTS.md` — single source of truth for TW hardcodes (`barrier 7`, `black-hole 7+7`), sources, and filtering rules.
-- `src/data/builtin.ts` / `src/data/barter.json` — current seed to diff against.
+- `src/data/tracker.json` / `src/data/barter.json` — the hand-maintained files; diff target, never write target.
 
-## Steps (deterministic, agent-verified)
+## Steps
 
-1. **Fetch goldens (barter)** — `NOTEBOOK_URL=https://mabinogi-mobile-notebook.vercel.app/barter-data.js` and `YENYEN_URL=https://mabi.yenyen.dev/`. Parse `window.MABINOGI_BARTER_DATA`, take `verified==="tw"` (70) as seed. Do **not** seed `verified==="kr"` (18). Optionally union `yenyen 86` (log 16 extra). `nipponhashi/barter` 226 is diff-only, never seed.
-2. **Fetch tracker TW** — `TW_URL=https://mabinogimobile.nipponhashi.com/tracker/` default `tw` (do not set `kr`). Verify `button[data-server-set="tw"].active` and `server-switch-hint`. If selector missing, stop and report site change.
-3. **Filter** — Exclude any node with `data-server="kr"`, `hidden` when `tw` active, or text `韓服`/`KR預覽`/`台服未實裝`. For tracker, apply `AGENTS.md` hardcode: `barrier max 7` and `black-hole daily1+weekly7=14` (counter 0/7) — do not re-derive from `韓服社群` fallback.
-4. **Diff & log** — `TW: ${tw.length} / SKIPPED_KR: ${kr.length} / yenyen_extra: ${extra}`. If counts drift >10 from `AGENTS.md` (20 tracker, ~70 barter), flag for human review.
-5. **Write** — `src/data/barter.json` from `tw` set only (keep `priority=must` shape, preserve `perChar`/`limit`/`rec`), `src/data/builtin.ts` with 20 rows per `AGENTS.md` (keep hardcoded descs). Do not invent `town`/`skill`.
-6. **Verify** — `pnpm build` must pass; `pnpm update-barter:dry` must show `TW70 must10 / KR18` style log.
-7. **Commit gate** — Show diff and ask human to confirm `AGENTS.md` hardcode still valid before `git commit`.
+1. **Suggest, don't seed** — run the fetchers; they only write `suggestions/` (gitignored):
+   ```bash
+   pnpm suggest-tracker   # diff tracker.json rows vs TW tracker page -> suggestions/tracker.json
+   pnpm suggest-barter    # diff barter.json vs notebook70+yenyen -> suggestions/barter.json
+   ```
+2. **Report the diff** — added / removed / changed rows, plus `twViewVerified` and
+   `krMentions` from the tracker check. If counts drift >10 from `AGENTS.md`
+   (20 tracker, ~98 barter), flag for human review.
+3. **Human applies by hand** — edit `src/data/tracker.json` / `src/data/barter.json`
+   directly. Keep `AGENTS.md` hardcodes: `barrier max 7`, `black-hole` counter
+   0/7 with the 7+7 desc — do not re-derive from `韓服社群` fallback text.
+   Do not invent `town`/`skill`; never add `verified:"kr"` rows.
+4. **Verify** — `pnpm build` must pass after hand edits.
 
-## Commands
-```bash
-pnpm update-barter:dry   # barter dry-run (script only, deterministic)
-pnpm update-barter       # barter write (script only)
-# Full (agent): fetch tracker tw + notebook + yenyen, apply hardcode, build, confirm
-```
+## Escape hatch (explicit human approval only)
+- `pnpm update-barter` (= `--write`) overwrites `barter.json` and wipes manual
+  edits. Use only when the human says so for a full reseed.
 
 ## Non-goals
 - Never fetch `/ko/*` for seeding.
 - Never overwrite `barrier`/`black-hole` with `韓服社群數值` without human bump of `AGENTS.md`.
+- Never commit `suggestions/` (gitignored references).
 
 ## References
 - `AGENTS.md` Filtering Rules pseudo
-- `scripts/update-barter.mjs` (barter goldens)
-- `src/data/builtin.ts` (20 TW rows)
+- `scripts/suggest-tracker.mjs`, `scripts/update-barter.mjs` (suggest by default)
+- `src/data/tracker.json` (20 TW rows, hand-owned), `src/data/barter.json` (98 rows, hand-owned)

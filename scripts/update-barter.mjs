@@ -5,8 +5,12 @@
  *   - https://mabinogi-mobile-notebook.vercel.app/barter-data.js — window.MABINOGI_BARTER_DATA, verified:"tw" (70) / "kr" (18)
  *   - https://mabi.yenyen.dev/ — 86 rows (all TW) with 地區+推薦度
  * nipponhashi barter 226 is cross-ref only (never seed).
- * Usage: node scripts/update-barter.mjs [--dry-run] [--merge-yenyen]
+ * Usage: node scripts/update-barter.mjs [--dry-run] [--merge-yenyen] [--write]
  *   --merge-yenyen: union notebook 70 + yenyen 16 extra = 86 (default now when yenyen fetch succeeds)
+ *   default (no --write): SUGGEST ONLY — diff fetched rows against src/data/barter.json
+ *     and write suggestions/barter.json {added, removed, changed}. Never touches barter.json.
+ *   --write: overwrite src/data/barter.json with fetched rows (escape hatch; wipes manual edits).
+ * Manual-first workflow: you own barter.json by hand; fetch output is reference only.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -15,7 +19,9 @@ const NOTEBOOK_URL = "https://mabinogi-mobile-notebook.vercel.app/barter-data.js
 const YENYEN_URL = "https://mabi.yenyen.dev/";
 const NIPPON_URL = "https://mabinogimobile.nipponhashi.com/barter/"; // diff only
 const DEST = path.resolve("src/data/barter.json");
+const SUGGEST_DEST = path.resolve("suggestions/barter.json");
 const DRY = process.argv.includes("--dry-run");
+const WRITE = process.argv.includes("--write");
 const NO_MERGE = process.argv.includes("--no-merge");
 
 async function fetchText(url) {
@@ -199,9 +205,52 @@ async function main() {
       console.log("\n[yenyen extra sample]");
       console.log(JSON.stringify(extra.slice(0, 2), null, 2));
     }
-    console.log("\nTo apply: node scripts/update-barter.mjs");
+    console.log("\nTo suggest (diff vs current file): node scripts/update-barter.mjs --suggest");
+    console.log("To overwrite (wipes manual edits): node scripts/update-barter.mjs --write");
     return;
   }
+  if (!WRITE) {
+    // SUGGEST ONLY — diff fetched rows against the hand-maintained file.
+    let current = [];
+    try {
+      current = JSON.parse(fs.readFileSync(DEST, "utf8"));
+    } catch {
+      console.warn(`Cannot read current ${DEST}; treating all fetched rows as added.`);
+    }
+    const FIELDS = ["give", "get", "town", "priority", "limit", "rec", "npc", "note"];
+    const curById = new Map(current.map((r) => [r.id, r]));
+    const outById = new Map(out.map((r) => [r.id, r]));
+    const added = out.filter((r) => !curById.has(r.id));
+    const removed = current.filter((r) => !outById.has(r.id)).map((r) => ({ id: r.id, name: r.name }));
+    const changed = [];
+    for (const r of out) {
+      const c = curById.get(r.id);
+      if (!c) continue;
+      const diff = {};
+      for (const f of FIELDS) {
+        if ((c[f] ?? "") !== (r[f] ?? "")) diff[f] = { current: c[f] ?? "", fetched: r[f] ?? "" };
+      }
+      if (Object.keys(diff).length) changed.push({ id: r.id, name: r.name, diff });
+    }
+    const suggestions = {
+      generatedAt: new Date().toISOString(),
+      sources: { notebook: NOTEBOOK_URL, yenyen: YENYEN_URL, nipponhashiDiffOnly: NIPPON_URL },
+      counts: { fetched: out.length, current: current.length, added: added.length, removed: removed.length, changed: changed.length },
+      added,
+      removed,
+      changed,
+    };
+    fs.mkdirSync(path.dirname(SUGGEST_DEST), { recursive: true });
+    fs.writeFileSync(SUGGEST_DEST, JSON.stringify(suggestions, null, 2) + "\n", "utf8");
+    console.log(`\n[suggest] fetched=${out.length} current=${current.length} added=${added.length} removed=${removed.length} changed=${changed.length}`);
+    for (const a of added.slice(0, 10)) console.log(`  + ${a.id} | ${a.npc} ${a.get} ← ${a.give} (${a.limit})`);
+    for (const r of removed.slice(0, 10)) console.log(`  - ${r.id} | ${r.name}`);
+    for (const c of changed.slice(0, 10)) console.log(`  ~ ${c.id} | ${Object.keys(c.diff).join(", ")}`);
+    console.log(`\nFull diff: ${SUGGEST_DEST} — apply by hand to ${DEST}.`);
+    console.log("To overwrite (wipes manual edits): node scripts/update-barter.mjs --write");
+    return;
+  }
+  console.warn("WARNING: --write overwrites src/data/barter.json, wiping manual edits.");
   fs.writeFileSync(DEST, JSON.stringify(out, null, 2) + "\n", "utf8");
   console.log(`Wrote ${DEST} (${out.length} rows)`);
 }

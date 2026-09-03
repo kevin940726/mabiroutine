@@ -1,9 +1,12 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { BUILTIN_TASKS } from "@/data/builtin";
+import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
-import type { AppState, Character, Task, BarterPriority } from "@/lib/types";
+import type { AppState, BarterFilters, Character, Task, BarterPriority } from "@/lib/types";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiDateKey, getTaipeiWeekKey } from "@/lib/reset";
+import { idleStorage } from "@/lib/storage";
+
+const BUILTIN_TASKS = trackerJson as Task[];
 
 type BarterJsonItem = (typeof barterJson)[number];
 
@@ -13,11 +16,6 @@ function uid() {
 
 function defaultChar(name: string): Character {
   return { id: uid(), name, taskValues: {}, hiddenTaskIds: [] };
-}
-
-function getEffectivePins(state: AppState, charId: string): string[] {
-  if (state.isBarterForked && state.barterPinsByChar) return state.barterPinsByChar[charId] ?? [];
-  return state.barterPins;
 }
 
 function applyResets(state: AppState): Partial<AppState> {
@@ -56,7 +54,7 @@ function applyResets(state: AppState): Partial<AppState> {
         // also barter pinned tasks that are daily
         if (t.source === "barter" && t.kind === "daily") delete c.taskValues[t.id];
       }
-      const pins = getEffectivePins(state, c.id);
+      const pins = state.barterPins;
       for (const pid of pins) delete c.taskValues[pid];
       // fallback for any barter json id
       for (const b of barterJson as BarterJsonItem[]) delete c.taskValues[b.id];
@@ -98,21 +96,16 @@ type Store = AppState & {
 
   clearSection: (section: "daily" | "weekly" | "account", kind?: string) => void;
 
-  // barter pins: tap = per-acc (global), hold/right-click = per-char (fork auto)
-  toggleBarterPin: (barterId: string) => void; // per-acc (tap)
-  toggleBarterPinForChar: (barterId: string) => void; // per-char (hold/right-click)
-  pinBarterToAll: (barterId: string) => void;
-  unpinBarterFromAll: (barterId: string) => void;
-  getEffectivePinsForActive: () => string[];
-  getPinScope: (barterId: string) => "shared" | "personal" | "none";
-  isForked: () => boolean;
-  mergePinsToShared: () => void;
+  // barter pins: single global list, one tap toggles for every character
+  toggleBarterPin: (barterId: string) => void;
+  isBarterPinned: (barterId: string) => boolean;
   addCustomTask: (task: Omit<Task, "id" | "order" | "source">) => void;
   updateCustomTask: (id: string, patch: Partial<Task>) => void;
   removeCustomTask: (id: string) => void;
   toggleHidden: (taskId: string) => void;
   reorderTasks: (orderedIds: string[]) => void;
   reorderBarterPins: (orderedIds: string[]) => void;
+  setBarterFilters: (patch: Partial<BarterFilters>) => void;
 
   exportJson: () => string;
   importJson: (json: string) => void;
@@ -144,19 +137,141 @@ export function barterToTask(b: BarterJsonItem): Task {
 
 const DEFAULT_MUST_PINS: string[] = (barterJson as BarterJsonItem[]).filter((b) => b.priority === "must").map((b) => b.id);
 
+const DEFAULT_BARTER_FILTERS: BarterFilters = { priority: "all", town: "all", skill: "all", onlyPinned: false };
+
+// Drop stale select values (e.g. a town removed from barter.json) back to "all".
+function sanitizeBarterFilters(f: unknown): BarterFilters {
+  const r = (f ?? {}) as Partial<BarterFilters>;
+  const prios = ["all", "must", "extra", "once", "situational", "skip"];
+  const towns = new Set(["all", ...(barterJson as BarterJsonItem[]).map((b) => b.town)]);
+  const skills = new Set(["all", ...(barterJson as BarterJsonItem[]).map((b) => b.gatherSkill)]);
+  return {
+    priority: (prios.includes(r.priority as string) ? r.priority : "all") as BarterFilters["priority"],
+    town: towns.has(r.town as string) ? (r.town as string) : "all",
+    skill: skills.has(r.skill as string) ? (r.skill as string) : "all",
+    onlyPinned: r.onlyPinned === true,
+  };
+}
+
 const initial: AppState = {
-  version: 5,
+  version: 9,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
   barterPins: [...DEFAULT_MUST_PINS],
-  barterPinsByChar: undefined,
-  isBarterForked: false,
   customTasks: [],
   lastDailyReset: null,
   lastWeeklyReset: null,
   prefs: { hideCompleted: false },
+  barterFilters: { ...DEFAULT_BARTER_FILTERS },
 };
+
+// Backward-compat: fill structural defaults for data that bypassed migrate
+// (versionless ancient saves, hand-edited storage, old import backups).
+// Runs on every load AND on import — migrate version steps run after this.
+function normalizePersisted(input: unknown): AppState {
+  const d = (input ?? {}) as Partial<AppState>;
+  const chars = Array.isArray(d.characters) && d.characters.length > 0 ? d.characters : [defaultChar("角色 1")];
+  for (const c of chars) {
+    c.id = typeof c.id === "string" && c.id ? c.id : uid();
+    c.name = typeof c.name === "string" && c.name ? c.name : "角色";
+    c.taskValues = c.taskValues && typeof c.taskValues === "object" ? c.taskValues : {};
+    c.hiddenTaskIds = Array.isArray(c.hiddenTaskIds) ? c.hiddenTaskIds : [];
+  }
+  const activeOk = chars.some((c) => c.id === d.activeCharId);
+  return {
+    ...initial,
+    ...d,
+    version: typeof d.version === "number" ? d.version : 0,
+    characters: chars,
+    activeCharId: activeOk ? (d.activeCharId as string) : chars[0].id,
+    accountValues: d.accountValues && typeof d.accountValues === "object" ? d.accountValues : {},
+    barterPins: Array.isArray(d.barterPins) ? d.barterPins : [...DEFAULT_MUST_PINS],
+    customTasks: Array.isArray(d.customTasks) ? d.customTasks : [],
+    lastDailyReset: d.lastDailyReset ?? null,
+    lastWeeklyReset: d.lastWeeklyReset ?? null,
+    prefs: { hideCompleted: d.prefs?.hideCompleted ?? false },
+    barterFilters: sanitizeBarterFilters(d.barterFilters),
+  };
+}
+
+// Shared migration runner: normalize shape first (covers versionless ancient
+// saves), then run every step newer than the stored version. Used by zustand
+// persist on load AND by importJson on backup import — single source of truth.
+// Exported for scripts/check-migrations.mjs (agent pre-push gate).
+export function migratePersisted(persisted: unknown, version: number): AppState {
+  const s = normalizePersisted(persisted) as AppState & { version?: number };
+  const from = typeof version === "number" ? version : 0;
+  if (from < 3) {
+    // v2 → v3: fork fields existed back then; removed in v7 — just stamp.
+    s.version = 3;
+  }
+  if (from < 4) {
+    // v3 → v4: seed 每日必做 defaults (must) if empty
+    if (!s.barterPins || s.barterPins.length === 0) {
+      s.barterPins = [...DEFAULT_MUST_PINS];
+    }
+    s.version = 4;
+  }
+  if (from < 5) {
+    // v4 → v5: barter.json switched from synthetic barter-001..030 (30 rows) to notebook TW 70 (tir-*/dug-*/dun-*).
+    // Old synthetic ids are all stale (startWith barter-), reseed to new must (10) so 一定要換/必換 appears by default.
+    const valid = new Set((barterJson as BarterJsonItem[]).map((b) => b.id));
+    const hasSynthetic = (arr: string[]) => arr.some((id) => id.startsWith("barter-"));
+    if (s.barterPins && (hasSynthetic(s.barterPins) || s.barterPins.some((id) => !valid.has(id)))) {
+      const filtered = s.barterPins.filter((id) => valid.has(id));
+      // if any synthetic or >50% invalid, reseed to must defaults
+      if (hasSynthetic(s.barterPins) || filtered.length === 0 || filtered.length < s.barterPins.length / 2) {
+        s.barterPins = [...DEFAULT_MUST_PINS];
+      } else {
+        s.barterPins = filtered;
+      }
+    }
+    // if still empty, seed must
+    if (!s.barterPins || s.barterPins.length === 0) s.barterPins = [...DEFAULT_MUST_PINS];
+    s.version = 5;
+  }
+  if (from < 6) {
+    // v5 → v6: prune references to tracker/barter ids that no longer exist
+    // (tracker.json/barter.json are hand-edited; rows can be removed).
+    // User data always wins — only dangling keys are dropped, values untouched.
+    const valid = new Set<string>([
+      ...(trackerJson as Task[]).map((t) => t.id),
+      ...(barterJson as BarterJsonItem[]).map((b) => b.id),
+      ...(s.customTasks ?? []).map((t) => t.id),
+    ]);
+    const pruneArr = (arr?: string[]) => (arr ?? []).filter((id) => valid.has(id));
+    const pruneRec = <T,>(rec?: Record<string, T>) =>
+      Object.fromEntries(Object.entries(rec ?? {}).filter(([k]) => valid.has(k))) as Record<string, T>;
+    for (const c of s.characters ?? []) {
+      c.taskValues = pruneRec(c.taskValues);
+      c.hiddenTaskIds = pruneArr(c.hiddenTaskIds);
+    }
+    s.accountValues = pruneRec(s.accountValues);
+    s.barterPins = pruneArr(s.barterPins);
+    if (s.globalTaskOrder) s.globalTaskOrder = pruneRec(s.globalTaskOrder);
+    s.version = 6;
+  }
+  if (from < 7) {
+    // v6 → v7: fork model removed — single global pin list. Reset to must
+    // defaults (per human decision); drop legacy fork containers if present.
+    s.barterPins = [...DEFAULT_MUST_PINS];
+    delete (s as Record<string, unknown>).barterPinsByChar;
+    delete (s as Record<string, unknown>).isBarterForked;
+    s.version = 7;
+  }
+  if (from < 8) {
+    // v7 → v8: barter explorer filters persisted (sanitized in normalize) — just stamp.
+    s.barterFilters = sanitizeBarterFilters(s.barterFilters);
+    s.version = 8;
+  }
+  if (from < 9) {
+    // v8 → v9: search text no longer persisted (session-only) — sanitize drops it.
+    s.barterFilters = sanitizeBarterFilters(s.barterFilters);
+    s.version = 9;
+  }
+  return s as AppState;
+}
 
 export const useAppStore = create<Store>()(
   persist(
@@ -182,21 +297,14 @@ export const useAppStore = create<Store>()(
           if (s.characters.length >= 6) return s;
           const n = name?.trim() || `角色 ${s.characters.length + 1}`;
           const c = defaultChar(n);
-          // if forked, new char gets empty pins (clean), otherwise inherits shared
-          let nextByChar = s.barterPinsByChar;
-          if (s.isBarterForked) {
-            nextByChar = { ...(s.barterPinsByChar ?? {}), [c.id]: [] };
-          }
-          return { characters: [...s.characters, c], activeCharId: c.id, barterPinsByChar: nextByChar };
+          return { characters: [...s.characters, c], activeCharId: c.id };
         }),
       removeCharacter: (id) =>
         set((s) => {
           if (s.characters.length <= 1) return s;
           const chars = s.characters.filter((c) => c.id !== id);
           const active = s.activeCharId === id ? chars[0].id : s.activeCharId;
-          const nextByChar = s.barterPinsByChar ? { ...s.barterPinsByChar } : undefined;
-          if (nextByChar) delete nextByChar[id];
-          return { characters: chars, activeCharId: active, barterPinsByChar: nextByChar };
+          return { characters: chars, activeCharId: active };
         }),
       renameCharacter: (id, name) =>
         set((s) => ({
@@ -287,8 +395,7 @@ export const useAppStore = create<Store>()(
           }
           // also barter pins considered daily
           if (section === "daily") {
-            const pins = getEffectivePins(s, char.id);
-            for (const pid of pins) idsToClear.add(pid);
+            for (const pid of s.barterPins) idsToClear.add(pid);
           }
           const nextChars = s.characters.map((c) =>
             c.id === s.activeCharId
@@ -298,102 +405,13 @@ export const useAppStore = create<Store>()(
           return { characters: nextChars };
         }),
 
-      // tap = per-acc (global). Before fork mutates base, after fork adds/removes on every char
+      // single global list: one tap toggles for every character
       toggleBarterPin: (barterId) =>
-        set((s) => {
-          if (s.isBarterForked && s.barterPinsByChar) {
-            const hasOnAll = s.characters.every((c) => (s.barterPinsByChar![c.id] ?? []).includes(barterId));
-            if (hasOnAll) {
-              // remove from all
-              const next: Record<string, string[]> = {};
-              for (const c of s.characters) next[c.id] = (s.barterPinsByChar[c.id] ?? []).filter((x) => x !== barterId);
-              return { barterPinsByChar: next };
-            }
-            // add to all where missing
-            const next: Record<string, string[]> = {};
-            for (const c of s.characters) {
-              const list = s.barterPinsByChar[c.id] ?? [];
-              next[c.id] = list.includes(barterId) ? list : [...list, barterId];
-            }
-            return { barterPinsByChar: next };
-          }
-          // not forked → mutate base
-          return {
-            barterPins: s.barterPins.includes(barterId) ? s.barterPins.filter((x) => x !== barterId) : [...s.barterPins, barterId],
-          };
-        }),
+        set((s) => ({
+          barterPins: s.barterPins.includes(barterId) ? s.barterPins.filter((x) => x !== barterId) : [...s.barterPins, barterId],
+        })),
 
-      // hold/right-click = per-char (personal). Auto-fork on first use: copy base to each char
-      toggleBarterPinForChar: (barterId) =>
-        set((s) => {
-          const activeId = s.activeCharId;
-          if (!s.isBarterForked || !s.barterPinsByChar) {
-            // fork: clone base to each char
-            const byChar: Record<string, string[]> = {};
-            for (const c of s.characters) byChar[c.id] = [...s.barterPins];
-            const list = byChar[activeId] ?? [];
-            byChar[activeId] = list.includes(barterId) ? list.filter((x) => x !== barterId) : [...list, barterId];
-            return { isBarterForked: true, barterPinsByChar: byChar };
-          }
-          const list = s.barterPinsByChar[activeId] ?? [];
-          return {
-            barterPinsByChar: {
-              ...s.barterPinsByChar,
-              [activeId]: list.includes(barterId) ? list.filter((x) => x !== barterId) : [...list, barterId],
-            },
-          };
-        }),
-
-      pinBarterToAll: (barterId) =>
-        set((s) => {
-          if (s.isBarterForked && s.barterPinsByChar) {
-            const next: Record<string, string[]> = {};
-            for (const c of s.characters) {
-              const list = s.barterPinsByChar[c.id] ?? [];
-              next[c.id] = list.includes(barterId) ? list : [...list, barterId];
-            }
-            return { barterPinsByChar: next };
-          }
-          if (!s.barterPins.includes(barterId)) return { barterPins: [...s.barterPins, barterId] };
-          return s;
-        }),
-
-      unpinBarterFromAll: (barterId) =>
-        set((s) => {
-          if (s.isBarterForked && s.barterPinsByChar) {
-            const next: Record<string, string[]> = {};
-            for (const c of s.characters) next[c.id] = (s.barterPinsByChar[c.id] ?? []).filter((x) => x !== barterId);
-            return { barterPinsByChar: next };
-          }
-          return { barterPins: s.barterPins.filter((x) => x !== barterId) };
-        }),
-
-      getEffectivePinsForActive: () => {
-        const s = get();
-        const activeId = s.activeCharId;
-        return getEffectivePins(s, activeId);
-      },
-
-      getPinScope: (barterId) => {
-        const s = get();
-        if (s.isBarterForked && s.barterPinsByChar) {
-          const list = s.barterPinsByChar[s.activeCharId] ?? [];
-          if (!list.includes(barterId)) return "none";
-          // check if pinned on all chars → could be considered shared even though forked, but show as personal
-          return "personal";
-        }
-        return s.barterPins.includes(barterId) ? "shared" : "none";
-      },
-
-      isForked: () => !!get().isBarterForked,
-
-      mergePinsToShared: () =>
-        set((s) => {
-          if (!s.isBarterForked || !s.barterPinsByChar) return s;
-          // merge = union of all chars' pins → new base, def fork
-          const union = [...new Set(Object.values(s.barterPinsByChar).flat())];
-          return { barterPins: union, barterPinsByChar: undefined, isBarterForked: false };
-        }),
+      isBarterPinned: (barterId) => get().barterPins.includes(barterId),
 
       addCustomTask: (task) =>
         set((s) => {
@@ -408,9 +426,6 @@ export const useAppStore = create<Store>()(
         })),
       removeCustomTask: (id) =>
         set((s) => {
-          const nextByChar = s.barterPinsByChar
-            ? Object.fromEntries(Object.entries(s.barterPinsByChar).map(([k, v]) => [k, (v as string[]).filter((x) => x !== id)]))
-            : undefined;
           return {
             customTasks: s.customTasks.filter((t) => t.id !== id),
             // also clean values
@@ -421,7 +436,6 @@ export const useAppStore = create<Store>()(
             })),
             accountValues: Object.fromEntries(Object.entries(s.accountValues).filter(([k]) => k !== id)),
             barterPins: s.barterPins.filter((x) => x !== id),
-            barterPinsByChar: nextByChar,
           };
         }),
       toggleHidden: (taskId) =>
@@ -450,20 +464,13 @@ export const useAppStore = create<Store>()(
 
       reorderBarterPins: (orderedIds) =>
         set((s) => {
-          if (s.isBarterForked && s.barterPinsByChar) {
-            const activeId = s.activeCharId;
-            const current = s.barterPinsByChar[activeId] ?? [];
-            // keep only ids that are in orderedIds and preserve order, append any missing
-            const ordered = orderedIds.filter((id) => current.includes(id));
-            const missing = current.filter((id) => !ordered.includes(id));
-            return {
-              barterPinsByChar: { ...s.barterPinsByChar, [activeId]: [...ordered, ...missing] },
-            };
-          }
           const ordered = orderedIds.filter((id) => s.barterPins.includes(id));
           const missing = s.barterPins.filter((id) => !ordered.includes(id));
           return { barterPins: [...ordered, ...missing] };
         }),
+
+      setBarterFilters: (patch) =>
+        set((s) => ({ barterFilters: sanitizeBarterFilters({ ...s.barterFilters, ...patch }) })),
 
       exportJson: () => JSON.stringify(get(), null, 2),
       importJson: (json) => {
@@ -471,7 +478,9 @@ export const useAppStore = create<Store>()(
           const data = JSON.parse(json);
           // basic validation
           if (!data.characters || !Array.isArray(data.characters)) throw new Error("invalid");
-          set({ ...data, _hasHydrated: true });
+          // same normalize + migrate path as load: old backups can't crash the app
+          const migrated = migratePersisted(data, typeof data.version === "number" ? data.version : 0);
+          set({ ...migrated, _hasHydrated: true });
         } catch (e) {
           alert("匯入失敗：JSON 格式錯誤");
           console.error(e);
@@ -486,8 +495,6 @@ export const useAppStore = create<Store>()(
           activeCharId: fresh.id,
           customTasks: [],
           barterPins: [...DEFAULT_MUST_PINS],
-          barterPinsByChar: undefined,
-          isBarterForked: false,
           accountValues: {},
           lastDailyReset: null,
           lastWeeklyReset: null,
@@ -496,70 +503,14 @@ export const useAppStore = create<Store>()(
     }),
     {
       name: "mabiroutine:v2",
-      storage: createJSONStorage(() => localStorage),
-      version: 5,
-      migrate: (persisted: unknown, version: number) => {
-        const s = persisted as AppState & { version?: number };
-        if (version < 3) {
-          // v2 → v3: ensure new fields exist
-          s.isBarterForked = s.isBarterForked ?? false;
-          s.barterPinsByChar = s.barterPinsByChar ?? undefined;
-          s.version = 3;
-        }
-        if (version < 4) {
-          // v3 → v4: seed 每日必做 defaults (must) if empty and not forked
-          const hasPins = (s.barterPins && s.barterPins.length > 0) || (s.barterPinsByChar && Object.values(s.barterPinsByChar).some((a) => (a as string[]).length > 0));
-          if (!hasPins && !s.isBarterForked) {
-            s.barterPins = [...DEFAULT_MUST_PINS];
-          }
-          s.version = 4;
-        }
-        if (version < 5) {
-          // v4 → v5: barter.json switched from synthetic barter-001..030 (30 rows) to notebook TW 70 (tir-*/dug-*/dun-*).
-          // Old synthetic ids are all stale (startWith barter-), reseed to new must (10) so 一定要換/必換 appears by default.
-          const valid = new Set((barterJson as BarterJsonItem[]).map((b) => b.id));
-          const hasSynthetic = (arr: string[]) => arr.some((id) => id.startsWith("barter-"));
-          if (s.barterPins && (hasSynthetic(s.barterPins) || s.barterPins.some((id) => !valid.has(id)))) {
-            const filtered = s.barterPins.filter((id) => valid.has(id));
-            // if any synthetic or >50% invalid, reseed to must defaults
-            if (hasSynthetic(s.barterPins) || filtered.length === 0 || filtered.length < s.barterPins.length / 2) {
-              s.barterPins = [...DEFAULT_MUST_PINS];
-            } else {
-              s.barterPins = filtered;
-            }
-          }
-          if (s.barterPinsByChar) {
-            for (const [k, arr] of Object.entries(s.barterPinsByChar)) {
-              const a = arr as string[];
-              if (hasSynthetic(a) || a.some((id) => !valid.has(id))) {
-                const filtered = a.filter((id) => valid.has(id));
-                if (hasSynthetic(a) || filtered.length === 0 || filtered.length < a.length / 2) {
-                  s.barterPinsByChar[k] = [...DEFAULT_MUST_PINS];
-                } else {
-                  s.barterPinsByChar[k] = filtered;
-                }
-              }
-            }
-          }
-          // if still empty and not forked, seed must
-          const hasPinsNow =
-            (s.barterPins && s.barterPins.length > 0) ||
-            (s.barterPinsByChar && Object.values(s.barterPinsByChar).some((a) => (a as string[]).length > 0));
-          if (!hasPinsNow && !s.isBarterForked) s.barterPins = [...DEFAULT_MUST_PINS];
-          s.version = 5;
-        }
-        return s as AppState;
-      },
+      storage: createJSONStorage(() => idleStorage),
+      version: 9,
+      migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
         // fix activeCharId if missing
         if (state && !state.characters.find((c) => c.id === state.activeCharId)) {
           state.activeCharId = state.characters[0]?.id ?? "";
-        }
-        // ensure forked map consistent with chars
-        if (state?.isBarterForked && state.barterPinsByChar) {
-          for (const c of state.characters) if (!(c.id in state.barterPinsByChar)) state.barterPinsByChar[c.id] = [];
-          for (const k of Object.keys(state.barterPinsByChar)) if (!state.characters.find((c) => c.id === k)) delete state.barterPinsByChar[k];
         }
         // cap 6 chars
         if (state && state.characters.length > 6) state.characters = state.characters.slice(0, 6);
@@ -572,13 +523,12 @@ export const useAppStore = create<Store>()(
         activeCharId: s.activeCharId,
         accountValues: s.accountValues,
         barterPins: s.barterPins,
-        barterPinsByChar: s.barterPinsByChar,
-        isBarterForked: s.isBarterForked,
         customTasks: s.customTasks,
         lastDailyReset: s.lastDailyReset,
         lastWeeklyReset: s.lastWeeklyReset,
         prefs: s.prefs,
         globalTaskOrder: s.globalTaskOrder,
+        barterFilters: s.barterFilters,
       }),
     }
   )

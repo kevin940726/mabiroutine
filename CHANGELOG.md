@@ -2,6 +2,23 @@
 
 Reader-facing log of user-visible changes. Newest first. Each entry links its commit.
 
+## Unreleased
+
+### Features
+- `tracker.json` replaces `builtin.ts`: both data files are hand-owned JSON sources of truth
+- Single global pin list: fork/personal model removed, tap toggles for all characters (old saves reset to must defaults)
+- Barter explorer filters persist across reloads (selects only; search stays session-only, stale towns reset to all)
+- Idle-deferred localStorage writes with flush on tab hide/close; rapids taps never block the UI
+- Hidden rows move to a bottom sub-category in every section and no longer count toward progress
+- Explorer skill chart reacts to filters, sits below the controls, and never jumps (stable rows + animated widths)
+- Deferred search input: keystrokes stay instant while the 98-row list updates in background
+- Suggest-only fetchers (`suggest-tracker` / `suggest-barter`); `pnpm check` gate (lint + migration fixtures + build)
+
+### Fixes
+- Tracker rows: dropped hunt / 以物易物-check / life-weekly / acc-guild-weekly; added weekly-goals / guild-challenges / friend-challenges
+- Barter rows: removed 需先換 suffixes
+- Character rename form contrast and padding; footer credit/link removed; uniform 釘選/已釘選 button width
+
 ## 2026-09-03 (`314509e`)
 
 ### Features

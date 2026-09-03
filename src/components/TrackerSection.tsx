@@ -7,7 +7,6 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { Task } from "@/lib/types";
 import { useAppStore, barterToTask } from "@/store/useAppStore";
 import barterJson from "@/data/barter.json";
-import { cn } from "@/lib/utils";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
@@ -23,9 +22,7 @@ type Props = {
 export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Props) {
   const char = useAppStore((s) => s.getActiveChar());
   const accountValues = useAppStore((s) => s.accountValues);
-  const getEffective = useAppStore((s) => s.getEffectivePinsForActive);
-  const effectivePins = getEffective();
-  const isForked = useAppStore((s) => s.isForked());
+  const barterPins = useAppStore((s) => s.barterPins);
   const clearSection = useAppStore((s) => s.clearSection);
   const reorder = useAppStore((s) => s.reorderTasks);
   const reorderBarter = useAppStore((s) => s.reorderBarterPins);
@@ -35,16 +32,16 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   const [barterExpanded, setBarterExpanded] = useState(true);
   const [hiddenExpanded, setHiddenExpanded] = useState(false);
 
-  // daily barter subtasks: effective pins for active char, rendered as collapsable sub-category (not flat)
+  // daily barter subtasks: global pins, rendered as collapsable sub-category (not flat)
   const barterSubtasks = useMemo(() => {
     if (tasks[0]?.section !== "daily") return [] as Task[];
-    return effectivePins
+    return barterPins
       .map((id) => {
         const b = (barterJson as unknown as Array<(typeof barterJson)[number]>).find((x) => x.id === id);
         return b ? barterToTask(b) : null;
       })
       .filter(Boolean) as Task[];
-  }, [tasks, effectivePins]);
+  }, [tasks, barterPins]);
 
   const barterSubtasksFiltered = useMemo(() => {
     if (!char) return barterSubtasks;
@@ -67,7 +64,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   }, [barterSubtasks, char]);
 
   const hiddenTasks = useMemo(() => {
-    if (isAccount || !char) return [] as Task[];
+    if (!char) return [] as Task[];
     let list = tasks.filter((t) => char.hiddenTaskIds.includes(t.id));
     list.sort((a, b) => {
       const oa = globalOrder?.[a.id] ?? a.order;
@@ -75,7 +72,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
       return oa - ob;
     });
     return list;
-  }, [tasks, char, globalOrder, isAccount]);
+  }, [tasks, char, globalOrder]);
 
   const hiddenAll = useMemo(() => [...hiddenTasks, ...hiddenBarter], [hiddenTasks, hiddenBarter]);
 
@@ -88,8 +85,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
       const ob = globalOrder?.[b.id] ?? b.order;
       return oa - ob;
     });
-    // filter hidden per character (account section not hidden per char? keep same logic)
-    if (!isAccount && char) {
+    // filter hidden per character (all sections incl. account move to bottom sub-category)
+    if (char) {
       list = list.filter((t) => !char.hiddenTaskIds.includes(t.id));
     }
     if (hideCompleted) {
@@ -205,25 +202,20 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
         </DndContext>
 
         {/* 以物易物 subtasks as collapsable sub-category under 每日 (only daily section) */}
-        {tasks[0]?.section === "daily" && effectivePins.length > 0 && (
+        {tasks[0]?.section === "daily" && barterPins.length > 0 && (
           // bleed band: wrapper stretches past the rows (-mx-2) so rows stay
           // pixel-equal to top-level items; header is w-full in the same box
-          <div
-            className={cn(
-              "-mx-2 rounded-xl px-2 py-2",
-              isForked ? "bg-sky-500/10 dark:bg-sky-400/[0.12]" : "bg-emerald-500/10 dark:bg-emerald-400/[0.12]"
-            )}
-          >
+          <div className="-mx-2 rounded-xl px-2 py-2 bg-emerald-500/10 dark:bg-emerald-400/[0.12]">
             <button
               onClick={() => setBarterExpanded((v) => !v)}
               className="flex w-full items-center gap-2 px-[5px] py-2.5 text-left rounded-md hover:bg-accent/50 transition-colors"
             >
-              <span className={cn("h-4 w-1 rounded-full shrink-0", isForked ? "bg-sky-500" : "bg-emerald-500")} />
+              <span className="h-4 w-1 rounded-full shrink-0 bg-emerald-500" />
               <span className="text-base">🔄</span>
               <span className="text-sm font-medium">以物易物 已釘選</span>
-              <Tooltip content={isForked ? `個人模式：僅 ${char?.name} 有效（藍色）` : "共用模式：所有角色共享（綠色）"}>
-                <Badge className={cn("text-[10px] text-white", isForked ? "bg-sky-600" : "bg-emerald-600")}>
-                  {isForked ? "個人" : "共用"} {barterSubtasksFiltered.length}/{effectivePins.length}
+              <Tooltip content="釘選對所有角色生效">
+                <Badge className="text-[10px] text-white bg-emerald-600">
+                  {barterSubtasksFiltered.length}/{barterPins.length}
                 </Badge>
               </Tooltip>
               <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">

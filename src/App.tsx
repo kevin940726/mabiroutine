@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import { BUILTIN_TASKS } from "@/data/builtin";
+import trackerJson from "@/data/tracker.json";
 import { CharacterTabs } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
 import { BarterExplorer } from "@/components/BarterExplorer";
@@ -15,6 +15,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Separator } from "@/components/ui/separator";
 import type { Task } from "@/lib/types";
 import { Download, Upload, Plus, Pencil, Check, X, Trash2 } from "lucide-react";
+
+const BUILTIN_TASKS = trackerJson as Task[];
 
 export default function App() {
   const checkResets = useAppStore((s) => s.checkResets);
@@ -79,10 +81,11 @@ export default function App() {
     input.click();
   };
 
-  // overall progress for active char + account
+  // overall progress for active char + account (hidden tasks excluded)
   const overall = (() => {
     if (!active) return { pct: 0, done: 0, total: 0 };
-    const all = [...BUILTIN_TASKS];
+    const hidden = new Set(active.hiddenTaskIds);
+    const all = [...BUILTIN_TASKS].filter((t) => !hidden.has(t.id));
     // include custom + barter pins? simplified: use builtin total for header
     let done = 0;
     for (const t of all) {
@@ -303,18 +306,13 @@ export default function App() {
             </Button>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>角色數 {chars.length} · 靈感來自 nipponhashi.com/tracker</span>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
-              專案
-            </a>
+            <span>角色數 {chars.length}</span>
           </div>
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed">
           ℹ️ 重置時間 06:00 已依台服官方公告驗證。資料為本地儲存，無後端。<br />
-          釘選：<span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600 inline-block" /> 共用綠</span> = 點擊釘選至所有角色（最多6隻）；
-          <span className="inline-flex items-center gap-1 ml-2"><span className="h-2 w-2 rounded-full bg-sky-600 inline-block" /> 個人藍</span> = 長按/右鍵僅此角色，長按550ms自動切換為個人模式。懸停看提示，桌面右鍵與手機長按等價。
-          <span className="ml-2">個人模式下可在以物易物頁按「合併回共用」還原。</span>
+          釘選：<span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600 inline-block" /> 已釘選</span> = 點擊切換，所有角色共用（以物易物頁）。
         </p>
       </main>
 
