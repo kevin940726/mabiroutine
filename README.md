@@ -71,7 +71,7 @@ Edit the JSON by hand (`id` must stay stable — progress keys off it), then `pn
 
 ## Deploy
 
-- **Cloudflare Pages (free):** Build `pnpm build`, output `dist`, no functions. `wrangler.toml` included (`wrangler pages deploy dist`). Or connect GitHub → auto deploy on push.
+- **Cloudflare Workers Static Assets (free, recommended over Pages for new projects):** `wrangler.toml` points `[assets]` at `./dist`, no Worker script needed. Dashboard: Workers & Pages → Create → connect GitHub → build `pnpm build` → auto deploy on push. Or `npx wrangler deploy`. Static requests free, same as Pages.
 - No env vars, static only.
 
 ## Project Structure

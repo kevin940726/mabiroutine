@@ -1,4 +1,8 @@
-# Cloudflare Pages — static, no functions needed.
-# Deploy via dashboard (connect GitHub repo) or: wrangler pages deploy dist
+# Workers Static Assets — static SPA, no Worker script needed.
+# Deploy via dashboard (Workers & Pages → Create → connect GitHub repo,
+# build `pnpm build`) or: npx wrangler deploy
 name = "mabiroutine"
-compatibility_date = "2024-11-01"
+compatibility_date = "2026-09-03"
+
+[assets]
+directory = "./dist"
