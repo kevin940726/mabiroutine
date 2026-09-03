@@ -13,6 +13,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Explorer skill chart reacts to filters, sits below the controls, and never jumps (stable rows + animated widths)
 - Deferred search input: keystrokes stay instant while the 98-row list updates in background
 - Suggest-only fetchers (`suggest-tracker` / `suggest-barter`); `pnpm check` gate (lint + migration fixtures + build)
+- Mobile barter rows: two-line layout with 20px NPC avatar in the title, priority chip on its own line, bare give → get with no truncation, and hidden `note` surfaced as a 📝 line (desktop rows unchanged)
 
 ### Fixes
 - Tracker rows: dropped hunt / 以物易物-check / life-weekly / acc-guild-weekly; added weekly-goals / guild-challenges / friend-challenges
