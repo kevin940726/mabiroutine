@@ -18,6 +18,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Tracker rows: dropped hunt / 以物易物-check / life-weekly / acc-guild-weekly; added weekly-goals / guild-challenges / friend-challenges
 - Barter rows: removed 需先換 suffixes
 - Character rename form contrast and padding; footer credit/link removed; uniform 釘選/已釘選 button width
+- Footer action buttons wrap on narrow viewports so 重置所有資料 no longer overflows
 
 ### Chores
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)
