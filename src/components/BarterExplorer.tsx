@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import barterJson from "@/data/barter.json";
 import { useAppStore } from "@/store/useAppStore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useLongPress } from "@/hooks/useLongPress";
 import { cn } from "@/lib/utils";
-import { Pin, PinOff, Search, Users, User } from "lucide-react";
+import { Pin, PinOff, Search } from "lucide-react";
 import type { BarterPriority } from "@/lib/types";
 
 const PRIORITY_LABEL: Record<BarterPriority, string> = {
@@ -24,84 +23,46 @@ const TOWNS = [...new Set((barterJson as unknown as typeof barterJson).map((b) =
 const SKILLS = [...new Set((barterJson as unknown as typeof barterJson).map((b) => b.gatherSkill))];
 
 function PinButton({ barterId }: { barterId: string }) {
-  const activeChar = useAppStore((s) => s.getActiveChar());
-  const getScope = useAppStore((s) => s.getPinScope);
-  const toggleAll = useAppStore((s) => s.toggleBarterPin);
-  const toggleForChar = useAppStore((s) => s.toggleBarterPinForChar);
-  const scope = getScope(barterId); // shared / personal / none for active char
-  const shared = scope === "shared";
-  const personal = scope === "personal";
-  const pinned = shared || personal;
-
-  // long-press = per-char (hold), tap/click = per-acc (tap)
-  const long = useLongPress(
-    () => toggleForChar(barterId),
-    () => toggleAll(barterId)
-  );
-
-  // right-click = per-char as well
-  const onContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    toggleForChar(barterId);
-  };
+  const toggle = useAppStore((s) => s.toggleBarterPin);
+  const pinned = useAppStore((s) => s.barterPins.includes(barterId));
 
   return (
     <div className="flex flex-col items-end gap-1 shrink-0">
-      <Tooltip
-        content={
-          pinned
-            ? personal
-              ? `僅 ${activeChar?.name} 已釘選（藍色）— 長按/右鍵切換個人，點擊切換所有角色`
-              : `共用釘選（綠色）— 所有角色共享，長按/右鍵僅改此角色`
-            : `點擊：釘選至所有角色（共用・綠） / 長按或右鍵：僅 ${activeChar?.name}（個人・藍）`
-        }
-      >
+      <Tooltip content={pinned ? "已釘選 — 點擊取消（所有角色共用）" : "點擊釘選（所有角色共用）"}>
         <Button
           size="sm"
           variant={pinned ? "default" : "outline"}
           className={cn(
-            "shrink-0 select-none touch-manipulation",
-            shared && "bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white",
-            personal && "bg-sky-600 hover:bg-sky-700 border-sky-600 text-white",
-            !pinned && ""
+            "shrink-0 select-none min-w-[105px]",
+            pinned
+              ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white"
+              : "border-0 outline outline-1 outline-input"
           )}
-          onContextMenu={onContextMenu}
-          {...long}
-          style={{ touchAction: "none" } as React.CSSProperties}
+          onClick={() => toggle(barterId)}
         >
-          {pinned ? (
-            <>
-              {personal ? <User className="h-3 w-3" /> : <Users className="h-3 w-3" />}
-              {personal ? "僅此角色" : "共用中"}
-            </>
-          ) : (
-            <>
-              <Pin className="h-3 w-3" /> 釘選
-            </>
-          )}
+          <span className="flex w-full items-center gap-1.5">
+            <Pin className="shrink-0" />
+            <span className="flex-1 text-center">{pinned ? "已釘選" : "釘選"}</span>
+          </span>
         </Button>
       </Tooltip>
-      <span className="text-[10px] text-muted-foreground hidden sm:block">點擊共用 · 長按/右鍵個人</span>
     </div>
   );
 }
 
 export function BarterExplorer() {
-  const activeChar = useAppStore((s) => s.getActiveChar());
-  const chars = useAppStore((s) => s.characters);
-  const isForked = useAppStore((s) => s.isForked());
-  const getEffective = useAppStore((s) => s.getEffectivePinsForActive);
-  const effective = getEffective();
   const barterPins = useAppStore((s) => s.barterPins);
-  const barterByChar = useAppStore((s) => s.barterPinsByChar);
-  const isForkedGetter = useAppStore((s) => s.isForked);
-  const merge = useAppStore((s) => s.mergePinsToShared);
-
+  // explorer select filters persist in localStorage via the store; search text stays session-only
+  const filters = useAppStore((s) => s.barterFilters);
+  const setBarterFilters = useAppStore((s) => s.setBarterFilters);
   const [q, setQ] = useState("");
-  const [priority, setPriority] = useState<BarterPriority | "all">("all");
-  const [town, setTown] = useState("all");
-  const [skill, setSkill] = useState("all");
-  const [onlyPinned, setOnlyPinned] = useState(false);
+  // React 19: keep keystrokes urgent, defer the 98-row filter + card re-render
+  const deferredQ = useDeferredValue(q);
+  const { priority, town, skill, onlyPinned } = filters;
+  const setPriority = (v: BarterPriority | "all") => setBarterFilters({ priority: v });
+  const setTown = (v: string) => setBarterFilters({ town: v });
+  const setSkill = (v: string) => setBarterFilters({ skill: v });
+  const setOnlyPinned = (v: boolean) => setBarterFilters({ onlyPinned: v });
 
   const filtered = useMemo(() => {
     return (barterJson as unknown as typeof barterJson).filter((b) => {
@@ -109,12 +70,11 @@ export function BarterExplorer() {
       if (town !== "all" && b.town !== town) return false;
       if (skill !== "all" && b.gatherSkill !== skill) return false;
       if (onlyPinned) {
-        const has = effective.includes(b.id);
-        if (!has) return false;
+        if (!barterPins.includes(b.id)) return false;
       }
-      if (q) {
+      if (deferredQ) {
         const hay = `${b.name} ${b.give} ${b.get} ${b.town} ${b.gatherSkill}`.toLowerCase();
-        if (!hay.includes(q.toLowerCase())) return false;
+        if (!hay.includes(deferredQ.toLowerCase())) return false;
       }
       return true;
     }).sort((a, b) => {
@@ -123,19 +83,22 @@ export function BarterExplorer() {
       if (pa !== pb) return pa - pb;
       return a.town.localeCompare(b.town);
     });
-  }, [q, priority, town, skill, onlyPinned, effective]);
+  }, [deferredQ, priority, town, skill, onlyPinned, barterPins]);
 
-  // chart data for skills
-  const skillCounts = useMemo(() => {
+  // chart data for skills — counts the filtered rows so town/priority/search/pin filters are reflected
+  const skillCountMap = useMemo(() => {
+    const m = new Map<string, number>();
+    filtered.forEach((b) => m.set(b.gatherSkill, (m.get(b.gatherSkill) ?? 0) + 1));
+    return m;
+  }, [filtered]);
+  // stable full-data order: every skill always renders (0 = empty track), so the
+  // chart block never changes height when filters change — no layout jump
+  const allSkillOrder = useMemo(() => {
     const m = new Map<string, number>();
     (barterJson as unknown as typeof barterJson).forEach((b) => m.set(b.gatherSkill, (m.get(b.gatherSkill) ?? 0) + 1));
-    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
   }, []);
-  const maxCount = Math.max(...skillCounts.map(([, n]) => n), 1);
-
-  // count per mode for tooltip
-  const sharedCount = isForked ? 0 : barterPins.length;
-  const personalCount = isForked ? (barterByChar?.[activeChar?.id ?? ""]?.length ?? 0) : 0;
+  const maxCount = Math.max(...[...skillCountMap.values()], 1);
 
   return (
     <div className="space-y-4">
@@ -143,51 +106,23 @@ export function BarterExplorer() {
         <CardHeader>
           <CardTitle className="flex flex-wrap items-center gap-2">
             🔄 以物易物 · 代幣 <Badge variant="secondary">{barterJson.length} 筆</Badge>
-            {isForked ? (
-              <Badge className="bg-sky-600 hover:bg-sky-700 text-white">個人模式 · {activeChar?.name}</Badge>
-            ) : (
-              <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white">共用模式</Badge>
-            )}
             <span className="text-xs font-normal text-muted-foreground">
-              {isForked ? `個人 ${personalCount} 項` : `共用 ${sharedCount} 項`} · 點擊共用 / 長按或右鍵個人
+              已釘選 {barterPins.length} 項 · 點擊切換，所有角色共用
             </span>
           </CardTitle>
           <CardDescription>
-            {isForked
-              ? `已切換為個人模式：每個角色獨立（最多6隻）。點擊會改所有角色，長按/右鍵只改 ${activeChar?.name}。`
-              : `共用模式：點擊釘選會套用到所有角色。長按或右鍵可僅改 ${activeChar?.name}，會自動切換為個人模式。`}
-            {isForked && (
-              <button onClick={merge} className="ml-2 underline decoration-dotted text-xs">
-                合併回共用
-              </button>
-            )}
+            點擊釘選會套用到所有角色。追蹤頁每日區會列出已釘選項目。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* skill chart */}
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">各採集技能的換物需求（次）</p>
-            <div className="grid gap-1">
-              {skillCounts.map(([name, n]) => (
-                <div key={name} className="flex items-center gap-2 text-xs">
-                  <span className="w-20 shrink-0 text-right">{name}</span>
-                  <div className="flex-1 h-3 rounded bg-muted overflow-hidden">
-                    <div className="h-full bg-primary" style={{ width: `${(n / maxCount) * 100}%` }} />
-                  </div>
-                  <span className="w-8 font-mono">{n}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input placeholder="搜尋：輸入你有的或想要的（例如：皮革、星光）" className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
             </div>
-            <Button variant={onlyPinned ? "default" : "outline"} size="sm" onClick={() => setOnlyPinned((v) => !v)}>
+            <Button variant={onlyPinned ? "default" : "outline"} size="sm" onClick={() => setOnlyPinned(!onlyPinned)}>
               {onlyPinned ? <Pin className="h-3 w-3" /> : <PinOff className="h-3 w-3" />}
-              {onlyPinned ? `只看 ${activeChar?.name} 已釘選` : "全部"}
+              {onlyPinned ? `只看已釘選` : "全部"}
             </Button>
           </div>
 
@@ -220,7 +155,7 @@ export function BarterExplorer() {
               </SelectContent>
             </Select>
             <span className="text-xs text-muted-foreground self-center">
-              顯示 {filtered.length} / {barterJson.length} 筆 · {activeChar?.name} 有效 {effective.length}
+              顯示 {filtered.length} / {barterJson.length} 筆 · 已釘選 {barterPins.length}
             </span>
           </div>
 
@@ -239,8 +174,26 @@ export function BarterExplorer() {
 
           {/* legend */}
           <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600" /> 共用（綠）點擊切換所有角色</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-sky-600" /> 個人（藍）長按/右鍵僅此角色，桌面右鍵相同</span>
+            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600" /> 已釘選（綠）會出現在追蹤頁每日區</span>
+          </div>
+
+          {/* skill chart — bottom of filter section, constant height: all skills always render */}
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">各採集技能的換物需求（次）</p>
+            <div className="grid gap-1">
+              {allSkillOrder.map((name) => {
+                const n = skillCountMap.get(name) ?? 0;
+                return (
+                  <div key={name} className="flex items-center gap-2 text-xs">
+                    <span className="w-20 shrink-0 text-right">{name}</span>
+                    <div className="flex-1 h-3 rounded bg-muted overflow-hidden">
+                      <div className="h-full bg-primary transition-all" style={{ width: `${(n / maxCount) * 100}%` }} />
+                    </div>
+                    <span className="w-8 font-mono">{n}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -248,24 +201,14 @@ export function BarterExplorer() {
       {/* list view — compact single-line cards */}
       <div className="space-y-2">
         {filtered.map((b) => {
-          const scope = isForkedGetter() && barterByChar
-            ? (barterByChar[activeChar?.id ?? ""] ?? []).includes(b.id) ? "personal" as const : "none" as const
-            : barterPins.includes(b.id) ? "shared" as const : "none" as const;
-          const otherChars = isForked
-            ? chars.filter((c) => c.id !== activeChar?.id && (barterByChar?.[c.id] ?? []).includes(b.id)).map((c) => c.name)
-            : [];
+          const pinned = barterPins.includes(b.id);
           return (
             <div
               key={b.id}
               className={cn(
                 "flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-colors",
-                scope === "shared" && "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20",
-                scope === "personal" && "border-sky-200 dark:border-sky-900 bg-sky-50/50 dark:bg-sky-950/20"
+                pinned && "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20"
               )}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                useAppStore.getState().toggleBarterPinForChar(b.id);
-              }}
             >
               <img
                 src={`/npc/${encodeURIComponent(b.npc)}.png`}
@@ -288,7 +231,6 @@ export function BarterExplorer() {
                 <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
                   <span className="truncate">
                     你給 {b.give} → 你拿 {b.get}
-                    {otherChars.length > 0 && isForked && <span className="ml-1 text-sky-700 dark:text-sky-300">· 其他：{otherChars.join("、")}</span>}
                   </span>
                   <span className="ml-auto shrink-0">{b.limit}</span>
                 </div>

@@ -27,8 +27,12 @@ export function CharacterTabs() {
             <div
               key={c.id}
               className={cn(
-                "group flex items-center gap-1 rounded-full border px-1 py-1 text-sm transition-colors",
-                active === c.id ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-accent"
+                "group flex items-center gap-1 rounded-full border px-2 py-1 text-sm transition-colors",
+                editing === c.id
+                  ? "bg-card text-foreground border-primary"
+                  : active === c.id
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card hover:bg-accent"
               )}
             >
               {editing === c.id ? (
@@ -38,13 +42,13 @@ export function CharacterTabs() {
                     rename(c.id, draft);
                     setEditing(null);
                   }}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1.5 pl-1"
                 >
-                  <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} className="h-7 w-24 px-2 text-sm" placeholder="名稱" />
-                  <Button type="submit" size="sm" className="h-7 px-2 text-xs">
+                  <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} className="h-7 w-28 px-2 text-sm bg-background" placeholder="名稱" />
+                  <Button type="submit" size="sm" className="h-7 px-2.5 text-xs">
                     儲存
                   </Button>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEditing(null)}>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 px-2.5 text-xs" onClick={() => setEditing(null)}>
                     取消
                   </Button>
                 </form>

@@ -16,7 +16,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 
 ## Item Inventory — Reviewed 2026-09-02, cross-ref 7 sources, TW-only (hardcode per user)
 
-**Rule for ambiguous counts:** `召喚結界 7次` and `黑色坑洞 每日1+每週7=14` are **hardcoded as TW per user confirmation** (`confirmed 結界 7次 and 黑色坑洞 7+7次. you can hardcode`), even though bobogameguides still marks them 待核. Descriptions below are stripped of `韓服社群數值` wording and state TW rule as fact. If TW official later publishes different, bump `AGENTS.md` and `builtin.ts`.
+**Rule for ambiguous counts:** `召喚結界 7次` and `黑色坑洞 每日1+每週7=14` are **hardcoded as TW per user confirmation** (`confirmed 結界 7次 and 黑色坑洞 7+7次. you can hardcode`), even though bobogameguides still marks them 待核. Descriptions below are stripped of `韓服社群數值` wording and state TW rule as fact. If TW official later publishes different, bump `AGENTS.md` and `tracker.json`.
 
 ### ☀️ 每日 (per-char, 06:00 Asia/Taipei)
 | id | name | type | max | desc (TW-only) | cross-ref |
@@ -50,7 +50,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | acc-guild-weekly | 公會任務 | account-weekly | 公會週間任務（每週 6 個，伺服器計算，週一 06:00 重置） | nipponhashi; bobogameguides 已確認 6個/伺服器/週一06:00 |
 | acc-field-last | 野外首領尾刀 | account-weekly | 每週首領最後一擊稱號挑戰 | nipponhashi |
 
-**Result: `src/data/builtin.ts` now 20 TW rows, `black-hole` changed check→counter 0/7 and stripped `官方無每日次數限制` + `韓服社群` text, `barrier` stripped KR wording and hardcoded 7. No KR rows.**
+**Result: `src/data/tracker.json` now 20 TW rows, `black-hole` changed check→counter 0/7 and stripped `官方無每日次數限制` + `韓服社群` text, `barrier` stripped KR wording and hardcoded 7. No KR rows.**
 
 ### Barter — TW-only guidance
 
@@ -60,9 +60,12 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 - Demo `src/data/barter.json` 30 rows sample the `must` (TW) slice. Full seed should be notebook 70 tw as base, optionally extended to yenyen 86 after diff, never include notebook 18 kr.
 - `perChar` / `limit` / `rec` / `region` come from notebook/yenyen, not invented.
 
-## Filtering Rules — for any automated script
+## Filtering Rules — manual-first, fetch is suggestion-only
 
-**Run `pnpm update-barter:dry` first; if auto-extract fails, fall back to manual copy (see `scripts/update-barter.mjs`).**
+**You own `src/data/tracker.json` and `src/data/barter.json` by hand. Fetchers never overwrite them — they only write `suggestions/` diffs (gitignored) for reference:**
+- `pnpm suggest-tracker` → diff tracker rows vs TW tracker page → `suggestions/tracker.json`
+- `pnpm suggest-barter` → diff barter.json vs notebook70+yenyen → `suggestions/barter.json`
+- `pnpm update-barter` (= `--write`) overwrites `barter.json` — escape hatch only, wipes manual edits.
 
 1. Fetch `https://mabinogimobile.nipponhashi.com/tracker/` **without** `kr` — default is TW for tracker. For barter, fetch `https://mabinogi-mobile-notebook.vercel.app/barter-data.js` (`verified==="tw"` 70) + `https://mabi.yenyen.dev/` (86) as ground truth; only fetch `https://mabinogimobile.nipponhashi.com/barter/` for diff.
 2. Parse only TW-visible nodes:
@@ -70,7 +73,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
    - **Barter:** Seed from `notebook verified==="tw"` (70) + `yenyen` union; exclude `verified==="kr"` (18) even if present in nipponhashi 226. Never seed nipponhashi barter directly.
 3. Never fetch `/ko/*` for seeding; only diff to log `TW: ${n} / skipped KR: ${m}`.
 4. `召喚結界` and `黑色坑洞` counts are **hardcoded TW** per user (7 and 7+7) — script must not overwrite with `韓服社群` fallback.
-5. Write `src/data/builtin.ts` and `src/data/barter.json` only with filtered rows.
+5. Write `src/data/tracker.json` and `src/data/barter.json` only with filtered rows.
 
 Pseudo:
 ```ts
@@ -82,6 +85,25 @@ const twBarterIds = new Set(notebook.items.filter(i=>i.verified==="tw").map(i=>i
 
 ## Maintenance
 
-- On source update, re-run filter, commit `src/data/*`, bump `store` version if schema changes (see `useAppStore.ts` migrate).
+- On source update, re-run filter, commit `src/data/*`, bump `store` version if schema changes (see below).
 - Do not add `barrier`/`black-hole` back to `韓服社群數值` wording — keep TW hardcoded per this file.
 - This file is the agent’s source of truth — do not add KR data even if barter count >226 includes KR preview.
+
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v9`)
+
+Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
+User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.
+
+Checklist when persisted shape changes (new/renamed/removed field, removed row ids):
+1. Bump `version` in **two** places: `initial.version` and persist config `version`.
+2. Append `if (from < N) { ...; s.version = N; }` in `migratePersisted` — chain from the previous number, keep old steps forever (users may skip releases). `normalizePersisted` runs before steps on every load, so steps can assume full shape.
+3. Removing row ids → extend the v6 prune pattern (add the new dangling container, or it generalizes already via the `valid` set of tracker+barter+custom ids).
+4. Renaming a row id → add an explicit id-remap in the new step (prune would drop the old progress otherwise); tell the user first.
+5. `pnpm build` must pass; user-facing impact goes in `CHANGELOG.md` + README storage section.
+
+## Pre-push Gate (agents: run this before every push)
+
+`pnpm check` = `lint` + `test:migrations` + `build`. All three must pass:
+- `test:migrations` bundles the real `migratePersisted` and runs fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic barter ids, removed-id prune, passthrough, filter sanitize). If you add a migrate step, add a fixture block (A/B/C/D/E/F pattern) proving old data survives.
+- Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if the premise line fails, update the fixture, not the data.
+- `suggestions/` is gitignored; `src/data/*.json` diffs need human review — never auto-apply fetcher output.
