@@ -5,8 +5,10 @@ import { CharacterTabs } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
 import { BarterExplorer } from "@/components/BarterExplorer";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
+import { HeaderCountdown } from "@/components/HeaderCountdown";
+import { SyncButton, SyncToasts } from "@/sync/SyncButton";
+import { SyncImport } from "@/sync/SyncImport";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useCountdown } from "@/hooks/useCountdown";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -35,7 +37,6 @@ export default function App() {
   const [addOpen, setAddOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
-  const { dailyText, weeklyText } = useCountdown();
   const [compact, setCompact] = useState(false);
   const [pillMenuOpen, setPillMenuOpen] = useState(false);
   const [pillRenaming, setPillRenaming] = useState(false);
@@ -136,36 +137,20 @@ export default function App() {
     <div className="min-h-screen bg-background">
       {/* Header */}
         <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto max-w-3xl px-4 py-[10px] sm:py-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <img src="/logo-96.png" alt="MabiRoutine" className="h-8 w-8 object-contain" />
-            <div>
-              <h1 className="text-base font-semibold leading-none">MabiRoutine</h1>
+        <div className="mx-auto max-w-3xl px-3 sm:px-4 py-[10px] sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <img src="/logo-96.png" alt="MabiRoutine" className="h-7 w-7 sm:h-8 sm:w-8 object-contain shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-base font-semibold leading-none truncate">MabiRoutine</h1>
               {isMobile ? null : (
-                <p className="text-xs text-muted-foreground">瑪奇 Mobile 日課追蹤 · 06:00 重置 (Asia/Taipei)</p>
+                <p className="text-xs text-muted-foreground">瑪奇 Mobile 日課追蹤 · 06:00 重置</p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {isMobile ? (
-              <>
-                <span className="text-[11px] tabular-nums leading-tight text-muted-foreground text-right shrink-0">
-                  每日重置 <b className="text-foreground font-semibold">{dailyText}</b>
-                  <br />
-                  每週重置 <b className="text-foreground font-semibold">{weeklyText}</b>
-                </span>
-                <ThemeToggle />
-              </>
-            ) : (
-              <>
-                <div className="hidden sm:flex items-center gap-3 text-xs font-mono border rounded-full px-3 py-1.5 bg-card">
-                  <span>每日重置 <b>{dailyText}</b></span>
-                  <Separator orientation="vertical" className="h-4" />
-                  <span>每週重置 <b>{weeklyText}</b></span>
-                </div>
-                <ThemeToggle />
-              </>
-            )}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <HeaderCountdown />
+            <SyncButton />
+            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -469,12 +454,19 @@ export default function App() {
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed">
-          ℹ️ 重置時間 06:00 已依台服官方公告驗證。資料為本地儲存，無後端。<br />
+          ℹ️ 重置時間 06:00 已依台服官方公告驗證。資料為本地儲存，亦可選用跨裝置同步。<br />
           釘選：<span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600 inline-block" /> 已釘選</span> = 點擊切換，所有角色共用（以物易物頁）。
         </p>
       </main>
 
-      <AddTaskDialog open={addOpen} onOpenChange={(v) => { setAddOpen(v); if (!v) setEditingTask(null); }} editing={editingTask} />
+      <AddTaskDialog
+        key={`${addOpen}-${editingTask?.id ?? "new"}`}
+        open={addOpen}
+        onOpenChange={(v) => { setAddOpen(v); if (!v) setEditingTask(null); }}
+        editing={editingTask}
+      />
+      <SyncImport />
+      <SyncToasts />
       <Analytics />
     </div>
   );

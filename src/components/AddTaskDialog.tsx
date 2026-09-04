@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,32 +15,24 @@ const ICONS = ["⭐","🎯","📦","🔧","🗡️","🛡️","💎","🍀","�
 export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
   const add = useAppStore((s) => s.addCustomTask);
   const update = useAppStore((s) => s.updateCustomTask);
-  const [name, setName] = useState("");
-  const [icon, setIcon] = useState("⭐");
-  const [desc, setDesc] = useState("");
-  const [notes, setNotes] = useState("");
-  const [section, setSection] = useState<TaskSection>("daily");
-  const [kind, setKind] = useState<ResetKind>("daily");
-  const [type, setType] = useState<TaskType>("check");
-  const [max, setMax] = useState(1);
-  const [timeGated, setTimeGated] = useState("");
+  // Fresh mount per open/target (see key= at the call site) — initializers
+  // replace the old reset-on-open effect; no setState-in-effect needed.
+  const [name, setName] = useState(editing?.name ?? "");
+  const [icon, setIcon] = useState(editing?.icon ?? "⭐");
+  const [desc, setDesc] = useState(editing?.desc ?? "");
+  const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [section, setSection] = useState<TaskSection>(editing?.section ?? "daily");
+  const [kind, setKind] = useState<ResetKind>(editing?.kind ?? "daily");
+  const [type, setType] = useState<TaskType>(editing?.type ?? "check");
+  const [max, setMax] = useState(editing?.max ?? 1);
+  const [timeGated, setTimeGated] = useState(editing?.timeGated ?? "");
 
-  useEffect(() => {
-    if (editing) {
-      setName(editing.name); setIcon(editing.icon); setDesc(editing.desc ?? ""); setNotes(editing.notes ?? "");
-      setSection(editing.section); setKind(editing.kind); setType(editing.type); setMax(editing.max ?? 1); setTimeGated(editing.timeGated ?? "");
-    } else {
-      setName(""); setIcon("⭐"); setDesc(""); setNotes(""); setSection("daily"); setKind("daily"); setType("check"); setMax(1); setTimeGated("");
-    }
-  }, [editing, open]);
-
-  // auto sync kind when section changes if not editing
-  useEffect(() => {
-    if (editing) return;
-    if (section === "daily") setKind("daily");
-    else if (section === "weekly") setKind("weekly");
-    else setKind("account-daily");
-  }, [section, editing]);
+  // Kind follows section for new tasks (was an effect — now event-driven).
+  const changeSection = (v: string) => {
+    const s = v as TaskSection;
+    setSection(s);
+    if (!editing) setKind(s === "daily" ? "daily" : s === "weekly" ? "weekly" : "account-daily");
+  };
 
   const maxFor = (t: TaskType) => (t === "check" ? undefined : Math.max(1, max));
   const submit = () => {
@@ -55,9 +47,11 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onClose={() => onOpenChange(false)} className="max-h-[90vh] overflow-auto">
+      <DialogContent className="max-h-[90vh] overflow-auto">
         <DialogHeader>
-          <DialogTitle>{editing ? "編輯任務" : "新增自訂任務"}</DialogTitle>
+          <DialogTitle asChild>
+            <h1 className="text-lg font-semibold leading-none tracking-tight mb-2">{editing ? "編輯任務" : "新增自訂任務"}</h1>
+          </DialogTitle>
           <DialogDescription>所有任務皆支援隱藏與拖曳排序。時間限制例如 06:00,18:00</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
@@ -89,7 +83,7 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>區段</Label>
-              <Select value={section} onValueChange={(v) => setSection(v as TaskSection)}>
+              <Select value={section} onValueChange={changeSection}>
                 <SelectTrigger>
                   <SelectValue placeholder="選擇區段" />
                 </SelectTrigger>

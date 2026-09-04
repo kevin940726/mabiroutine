@@ -19,6 +19,9 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Default barter pins are a hand-owned list (`src/data/defaultPins.json`) instead of derived must-priorities; `pnpm suggest-barter` proposes list additions/removals/stale ids on source drift (matched by trade, not churny yenyen ids)
 - Weekly counter tiles for 召喚結界 / 黑色坑洞 show remaining (剩 N / 7, mobile + desktop) with the fill still rising from the bottom with used progress; new first-class `countdown` (倒數) task type, also offered in 新增自訂 with 次數上限 kept (display-only, no save migration)
 - Counter/countdown tiles support hold-to-grab quick-adjust: hold 0.3s (haptic) then drag up/down ±1 per 14px, release to end; tap +1 / full-tap-reset and desktop right-click −1 unchanged, mobile long-press popup suppressed; the gesture teaches itself on tap (touch) or hover (desktop) until the first successful grab, then retires it; keyboard arrows adjust a focused tile; no `title` tooltips
+- Cross-device sync (Upstash Redis, free tier): header button (icon-only circle on mobile, 跨裝置同步 pill on desktop, `whitespace-nowrap`; emerald tint when linked, matching the done-state green) opens one shadcn/ui dialog showing the live URL (tap-to-copy with inline 已複製 bubble), 複製, 重新產生連結 and 取消同步 (both inline-confirmed); progress auto-pushes in the background while linked (debounced, flushed on tab hide), so the dialog never loads; fresh profiles opening a `?s=` link adopt silently, others confirm via 同步到此裝置; conflicting pushes surface 雲端有較新的進度 (取用雲端 / 保留本機並上傳) on next dialog open instead of silent overwrite; ids are server-minted, sessions evergreen, no login
+- Header countdown isolated into its own component: the 1/sec tick no longer re-renders task lists; header never wraps (nowrap + truncating title), countdown floor is 12px, `(Asia/Taipei)` dropped from the subtitle
+- Dialog titles are `h1` (modal isolates the accessibility tree) with left alignment and a separator below; `aria-labelledby`→title and `aria-describedby`→description verified in-DOM; shared dialog is the upstream shadcn radix pattern (a Base-UI registry variant was evaluated and rejected — it would restyle every button)
 
 ### Fixes
 - Tracker rows: dropped hunt / 以物易物-check / life-weekly / acc-guild-weekly; added weekly-goals / guild-challenges / friend-challenges
@@ -33,6 +36,8 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Desktop character tabs show rename/delete only on the active pill; inactive pills are name-only
 - Desktop character tab row wraps instead of scrolling when it overflows
 - Account-section hide is now global: one tap hides for every character (daily/weekly stay per-character); saves with per-char-hidden account ids migrate automatically (store v9→v10)
+- Removed unused `date-fns` / `date-fns-tz` dependencies; fixed newly-surfaced lint failures without behavior change (add-task form reset via remount key, theme init via lazy state, dead fetcher variable dropped)
+- Barter rows skip off-screen layout/paint via `content-visibility` with intrinsic-size scroll placeholders (desktop + mobile)
 
 ### Chores
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)

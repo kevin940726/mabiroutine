@@ -77,6 +77,8 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
     <div
       className={cn(
         "flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-colors",
+        // Off-screen rows skip layout/paint; intrinsic size holds scroll height.
+        "[content-visibility:auto] [contain-intrinsic-size:auto_80px]",
         pinned && "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20"
       )}
     >
@@ -120,6 +122,8 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
     <div
       className={cn(
         "rounded-xl border bg-card p-3 transition-colors",
+        // Off-screen rows skip layout/paint; intrinsic size holds scroll height.
+        "[content-visibility:auto] [contain-intrinsic-size:auto_150px]",
         pinned && "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20"
       )}
     >

@@ -31,3 +31,5 @@ suggestions/
 *.njsproj
 *.sln
 *.sw?
+.vercel
+.env*
