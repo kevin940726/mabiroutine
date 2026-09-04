@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
+import { useGrabCounter } from "@/hooks/useGrabCounter";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -210,63 +211,56 @@ function RowMenu({ isHidden, hideScope, onEdit, onToggleHidden, onRemove }: {
 
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click / 550ms long-press = −1. Progress is the fill rising inside the tile.
+// Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
+// right-click = −1. Hold 0.3s → grab, drag vertically to adjust fast.
+// Progress is the fill rising inside the tile.
 function CounterTileMobile({ taskId, count, max, isAccount, countdown }: { taskId: string; count: number; max: number; isAccount: boolean; countdown?: boolean }) {
-  const incCounter = useAppStore((s) => s.incCounter);
-  const setCounter = useAppStore((s) => s.setCounter);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longFired = useRef(false);
+  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max, isAccount);
   const pct = max ? Math.min(100, (count / max) * 100) : 0;
   const done = max > 0 && count >= max;
   // countdown mode: big number counts down (剩 N), fill still rises with used
   const shown = countdown ? Math.max(0, max - count) : count;
-  const clear = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-  };
+  // done look lands only at rest; while grabbing, always numbers on unflipped tile
+  const showCheck = done && !grabbed;
   return (
-    <button
-      className={cn(
-        "relative h-11 w-11 rounded-xl border overflow-hidden select-none transition-colors",
-        done ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
-      )}
-      title={done ? "已完成，再點一下歸零" : "點一下 +1，右鍵/長按 −1"}
-      onClick={() => {
-        if (longFired.current) {
-          longFired.current = false;
-          return;
-        }
-        if (done) setCounter(taskId, 0, isAccount);
-        else incCounter(taskId, 1, isAccount);
-      }}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        incCounter(taskId, -1, isAccount);
-      }}
-      onPointerDown={() => {
-        longFired.current = false;
-        clear();
-        timer.current = setTimeout(() => {
-          longFired.current = true;
-          incCounter(taskId, -1, isAccount);
-        }, 550);
-      }}
-      onPointerUp={clear}
-      onPointerLeave={clear}
-      aria-label={countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一` : `${count} / ${max}，點一下加一`}
-    >
-      {!done && <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />}
-      <span className="absolute inset-0 grid place-items-center">
-        {done ? (
-          <span className="text-lg leading-none">✓</span>
-        ) : (
-          <span className="font-mono leading-none">
-            {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}
-            <span className="text-base font-bold">{shown}</span>
-            <span className="text-[10px] text-muted-foreground">/{max}</span>
-          </span>
+    <span ref={wrapRef} className="relative inline-block">
+      <button
+        className={cn(
+          "relative block h-11 w-11 rounded-xl border overflow-hidden select-none transition-colors",
+          showCheck ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary",
+          grabbed && "ring-2 ring-primary scale-105 cursor-ns-resize border-primary"
         )}
-      </span>
-    </button>
+        style={{ touchAction: "none" }}
+        aria-label={countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整` : `${count} / ${max}，點一下加一，長按拖曳快速調整`}
+        {...handlers}
+      >
+        <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />
+        <span className="absolute inset-0 grid place-items-center">
+          {showCheck ? (
+            <span className="text-lg leading-none text-white">✓</span>
+          ) : (
+            <span className="font-mono leading-none">
+              {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}
+              <span className="text-base font-bold">{shown}</span>
+              <span className="text-[10px] text-muted-foreground">/{max}</span>
+            </span>
+          )}
+        </span>
+        <span className="absolute right-0.5 top-0.5 text-[8px] leading-none text-muted-foreground/70" aria-hidden>
+          ↕
+        </span>
+      </button>
+      {grabbed && (
+        <span className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground" aria-hidden>
+          ↕ 拖曳調整中
+        </span>
+      )}
+      {coach && !grabbed && (
+        <span className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded border bg-popover px-1.5 py-0.5 text-[10px] text-popover-foreground shadow-md" aria-hidden>
+          ↕ 長按拖曳快速加減
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -401,63 +395,54 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
 }
 
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
-// right-click / 550ms long-press = −1. Progress is the fill rising inside the tile.
+// right-click = −1. Hold 0.3s → grab, drag vertically to adjust fast.
+// Progress is the fill rising inside the tile.
 function CounterTileDesktop({ taskId, count, max, isAccount, countdown }: { taskId: string; count: number; max: number; isAccount: boolean; countdown?: boolean }) {
-  const incCounter = useAppStore((s) => s.incCounter);
-  const setCounter = useAppStore((s) => s.setCounter);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longFired = useRef(false);
+  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max, isAccount);
   const pct = max ? Math.min(100, (count / max) * 100) : 0;
   const done = max > 0 && count >= max;
-  const clear = () => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-  };
   // countdown mode: big number counts down (剩 N), fill still rises with used
   const shown = countdown ? Math.max(0, max - count) : count;
+  // done look lands only at rest; while grabbing, always numbers on unflipped tile
+  const showCheck = done && !grabbed;
   return (
-    <button
-      className={cn(
-        "relative h-14 w-14 rounded-xl border overflow-hidden select-none transition-colors",
-        done ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
-      )}
-      title={done ? "已完成，再點一下歸零" : "點一下 +1，右鍵/長按 −1"}
-      onClick={() => {
-        if (longFired.current) {
-          longFired.current = false;
-          return;
-        }
-        if (done) setCounter(taskId, 0, isAccount);
-        else incCounter(taskId, 1, isAccount);
-      }}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        incCounter(taskId, -1, isAccount);
-      }}
-      onPointerDown={() => {
-        longFired.current = false;
-        clear();
-        timer.current = setTimeout(() => {
-          longFired.current = true;
-          incCounter(taskId, -1, isAccount);
-        }, 550);
-      }}
-      onPointerUp={clear}
-      onPointerLeave={clear}
-      aria-label={countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一` : `${count} / ${max}，點一下加一`}
-    >
-      {!done && <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />}
-      <span className="absolute inset-0 grid place-items-center">
-        {done ? (
-          <span className="text-xl leading-none">✓</span>
-        ) : (
-          <span className="font-mono leading-none">
-            {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}
-            <span className="text-lg font-bold">{shown}</span>
-            <span className="text-[10px] text-muted-foreground">/{max}</span>
-          </span>
+    <span ref={wrapRef} className="relative inline-block">
+      <button
+        className={cn(
+          "relative block h-14 w-14 rounded-xl border overflow-hidden select-none transition-colors",
+          showCheck ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary",
+          grabbed && "ring-2 ring-primary scale-105 cursor-ns-resize border-primary"
         )}
-      </span>
-    </button>
+        style={{ touchAction: "none" }}
+        aria-label={countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整` : `${count} / ${max}，點一下加一，長按拖曳快速調整`}
+        {...handlers}
+      >
+        <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />
+        <span className="absolute inset-0 grid place-items-center">
+          {showCheck ? (
+            <span className="text-xl leading-none text-white">✓</span>
+          ) : (
+            <span className="font-mono leading-none">
+              {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}
+              <span className="text-lg font-bold">{shown}</span>
+              <span className="text-[10px] text-muted-foreground">/{max}</span>
+            </span>
+          )}
+        </span>
+        <span className="absolute right-0.5 top-0.5 text-[8px] leading-none text-muted-foreground/70" aria-hidden>
+          ↕
+        </span>
+      </button>
+      {grabbed && (
+        <span className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground" aria-hidden>
+          ↕ 拖曳調整中
+        </span>
+      )}
+      {coach && !grabbed && (
+        <span className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded border bg-popover px-1.5 py-0.5 text-[10px] text-popover-foreground shadow-md" aria-hidden>
+          ↕ 長按拖曳快速加減
+        </span>
+      )}
+    </span>
   );
 }
