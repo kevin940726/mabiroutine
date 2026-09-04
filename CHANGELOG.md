@@ -25,6 +25,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Weekly counter tiles for 召喚結界 / 黑色坑洞 show remaining (剩 N / 7, mobile + desktop) with the fill still rising from the bottom with used progress; new first-class `countdown` (倒數) task type, also offered in 新增自訂 with 次數上限 kept (display-only, no save migration)
 - Counter/countdown tiles support hold-to-grab quick-adjust: hold 0.3s (haptic) then drag up/down ±1 per 14px, release to end; tap +1 / full-tap-reset and desktop right-click −1 unchanged, mobile long-press popup suppressed; the gesture teaches itself on tap (touch) or hover (desktop) until the first successful grab, then retires it; keyboard arrows adjust a focused tile; no `title` tooltips
 - Cross-device sync (Upstash Redis, free tier): header button (icon-only circle on mobile, 跨裝置同步 pill on desktop, `whitespace-nowrap`; emerald tint when linked, matching the done-state green) opens one shadcn/ui dialog showing the live URL (tap-to-copy with inline 已複製 bubble), 複製, 重新產生連結 and 取消同步 (both inline-confirmed); progress auto-pushes in the background while linked (debounced, flushed on tab hide), so the dialog never loads; fresh profiles opening a `?s=` link adopt silently, others confirm via 同步到此裝置; conflicting pushes surface 雲端有較新的進度 (取用雲端 / 保留本機並上傳) on next dialog open instead of silent overwrite; ids are server-minted, sessions evergreen, no login
+- Linked devices now pull on return: switching back to the tab (or fresh load) does one cheap read — converged state advances silently, real divergence stages the 雲端有較新的進度 dialog instead of waiting for your next edit to 409
 - Header countdown isolated into its own component: the 1/sec tick no longer re-renders task lists; header never wraps (nowrap + truncating title), countdown floor is 12px, `(Asia/Taipei)` dropped from the subtitle
 - Dialog titles are `h1` (modal isolates the accessibility tree) with left alignment and a separator below; `aria-labelledby`→title and `aria-describedby`→description verified in-DOM; shared dialog is the upstream shadcn radix pattern (a Base-UI registry variant was evaluated and rejected — it would restyle every button)
 
@@ -46,6 +47,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 
 ### Chores
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)
+- `pnpm dev:api` runs the full stack locally (`vercel dev` + Vite on :52608); `pnpm dev` stays plain Vite (`dev` can't invoke `vercel dev` — it spawns the dev script, so that's a refused infinite loop)
 - Vercel Analytics mounted at app root (`@vercel/analytics/react`)
 - Retired the frozen-desktop rule: UI changes now consider both desktop and mobile variants (code comments updated; history entries left as-is)
 

@@ -6,6 +6,7 @@
   "packageManager": "pnpm@11.8.0",
   "scripts": {
     "dev": "vite",
+    "dev:api": "vercel dev --listen 52608",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "oxlint",

@@ -67,7 +67,12 @@ export const SyncButton = memo(function SyncButton() {
   linkedRef.current = linked;
   const busyRef = useRef(busy);
   busyRef.current = busy;
+  const conflictRef = useRef(conflict);
+  conflictRef.current = conflict;
+  const pendingConflictRef = useRef(pendingConflict);
+  pendingConflictRef.current = pendingConflict;
   const lastPushedHash = useRef<string | null>(null);
+  const lastPullAt = useRef(0);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushFails = useRef(0);
 
@@ -136,8 +141,10 @@ export const SyncButton = memo(function SyncButton() {
       if (e instanceof SyncStale) {
         try {
           const remote = await getSession(session.id);
-          setPendingConflict({ id: session.id, remoteUpdatedAt: remote.updatedAt, remoteState: remote.state });
-          toast("雲端有較新的進度，開啟同步對話框處理");
+          if (pendingConflictRef.current?.remoteUpdatedAt !== remote.updatedAt) {
+            setPendingConflict({ id: session.id, remoteUpdatedAt: remote.updatedAt, remoteState: remote.state });
+            toast("雲端有較新的進度，開啟同步對話框處理");
+          }
         } catch {
           // remote unreadable — leave it; the next change retries the push.
         }
@@ -150,24 +157,57 @@ export const SyncButton = memo(function SyncButton() {
     }
   }
 
+  // Pull-on-visible: when the tab returns (or first mounts) while linked,
+  // one GET checks for a newer remote. Converged content just advances the
+  // baseline silently; real divergence stages the conflict dialog + toast —
+  // never a silent overwrite. 10s floor keeps rapid tab-flipping cheap.
+  async function pullNow(): Promise<void> {
+    const session = linkedRef.current;
+    if (!session || busyRef.current || conflictRef.current) return;
+    const now = Date.now();
+    if (now - lastPullAt.current < 10_000) return;
+    lastPullAt.current = now;
+    try {
+      const remote = await getSession(session.id);
+      if (remote.updatedAt <= session.updatedAt) return;
+      if (JSON.stringify(remote.state) === JSON.stringify(buildSnapshot())) {
+        const next = { id: session.id, updatedAt: remote.updatedAt };
+        saveSession(next);
+        setLinked(next);
+        return;
+      }
+      if (pendingConflictRef.current?.remoteUpdatedAt !== remote.updatedAt) {
+        setPendingConflict({ id: session.id, remoteUpdatedAt: remote.updatedAt, remoteState: remote.state });
+        toast("雲端有較新的進度，開啟同步對話框處理");
+      }
+    } catch (e) {
+      if (e instanceof SyncNotFound) dropDeadLink();
+      // Network errors stay silent — the next visible/change retries.
+    }
+  }
+
   useEffect(() => {
     const schedule = () => {
       if (!linkedRef.current) return;
       if (pushTimer.current) clearTimeout(pushTimer.current);
       pushTimer.current = setTimeout(() => void pushNow(), 3000);
     };
-    // Flush unsynced changes when the tab goes to background.
-    const onHidden = () => {
+    // Hide flushes unsynced changes; show pulls newer remote state.
+    const onVis = () => {
       if (document.visibilityState === "hidden") {
         if (pushTimer.current) clearTimeout(pushTimer.current);
         void pushNow();
+      } else {
+        void pullNow();
       }
     };
     const unsub = useAppStore.subscribe(() => schedule());
-    document.addEventListener("visibilitychange", onHidden);
+    document.addEventListener("visibilitychange", onVis);
+    // Mount pull: this device's storage may predate another device's push.
+    void pullNow();
     return () => {
       unsub();
-      document.removeEventListener("visibilitychange", onHidden);
+      document.removeEventListener("visibilitychange", onVis);
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
