@@ -91,7 +91,8 @@ function CharacterTabsMobile() {
 }
 
 // ---------------------------------------------------------------------------
-// Desktop: released UI, frozen. All RWD iteration happens in mobile.
+// Desktop variant. Desktop and mobile evolve together — every change considers
+// both.
 // ---------------------------------------------------------------------------
 
 function CharacterTabsDesktop() {

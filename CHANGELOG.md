@@ -34,6 +34,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 ### Chores
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)
 - Vercel Analytics mounted at app root (`@vercel/analytics/react`)
+- Retired the frozen-desktop rule: UI changes now consider both desktop and mobile variants (code comments updated; history entries left as-is)
 
 ## 2026-09-03 (`e036f45`)
 

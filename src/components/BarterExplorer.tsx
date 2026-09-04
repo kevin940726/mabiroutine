@@ -70,7 +70,7 @@ function MobilePinButton({ barterId }: { barterId: string }) {
   );
 }
 
-// desktop row — frozen, pixel-identical to the pre-mobile-RWD layout
+// desktop row — evolves together with the mobile row; every change considers both
 function BarterRowDesktop({ b }: { b: BarterRow }) {
   const pinned = useAppStore((s) => s.barterPins.includes(b.id));
   return (

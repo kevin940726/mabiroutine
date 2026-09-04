@@ -271,7 +271,8 @@ function CounterTileMobile({ taskId, count, max, isAccount, remaining }: { taskI
 }
 
 // ---------------------------------------------------------------------------
-// Desktop: released UI, frozen. All RWD iteration happens in TaskRowMobile.
+// Desktop variant. Desktop and mobile evolve together — every change considers
+// both.
 // ---------------------------------------------------------------------------
 
 function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {

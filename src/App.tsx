@@ -40,7 +40,7 @@ export default function App() {
   const [pillMenuOpen, setPillMenuOpen] = useState(false);
   const [pillRenaming, setPillRenaming] = useState(false);
   const [pillDraft, setPillDraft] = useState("");
-  // desktop pill (released UI, frozen) still uses its own rename state
+  // desktop pill still uses its own rename state
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const isMobile = useIsMobile();
@@ -314,7 +314,7 @@ export default function App() {
       </>
       ) : (
       <>
-      {/* desktop pill — released UI, frozen */}
+      {/* desktop pill */}
       <div
         className={`fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${compact ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
         style={{ top: 88 }}
