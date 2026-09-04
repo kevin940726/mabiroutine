@@ -30,7 +30,6 @@ export type Task = {
   barterMeta?: { give: string; get: string; gatherSkill?: string; limit?: string };
   // custom extras
   notes?: string;
-  timeGated?: string; // e.g. "06:00,18:00"
   // ordering
   order: number;
   // hidden globally? per-char hidden handled in store

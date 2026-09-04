@@ -9,7 +9,7 @@ Heavily inspired by https://mabinogimobile.nipponhashi.com/tracker/ + https://ma
 ## Features
 
 ### Tracker (mirrors original)
-- **☀️ 每日 (daily, per-char):** 狩獵場探險 / 週幾地下城 / 黑色坑洞 / 以物易物 / 深層地下城 0/2 / 亡靈之塔 20 / 兼職 0/2 (06:00,18:00 `timeGated` badge)
+- **☀️ 每日 (daily, per-char):** 狩獵場探險 / 週幾地下城 / 黑色坑洞 / 以物易物 / 深層地下城 0/2 / 亡靈之塔 20 / 兼職 (18:00 刷新勾選)
 - **🗓️ 每週 (Mon 06:00, per-char):** 召喚結界 0/7 / 深淵 0/3 / 格里斯貝恩 0/1 / 野外首領 0/1 / 生活技能週任務
 - **👥 帳號共通 (shared):** Stella Pick / 銀幣箱 / 碎裂寶石箱 0/10 / 商店免費禮包 / 每日簽到 / 會員每日領取 (daily) + 公會任務 / 野外首領尾刀 (weekly)
 - Types: `check` (✓) and `counter -0/N+` with progress bars; `hideCompleted` toggle; `清除本區` per section; overall `done/total · %`
@@ -28,7 +28,7 @@ Heavily inspired by https://mabinogimobile.nipponhashi.com/tracker/ + https://ma
 **Pin model — one global list:** `barterPins` in the store; tap toggles for every character, no per-character pins. Pinned rows appear in the tracker 每日 sub-category for all characters.
 
 ### Custom Tasks
-- `+ 新增自訂` (`AddTaskDialog.tsx:1`) — any section, `check`/`counter`, `notes`/`timeGated (06:00,18:00)`, icon picker; edit via pencil, hide via `EyeOff` (per-char `hiddenTaskIds`), delete (confirm); drag reorder via `@dnd-kit` for **all** items (built-ins + barter pins + custom) using `SortableContext`.
+- `+ 新增自訂` (`AddTaskDialog.tsx:1`) — any section, `check`/`counter`, `notes`, icon picker; edit via pencil, hide via `EyeOff` (per-char `hiddenTaskIds`), delete (confirm); drag reorder via `@dnd-kit` for **all** items (built-ins + barter pins + custom) using `SortableContext`.
 
 ### Other
 - Theme toggle (`ThemeToggle.tsx:1`) persisted `theme` + `prefers-color-scheme`; sticky header with `每日重置 / 每週重置` countdown `hooks/useCountdown.ts:1`.

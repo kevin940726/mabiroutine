@@ -169,7 +169,7 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 11,
+  version: 12,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -316,6 +316,35 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
       if (c.taskValues?.tower === true) c.taskValues.tower = 20;
     }
     s.version = 11;
+  }
+  if (from < 12) {
+    // v11 → v12: timeGated retired (parttime is now a plain check). Strip the
+    // field from custom tasks; carry parttime counts 1/2 as checked `true`
+    // (any progress today counts), per user decision. 0 stays unchecked.
+    // Also cap stored counts at the live max (daily/weekly-challenge maxes
+    // shrank) — anything over the new max clamps down, rest untouched.
+    for (const t of s.customTasks ?? []) {
+      delete (t as Record<string, unknown>).timeGated;
+    }
+    const liveMax = new Map<string, number>();
+    for (const t of trackerJson as Task[]) {
+      if ((t.type === "counter" || t.type === "countdown") && typeof t.max === "number") {
+        liveMax.set(t.id, t.max);
+      }
+    }
+    for (const c of s.characters ?? []) {
+      const v = c.taskValues?.parttime;
+      if (typeof v === "number" && v > 0) c.taskValues.parttime = true;
+      if (c.taskValues) {
+        for (const [id, val] of Object.entries(c.taskValues)) {
+          const m = liveMax.get(id);
+          if (typeof val === "number" && m !== undefined && val > m) {
+            c.taskValues[id] = m;
+          }
+        }
+      }
+    }
+    s.version = 12;
   }
   return s as AppState;
 }
@@ -566,7 +595,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 11,
+      version: 12,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

@@ -49,7 +49,6 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">一定要換</span>
     ) : null)
     : (<>
-      {task.timeGated && <span className="rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">{task.timeGated}</span>}
       {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必做</span>}
       {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">自訂</span>}
       {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">{task.town}</span>}
@@ -80,7 +79,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         <span className="shrink-0" aria-hidden>{task.icon}</span>
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
       </div>
-      {(task.timeGated || task.priority === "must" || task.source === "custom" || isBarter) && (
+      {(task.priority === "must" || task.source === "custom" || isBarter) && (
         <div className="mt-1 flex flex-wrap gap-1">{badges}</div>
       )}
     </div>
@@ -241,7 +240,7 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown }: { taskI
           ) : (
             <span className="font-mono leading-none">
               {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}
-              <span className="text-base font-bold">{shown}</span>
+              <span className="text-base font-semibold">{shown}</span>
               <span className="text-[10px] text-muted-foreground">/{max}</span>
             </span>
           )}
@@ -339,7 +338,6 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn("text-sm font-medium truncate", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
-          {task.timeGated && <span className="rounded bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-1.5 py-0.5 text-[10px]">{task.timeGated}</span>}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
           {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px]">{task.town}</span>}
@@ -421,7 +419,7 @@ function CounterTileDesktop({ taskId, count, max, isAccount, countdown }: { task
           ) : (
             <span className="font-mono leading-none">
               {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}
-              <span className="text-lg font-bold">{shown}</span>
+              <span className="text-lg font-semibold">{shown}</span>
               <span className="text-[10px] text-muted-foreground">/{max}</span>
             </span>
           )}

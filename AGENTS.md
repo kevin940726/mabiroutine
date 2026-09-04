@@ -22,9 +22,9 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | id | name | type | max | desc (TW-only) | cross-ref |
 |---|---|---|---|---|---|
 | daily-dungeon | 週幾地下城 | check | - | 每日 1 次。一／四 閃耀洞穴（金幣）・二／五 璀璨宅邸（寶石）・三／六 燦爛遺跡（催化劑）・日 自選。需先接每週兼職。 | nipponhashi; gamer 2077 (每個周幾都不一樣) |
-| daily-challenge | 每日挑戰 | counter | 10 | 每日 10 個挑戰，包含 2 個專屬挑戰，6 次拿滿額外獎勵。06:00 重置。 | user hand-added 2026-09-04 |
+| daily-challenge | 每日挑戰 | counter | 8 | 每日 8 個挑戰，會員有另外 2 個專屬挑戰，6 次拿滿額外獎勵。06:00 重置。 | user hand-added 2026-09-04; max 10→8, store v11→v12 caps over-max |
 | deep-dungeon | 深層地下城 | counter | 2 | 消耗魔族貢品進入（Lv55+）。貢品每 12 小時 +1、上限 10——別讓它積滿停止恢復。 | nipponhashi; gamer (愛心幣叫NPC); bobogameguides 深淵指南 |
-| parttime | 兼職 | counter | 2 | 06:00 與 18:00 各刷新 1 個 | nipponhashi; bobogameguides 已確認 週一06:00重置 + 每日06:00/18:00 |
+| parttime | 兼職 | check | - | 18:00 刷新 1 個 | nipponhashi; bobogameguides 已確認 週一06:00重置 + 每日18:00 |
 | tower | 亡靈之塔 | counter | 20 | 每日 20 次挑戰機會（06:00 重置） | nipponhashi; gamer (每日20次, 獎勵1次) — flipped check→counter back 2026-09-05 now that grab-adjust exists; store v10→v11 carries checked `true` as 20 |
 
 ### 🗓️ 每週 (Mon 06:00)
@@ -36,7 +36,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | abyss | 深淵 | counter | 3 | 每週通關獎勵 3 次，入場次數無限制；週一 06:00 重置。 | nipponhashi 官方原文; gamer (每週3次) |
 | raid-gris | 團隊副本（格里斯貝恩） | counter | 1 | 每個首領每週 1 次獎勵，入門與困難共用同一次。週一 06:00 重置。 | nipponhashi; bobogameguides 已確認 65級+困難已開放; gamer |
 | field-boss | 野外首領 | counter | 1 | 每週 1 次討伐戰利品，週一 06:00 重置。之後仍有基本獎勵。每日 12/18/20/22 時出現。 | nipponhashi; gamer |
-| weekly-challenge | 每週挑戰 | counter | 11 | 每週 11 個挑戰，包含 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。 | user hand-added 2026-09-04 |
+| weekly-challenge | 每週挑戰 | counter | 9 | 每週 9 個挑戰，會員有另外 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。 | user hand-added 2026-09-04; max 11→9, store v11→v12 caps over-max |
 
 ### 👥 帳號共通
 | id | name | kind | desc (TW-only) | cross-ref |
@@ -91,7 +91,7 @@ const twBarterIds = new Set(notebook.items.filter(i=>i.verified==="tw").map(i=>i
 - Do not add `barrier`/`black-hole` back to `韓服社群數值` wording — keep TW hardcoded per this file.
 - This file is the agent’s source of truth — do not add KR data even if barter count >226 includes KR preview.
 
-## Store Version Bumps (persist schema `useAppStore.ts`, current `v11`)
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v12`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
 User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.

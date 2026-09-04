@@ -25,7 +25,6 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
   const [kind, setKind] = useState<ResetKind>(editing?.kind ?? "daily");
   const [type, setType] = useState<TaskType>(editing?.type ?? "check");
   const [max, setMax] = useState(editing?.max ?? 1);
-  const [timeGated, setTimeGated] = useState(editing?.timeGated ?? "");
 
   // Kind follows section for new tasks (was an effect — now event-driven).
   const changeSection = (v: string) => {
@@ -38,9 +37,9 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
   const submit = () => {
     if (!name.trim()) return;
     if (editing) {
-      update(editing.id, { name: name.trim(), icon, desc: desc.trim()||undefined, notes: notes.trim()||undefined, section, kind, type, max: maxFor(type), timeGated: timeGated.trim()||undefined });
+      update(editing.id, { name: name.trim(), icon, desc: desc.trim()||undefined, notes: notes.trim()||undefined, section, kind, type, max: maxFor(type) });
     } else {
-      add({ name: name.trim(), icon, desc: desc.trim()||undefined, notes: notes.trim()||undefined, section, kind, type, max: maxFor(type), timeGated: timeGated.trim()||undefined });
+      add({ name: name.trim(), icon, desc: desc.trim()||undefined, notes: notes.trim()||undefined, section, kind, type, max: maxFor(type) });
     }
     onOpenChange(false);
   };
@@ -52,7 +51,7 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
           <DialogTitle asChild>
             <h1 className="text-lg font-semibold leading-none tracking-tight mb-2">{editing ? "編輯任務" : "新增自訂任務"}</h1>
           </DialogTitle>
-          <DialogDescription>所有任務皆支援隱藏與拖曳排序。時間限制例如 06:00,18:00</DialogDescription>
+          <DialogDescription>所有任務皆支援隱藏與拖曳排序。</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -129,10 +128,6 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
                 <Input type="number" min={1} value={max} onChange={(e) => setMax(Number(e.target.value))} />
               </div>
             )}
-          </div>
-          <div>
-            <Label>時間限制（選填）</Label>
-            <Input value={timeGated} onChange={(e) => setTimeGated(e.target.value)} placeholder="06:00,18:00" />
           </div>
         </div>
         <DialogFooter>

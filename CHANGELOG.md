@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 
 ## 2026-09-03 — Unreleased batch (pins, data, perf, branding)
 
+### Fixes
+- 兼職 is now a single checkbox (18:00 refresh only) instead of a 0/2 counter; saves with a count of 1–2 carry over as checked (store v11→v12)
+- 每日挑戰 max 10→8 and 每週挑戰 max 11→9 (member-only 2 split out in the text); stored counts above the new max clamp down on load, rest untouched
+- `timeGated` retired everywhere: no more amber time badge on rows, and the 新增自訂 form no longer offers 時間限制 (old custom values are stripped on load, store v11→v12)
+
 ### Features
 - `tracker.json` replaces `builtin.ts`: both data files are hand-owned JSON sources of truth
 - Single global pin list: fork/personal model removed, tap toggles for all characters (old saves reset to must defaults)

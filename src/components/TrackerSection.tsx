@@ -51,9 +51,16 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
       .filter(Boolean) as Task[];
   }, [tasks, barterPins]);
 
-  const barterSubtasksFiltered = useMemo(() => {
+  // barter base: manual-hide only. hideCompleted is render-only (below) —
+  // progress must not move when the toggle flips.
+  const barterBase = useMemo(() => {
     if (!char) return barterSubtasks;
-    let list = barterSubtasks.filter((t) => !char.hiddenTaskIds.includes(t.id));
+    return barterSubtasks.filter((t) => !char.hiddenTaskIds.includes(t.id));
+  }, [barterSubtasks, char]);
+
+  const barterSubtasksFiltered = useMemo(() => {
+    if (!char) return barterBase;
+    let list = barterBase;
     if (hideCompleted) {
       list = list.filter((t) => {
         const v = char.taskValues[t.id];
@@ -63,7 +70,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
       });
     }
     return list;
-  }, [barterSubtasks, char, hideCompleted]);
+  }, [barterBase, char, hideCompleted]);
 
   // hidden: dimmed + moved to bottom sub-category (same primitive as 以物易物)
   const hiddenBarter = useMemo(() => {
@@ -84,8 +91,9 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
 
   const hiddenAll = useMemo(() => [...hiddenTasks, ...hiddenBarter], [hiddenTasks, hiddenBarter]);
 
-  // main tasks (without injecting barter subtasks — they live in sub-category)
-  const allTasks = useMemo(() => {
+  // main tasks, manual-hide filtered only — the progress denominator.
+  // hideCompleted applies on top (render-only) in allTasks below.
+  const baseTasks = useMemo(() => {
     let list = [...tasks];
     // apply global order
     list.sort((a, b) => {
@@ -97,6 +105,12 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     if (char) {
       list = list.filter((t) => !isHiddenFor(t));
     }
+    return list;
+  }, [tasks, globalOrder, char, isHiddenFor]);
+
+  // render list: baseTasks + the hideCompleted visual filter (no progress impact)
+  const allTasks = useMemo(() => {
+    let list = baseTasks;
     if (hideCompleted) {
       list = list.filter((t) => {
         const v = isAccount ? accountValues[t.id] : char?.taskValues[t.id];
@@ -106,11 +120,13 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
       });
     }
     return list;
-  }, [tasks, globalOrder, char, accountValues, isAccount, hideCompleted, isHiddenFor]);
+  }, [baseTasks, char, accountValues, isAccount, hideCompleted]);
 
   const { done, total, percent } = useMemo(() => {
-    // include subtasks in progress for daily
-    const combined = [...allTasks, ...barterSubtasksFiltered];
+    // progress over the unfiltered-by-completion lists: flipping 隱藏已完成
+    // only hides rows, never moves done/total. (Manual hides still exclude,
+    // per the hidden-subcategory rule.)
+    const combined = [...baseTasks, ...barterBase];
     let d = 0;
     for (const t of combined) {
       const v = isAccount ? accountValues[t.id] : char?.taskValues[t.id];
@@ -124,7 +140,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     }
     const tot = combined.length;
     return { done: Math.round(d), total: tot, percent: tot ? Math.round((d / tot) * 100) : 0 };
-  }, [allTasks, barterSubtasksFiltered, char, accountValues, isAccount]);
+  }, [baseTasks, barterBase, char, accountValues, isAccount]);
 
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
