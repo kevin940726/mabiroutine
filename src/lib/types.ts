@@ -1,6 +1,6 @@
 export type ResetKind = "daily" | "weekly" | "account-daily" | "account-weekly";
 export type TaskSection = "daily" | "weekly" | "account";
-export type TaskType = "check" | "counter";
+export type TaskType = "check" | "counter" | "countdown";
 export type TaskSource = "builtin" | "barter" | "custom";
 export type BarterPriority = "must" | "extra" | "once" | "situational" | "skip";
 
@@ -18,6 +18,8 @@ export type Task = {
   desc?: string;
   section: TaskSection;
   kind: ResetKind;
+  // countdown = counter for progress/resets, but the tile shows remaining
+  // (剩 N / M) instead of used (N / M). e.g. barrier / black-hole.
   type: TaskType;
   max?: number;
   source: TaskSource;
@@ -29,9 +31,6 @@ export type Task = {
   // custom extras
   notes?: string;
   timeGated?: string; // e.g. "06:00,18:00"
-  // counters only: tile shows remaining (剩 N / M) instead of used (N / M);
-  // fill still rises with used progress. e.g. barrier / black-hole.
-  remaining?: boolean;
   // ordering
   order: number;
   // hidden globally? per-char hidden handled in store

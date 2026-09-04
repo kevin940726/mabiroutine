@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import type { Task, ResetKind, TaskSection } from "@/lib/types";
+import type { Task, ResetKind, TaskSection, TaskType } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
 type Props = { open: boolean; onOpenChange: (v: boolean) => void; editing?: Task | null; };
@@ -21,7 +21,7 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
   const [notes, setNotes] = useState("");
   const [section, setSection] = useState<TaskSection>("daily");
   const [kind, setKind] = useState<ResetKind>("daily");
-  const [type, setType] = useState<"check"|"counter">("check");
+  const [type, setType] = useState<TaskType>("check");
   const [max, setMax] = useState(1);
   const [timeGated, setTimeGated] = useState("");
 
@@ -42,12 +42,13 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
     else setKind("account-daily");
   }, [section, editing]);
 
+  const maxFor = (t: TaskType) => (t === "check" ? undefined : Math.max(1, max));
   const submit = () => {
     if (!name.trim()) return;
     if (editing) {
-      update(editing.id, { name: name.trim(), icon, desc: desc.trim()||undefined, notes: notes.trim()||undefined, section, kind, type, max: type==="counter"? Math.max(1, max): undefined, timeGated: timeGated.trim()||undefined });
+      update(editing.id, { name: name.trim(), icon, desc: desc.trim()||undefined, notes: notes.trim()||undefined, section, kind, type, max: maxFor(type), timeGated: timeGated.trim()||undefined });
     } else {
-      add({ name: name.trim(), icon, desc: desc.trim()||undefined, notes: notes.trim()||undefined, section, kind, type, max: type==="counter"? Math.max(1, max): undefined, timeGated: timeGated.trim()||undefined });
+      add({ name: name.trim(), icon, desc: desc.trim()||undefined, notes: notes.trim()||undefined, section, kind, type, max: maxFor(type), timeGated: timeGated.trim()||undefined });
     }
     onOpenChange(false);
   };
@@ -117,17 +118,18 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>類型</Label>
-              <Select value={type} onValueChange={(v) => setType(v as "check"|"counter")}>
+              <Select value={type} onValueChange={(v) => setType(v as TaskType)}>
                 <SelectTrigger>
                   <SelectValue placeholder="選擇類型" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="check">勾選</SelectItem>
                   <SelectItem value="counter">計數</SelectItem>
+                  <SelectItem value="countdown">倒數（顯示剩餘）</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {type==="counter" && (
+            {type!=="check" && (
               <div>
                 <Label>次數上限</Label>
                 <Input type="number" min={1} value={max} onChange={(e) => setMax(Number(e.target.value))} />

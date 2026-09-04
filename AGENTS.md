@@ -30,8 +30,8 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 ### 🗓️ 每週 (Mon 06:00)
 | id | name | type | max | desc (TW-only) | cross-ref |
 |---|---|---|---|---|---|
-| barrier | 召喚結界 | counter | 7 | 每小時整點出現（約 10 分鐘）。戰利品次數每週 7 次，週一 06:00 重置，開箱時扣次數。 | **hardcoded per user**; nipponhashi prior "7次為韓服社群" stripped; gamer 2077 (每週7次); mabitw 整點出現; bobogameguides 待核 but user hardcodes |
-| black-hole | 黑色坑洞 | counter | 7 | 狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。 | **hardcoded per user**; moved daily→weekly 2026-09-04; gamer 2077 + mabitw 7+7 agree |
+| barrier | 召喚結界 | countdown | 7 | 每小時整點出現（約 10 分鐘）。戰利品次數每週 7 次，週一 06:00 重置，開箱時扣次數。Tile 顯示剩餘（剩 N / 7）。 | **hardcoded per user**; nipponhashi prior "7次為韓服社群" stripped; gamer 2077 (每週7次); mabitw 整點出現; bobogameguides 待核 but user hardcodes |
+| black-hole | 黑色坑洞 | countdown | 7 | 狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。Tile 顯示剩餘（剩 N / 7）。 | **hardcoded per user**; moved daily→weekly 2026-09-04; gamer 2077 + mabitw 7+7 agree |
 | weekly-goals | 冒險家工會的定期委託 | check | - | 每周完成冒險家工會的定期委託任務至少一次，通關深層地下城 3 次，通關地下城 5 次，通關狩獵場 5 次，週一 06:00 重置。 | user hand-added |
 | abyss | 深淵 | counter | 3 | 每週通關獎勵 3 次，入場次數無限制；週一 06:00 重置。 | nipponhashi 官方原文; gamer (每週3次) |
 | raid-gris | 團隊副本（格里斯貝恩） | counter | 1 | 每個首領每週 1 次獎勵，入門與困難共用同一次。週一 06:00 重置。 | nipponhashi; bobogameguides 已確認 65級+困難已開放; gamer |
@@ -51,7 +51,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | acc-field-last | 野外首領尾刀 | account-weekly | 每週首領最後一擊稱號挑戰 | nipponhashi |
 | friend-challenges | 好友共同挑戰 | account-weekly | 每週與好友共同完成挑戰，週一 06:00 重置。 | user hand-added |
 
-**Result: `src/data/tracker.json` now 21 TW rows (5 daily + 7 weekly + 9 account). 2026-09-04: added `daily-challenge` + `weekly-challenge`, `tower` counter→check, `black-hole` daily→weekly (prior hunt / barter-check / life-weekly / acc-guild-weekly removals already landed). `barrier` + `black-hole` tiles show 剩餘 (`remaining:true`, mobile + desktop; fill still rises with used). No store bump: additions need no backfill, old `tower` numbers degrade to truthy checks, `black-hole` values carry as weekly progress. No KR rows.**
+**Result: `src/data/tracker.json` now 21 TW rows (5 daily + 7 weekly + 9 account). 2026-09-04: added `daily-challenge` + `weekly-challenge`, `tower` counter→check, `black-hole` daily→weekly (prior hunt / barter-check / life-weekly / acc-guild-weekly removals already landed). `barrier` + `black-hole` are type `countdown` (倒數: counter semantics, tile shows 剩餘, mobile + desktop; fill still rises with used). No store bump: additions need no backfill, old `tower` numbers degrade to truthy checks, `black-hole` values carry as weekly progress. No KR rows.**
 
 ### Barter — TW-only guidance
 

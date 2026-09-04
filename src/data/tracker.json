@@ -65,9 +65,8 @@
     "desc": "每小時整點出現（約 10 分鐘）。戰利品次數每週 7 次，週一 06:00 重置，開箱時扣次數。",
     "section": "weekly",
     "kind": "weekly",
-    "type": "counter",
+    "type": "countdown",
     "max": 7,
-    "remaining": true,
     "source": "builtin",
     "order": 60
   },
@@ -78,9 +77,8 @@
     "desc": "狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。",
     "section": "weekly",
     "kind": "weekly",
-    "type": "counter",
+    "type": "countdown",
     "max": 7,
-    "remaining": true,
     "source": "builtin",
     "order": 70
   },
