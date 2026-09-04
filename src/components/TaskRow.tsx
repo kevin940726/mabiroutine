@@ -246,9 +246,6 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown }: { taskI
             </span>
           )}
         </span>
-        <span className="absolute right-0.5 top-0.5 text-[8px] leading-none text-muted-foreground/70" aria-hidden>
-          ↕
-        </span>
       </button>
       {grabbed && (
         <span className="absolute bottom-full left-1/2 z-10 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground" aria-hidden>
@@ -354,8 +351,8 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       </div>
       )}
 
-      {/* fixed-width action slot — identical width for check and counter so text never shifts */}
-      <div className="flex items-center justify-center shrink-0 w-[64px]">
+      {/* action slot hugs the 56px tile — identical box for check and counter */}
+      <div className="flex items-center justify-center shrink-0 w-14 self-center">
         {isCheck ? (
           <button
             className={cn(
@@ -428,9 +425,6 @@ function CounterTileDesktop({ taskId, count, max, isAccount, countdown }: { task
               <span className="text-[10px] text-muted-foreground">/{max}</span>
             </span>
           )}
-        </span>
-        <span className="absolute right-0.5 top-0.5 text-[8px] leading-none text-muted-foreground/70" aria-hidden>
-          ↕
         </span>
       </button>
       {grabbed && (

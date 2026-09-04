@@ -18,7 +18,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Mobile v1 finalized: two-line task rows, single-line progress pill with character stepper, compact header, wrapping character tabs, two-line barter rows, collapsible barter filters (desktop unchanged throughout); all prototype rigs removed
 - Default barter pins are a hand-owned list (`src/data/defaultPins.json`) instead of derived must-priorities; `pnpm suggest-barter` proposes list additions/removals/stale ids on source drift (matched by trade, not churny yenyen ids)
 - Weekly counter tiles for 召喚結界 / 黑色坑洞 show remaining (剩 N / 7, mobile + desktop) with the fill still rising from the bottom with used progress; new first-class `countdown` (倒數) task type, also offered in 新增自訂 with 次數上限 kept (display-only, no save migration)
-- Counter/countdown tiles support hold-to-grab quick-adjust: hold 0.3s (haptic) then drag up/down ±1 per 14px, release to end; tap +1 / full-tap-reset and desktop right-click −1 unchanged, mobile long-press popup suppressed; tiles show a ↕ mark and teach the gesture on tap (touch) or hover (desktop) until the first successful grab, then retire it; keyboard arrows adjust a focused tile; no `title` tooltips
+- Counter/countdown tiles support hold-to-grab quick-adjust: hold 0.3s (haptic) then drag up/down ±1 per 14px, release to end; tap +1 / full-tap-reset and desktop right-click −1 unchanged, mobile long-press popup suppressed; the gesture teaches itself on tap (touch) or hover (desktop) until the first successful grab, then retires it; keyboard arrows adjust a focused tile; no `title` tooltips
 
 ### Fixes
 - Tracker rows: dropped hunt / 以物易物-check / life-weekly / acc-guild-weekly; added weekly-goals / guild-challenges / friend-challenges
