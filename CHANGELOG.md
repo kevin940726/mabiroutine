@@ -17,6 +17,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Mobile barter filter card: selects/pills collapse behind a native 展開篩選 disclosure and the skill chart is desktop-only (pure RWD, desktop pixel-identical); search placeholder shortens to 搜尋, pin toggle matches input height, and the pinned-notes legend stays visible outside the collapse
 - Mobile v1 finalized: two-line task rows, single-line progress pill with character stepper, compact header, wrapping character tabs, two-line barter rows, collapsible barter filters (desktop unchanged throughout); all prototype rigs removed
 - Default barter pins are a hand-owned list (`src/data/defaultPins.json`) instead of derived must-priorities; `pnpm suggest-barter` proposes list additions/removals/stale ids on source drift (matched by trade, not churny yenyen ids)
+- Weekly counter tiles for 召喚結界 / 黑色坑洞 show remaining (剩 N / 7, mobile + desktop) with the fill still rising from the bottom with used progress; opt-in per-task `remaining` flag in `tracker.json` (display-only, no save migration)
 
 ### Fixes
 - Tracker rows: dropped hunt / 以物易物-check / life-weekly / acc-guild-weekly; added weekly-goals / guild-challenges / friend-challenges

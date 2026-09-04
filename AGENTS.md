@@ -51,7 +51,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | acc-field-last | 野外首領尾刀 | account-weekly | 每週首領最後一擊稱號挑戰 | nipponhashi |
 | friend-challenges | 好友共同挑戰 | account-weekly | 每週與好友共同完成挑戰，週一 06:00 重置。 | user hand-added |
 
-**Result: `src/data/tracker.json` now 21 TW rows (5 daily + 7 weekly + 9 account). 2026-09-04: added `daily-challenge` + `weekly-challenge`, `tower` counter→check, `black-hole` daily→weekly (prior hunt / barter-check / life-weekly / acc-guild-weekly removals already landed). No store bump: additions need no backfill, old `tower` numbers degrade to truthy checks, `black-hole` values carry as weekly progress. No KR rows.**
+**Result: `src/data/tracker.json` now 21 TW rows (5 daily + 7 weekly + 9 account). 2026-09-04: added `daily-challenge` + `weekly-challenge`, `tower` counter→check, `black-hole` daily→weekly (prior hunt / barter-check / life-weekly / acc-guild-weekly removals already landed). `barrier` + `black-hole` tiles show 剩餘 (`remaining:true`, mobile + desktop; fill still rises with used). No store bump: additions need no backfill, old `tower` numbers degrade to truthy checks, `black-hole` values carry as weekly progress. No KR rows.**
 
 ### Barter — TW-only guidance
 

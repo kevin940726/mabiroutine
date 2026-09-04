@@ -158,7 +158,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
               <span className="text-lg leading-none">{checked ? "✓" : ""}</span>
             </button>
           ) : (
-            <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} />
+            <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} remaining={task.remaining} />
           )}
         </div>
       </div>
@@ -210,13 +210,15 @@ function RowMenu({ isHidden, hideScope, onEdit, onToggleHidden, onRemove }: {
 
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click / 550ms long-press = −1. Progress is the fill rising inside the tile.
-function CounterTileMobile({ taskId, count, max, isAccount }: { taskId: string; count: number; max: number; isAccount: boolean }) {
+function CounterTileMobile({ taskId, count, max, isAccount, remaining }: { taskId: string; count: number; max: number; isAccount: boolean; remaining?: boolean }) {
   const incCounter = useAppStore((s) => s.incCounter);
   const setCounter = useAppStore((s) => s.setCounter);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longFired = useRef(false);
   const pct = max ? Math.min(100, (count / max) * 100) : 0;
   const done = max > 0 && count >= max;
+  // remaining mode: big number counts down (剩 N), fill still rises with used
+  const shown = remaining ? Math.max(0, max - count) : count;
   const clear = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
@@ -250,7 +252,7 @@ function CounterTileMobile({ taskId, count, max, isAccount }: { taskId: string; 
       }}
       onPointerUp={clear}
       onPointerLeave={clear}
-      aria-label={`${count} / ${max}，點一下加一`}
+      aria-label={remaining ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一` : `${count} / ${max}，點一下加一`}
     >
       {!done && <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />}
       <span className="absolute inset-0 grid place-items-center">
@@ -258,7 +260,8 @@ function CounterTileMobile({ taskId, count, max, isAccount }: { taskId: string; 
           <span className="text-lg leading-none">✓</span>
         ) : (
           <span className="font-mono leading-none">
-            <span className="text-base font-bold">{count}</span>
+            {remaining && <span className="text-[10px] text-muted-foreground">剩</span>}
+            <span className="text-base font-bold">{shown}</span>
             <span className="text-[10px] text-muted-foreground">/{max}</span>
           </span>
         )}
@@ -372,7 +375,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
             <span className="text-xl leading-none">{checked ? "✓" : ""}</span>
           </button>
         ) : (
-          <CounterTileDesktop taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} />
+          <CounterTileDesktop taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} remaining={task.remaining} />
         )}
       </div>
 
@@ -398,7 +401,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
 
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click / 550ms long-press = −1. Progress is the fill rising inside the tile.
-function CounterTileDesktop({ taskId, count, max, isAccount }: { taskId: string; count: number; max: number; isAccount: boolean }) {
+function CounterTileDesktop({ taskId, count, max, isAccount, remaining }: { taskId: string; count: number; max: number; isAccount: boolean; remaining?: boolean }) {
   const incCounter = useAppStore((s) => s.incCounter);
   const setCounter = useAppStore((s) => s.setCounter);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -409,6 +412,8 @@ function CounterTileDesktop({ taskId, count, max, isAccount }: { taskId: string;
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
   };
+  // remaining mode: big number counts down (剩 N), fill still rises with used
+  const shown = remaining ? Math.max(0, max - count) : count;
   return (
     <button
       className={cn(
@@ -438,7 +443,7 @@ function CounterTileDesktop({ taskId, count, max, isAccount }: { taskId: string;
       }}
       onPointerUp={clear}
       onPointerLeave={clear}
-      aria-label={`${count} / ${max}，點一下加一`}
+      aria-label={remaining ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一` : `${count} / ${max}，點一下加一`}
     >
       {!done && <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />}
       <span className="absolute inset-0 grid place-items-center">
@@ -446,7 +451,8 @@ function CounterTileDesktop({ taskId, count, max, isAccount }: { taskId: string;
           <span className="text-xl leading-none">✓</span>
         ) : (
           <span className="font-mono leading-none">
-            <span className="text-lg font-bold">{count}</span>
+            {remaining && <span className="text-[10px] text-muted-foreground">剩</span>}
+            <span className="text-lg font-bold">{shown}</span>
             <span className="text-[10px] text-muted-foreground">/{max}</span>
           </span>
         )}

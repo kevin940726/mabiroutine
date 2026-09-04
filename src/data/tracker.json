@@ -67,6 +67,7 @@
     "kind": "weekly",
     "type": "counter",
     "max": 7,
+    "remaining": true,
     "source": "builtin",
     "order": 60
   },
@@ -79,6 +80,7 @@
     "kind": "weekly",
     "type": "counter",
     "max": 7,
+    "remaining": true,
     "source": "builtin",
     "order": 70
   },

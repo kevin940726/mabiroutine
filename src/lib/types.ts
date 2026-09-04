@@ -29,6 +29,9 @@ export type Task = {
   // custom extras
   notes?: string;
   timeGated?: string; // e.g. "06:00,18:00"
+  // counters only: tile shows remaining (剩 N / M) instead of used (N / M);
+  // fill still rises with used progress. e.g. barrier / black-hole.
+  remaining?: boolean;
   // ordering
   order: number;
   // hidden globally? per-char hidden handled in store
