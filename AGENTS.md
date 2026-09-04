@@ -25,7 +25,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | daily-challenge | 每日挑戰 | counter | 10 | 每日 10 個挑戰，包含 2 個專屬挑戰，6 次拿滿額外獎勵。06:00 重置。 | user hand-added 2026-09-04 |
 | deep-dungeon | 深層地下城 | counter | 2 | 消耗魔族貢品進入（Lv55+）。貢品每 12 小時 +1、上限 10——別讓它積滿停止恢復。 | nipponhashi; gamer (愛心幣叫NPC); bobogameguides 深淵指南 |
 | parttime | 兼職 | counter | 2 | 06:00 與 18:00 各刷新 1 個 | nipponhashi; bobogameguides 已確認 週一06:00重置 + 每日06:00/18:00 |
-| tower | 亡靈之塔 | check | - | 每日 20 次挑戰機會（06:00 重置） | nipponhashi; gamer (每日20次, 獎勵1次) — user flipped counter→check 2026-09-04 |
+| tower | 亡靈之塔 | counter | 20 | 每日 20 次挑戰機會（06:00 重置） | nipponhashi; gamer (每日20次, 獎勵1次) — flipped check→counter back 2026-09-05 now that grab-adjust exists; store v10→v11 carries checked `true` as 20 |
 
 ### 🗓️ 每週 (Mon 06:00)
 | id | name | type | max | desc (TW-only) | cross-ref |
@@ -91,7 +91,7 @@ const twBarterIds = new Set(notebook.items.filter(i=>i.verified==="tw").map(i=>i
 - Do not add `barrier`/`black-hole` back to `韓服社群數值` wording — keep TW hardcoded per this file.
 - This file is the agent’s source of truth — do not add KR data even if barter count >226 includes KR preview.
 
-## Store Version Bumps (persist schema `useAppStore.ts`, current `v10`)
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v11`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
 User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.

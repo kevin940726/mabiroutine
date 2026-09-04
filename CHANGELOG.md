@@ -23,6 +23,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 ### Fixes
 - Tracker rows: dropped hunt / 以物易物-check / life-weekly / acc-guild-weekly; added weekly-goals / guild-challenges / friend-challenges
 - Tracker data: added 每日挑戰 (daily counter 0/10) and 每週挑戰 (weekly counter 0/11); 亡靈之塔 counter→check (old numbers show as done, next tap clears); 黑色坑洞 daily→weekly (existing progress carries over, now resets Mondays — no save migration needed)
+- 亡靈之塔 back to counter 0/20 now that hold-drag makes big counts practical (was check 2026-09-04); saves with it checked carry over as 20 done (store v10→v11)
 - 黑色坑洞 countdown max 7→14 to match 每週最多 14 次 (existing counts carry over, just a higher ceiling)
 - Barter rows: removed 需先換 suffixes
 - Character rename form contrast and padding; footer credit/link removed; uniform 釘選/已釘選 button width

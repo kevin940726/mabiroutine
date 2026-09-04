@@ -54,7 +54,8 @@
     "desc": "每日 20 次挑戰機會（06:00 重置）",
     "section": "daily",
     "kind": "daily",
-    "type": "check",
+    "type": "counter",
+    "max": 20,
     "source": "builtin",
     "order": 50
   },

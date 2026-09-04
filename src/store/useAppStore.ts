@@ -169,7 +169,7 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 10,
+  version: 11,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -307,6 +307,15 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     }
     s.hiddenAccountTaskIds = [...global].filter((id) => validAccount.has(id));
     s.version = 10;
+  }
+  if (from < 11) {
+    // v10 → v11: tower flipped check → counter (max 20). A stored boolean
+    // can't be read as a count (renders 0) — carry `true` as 20 (done),
+    // per user decision. Numbers pass through untouched.
+    for (const c of s.characters ?? []) {
+      if (c.taskValues?.tower === true) c.taskValues.tower = 20;
+    }
+    s.version = 11;
   }
   return s as AppState;
 }
@@ -557,7 +566,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 10,
+      version: 11,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
