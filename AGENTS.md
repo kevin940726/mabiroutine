@@ -14,43 +14,44 @@ This repo clones `https://mabinogimobile.nipponhashi.com/tracker/` + `/barter/` 
 
 KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only diff to find `krOnly`.
 
-## Item Inventory — Reviewed 2026-09-02, cross-ref 7 sources, TW-only (hardcode per user)
+## Item Inventory — Reviewed 2026-09-04, cross-ref 7 sources, TW-only (hardcode per user)
 
 **Rule for ambiguous counts:** `召喚結界 7次` and `黑色坑洞 每日1+每週7=14` are **hardcoded as TW per user confirmation** (`confirmed 結界 7次 and 黑色坑洞 7+7次. you can hardcode`), even though bobogameguides still marks them 待核. Descriptions below are stripped of `韓服社群數值` wording and state TW rule as fact. If TW official later publishes different, bump `AGENTS.md` and `tracker.json`.
 
 ### ☀️ 每日 (per-char, 06:00 Asia/Taipei)
 | id | name | type | max | desc (TW-only) | cross-ref |
 |---|---|---|---|---|---|
-| hunt | 狩獵場探險 | check | - | 每日探險次數 1 次（當天不用、隔天 06:00 消失）＋每週超額 7 次（週一 06:00 重置） | nipponhashi TW; mabitw 校正; bobogameguides 部分待核 but kept as TW |
 | daily-dungeon | 週幾地下城 | check | - | 每日 1 次。一／四 閃耀洞穴（金幣）・二／五 璀璨宅邸（寶石）・三／六 燦爛遺跡（催化劑）・日 自選。需先接每週兼職。 | nipponhashi; gamer 2077 (每個周幾都不一樣) |
-| black-hole | 黑色坑洞 | counter | 7 | 狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。 | **hardcoded per user**; nipponhashi prior "無上限" outdated; gamer 2077 + mabitw 7+7 agree; yenyen/notebook not applicable |
-| barter | 以物易物 | check | - | NPC 以物換物——每角色每日上限，分身也要跑 | nipponhashi TW; yenyen 86 / notebook 70 tw |
-| deep-dungeon | 深層地下城 | counter | 2 | 消耗魔族貢品進入（Lv55+）。貢品每 12 小時 +1、上限 10 | nipponhashi; gamer (愛心幣叫NPC); bobogameguides 深淵指南 |
-| tower | 亡靈之塔 | counter | 20 | 每日 20 次挑戰機會（06:00 重置） | nipponhashi; gamer (每日20次, 獎勵1次) |
-| parttime | 兼職 | counter | 2 | 06:00 與 18:00 各刷新 1 個（每週一 06:00 全重置） | nipponhashi; bobogameguides 已確認 週一06:00重置 + 每日06:00/18:00 |
+| daily-challenge | 每日挑戰 | counter | 10 | 每日 10 個挑戰，包含 2 個專屬挑戰，6 次拿滿額外獎勵。06:00 重置。 | user hand-added 2026-09-04 |
+| deep-dungeon | 深層地下城 | counter | 2 | 消耗魔族貢品進入（Lv55+）。貢品每 12 小時 +1、上限 10——別讓它積滿停止恢復。 | nipponhashi; gamer (愛心幣叫NPC); bobogameguides 深淵指南 |
+| parttime | 兼職 | counter | 2 | 06:00 與 18:00 各刷新 1 個 | nipponhashi; bobogameguides 已確認 週一06:00重置 + 每日06:00/18:00 |
+| tower | 亡靈之塔 | check | - | 每日 20 次挑戰機會（06:00 重置） | nipponhashi; gamer (每日20次, 獎勵1次) — user flipped counter→check 2026-09-04 |
 
 ### 🗓️ 每週 (Mon 06:00)
 | id | name | type | max | desc (TW-only) | cross-ref |
 |---|---|---|---|---|---|
 | barrier | 召喚結界 | counter | 7 | 每小時整點出現（約 10 分鐘）。戰利品次數每週 7 次，週一 06:00 重置，開箱時扣次數。 | **hardcoded per user**; nipponhashi prior "7次為韓服社群" stripped; gamer 2077 (每週7次); mabitw 整點出現; bobogameguides 待核 but user hardcodes |
+| black-hole | 黑色坑洞 | counter | 7 | 狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。 | **hardcoded per user**; moved daily→weekly 2026-09-04; gamer 2077 + mabitw 7+7 agree |
+| weekly-goals | 冒險家工會的定期委託 | check | - | 每周完成冒險家工會的定期委託任務至少一次，通關深層地下城 3 次，通關地下城 5 次，通關狩獵場 5 次，週一 06:00 重置。 | user hand-added |
 | abyss | 深淵 | counter | 3 | 每週通關獎勵 3 次，入場次數無限制；週一 06:00 重置。 | nipponhashi 官方原文; gamer (每週3次) |
-| raid-gris | 團隊副本格里斯貝恩 | counter | 1 | 每個首領每週 1 次獎勵，入門與困難共用。週一 06:00 重置。 | nipponhashi; bobogameguides 已確認 65級+困難已開放; gamer |
-| field-boss | 野外首領 | counter | 1 | 每週 1 次討伐戰利品，週一 06:00 重置。之後仍有 100金+100證明。每日 12/18/20/22 時出現。 | nipponhashi; gamer (每週首次7.5萬金+720證明) |
-| life-weekly | 生活技能週任務 | check | - | 生活內容週間目標 | nipponhashi TW only |
+| raid-gris | 團隊副本（格里斯貝恩） | counter | 1 | 每個首領每週 1 次獎勵，入門與困難共用同一次。週一 06:00 重置。 | nipponhashi; bobogameguides 已確認 65級+困難已開放; gamer |
+| field-boss | 野外首領 | counter | 1 | 每週 1 次討伐戰利品，週一 06:00 重置。之後仍有基本獎勵。每日 12/18/20/22 時出現。 | nipponhashi; gamer |
+| weekly-challenge | 每週挑戰 | counter | 11 | 每週 11 個挑戰，包含 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。 | user hand-added 2026-09-04 |
 
 ### 👥 帳號共通
 | id | name | kind | desc (TW-only) | cross-ref |
 |---|---|---|---|---|
 | acc-stella | Stella Pick | account-daily | 每日 1 次免費抽選（06:00 重置） | nipponhashi TW |
-| acc-silver | 銀幣箱採買 | account-daily | 商城德卡商店每日銀幣箱 | nipponhashi; gamer (每日1次能買10個, 上限100) |
-| acc-gem | 碎裂寶石箱 ×10 | account-daily counter 0/10 | 金幣商店每日 10 個 | nipponhashi; gamer (40k金/10) |
+| acc-silver | 銀幣箱採買 | account-daily | 商城德卡商店每日銀幣箱——銀幣是副本入場瓶頸，必買 | nipponhashi; gamer |
+| acc-gem | 碎裂寶石箱 ×10 | account-daily counter 0/10 | 金幣商店每日 10 個——餵星稜鏡製作 | nipponhashi; gamer |
 | acc-shopfree | 商店免費禮包 | account-daily | 商城每日免費物品領取 | nipponhashi; gamer (精選商店免費商品) |
 | acc-attendance | 每日簽到 | account-daily | 出席獎勵領取 | nipponhashi |
-| acc-member | 會員每日領取 | account-daily | 會員每日道具會寄到伺服器信箱（06:00 發放） | nipponhashi |
-| acc-guild-weekly | 公會任務 | account-weekly | 公會週間任務（每週 6 個，伺服器計算，週一 06:00 重置） | nipponhashi; bobogameguides 已確認 6個/伺服器/週一06:00 |
+| acc-member | 會員每日領取 | account-daily | 會員每日道具會寄到伺服器信箱（06:00 發放），記得收。 | nipponhashi |
+| guild-challenges | 公會挑戰 | account-weekly | 每週全公會完成 80 次公會挑戰，週一 06:00 重置。 | user hand-added (replaces acc-guild-weekly) |
 | acc-field-last | 野外首領尾刀 | account-weekly | 每週首領最後一擊稱號挑戰 | nipponhashi |
+| friend-challenges | 好友共同挑戰 | account-weekly | 每週與好友共同完成挑戰，週一 06:00 重置。 | user hand-added |
 
-**Result: `src/data/tracker.json` now 20 TW rows, `black-hole` changed check→counter 0/7 and stripped `官方無每日次數限制` + `韓服社群` text, `barrier` stripped KR wording and hardcoded 7. No KR rows.**
+**Result: `src/data/tracker.json` now 21 TW rows (5 daily + 7 weekly + 9 account). 2026-09-04: added `daily-challenge` + `weekly-challenge`, `tower` counter→check, `black-hole` daily→weekly (prior hunt / barter-check / life-weekly / acc-guild-weekly removals already landed). No store bump: additions need no backfill, old `tower` numbers degrade to truthy checks, `black-hole` values carry as weekly progress. No KR rows.**
 
 ### Barter — TW-only guidance
 
@@ -90,7 +91,7 @@ const twBarterIds = new Set(notebook.items.filter(i=>i.verified==="tw").map(i=>i
 - Do not add `barrier`/`black-hole` back to `韓服社群數值` wording — keep TW hardcoded per this file.
 - This file is the agent’s source of truth — do not add KR data even if barter count >226 includes KR preview.
 
-## Store Version Bumps (persist schema `useAppStore.ts`, current `v9`)
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v10`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
 User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.

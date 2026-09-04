@@ -11,14 +11,14 @@
     "order": 10
   },
   {
-    "id": "black-hole",
-    "name": "黑色坑洞",
-    "icon": "🕳️",
-    "desc": "狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。",
+    "id": "daily-challenge",
+    "name": "每日挑戰",
+    "icon": "🚩",
+    "desc": "每日 10 個挑戰，包含 2 個專屬挑戰，6 次拿滿額外獎勵。06:00 重置。",
     "section": "daily",
     "kind": "daily",
     "type": "counter",
-    "max": 7,
+    "max": 10,
     "source": "builtin",
     "order": 20
   },
@@ -54,8 +54,7 @@
     "desc": "每日 20 次挑戰機會（06:00 重置）",
     "section": "daily",
     "kind": "daily",
-    "type": "counter",
-    "max": 20,
+    "type": "check",
     "source": "builtin",
     "order": 50
   },
@@ -70,6 +69,18 @@
     "max": 7,
     "source": "builtin",
     "order": 60
+  },
+  {
+    "id": "black-hole",
+    "name": "黑色坑洞",
+    "icon": "🕳️",
+    "desc": "狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。",
+    "section": "weekly",
+    "kind": "weekly",
+    "type": "counter",
+    "max": 7,
+    "source": "builtin",
+    "order": 70
   },
   {
     "id": "weekly-goals",
@@ -173,6 +184,18 @@
     "type": "check",
     "source": "builtin",
     "order": 250
+  },
+   {
+    "id": "weekly-challenge",
+    "name": "每週挑戰",
+    "icon": "📜",
+    "desc": "每週 11 個挑戰，包含 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。",
+    "section": "weekly",
+    "kind": "weekly",
+    "type": "counter",
+    "max": 11,
+    "source": "builtin",
+    "order": 255
   },
   {
     "id": "acc-member",
