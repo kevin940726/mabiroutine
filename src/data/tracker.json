@@ -78,7 +78,7 @@
     "section": "weekly",
     "kind": "weekly",
     "type": "countdown",
-    "max": 7,
+    "max": 14,
     "source": "builtin",
     "order": 70
   },
