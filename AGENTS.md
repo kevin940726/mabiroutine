@@ -15,15 +15,17 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 2. Append `if (from < N) { ...; s.version = N; }` in `migratePersisted` — chain from the previous number, keep old steps forever (users may skip releases). `normalizePersisted` runs before steps on every load, so steps can assume full shape.
 3. Removing row ids → extend the v6 prune pattern (add the new dangling container, or it generalizes already via the `valid` set of tracker+barter+custom ids).
 4. Renaming a row id → add an explicit id-remap in the new step (prune would drop the old progress otherwise); tell the user first.
-5. `pnpm build` must pass; user-facing impact goes in `CHANGELOG.md` + README storage section.
+5. `pnpm build` must pass; user-facing impact goes in `CHANGELOG.md` + READMEs (`README.md` / `README-zh_TW.md`) or `docs/storage.md` as appropriate.
 
 ## Changelog + docs — pre-commit rule (agents: update before every commit)
 
 - Every commit must update `CHANGELOG.md` **in the same commit** — no code/data/docs commit lands without a changelog entry.
 - Same commit must also keep user-facing docs truthful: if the change alters
-  behavior described in `README.md` (features, commands, storage, deploy) or
-  design recorded in `docs/`, update those files too — never let README/docs
-  describe a previous version. Code comments for internal-only changes.
+  behavior described in `README.md` / `README-zh_TW.md` (features, storage, deploy —
+  update BOTH, same facts, each in its own voice) or design recorded in `docs/`,
+  update those files too — never let README/docs describe a previous version.
+  Code comments for internal-only changes. Dev-only details (commands, project
+  structure, verification) live in `docs/development.md`, never in the READMEs.
 - Newest first: add bullets under the top `## … — Unreleased batch` section; once the hash is known, give the batch its own dated section (`## 2026-09-03 (\`abc1234\`)`) so each entry links its commit.
 - User-facing changes → `### Features` / `### Fixes`; internal/agent-only changes → `### Chores`.
 - If you spot a past commit with no entry, backfill it in the next commit — never let the gap grow.
