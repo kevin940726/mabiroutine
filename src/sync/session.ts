@@ -132,6 +132,14 @@ export function stripSessionParam(): void {
   window.history.replaceState(null, "", url.toString());
 }
 
+// Reflect the binding in the address bar (no history entry — replaceState).
+// The URL is then shareable as-is; arrival via ?s= was already kept.
+export function setSessionParam(id: string): void {
+  const url = new URL(window.location.href);
+  url.searchParams.set("s", id);
+  window.history.replaceState(null, "", url.toString());
+}
+
 export async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
@@ -163,6 +171,7 @@ export async function requestImport(id: string): Promise<void> {
           toast("連結進度格式錯誤");
         } else {
           saveSession({ id, updatedAt: remote.updatedAt });
+          setSessionParam(id);
           toast("已同步到此裝置");
         }
       } else {

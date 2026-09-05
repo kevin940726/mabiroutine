@@ -32,6 +32,8 @@ import {
   copyText,
   sessionIdFromText,
   requestImport,
+  setSessionParam,
+  stripSessionParam,
   toast,
   type LocalSession,
 } from "@/sync/session";
@@ -161,8 +163,8 @@ export const SyncButton = memo(function SyncButton() {
     }
   }
 
-  // Pull-on-visible: when the tab returns (or first mounts) while linked,
-  // one GET checks for a newer remote. Converged content just advances the
+  // Pull-on-visible/focus: when the tab returns, gains focus, or first
+  // mounts while linked, one GET checks for a newer remote. Converged content just advances the
   // baseline silently; real divergence stages the conflict dialog + toast —
   // never a silent overwrite. 10s floor keeps rapid tab-flipping cheap.
   async function pullNow(): Promise<void> {
@@ -205,13 +207,18 @@ export const SyncButton = memo(function SyncButton() {
         void pullNow();
       }
     };
+    // Focus without a visibility flip (side-by-side windows, app switch):
+    // same throttled pull.
+    const onFocus = () => void pullNow();
     const unsub = useAppStore.subscribe(() => schedule());
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onFocus);
     // Mount pull: this device's storage may predate another device's push.
     void pullNow();
     return () => {
       unsub();
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onFocus);
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,6 +235,7 @@ export const SyncButton = memo(function SyncButton() {
       const next = { id, updatedAt };
       saveSession(next);
       setLinked(next);
+      setSessionParam(id);
       lastPushedHash.current = JSON.stringify(buildSnapshot());
       // First sync ends with the link on the clipboard, bubble confirms it.
       if (await copyText(syncUrl(id))) setCopiedTick((t) => t + 1);
@@ -289,6 +297,7 @@ export const SyncButton = memo(function SyncButton() {
       const next = { id: conflict.id, updatedAt };
       saveSession(next);
       setLinked(next);
+      setSessionParam(conflict.id);
       setConflict(null);
       toast("已上傳本機進度");
     } catch (e) {
@@ -310,6 +319,7 @@ export const SyncButton = memo(function SyncButton() {
     const next = { id: conflict.id, updatedAt: conflict.remoteUpdatedAt };
     saveSession(next);
     setLinked(next);
+    setSessionParam(conflict.id);
     setConflict(null);
     // State now equals remote — don't let the background loop re-push it.
     lastPushedHash.current = JSON.stringify(buildSnapshot());
@@ -330,6 +340,7 @@ export const SyncButton = memo(function SyncButton() {
       const next = { id, updatedAt };
       saveSession(next);
       setLinked(next);
+      setSessionParam(id);
       setConfirming(null);
       lastPushedHash.current = JSON.stringify(buildSnapshot());
       setCopiedTick((t) => t + 1);
@@ -349,6 +360,7 @@ export const SyncButton = memo(function SyncButton() {
       setLinked(null);
       setConfirming(null);
       setPendingConflict(null);
+      stripSessionParam();
       lastPushedHash.current = null;
       setOpen(false);
       toast("已取消同步");
