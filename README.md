@@ -1,6 +1,6 @@
 # MabiRoutine — 瑪奇 Mobile 日課追蹤
 
-Heavily inspired by https://mabinogimobile.nipponhashi.com/tracker/ + https://mabinogimobile.nipponhashi.com/barter/. TW only. Full source credits: 出處與授權 below (same links as the in-app footer).
+TW-only fan-made tracker. Sources credited in 出處與授權 below (same links as the in-app footer).
 
 - **Stack:** TypeScript + React 19 + Vite 8 + Tailwind v4 + shadcn/ui + Zustand (persist) + @dnd-kit + workbox (PWA) + Upstash Redis (sync, via Vercel functions)
 - **Storage:** progress lives in your browser (`localStorage` key `mabiroutine:v2`, schema `version: 12`, see below) with optional cloud sync (see Sync). `Asia/Taipei` 06:00 daily / Mon 06:00 weekly auto-reset, live countdown.
