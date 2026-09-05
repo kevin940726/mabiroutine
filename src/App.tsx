@@ -11,6 +11,7 @@ import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
 import { InstallButton } from "@/components/InstallButton";
 import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
+import { PillProgress } from "@/components/PillProgress";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { SyncImport } from "@/sync/SyncImport";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -210,11 +211,8 @@ export default function App() {
         className={`fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${compact ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
         style={{ top: 70 }}
       >
-        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 whitespace-nowrap max-w-[calc(100vw-2rem)] text-xs">
-          <span className="font-bold shrink-0 text-xs">{overall.pct}%</span>
-          <div className="h-1.5 w-14 shrink-0 rounded-full bg-muted overflow-hidden">
-            <div className="h-full bg-primary transition-all" style={{ width: `${overall.pct}%` }} />
-          </div>
+        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 whitespace-nowrap max-w-[calc(100vw-2rem)] text-xs relative isolate overflow-hidden">
+          <PillProgress pct={overall.pct} />
           <div className="h-4 w-px bg-border shrink-0" />
           {pillRenaming ? (
             <form
@@ -325,11 +323,8 @@ export default function App() {
         className={`fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${compact ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
         style={{ top: 88 }}
       >
-        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 w-max max-w-[calc(100vw-2rem)] flex-wrap justify-center text-xs">
-          <span className="font-bold shrink-0 text-xs">{overall.pct}%</span>
-          <div className="h-1.5 w-14 shrink-0 rounded-full bg-muted overflow-hidden">
-            <div className="h-full bg-primary transition-all" style={{ width: `${overall.pct}%` }} />
-          </div>
+        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 w-max max-w-[calc(100vw-2rem)] flex-wrap justify-center text-xs relative isolate overflow-hidden">
+          <PillProgress pct={overall.pct} />
           <div className="h-4 w-px bg-border shrink-0" />
           {renamingId === active?.id ? (
             <form
