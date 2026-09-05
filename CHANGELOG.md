@@ -14,6 +14,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Header overall progress counts everything the sections count: pinned barter + custom tasks now move the top `done/total`; section and header share one ruler (`lib/progress.ts`, partial counter credit included)
 - Desktop custom rows use the same ⋯ dropdown (編輯/隱藏/刪除) as mobile instead of three gutter icons; freed gutter space goes back to row text
 - Row ⋯ menu rebuilt on Radix DropdownMenu (new `ui/dropdown-menu.tsx` + dep): portal escapes the section card clip, auto-flips near edges, dismisses on outside-click/Escape
+- Desktop floating pill gains the missing remove-character button (same 2+ guard as mobile's 刪除角色)
 - Open-sourcing Phase 2: data text under CC BY-NC 4.0 (`DATA_LICENSE`, NPC art excluded as NEXON fan-use with takedown); fetcher scripts are private-local only (gitignored, never committed, never published), all references rewritten manual-only
 - Open-sourcing Phase 1 attribution: in-app footer 資料來源 row (6 source links + 非官方 NEXON/devCAT disclaimer + 以遊戲內為準 + takedown via GitHub issue); README 出處與授權 section records per-source take-vs-not-take; `docs/tracker-data.md` gains a source-terms section (NEXON consent clause → disclaimer path, yenyen grant scope, Femiwiki BY-SA chain, Taiwan scraping posture)
 - 巴哈姆特 citations dropped everywhere (docs cross-refs + new attribution): day-one counts treated as public knowledge per user, not cited sources

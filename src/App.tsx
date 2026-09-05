@@ -378,6 +378,19 @@ export default function App() {
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="h-7 w-7 shrink-0 rounded-full hover:text-destructive disabled:opacity-30 disabled:pointer-events-none"
+                onClick={() => {
+                  if (active && chars.length > 1) useAppStore.getState().removeCharacter(active.id);
+                }}
+                disabled={chars.length <= 1}
+                aria-label="remove character"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
                 className="h-7 w-7 shrink-0 rounded-full"
                 onClick={() => useAppStore.getState().addCharacter()}
                 disabled={chars.length >= 6}
