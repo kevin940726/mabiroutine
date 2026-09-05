@@ -2,12 +2,26 @@ import { Redis } from "@upstash/redis";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 // Sync-session API for URL-based cross-device sync (spec: shared session,
-// whole-state last-write-wins guarded by baseUpdatedAt, server-minted ids).
+// per-key last-write-wins by server arrival order, server-minted ids).
 //
-// POST   /api/session  { state }                          -> { id, updatedAt }
-// GET    /api/session?id=...                              -> { state, updatedAt } | 404
-// PUT    /api/session  { id, state, baseUpdatedAt }       -> { updatedAt } | 404 | 409
-// DELETE /api/session  { id }                             -> 200 (idempotent)
+// Every mutation is an absolute set of flat string keys, so merges are
+// deterministic and conflict-free — no 409s, no versions, no clocks.
+// Key space (client translates to/from the store shape):
+//   v:{charId}:{taskId}  task values (number|boolean)
+//   acc:{taskId}          account values
+//   hide:{charId}:{taskId} | hide:acc:{taskId}   hidden flags (true)
+//   pin:{barterId}        barter pin membership (true; unpin = false)
+//   custom:{id}           custom task object | null (tombstone, retained)
+//   char:{id}:name | char:{id}:alive             character fields
+//   meta:active           active character id
+//   pref:hideCompleted | filter:{prio,town,skill,pinned}
+// Ordering (drag order, character tabs) is intentionally per-device local
+// and never synced; reset markers stay local too (each device resets itself).
+//
+// POST   /api/session  { state: flat map }       -> { id, updatedAt }
+// GET    /api/session?id=...                     -> { state: flat map, updatedAt } | 404
+// PATCH  /api/session  { id, changes: {k: v} }   -> { updatedAt } | 404
+// DELETE /api/session  { id }                    -> 200 (idempotent)
 //
 // Env (auto-injected by the Upstash Marketplace install):
 // UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
@@ -34,10 +48,11 @@ const RL_GENERAL_LIMIT = 60;
 const RL_GENERAL_WINDOW_S = 60;
 
 type SessionRecord = {
-  v: 1;
+  v: 2;
   updatedAt: number;
   writerId: string;
-  state: unknown;
+  seq: number;
+  keys: Record<string, { seq: number; v: unknown }>;
 };
 
 function clientIp(req: VercelRequest): string {
@@ -57,10 +72,8 @@ async function overLimit(key: string, limit: number, windowS: number): Promise<b
   return count > limit;
 }
 
-function validState(state: unknown): state is Record<string, unknown> {
-  if (!state || typeof state !== "object" || Array.isArray(state)) return false;
-  const s = state as { characters?: unknown };
-  return Array.isArray(s.characters);
+function validFlat(state: unknown): state is Record<string, unknown> {
+  return !!state && typeof state === "object" && !Array.isArray(state);
 }
 
 function validId(id: unknown): id is string {
@@ -70,8 +83,8 @@ function validId(id: unknown): id is string {
   );
 }
 
-function bodyOf(req: VercelRequest): { id?: unknown; state?: unknown; baseUpdatedAt?: unknown } {
-  const b = req.body as { id?: unknown; state?: unknown; baseUpdatedAt?: unknown } | undefined;
+function bodyOf(req: VercelRequest): { id?: unknown; state?: unknown; changes?: unknown } {
+  const b = req.body as { id?: unknown; state?: unknown; changes?: unknown } | undefined;
   if (!b || typeof b !== "object") return {};
   return b;
 }
@@ -82,8 +95,8 @@ async function handlePost(req: VercelRequest, res: VercelResponse): Promise<void
     return;
   }
   const { state } = bodyOf(req);
-  if (!validState(state)) {
-    res.status(400).json({ error: "state must include characters[]" });
+  if (!validFlat(state)) {
+    res.status(400).json({ error: "state must be a flat key map" });
     return;
   }
   if (JSON.stringify(state).length > MAX_STATE_BYTES) {
@@ -92,10 +105,10 @@ async function handlePost(req: VercelRequest, res: VercelResponse): Promise<void
   }
   const id = crypto.randomUUID();
   const updatedAt = Date.now();
-  const record: SessionRecord = { v: 1, updatedAt, writerId: clientIp(req), state };
-  // NX: impossible to collide with a minted UUID, but create must never
-  // overwrite — belt and suspenders against a broken client retrying a PUT id.
-  const set = await redis.set(`${SESSION_PREFIX}${id}`, record, { nx: true });
+  const keys: SessionRecord["keys"] = {};
+  let seq = 0;
+  for (const [k, v] of Object.entries(state)) keys[k] = { seq: ++seq, v };
+  const set = await redis.set(`${SESSION_PREFIX}${id}`, { v: 2, updatedAt, writerId: clientIp(req), seq, keys } satisfies SessionRecord, { nx: true });
   if (set !== "OK") {
     res.status(500).json({ error: "id collision, retry" });
     return;
@@ -119,30 +132,38 @@ async function handleGet(req: VercelRequest, res: VercelResponse): Promise<void>
     res.status(404).json({ error: "unknown session" });
     return;
   }
-  res.status(200).json({ state: record.state, updatedAt: record.updatedAt });
+  if ((record as { v?: unknown }).v !== 2) {
+    // Pre-flat session (v1 whole-state blob): the client flattens locally and
+    // upgrades on its next push. Serve the blob as-is under a marker shape.
+    res.status(200).json({ legacy: (record as unknown as { state?: unknown }).state, updatedAt: record.updatedAt });
+    return;
+  }
+  const state: Record<string, unknown> = {};
+  for (const [k, e] of Object.entries(record.keys)) state[k] = e.v;
+  res.status(200).json({ state, updatedAt: record.updatedAt });
 }
 
-async function handlePut(req: VercelRequest, res: VercelResponse): Promise<void> {
-  if (await overLimit(`${RL_PREFIX}put:${clientIp(req)}`, RL_GENERAL_LIMIT, RL_GENERAL_WINDOW_S)) {
+// PATCH applies absolute key-sets unconditionally, stamping each with the
+// next arrival sequence number. Last arrival wins per key — deterministic,
+// no versions, no clocks, no 409s. A v1 record upgrades in place (the client
+// sends its full flat map once after seeing the legacy marker).
+async function handlePatch(req: VercelRequest, res: VercelResponse): Promise<void> {
+  if (await overLimit(`${RL_PREFIX}patch:${clientIp(req)}`, RL_GENERAL_LIMIT, RL_GENERAL_WINDOW_S)) {
     res.status(429).json({ error: "rate limited" });
     return;
   }
-  const { id, state, baseUpdatedAt } = bodyOf(req);
+  const { id, changes } = bodyOf(req);
   // Never reveal whether an id exists: malformed ids 404 like missing ones.
   if (!validId(id)) {
     res.status(404).json({ error: "unknown session" });
     return;
   }
-  if (!validState(state)) {
-    res.status(400).json({ error: "state must include characters[]" });
+  if (!validFlat(changes)) {
+    res.status(400).json({ error: "changes must be a flat key map" });
     return;
   }
-  if (typeof baseUpdatedAt !== "number") {
-    res.status(400).json({ error: "baseUpdatedAt required" });
-    return;
-  }
-  if (JSON.stringify(state).length > MAX_STATE_BYTES) {
-    res.status(413).json({ error: "state too large" });
+  if (JSON.stringify(changes).length > MAX_STATE_BYTES) {
+    res.status(413).json({ error: "changes too large" });
     return;
   }
   const key = `${SESSION_PREFIX}${id}`;
@@ -151,16 +172,15 @@ async function handlePut(req: VercelRequest, res: VercelResponse): Promise<void>
     res.status(404).json({ error: "unknown session" });
     return;
   }
-  // 409 guard: a stale device never silently clobbers a newer push —
-  // the client turns this into the 取用雲端 / 保留本機 dialog.
-  if (baseUpdatedAt < current.updatedAt) {
-    res.status(409).json({ error: "stale", updatedAt: current.updatedAt });
-    return;
-  }
-  const updatedAt = Date.now();
-  const record: SessionRecord = { v: 1, updatedAt, writerId: clientIp(req), state };
-  await redis.set(key, record);
-  res.status(200).json({ updatedAt });
+  const next: SessionRecord =
+    (current as { v?: unknown }).v === 2
+      ? current
+      : { v: 2, updatedAt: current.updatedAt, writerId: clientIp(req), seq: 0, keys: {} };
+  for (const [k, v] of Object.entries(changes)) next.keys[k] = { seq: ++next.seq, v };
+  next.updatedAt = Date.now();
+  next.writerId = clientIp(req);
+  await redis.set(key, next);
+  res.status(200).json({ updatedAt: next.updatedAt });
 }
 
 async function handleDelete(req: VercelRequest, res: VercelResponse): Promise<void> {
@@ -183,8 +203,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       return handlePost(req, res);
     case "GET":
       return handleGet(req, res);
-    case "PUT":
-      return handlePut(req, res);
+    case "PATCH":
+      return handlePatch(req, res);
     case "DELETE":
       return handleDelete(req, res);
     default:

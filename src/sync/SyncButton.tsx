@@ -15,10 +15,9 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   createSession,
   getSession,
-  putSession,
+  patchSession,
   deleteSession,
   SyncNotFound,
-  SyncStale,
   SyncTooLarge,
   SyncRateLimited,
 } from "@/sync/api";
@@ -34,11 +33,20 @@ import {
   requestImport,
   setSessionParam,
   stripSessionParam,
+  setPullHook,
+  markFullPush,
+  takeFullPush,
   toast,
   type LocalSession,
 } from "@/sync/session";
-
-export type ConflictInfo = { id: string; remoteUpdatedAt: number; remoteState: unknown };
+import {
+  flattenSnapshot,
+  diffFlat,
+  loadBase,
+  saveBase,
+  unflattenMerge,
+  type FlatMap,
+} from "@/sync/flat";
 
 function errorMessage(e: unknown): string {
   if (e instanceof SyncTooLarge) return "進度過大，無法同步";
@@ -48,11 +56,12 @@ function errorMessage(e: unknown): string {
 
 type Confirming = null | "regen" | "cancel";
 
-// Shared session, whole-state last-write-wins guarded by baseUpdatedAt.
-// Header button is status + entry only: link icon, primary tint when linked
+// Shared session, per-key last-arrival-wins (absolute sets only).
+// Header button is status + entry only: link icon, emerald tint when linked
 // (both mobile + desktop). Opening the dialog ensures the session exists
-// (create-or-push) so the URL is always live — no separate push button.
-// Everything else (copy, regenerate, cancel, conflict) lives in the dialog.
+// (create) so the URL is always live — no separate push button.
+// Everything else (copy, paste-import, regenerate, cancel) lives in the dialog.
+// There are no conflicts by construction: every merge is deterministic.
 export const SyncButton = memo(function SyncButton() {
   const [linked, setLinked] = useState<LocalSession | null>(() => loadSession());
   const [busy, setBusy] = useState(false);
@@ -60,24 +69,16 @@ export const SyncButton = memo(function SyncButton() {
   const [confirming, setConfirming] = useState<Confirming>(null);
   const [pasteValue, setPasteValue] = useState("");
   const [pasteBusy, setPasteBusy] = useState(false);
-  const [conflict, setConflict] = useState<ConflictInfo | null>(null);
-  // Background auto-push stashes a 409 here; the next dialog open surfaces it.
-  const [pendingConflict, setPendingConflict] = useState<ConflictInfo | null>(null);
   const [ensureError, setEnsureError] = useState(false);
   const [copiedTick, setCopiedTick] = useState(0);
   // Mobile header is space-tight: circular icon button. Desktop: pill + text.
   const isMobile = useIsMobile();
 
-  // Mirrors for the background push loop (runs outside React state updates).
+  // Mirrors for the background sync loop (runs outside React state updates).
   const linkedRef = useRef(linked);
   linkedRef.current = linked;
   const busyRef = useRef(busy);
   busyRef.current = busy;
-  const conflictRef = useRef(conflict);
-  conflictRef.current = conflict;
-  const pendingConflictRef = useRef(pendingConflict);
-  pendingConflictRef.current = pendingConflict;
-  const lastPushedHash = useRef<string | null>(null);
   const lastPullAt = useRef(0);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushFails = useRef(0);
@@ -89,18 +90,6 @@ export const SyncButton = memo(function SyncButton() {
     const id = setTimeout(() => setCopiedTick(0), 1500);
     return () => clearTimeout(id);
   }, [copiedTick]);
-
-  // Import flow (?s= same-session, remote newer) reports conflicts here —
-  // open the dialog straight into conflict mode.
-  useEffect(() => {
-    const onConflict = (e: Event) => {
-      setConflict((e as CustomEvent<ConflictInfo>).detail);
-      setConfirming(null);
-      setOpen(true);
-    };
-    window.addEventListener("mabiroutine:conflict", onConflict);
-    return () => window.removeEventListener("mabiroutine:conflict", onConflict);
-  }, []);
 
   // Import flow (?s= adopt) and other tabs mutate the binding outside
   // this component — reload it on change, not just on mount.
@@ -121,71 +110,67 @@ export const SyncButton = memo(function SyncButton() {
   function dropDeadLink(): void {
     clearSession();
     setLinked(null);
-    setPendingConflict(null);
-    lastPushedHash.current = null;
     toast("此同步連結已失效");
   }
 
-  // Background auto-push: while linked, any progress change pushes after
-  // a quiet window — the dialog never pushes, it only shows the link.
-  // 409s stash into pendingConflict (surfaced on next dialog open);
-  // repeated network failures toast once, then stay silent until success.
-  async function pushNow(): Promise<void> {
+  // Background auto-push: while linked, any progress change pushes its key
+  // diff after a quiet window. Absolute sets only — the server stamps arrival
+  // order, so pushes never conflict. Returns false when edits remain unsent
+  // (offline/failure): callers must not clobber them.
+  async function pushNow(): Promise<boolean> {
     const session = linkedRef.current;
-    if (!session || busyRef.current) return;
-    const snapshot = buildSnapshot();
-    const hash = JSON.stringify(snapshot);
-    if (hash === lastPushedHash.current) return;
+    if (!session || busyRef.current) return true;
+    const flat = flattenSnapshot(buildSnapshot());
+    const base = loadBase(session.id);
+    const changes = takeFullPush() ? { ...flat } : diffFlat(base, flat);
+    if (Object.keys(changes).length === 0) return true;
     try {
-      const updatedAt = await putSession(session.id, snapshot, session.updatedAt);
+      const updatedAt = await patchSession(session.id, changes as FlatMap);
       const next = { id: session.id, updatedAt };
       saveSession(next);
       setLinked(next);
-      lastPushedHash.current = hash;
+      saveBase(session.id, { ...base, ...changes });
       pushFails.current = 0;
+      return true;
     } catch (e) {
-      if (e instanceof SyncStale) {
-        try {
-          const remote = await getSession(session.id);
-          if (pendingConflictRef.current?.remoteUpdatedAt !== remote.updatedAt) {
-            setPendingConflict({ id: session.id, remoteUpdatedAt: remote.updatedAt, remoteState: remote.state });
-            toast("雲端有較新的進度，開啟同步對話框處理");
-          }
-        } catch {
-          // remote unreadable — leave it; the next change retries the push.
-        }
-      } else if (e instanceof SyncNotFound) {
+      if (e instanceof SyncNotFound) {
         dropDeadLink();
-      } else {
-        pushFails.current += 1;
-        if (pushFails.current === 3) toast("自動同步失敗，請檢查網路");
+        return true; // nothing left to protect — binding is gone
       }
+      pushFails.current += 1;
+      if (pushFails.current === 3) toast("自動同步失敗，請檢查網路");
+      return false;
     }
   }
 
-  // Pull-on-visible/focus: when the tab returns, gains focus, or first
-  // mounts while linked, one GET checks for a newer remote. Converged content just advances the
-  // baseline silently; real divergence stages the conflict dialog + toast —
-  // never a silent overwrite. 10s floor keeps rapid tab-flipping cheap.
+  // Pull round: flush local edits first (arrival = order, so ours land
+  // before we adopt remote), then adopt remote wholesale — safe, because the
+  // flush guarantees every local key already exists remotely. Mid-flight
+  // edits abort the apply; the scheduled push + next pull converge.
+  // Legacy (v1 blob) sessions upgrade via one full push, then proceed.
   async function pullNow(): Promise<void> {
     const session = linkedRef.current;
-    if (!session || busyRef.current || conflictRef.current) return;
+    if (!session || busyRef.current) return;
     const now = Date.now();
     if (now - lastPullAt.current < 10_000) return;
     lastPullAt.current = now;
     try {
-      const remote = await getSession(session.id);
-      if (remote.updatedAt <= session.updatedAt) return;
-      if (JSON.stringify(remote.state) === JSON.stringify(buildSnapshot())) {
-        const next = { id: session.id, updatedAt: remote.updatedAt };
-        saveSession(next);
-        setLinked(next);
-        return;
+      if (!(await pushNow())) return;
+      const before = JSON.stringify(flattenSnapshot(buildSnapshot()));
+      let remote = await getSession(session.id);
+      if (remote.legacy !== undefined) {
+        markFullPush();
+        if (!(await pushNow())) return;
+        remote = await getSession(session.id);
       }
-      if (pendingConflictRef.current?.remoteUpdatedAt !== remote.updatedAt) {
-        setPendingConflict({ id: session.id, remoteUpdatedAt: remote.updatedAt, remoteState: remote.state });
-        toast("雲端有較新的進度，開啟同步對話框處理");
-      }
+      if (!remote.state || typeof remote.state !== "object" || Array.isArray(remote.state)) return;
+      if (JSON.stringify(flattenSnapshot(buildSnapshot())) !== before) return;
+      const merged = unflattenMerge(remote.state as FlatMap, buildSnapshot(), useAppStore.getState().version);
+      if (!applySnapshot(merged)) return;
+      saveBase(session.id, remote.state as FlatMap);
+      const next = { id: session.id, updatedAt: remote.updatedAt };
+      saveSession(next);
+      setLinked(next);
     } catch (e) {
       if (e instanceof SyncNotFound) dropDeadLink();
       // Network errors stay silent — the next visible/change retries.
@@ -213,10 +198,20 @@ export const SyncButton = memo(function SyncButton() {
     const unsub = useAppStore.subscribe(() => schedule());
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onFocus);
+    // Foreground re-pull: an app left open never flips visibility/focus, so
+    // two active sessions could diverge silently. 60s cadence ≈ 1.5K reads
+    // per user/day — noise against the ops budget. Throttle dedupes overlap
+    // with visible/focus pulls.
+    const repoll = setInterval(() => {
+      if (document.visibilityState === "visible") void pullNow();
+    }, 60_000);
     // Mount pull: this device's storage may predate another device's push.
     void pullNow();
+    setPullHook(() => void pullNow());
     return () => {
       unsub();
+      clearInterval(repoll);
+      setPullHook(null);
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("focus", onFocus);
       if (pushTimer.current) clearTimeout(pushTimer.current);
@@ -231,12 +226,13 @@ export const SyncButton = memo(function SyncButton() {
     setBusy(true);
     setEnsureError(false);
     try {
-      const { id, updatedAt } = await createSession(buildSnapshot());
+      const flat = flattenSnapshot(buildSnapshot());
+      const { id, updatedAt } = await createSession(flat);
       const next = { id, updatedAt };
       saveSession(next);
       setLinked(next);
       setSessionParam(id);
-      lastPushedHash.current = JSON.stringify(buildSnapshot());
+      saveBase(id, flat);
       // First sync ends with the link on the clipboard, bubble confirms it.
       if (await copyText(syncUrl(id))) setCopiedTick((t) => t + 1);
       else toast("請手動複製下方連結");
@@ -252,13 +248,6 @@ export const SyncButton = memo(function SyncButton() {
     setOpen(v);
     if (v) {
       setConfirming(null);
-      // Surface a background 409 for this session, if one is waiting.
-      if (pendingConflict && linkedRef.current && pendingConflict.id === linkedRef.current.id) {
-        setConflict(pendingConflict);
-        setPendingConflict(null);
-      } else {
-        setConflict(null);
-      }
       void ensureCreated();
     }
   }
@@ -279,7 +268,7 @@ export const SyncButton = memo(function SyncButton() {
       return;
     }
     setPasteBusy(true);
-    // Step aside: adopt-confirm / conflict render in their own dialog.
+    // Step aside: the adopt-confirm renders in its own dialog.
     setOpen(false);
     setPasteValue("");
     try {
@@ -289,49 +278,13 @@ export const SyncButton = memo(function SyncButton() {
     }
   }
 
-  async function keepMine(): Promise<void> {
-    if (!conflict || busy) return;
-    setBusy(true);
-    try {
-      const updatedAt = await putSession(conflict.id, buildSnapshot(), conflict.remoteUpdatedAt);
-      const next = { id: conflict.id, updatedAt };
-      saveSession(next);
-      setLinked(next);
-      setSessionParam(conflict.id);
-      setConflict(null);
-      toast("已上傳本機進度");
-    } catch (e) {
-      if (e instanceof SyncNotFound) {
-        setConflict(null);
-        dropDeadLink();
-      } else toast(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function takeTheirs(): Promise<void> {
-    if (!conflict) return;
-    if (!applySnapshot(conflict.remoteState)) {
-      toast("雲端進度格式錯誤");
-      return;
-    }
-    const next = { id: conflict.id, updatedAt: conflict.remoteUpdatedAt };
-    saveSession(next);
-    setLinked(next);
-    setSessionParam(conflict.id);
-    setConflict(null);
-    // State now equals remote — don't let the background loop re-push it.
-    lastPushedHash.current = JSON.stringify(buildSnapshot());
-    toast("已取用雲端進度");
-  }
-
   async function regenerate(): Promise<void> {
     if (!linked || busy) return;
     setBusy(true);
     try {
       const oldId = linked.id;
-      const { id, updatedAt } = await createSession(buildSnapshot());
+      const flat = flattenSnapshot(buildSnapshot());
+      const { id, updatedAt } = await createSession(flat);
       try {
         await deleteSession(oldId);
       } catch {
@@ -342,7 +295,7 @@ export const SyncButton = memo(function SyncButton() {
       setLinked(next);
       setSessionParam(id);
       setConfirming(null);
-      lastPushedHash.current = JSON.stringify(buildSnapshot());
+      saveBase(id, flat);
       setCopiedTick((t) => t + 1);
     } catch (e) {
       toast(errorMessage(e));
@@ -359,9 +312,7 @@ export const SyncButton = memo(function SyncButton() {
       clearSession();
       setLinked(null);
       setConfirming(null);
-      setPendingConflict(null);
       stripSessionParam();
-      lastPushedHash.current = null;
       setOpen(false);
       toast("已取消同步");
     } catch (e) {
@@ -393,33 +344,13 @@ export const SyncButton = memo(function SyncButton() {
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md">
-          {conflict ? (
-            <div className="space-y-4">
-              <DialogHeader>
-                <DialogTitle asChild>
-                  <h1 className="text-lg font-semibold leading-none tracking-tight mb-2">雲端有較新的進度</h1>
-                </DialogTitle>
-                <DialogDescription>
-                  另一台裝置在此之後同步過。取用雲端會覆蓋本機進度；保留本機會上傳覆蓋雲端。
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <Button variant="outline" onClick={() => void takeTheirs()}>
-                  取用雲端
-                </Button>
-                <Button onClick={() => void keepMine()} disabled={busy}>
-                  {busy ? "同步中" : "保留本機並上傳"}
-                </Button>
-              </div>
-            </div>
-          ) : (
             <div className="space-y-4">
               <DialogHeader>
                 <DialogTitle asChild>
                   <h1 className="text-lg font-semibold leading-none tracking-tight mb-2">跨裝置同步</h1>
                 </DialogTitle>
                 <DialogDescription>
-                  {linked ? "此裝置已連結，進度變更會自動同步。" : "正在產生連結…"}
+                  {linked ? "此裝置已連結，進度變更會自動同步，另一台裝置的變更也會自動合併。" : "正在產生連結…"}
                   <br />
                   在另一台裝置開啟下方連結，兩邊共用同一份雲端進度。
                   <br />
@@ -560,7 +491,6 @@ export const SyncButton = memo(function SyncButton() {
                 )
               )}
             </div>
-          )}
         </DialogContent>
       </Dialog>
     </>

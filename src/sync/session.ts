@@ -1,11 +1,12 @@
 import { useAppStore, migratePersisted } from "@/store/useAppStore";
 import type { AppState } from "@/lib/types";
-import { getSession, SyncNotFound } from "@/sync/api";
-import type { ConflictInfo } from "@/sync/SyncButton";
+import { getSession, SyncNotFound, type FlatMap } from "@/sync/api";
+import { flattenSnapshot, unflattenReplace } from "@/sync/flat";
 
 // Local session binding: which cloud session this device is linked to, plus
-// the last server timestamp we saw (the 409 guard's baseUpdatedAt). Kept OUT
-// of the zustand store on purpose — no schema migration needed.
+// the last server timestamp seen (ordering debug aid — merges are
+// arrival-ordered server-side, no base guard). Kept OUT of the zustand store
+// on purpose — no schema migration needed.
 const SESSION_KEY = "mabiroutine:session";
 
 export type LocalSession = { id: string; updatedAt: number };
@@ -156,39 +157,81 @@ export function toast(message: string): void {
 
 export type ImportRequest = { id: string; state: unknown; updatedAt: number };
 
-// Manual counterpart of the ?s= boot flow: adopt a session id obtained by
-// paste (link taps can't reach every bucket — iOS web app, mismatched
-// Android browsers). Pristine profiles adopt silently, otherwise the confirm
-// dialog (SyncImport listens on mabiroutine:import); same-session-newer
-// remote goes to the conflict bus.
-export async function requestImport(id: string): Promise<void> {
+// Background engine hook (owned by SyncButton's effect). Lets SyncImport
+// trigger a pull round for same-session links without prop drilling.
+let pullHook: (() => void) | null = null;
+export function setPullHook(fn: (() => void) | null): void {
+  pullHook = fn;
+}
+export function requestPull(): void {
+  pullHook?.();
+}
+
+// One-shot flag: after seeing a legacy (v1 blob) session, the next push
+// sends the full flat map so the server upgrades the record in place.
+let fullPushNext = false;
+export function markFullPush(): void {
+  fullPushNext = true;
+}
+export function takeFullPush(): boolean {
+  const f = fullPushNext;
+  fullPushNext = false;
+  return f;
+}
+
+// Adopt a remote payload (flat map, or legacy whole-state blob) wholesale.
+// Used by pristine auto-adopt and the binding-switch confirm dialog.
+export function adoptState(remote: { state?: unknown; legacy?: unknown }): boolean {
+  if (remote.legacy !== undefined) return applySnapshot(remote.legacy);
+  if (!remote.state || typeof remote.state !== "object" || Array.isArray(remote.state)) return false;
+  return applySnapshot(unflattenReplace(remote.state as FlatMap, useAppStore.getState().version));
+}
+
+// Adopt a session id obtained by ?s= link or paste. Pristine profiles adopt
+// silently, otherwise the confirm dialog (SyncImport listens on
+// mabiroutine:import); same-session links just pull. Binding switches keep
+// the adopt-or-confirm consent model — only same-session merging is
+// conflict-free.
+export async function requestImport(
+  id: string
+): Promise<"adopted" | "confirm" | "pulled" | "uptodate" | "notfound" | "failed"> {
   try {
     const remote = await getSession(id);
     const local = loadSession();
     if (!local || local.id !== id) {
       if (isPristine()) {
-        if (!applySnapshot(remote.state)) {
+        if (!adoptState(remote)) {
           toast("連結進度格式錯誤");
-        } else {
-          saveSession({ id, updatedAt: remote.updatedAt });
-          setSessionParam(id);
-          toast("已同步到此裝置");
+          return "failed";
         }
-      } else {
-        window.dispatchEvent(
-          new CustomEvent<ImportRequest>("mabiroutine:import", {
-            detail: { id, state: remote.state, updatedAt: remote.updatedAt },
-          })
-        );
+        saveSession({ id, updatedAt: remote.updatedAt });
+        setSessionParam(id);
+        toast("已同步到此裝置");
+        return "adopted";
       }
-    } else if (remote.updatedAt > local.updatedAt) {
-      const detail: ConflictInfo = { id, remoteUpdatedAt: remote.updatedAt, remoteState: remote.state };
-      window.dispatchEvent(new CustomEvent<ConflictInfo>("mabiroutine:conflict", { detail }));
-    } else {
-      toast("已是最新");
+      window.dispatchEvent(
+        new CustomEvent<ImportRequest>("mabiroutine:import", {
+          detail: { id, state: remote.state ?? remote.legacy, updatedAt: remote.updatedAt },
+        })
+      );
+      return "confirm";
     }
+    if (
+      remote.legacy === undefined &&
+      remote.state &&
+      typeof remote.state === "object" &&
+      JSON.stringify(remote.state) === JSON.stringify(flattenSnapshot(buildSnapshot()))
+    ) {
+      return "uptodate";
+    }
+    requestPull();
+    return "pulled";
   } catch (e) {
-    if (e instanceof SyncNotFound) toast("此同步連結已失效");
-    else toast("同步載入失敗，請檢查網路");
+    if (e instanceof SyncNotFound) {
+      toast("此同步連結已失效");
+      return "notfound";
+    }
+    toast("同步載入失敗，請檢查網路");
+    return "failed";
   }
 }

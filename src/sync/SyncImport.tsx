@@ -9,23 +9,21 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { getSession, SyncNotFound } from "@/sync/api";
 import {
-  loadSession,
   saveSession,
-  applySnapshot,
-  isPristine,
   sessionIdFromUrl,
   stripSessionParam,
+  requestImport,
+  adoptState,
   toast,
   type ImportRequest,
 } from "@/sync/session";
-import type { ConflictInfo } from "@/sync/SyncButton";
 
 type ImportState = { id: string; state: unknown; updatedAt: number };
 
-// Handles ?s= on boot: unknown id → adopt dialog; same id + remote newer →
-// conflict bus (SyncButton renders it); dead link → notice + strip param.
+// Handles ?s= on boot: unknown id → adopt dialog (silent when pristine);
+// same id → pull round (merges deterministically, never conflicts);
+// dead link → notice + strip param.
 export function SyncImport() {
   const hasHydrated = useAppStore((s) => s._hasHydrated);
   const [importing, setImporting] = useState<ImportState | null>(null);
@@ -40,42 +38,14 @@ export function SyncImport() {
     if (!hasHydrated) return;
     const incoming = sessionIdFromUrl();
     if (!incoming) return;
-    (async () => {
-      try {
-        const remote = await getSession(incoming);
-        const local = loadSession();
-        if (!local || local.id !== incoming) {
-          // Pristine profile (fresh incognito): nothing to lose, adopt
-          // silently. Otherwise ask — the link replaces local progress.
-          if (isPristine()) {
-            if (!applySnapshot(remote.state)) {
-              toast("連結進度格式錯誤");
-            } else {
-              saveSession({ id: incoming, updatedAt: remote.updatedAt });
-              toast("已同步到此裝置");
-            }
-          } else {
-            setImporting({ id: incoming, state: remote.state, updatedAt: remote.updatedAt });
-          }
-        } else if (remote.updatedAt > local.updatedAt) {
-          const detail: ConflictInfo = { id: incoming, remoteUpdatedAt: remote.updatedAt, remoteState: remote.state };
-          window.dispatchEvent(new CustomEvent<ConflictInfo>("mabiroutine:conflict", { detail }));
-        }
-        // same session, local current or newer — nothing to do, stay linked.
-      } catch (e) {
-        if (e instanceof SyncNotFound) {
-          toast("此同步連結已失效");
-          stripSessionParam();
-        } else {
-          toast("同步載入失敗，請檢查網路");
-        }
-      }
-    })();
+    void requestImport(incoming).then((status) => {
+      if (status === "notfound") stripSessionParam();
+    });
   }, [hasHydrated]);
 
   function adopt(): void {
     if (!importing) return;
-    if (!applySnapshot(importing.state)) {
+    if (!adoptState(importing)) {
       toast("連結進度格式錯誤");
       return;
     }

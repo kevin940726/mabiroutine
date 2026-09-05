@@ -482,8 +482,8 @@ export default function App() {
         onOpenChange={(v) => { setAddOpen(v); if (!v) setEditingTask(null); }}
         editing={editingTask}
       />
-      <SyncImport />
       <SyncToasts />
+      <SyncImport />
       <Analytics />
     </div>
   );
