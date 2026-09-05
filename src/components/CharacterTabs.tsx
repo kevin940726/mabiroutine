@@ -2,11 +2,11 @@ import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { confirmRemoveCharacter } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
+import { Pencil, Trash2, Plus, ChevronDown } from "lucide-react";
 
 export function CharacterTabs() {
   const isMobile = useIsMobile();
@@ -31,18 +31,25 @@ function CharacterTabsMobile() {
   return (
     <>
       <div className="flex items-center gap-2">
-        <Select value={active} onValueChange={(v) => setActive(v)}>
-          <SelectTrigger className="flex-1 w-full">
-            <SelectValue placeholder="選擇角色" />
-          </SelectTrigger>
-          <SelectContent>
-            {chars.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* same non-modal switcher as the floating pill: Radix Select would
+            scroll-lock (scrollbar vanishes); this never touches the page */}
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <button className="flex h-9 flex-1 items-center justify-between gap-1 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="truncate">{activeChar?.name ?? "選擇角色"}</span>
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[8rem]">
+            <DropdownMenuRadioGroup value={active} onValueChange={(v) => setActive(v)}>
+              {chars.map((c) => (
+                <DropdownMenuRadioItem key={c.id} value={c.id} className="text-sm">
+                  {c.name}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {activeChar && (
           <>
             <Button
