@@ -254,7 +254,31 @@ export default function App() {
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
-                <span className="max-w-[72px] truncate text-xs font-medium">{active?.name}</span>
+                {/* roster jump for 4+ character users: name opens the same
+                    non-modal radio list, ‹ › stay for adjacent steps */}
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="flex max-w-[88px] items-center gap-0.5 truncate rounded-full px-1 py-1 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label="switch character"
+                    >
+                      <span className="truncate">{active?.name}</span>
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="min-w-[8rem]">
+                    <DropdownMenuRadioGroup
+                      value={active?.id ?? ""}
+                      onValueChange={(v) => useAppStore.getState().setActiveChar(v)}
+                    >
+                      {chars.map((c) => (
+                        <DropdownMenuRadioItem key={c.id} value={c.id} className="text-xs">
+                          {c.name}
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <button
                   onClick={() => {
                     if (!chars.length || !active) return;
