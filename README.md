@@ -56,7 +56,8 @@ pnpm check            # gate: lint + migration fixtures + build
 ## Data Updates (manual-only)
 
 `src/data/tracker.json` (21 rows) and `src/data/barter.json` (98 rows) are hand-owned sources of truth.
-No fetcher scripts in this tree — check sources in a browser by hand, see `skills/update-tracker/SKILL.md`.
+No fetcher scripts in the committed tree — check sources in a browser by hand, see `skills/update-tracker/SKILL.md`.
+(Maintainer-only fetchers live on your own disk, gitignored, never committed.)
 Edit the JSON by hand (`id` must stay stable — progress keys off it), then `pnpm build`.
 
 ## 出處與授權 (Sources & licenses)

@@ -1,9 +1,9 @@
 # Skill: update-tracker — manual-only, no fetchers
 
-The human owns `src/data/*` by hand. There are no fetcher scripts in this
-tree (removed on open-sourcing; recoverable from git history). No agent step
-writes `tracker.json` / `barter.json` without an explicit human "apply this"
-for the specific rows.
+The human owns `src/data/*` by hand. The fetcher scripts are private-local
+only (gitignored, never committed, never published) — the committed tree has
+no scrapers. No agent step writes `tracker.json` / `barter.json` without an
+explicit human "apply this" for the specific rows.
 
 ## When to use
 - After `docs/tracker-data.md` item table changes (human edited it first).
@@ -32,7 +32,7 @@ for the specific rows.
 ## Non-goals
 - Never use `/ko/*` content for seeding.
 - Never overwrite `barrier`/`black-hole` with `韓服社群數值` without a human bump of `docs/tracker-data.md`.
-- Never re-add scraper scripts to this tree.
+- Never commit the private fetcher scripts or re-add them to the tree.
 
 ## References
 - `docs/tracker-data.md` Filtering Rules + Source terms

@@ -64,8 +64,8 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 ## Filtering Rules — manual-only, no fetchers
 
 **You own `src/data/tracker.json` and `src/data/barter.json` by hand. The
-suggest/update fetcher scripts were removed from this tree on open-sourcing
-(recoverable from git history); never re-add them. Check sources in a browser
+suggest/update fetchers are private-local only (gitignored, never committed,
+never published); never commit them. Check sources in a browser
 by hand:**
 
 1. Open `https://mabinogimobile.nipponhashi.com/tracker/` in TW view (default) for tracker; `https://mabinogi-mobile-notebook.vercel.app/barter-data.js` (`verified==="tw"`) + `https://mabi.yenyen.dev/` for barter ground truth; `https://mabinogimobile.nipponhashi.com/barter/` for eyeball diff only.

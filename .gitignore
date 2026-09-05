@@ -21,6 +21,10 @@ scripts/__pycache__/
 # fetch suggestions are local references (regenerable, never committed)
 suggestions/
 
+# fetcher scripts are private-local only (never committed, never published)
+scripts/suggest-tracker.mjs
+scripts/update-barter.mjs
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
