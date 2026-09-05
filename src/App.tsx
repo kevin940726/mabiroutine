@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, barterToTask } from "@/store/useAppStore";
 import trackerJson from "@/data/tracker.json";
+import barterJson from "@/data/barter.json";
+import { summarizeProgress } from "@/lib/progress";
 import { CharacterTabs } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
 import { BarterExplorer } from "@/components/BarterExplorer";
@@ -34,6 +36,8 @@ export default function App() {
   const exportJson = useAppStore((s) => s.exportJson);
   const importJson = useAppStore((s) => s.importJson);
   const resetAll = useAppStore((s) => s.resetAll);
+  const customTasks = useAppStore((s) => s.customTasks);
+  const barterPins = useAppStore((s) => s.barterPins);
   const [tab, setTab] = useState<"tracker" | "barter">("tracker");
   const [addOpen, setAddOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -107,31 +111,27 @@ export default function App() {
     input.click();
   };
 
-  // overall progress for active char + account (hidden tasks excluded)
+  // overall progress for active char + account (hidden tasks excluded):
+  // builtins + custom + pinned barter, same ruler as the section badges.
   const overall = (() => {
     if (!active) return { pct: 0, done: 0, total: 0 };
     const hidden = new Set([...active.hiddenTaskIds, ...hiddenAccountTaskIds]);
-    const all = [...BUILTIN_TASKS].filter((t) => !hidden.has(t.id));
-    // include custom + barter pins? simplified: use builtin total for header
-    let done = 0;
-    for (const t of all) {
-      const isAccount = t.section === "account";
-      const v = isAccount ? accountValues[t.id] : active.taskValues[t.id];
-      if (t.type === "check") {
-        if (v) done++;
-      } else {
-        const n = typeof v === "number" ? v : 0;
-        if (n >= (t.max ?? 1)) done++;
-      }
-    }
-    const total = all.length;
-    return { pct: total ? Math.round((done / total) * 100) : 0, done, total };
+    const pinnedBarter = barterPins
+      .map((id) => {
+        const b = (barterJson as unknown as Array<Parameters<typeof barterToTask>[0]>).find((x) => x.id === id);
+        return b ? barterToTask(b) : null;
+      })
+      .filter((t): t is Task => !!t && !hidden.has(t.id));
+    const all = [...BUILTIN_TASKS, ...customTasks, ...pinnedBarter].filter((t) => !hidden.has(t.id));
+    const { done, total, percent } = summarizeProgress(all, (t) =>
+      t.section === "account" ? accountValues[t.id] : active.taskValues[t.id]
+    );
+    return { pct: percent, done, total };
   })();
 
   const dailyTasks = BUILTIN_TASKS.filter((t) => t.section === "daily");
   const weeklyTasks = BUILTIN_TASKS.filter((t) => t.section === "weekly");
   const accountTasks = BUILTIN_TASKS.filter((t) => t.section === "account");
-  const customTasks = useAppStore((s) => s.customTasks);
   const dailyWithCustom = [...dailyTasks, ...customTasks.filter((t) => t.section === "daily")];
   const weeklyWithCustom = [...weeklyTasks, ...customTasks.filter((t) => t.section === "weekly")];
   const accountWithCustom = [...accountTasks, ...customTasks.filter((t) => t.section === "account")];

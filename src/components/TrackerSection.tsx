@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TaskRow } from "@/components/TaskRow";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Task } from "@/lib/types";
+import { summarizeProgress } from "@/lib/progress";
 import { useAppStore, barterToTask } from "@/store/useAppStore";
 import barterJson from "@/data/barter.json";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
@@ -125,21 +126,9 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   const { done, total, percent } = useMemo(() => {
     // progress over the unfiltered-by-completion lists: flipping 隱藏已完成
     // only hides rows, never moves done/total. (Manual hides still exclude,
-    // per the hidden-subcategory rule.)
+    // per the hidden-subcategory rule.) Shared ruler with the header overall.
     const combined = [...baseTasks, ...barterBase];
-    let d = 0;
-    for (const t of combined) {
-      const v = isAccount ? accountValues[t.id] : char?.taskValues[t.id];
-      if (t.type === "check") {
-        if (v) d++;
-      } else {
-        const cur = typeof v === "number" ? v : 0;
-        if (cur >= (t.max ?? 1)) d++;
-        else if (cur > 0) d += cur / (t.max ?? 1) * 0.5; // partial
-      }
-    }
-    const tot = combined.length;
-    return { done: Math.round(d), total: tot, percent: tot ? Math.round((d / tot) * 100) : 0 };
+    return summarizeProgress(combined, (t) => (isAccount ? accountValues[t.id] : char?.taskValues[t.id]));
   }, [baseTasks, barterBase, char, accountValues, isAccount]);
 
   const handleDragEnd = (e: DragEndEvent) => {
