@@ -30,6 +30,8 @@ import {
   applySnapshot,
   syncUrl,
   copyText,
+  sessionIdFromText,
+  requestImport,
   toast,
   type LocalSession,
 } from "@/sync/session";
@@ -54,6 +56,8 @@ export const SyncButton = memo(function SyncButton() {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState<Confirming>(null);
+  const [pasteValue, setPasteValue] = useState("");
+  const [pasteBusy, setPasteBusy] = useState(false);
   const [conflict, setConflict] = useState<ConflictInfo | null>(null);
   // Background auto-push stashes a 409 here; the next dialog open surfaces it.
   const [pendingConflict, setPendingConflict] = useState<ConflictInfo | null>(null);
@@ -260,6 +264,23 @@ export const SyncButton = memo(function SyncButton() {
     }
   }
 
+  async function submitPaste(): Promise<void> {
+    const id = sessionIdFromText(pasteValue);
+    if (!id) {
+      toast("連結格式錯誤");
+      return;
+    }
+    setPasteBusy(true);
+    // Step aside: adopt-confirm / conflict render in their own dialog.
+    setOpen(false);
+    setPasteValue("");
+    try {
+      await requestImport(id);
+    } finally {
+      setPasteBusy(false);
+    }
+  }
+
   async function keepMine(): Promise<void> {
     if (!conflict || busy) return;
     setBusy(true);
@@ -390,6 +411,8 @@ export const SyncButton = memo(function SyncButton() {
                   <br />
                   在另一台裝置開啟下方連結，兩邊共用同一份雲端進度。
                   <br />
+                  若點連結無法開啟此 App（例如 iPhone 主畫面 App），可將連結貼到下方加入。
+                  <br />
                   連結即是存取權限，請只傳給自己的裝置。
                 </DialogDescription>
               </DialogHeader>
@@ -451,6 +474,30 @@ export const SyncButton = memo(function SyncButton() {
                     </Button>
                   </div>
                 )}
+              </div>
+
+              {/* Manual import: link taps can't reach every bucket (iOS web
+                  app, mismatched Android browsers) — paste the link here. */}
+              <div className="flex items-center gap-2">
+                <Input
+                  value={pasteValue}
+                  onChange={(e) => setPasteValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void submitPaste();
+                  }}
+                  placeholder="貼上同步連結加入此裝置"
+                  aria-label="paste sync link"
+                  className="font-mono text-xs"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void submitPaste()}
+                  disabled={!pasteValue.trim() || pasteBusy}
+                  className="shrink-0"
+                >
+                  {pasteBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "加入"}
+                </Button>
               </div>
 
               {confirming === "regen" ? (

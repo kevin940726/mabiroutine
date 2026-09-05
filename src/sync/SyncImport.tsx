@@ -18,6 +18,7 @@ import {
   sessionIdFromUrl,
   stripSessionParam,
   toast,
+  type ImportRequest,
 } from "@/sync/session";
 import type { ConflictInfo } from "@/sync/SyncButton";
 
@@ -28,6 +29,12 @@ type ImportState = { id: string; state: unknown; updatedAt: number };
 export function SyncImport() {
   const hasHydrated = useAppStore((s) => s._hasHydrated);
   const [importing, setImporting] = useState<ImportState | null>(null);
+
+  useEffect(() => {
+    const onManual = (e: Event) => setImporting((e as CustomEvent<ImportRequest>).detail);
+    window.addEventListener("mabiroutine:import", onManual);
+    return () => window.removeEventListener("mabiroutine:import", onManual);
+  }, []);
 
   useEffect(() => {
     if (!hasHydrated) return;

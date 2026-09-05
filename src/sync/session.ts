@@ -1,5 +1,7 @@
 import { useAppStore, migratePersisted } from "@/store/useAppStore";
 import type { AppState } from "@/lib/types";
+import { getSession, SyncNotFound } from "@/sync/api";
+import type { ConflictInfo } from "@/sync/SyncButton";
 
 // Local session binding: which cloud session this device is linked to, plus
 // the last server timestamp we saw (the 409 guard's baseUpdatedAt). Kept OUT
@@ -104,6 +106,26 @@ export function sessionIdFromUrl(): string | null {
   return new URLSearchParams(window.location.search).get("s");
 }
 
+// Parse a pasted sync link (or bare id) — the manual path for buckets a ?s=
+// tap can never reach (iOS web app, mismatched Android browsers).
+export function sessionIdFromText(text: string): string | null {
+  const t = text.trim();
+  if (!t) return null;
+  let id: string | null = null;
+  if (/^https?:\/\//i.test(t)) {
+    try {
+      id = new URLSearchParams(new URL(t).search).get("s");
+    } catch {
+      return null;
+    }
+  } else {
+    id = t;
+  }
+  return id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : null;
+}
+
 export function stripSessionParam(): void {
   const url = new URL(window.location.href);
   url.searchParams.delete("s");
@@ -122,4 +144,42 @@ export async function copyText(text: string): Promise<boolean> {
 // Minimal toast bus: any sync module can toast without prop drilling.
 export function toast(message: string): void {
   window.dispatchEvent(new CustomEvent<string>("mabiroutine:toast", { detail: message }));
+}
+
+export type ImportRequest = { id: string; state: unknown; updatedAt: number };
+
+// Manual counterpart of the ?s= boot flow: adopt a session id obtained by
+// paste (link taps can't reach every bucket — iOS web app, mismatched
+// Android browsers). Pristine profiles adopt silently, otherwise the confirm
+// dialog (SyncImport listens on mabiroutine:import); same-session-newer
+// remote goes to the conflict bus.
+export async function requestImport(id: string): Promise<void> {
+  try {
+    const remote = await getSession(id);
+    const local = loadSession();
+    if (!local || local.id !== id) {
+      if (isPristine()) {
+        if (!applySnapshot(remote.state)) {
+          toast("連結進度格式錯誤");
+        } else {
+          saveSession({ id, updatedAt: remote.updatedAt });
+          toast("已同步到此裝置");
+        }
+      } else {
+        window.dispatchEvent(
+          new CustomEvent<ImportRequest>("mabiroutine:import", {
+            detail: { id, state: remote.state, updatedAt: remote.updatedAt },
+          })
+        );
+      }
+    } else if (remote.updatedAt > local.updatedAt) {
+      const detail: ConflictInfo = { id, remoteUpdatedAt: remote.updatedAt, remoteState: remote.state };
+      window.dispatchEvent(new CustomEvent<ConflictInfo>("mabiroutine:conflict", { detail }));
+    } else {
+      toast("已是最新");
+    }
+  } catch (e) {
+    if (e instanceof SyncNotFound) toast("此同步連結已失效");
+    else toast("同步載入失敗，請檢查網路");
+  }
 }

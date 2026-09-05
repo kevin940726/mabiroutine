@@ -7,6 +7,7 @@ import { BarterExplorer } from "@/components/BarterExplorer";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
+import { InstallButton } from "@/components/InstallButton";
 import { SyncImport } from "@/sync/SyncImport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,21 @@ export default function App() {
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Build stamp: after an SW auto-update takeover (or plain redeploy) the page
+  // reloads into a new build — announce it once. Child SyncToasts subscribes
+  // before this parent effect runs, so the toast lands.
+  useEffect(() => {
+    try {
+      const prev = localStorage.getItem("mabiroutine:build");
+      if (prev && prev !== __BUILD_TIME__) {
+        window.dispatchEvent(new CustomEvent("mabiroutine:toast", { detail: "已更新到新版本" }));
+      }
+      localStorage.setItem("mabiroutine:build", __BUILD_TIME__);
+    } catch {
+      // private mode — skip
+    }
   }, []);
 
   const handleExport = () => {
@@ -424,6 +440,7 @@ export default function App() {
               <Upload className="h-4 w-4" />
               匯入 JSON
             </Button>
+            <InstallButton />
             {confirmingReset ? (
               <span className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-2.5 py-1.5">
                 <span className="text-xs font-medium text-destructive">確定清除全部資料？無法復原。</span>
