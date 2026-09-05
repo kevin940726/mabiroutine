@@ -7,6 +7,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { Task } from "@/lib/types";
 import { summarizeProgress } from "@/lib/progress";
 import { useAppStore, barterToTask } from "@/store/useAppStore";
+import { confirmClearSection } from "@/components/ConfirmDialog";
 import barterJson from "@/data/barter.json";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -186,7 +187,9 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
             className="h-7 text-xs shrink-0"
             onClick={(e) => {
               e.stopPropagation();
-              clearSection(sectionKey, kind);
+              void confirmClearSection(title).then((ok) => {
+                if (ok) clearSection(sectionKey, kind);
+              });
             }}
           >
             <RotateCcw className="h-3 w-3" />

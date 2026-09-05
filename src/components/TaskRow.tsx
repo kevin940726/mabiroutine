@@ -4,6 +4,7 @@ import { useGrabCounter } from "@/hooks/useGrabCounter";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { confirmRemoveTask } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical } from "lucide-react";
@@ -129,7 +130,11 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
               hideScope={hideScope}
               onEdit={onEdit}
               onToggleHidden={() => toggleHidden(task.id)}
-              onRemove={() => removeCustom(task.id)}
+              onRemove={() => {
+                void confirmRemoveTask(task.name).then((ok) => {
+                  if (ok) removeCustom(task.id);
+                });
+              }}
             />
           ) : (
             <button
@@ -375,7 +380,11 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
             hideScope={hideScope}
             onEdit={onEdit}
             onToggleHidden={() => toggleHidden(task.id)}
-            onRemove={() => removeCustom(task.id)}
+            onRemove={() => {
+              void confirmRemoveTask(task.name).then((ok) => {
+                if (ok) removeCustom(task.id);
+              });
+            }}
           />
         </div>
       ) : (

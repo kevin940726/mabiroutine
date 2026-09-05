@@ -10,6 +10,7 @@ import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
 import { InstallButton } from "@/components/InstallButton";
+import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
 import { SyncImport } from "@/sync/SyncImport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -295,12 +296,15 @@ export default function App() {
                     >
                       重新命名
                     </button>
-                    <button
-                      onClick={() => {
-                        if (active && chars.length > 1) useAppStore.getState().removeCharacter(active.id);
-                        setPillMenuOpen(false);
-                      }}
-                      disabled={chars.length <= 1}
+                      <button
+                        onClick={() => {
+                          setPillMenuOpen(false);
+                          if (!active || chars.length <= 1) return;
+                          void confirmRemoveCharacter(active.name).then((ok) => {
+                            if (ok) useAppStore.getState().removeCharacter(active.id);
+                          });
+                        }}
+                        disabled={chars.length <= 1}
                       className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent disabled:opacity-30 disabled:pointer-events-none"
                     >
                       刪除角色
@@ -380,7 +384,10 @@ export default function App() {
                 size="icon"
                 className="h-7 w-7 shrink-0 rounded-full hover:text-destructive disabled:opacity-30 disabled:pointer-events-none"
                 onClick={() => {
-                  if (active && chars.length > 1) useAppStore.getState().removeCharacter(active.id);
+                  if (!active || chars.length <= 1) return;
+                  void confirmRemoveCharacter(active.name).then((ok) => {
+                    if (ok) useAppStore.getState().removeCharacter(active.id);
+                  });
                 }}
                 disabled={chars.length <= 1}
                 aria-label="remove character"
@@ -523,6 +530,7 @@ export default function App() {
       />
       <SyncToasts />
       <SyncImport />
+      <ConfirmHost />
       <Analytics />
     </div>
   );

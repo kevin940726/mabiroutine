@@ -3,6 +3,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { confirmRemoveCharacter } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Pencil, Trash2, Plus } from "lucide-react";
@@ -57,7 +58,18 @@ function CharacterTabsMobile() {
               <Pencil className="h-4 w-4" />
             </Button>
             {chars.length > 1 && (
-              <Button variant="outline" size="icon" className="h-9 w-9 shrink-0" onClick={() => removeChar(activeChar.id)} aria-label="delete">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                onClick={() => {
+                  if (!activeChar) return;
+                  void confirmRemoveCharacter(activeChar.name).then((ok) => {
+                    if (ok) removeChar(activeChar.id);
+                  });
+                }}
+                aria-label="delete"
+              >
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
@@ -150,7 +162,11 @@ function CharacterTabsDesktop() {
                 )}
                 {chars.length > 1 && active === c.id && (
                   <button
-                    onClick={() => removeChar(c.id)}
+                    onClick={() => {
+                      void confirmRemoveCharacter(c.name).then((ok) => {
+                        if (ok) removeChar(c.id);
+                      });
+                    }}
                     className="rounded-full p-1 opacity-60 hover:opacity-100 hover:text-destructive hover:bg-primary-foreground/20"
                     aria-label="delete"
                   >
