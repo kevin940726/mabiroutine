@@ -18,6 +18,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Every destructive action now confirms first: shared promise-based `ConfirmDialog` (Radix) fronts character removal (all 4 sites), custom-task deletion (row ⋯ menu, both variants) and 清除本區; reset-all already had its two-tap inline confirm
 - Character switchers (floating pill + mobile tabs) swapped from Radix Select (always scroll-locks: scrollbar vanishes, body padding shifts the fixed pill) to non-modal DropdownMenu radio lists — page never moves; `ui/dropdown-menu` gains radio items
 - Mobile floating pill: tapping the character name opens the roster jump (‹ › stay for adjacent steps)
+- Mobile floating pill drops the ‹ › stepper — name dropdown is the switcher
 - Open-sourcing Phase 2: data text under CC BY-NC 4.0 (`DATA_LICENSE`, NPC art excluded as NEXON fan-use with takedown); fetcher scripts are private-local only (gitignored, never committed, never published), all references rewritten manual-only
 - Open-sourcing Phase 1 attribution: in-app footer 資料來源 row (6 source links + 非官方 NEXON/devCAT disclaimer + 以遊戲內為準 + takedown via GitHub issue); README 出處與授權 section records per-source take-vs-not-take; `docs/tracker-data.md` gains a source-terms section (NEXON consent clause → disclaimer path, yenyen grant scope, Femiwiki BY-SA chain, Taiwan scraping posture)
 - 巴哈姆特 citations dropped everywhere (docs cross-refs + new attribution): day-one counts treated as public knowledge per user, not cited sources

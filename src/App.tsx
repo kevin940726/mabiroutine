@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Task } from "@/lib/types";
-import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronLeft, ChevronRight, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -243,23 +243,11 @@ export default function App() {
           ) : (
             <>
               <span className="flex items-center shrink-0">
-                <button
-                  onClick={() => {
-                    if (!chars.length || !active) return;
-                    const idx = Math.max(0, chars.findIndex((c) => c.id === active.id));
-                    useAppStore.getState().setActiveChar(chars[(idx - 1 + chars.length) % chars.length].id);
-                  }}
-                  className="h-7 w-6 grid place-items-center rounded-full hover:bg-accent"
-                  aria-label="prev character"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                {/* roster jump for 4+ character users: name opens the same
-                    non-modal radio list, ‹ › stay for adjacent steps */}
+                {/* roster jump: name opens the non-modal radio list */}
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="flex max-w-[88px] items-center gap-0.5 truncate rounded-full px-1 py-1 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex max-w-[88px] items-center gap-1 truncate rounded-full px-1 py-1 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       aria-label="switch character"
                     >
                       <span className="truncate">{active?.name}</span>
@@ -279,17 +267,6 @@ export default function App() {
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <button
-                  onClick={() => {
-                    if (!chars.length || !active) return;
-                    const idx = Math.max(0, chars.findIndex((c) => c.id === active.id));
-                    useAppStore.getState().setActiveChar(chars[(idx + 1) % chars.length].id);
-                  }}
-                  className="h-7 w-6 grid place-items-center rounded-full hover:bg-accent"
-                  aria-label="next character"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
               </span>
               <button
                 type="button"
