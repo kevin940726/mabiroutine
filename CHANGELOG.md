@@ -10,6 +10,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - `timeGated` retired everywhere: no more amber time badge on rows, and the 新增自訂 form no longer offers 時間限制 (old custom values are stripped on load, store v11→v12)
 
 ### Features
+- Footer links the now-public GitHub repo (inline mark + link, no dependency — installed lucide has no brand icons)
 - Open-sourcing Phase 2: data text under CC BY-NC 4.0 (`DATA_LICENSE`, NPC art excluded as NEXON fan-use with takedown); fetcher scripts are private-local only (gitignored, never committed, never published), all references rewritten manual-only
 - Open-sourcing Phase 1 attribution: in-app footer 資料來源 row (6 source links + 非官方 NEXON/devCAT disclaimer + 以遊戲內為準 + takedown via GitHub issue); README 出處與授權 section records per-source take-vs-not-take; `docs/tracker-data.md` gains a source-terms section (NEXON consent clause → disclaimer path, yenyen grant scope, Femiwiki BY-SA chain, Taiwan scraping posture)
 - 巴哈姆特 citations dropped everywhere (docs cross-refs + new attribution): day-one counts treated as public knowledge per user, not cited sources
