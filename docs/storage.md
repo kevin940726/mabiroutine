@@ -1,21 +1,41 @@
-# 你的資料：存在哪、更新怎麼辦
+# Your data: where it lives, what updates do
 
-MabiRoutine 的設計原則：靜態的遊戲資料跟著 app 發布走，**你的進度只屬於你**。
+MabiRoutine's design principle: static game data ships with the app;
+**your progress belongs to you**.
 
-## 兩層資料，兩個主人
+## Two layers, two owners
 
-- 靜態 rows（`tracker.json` / `barter.json`）跟著 app 發布走，你的瀏覽器不快取它們：改名、改敘述、改 `max` 下次部署即生效。
-- 你的進度（勾選、計次、釘選、自訂任務、隱藏、排序、偏好、以物易物篩選）只存在你的瀏覽器：`localStorage` key `mabiroutine:v2`，用 row `id` 當 key 參照靜態 rows。寫入是 idle-deferred（連打不卡），切換分頁/關閉時強制 flush；極端情況下最多丟失約 1.5 秒內的操作。
+- Static rows (`tracker.json` / `barter.json`) ship with each deploy and are
+  never cached by your browser: renames, new descriptions, new `max` values
+  take effect on the next deploy.
+- Your progress (checks, counters, pins, custom tasks, hidden rows, order,
+  preferences, barter filters) lives only in your browser: `localStorage` key
+  `mabiroutine:v2`, keyed by row `id` against the static rows. Writes are
+  idle-deferred (rapid taps never stutter) and force-flushed when you switch
+  tabs or close; in the worst case you lose ~1.5 seconds of input.
 
-## App 更新時（自動 migrate，不用動手）
+## When the app updates (auto-migrate, nothing to do)
 
-1. 載入時先補結構預設值（無版本號的遠古存檔、手改過的存檔也會被修好，不會白屏），再比對存檔的 schema `version`，缺的步驟按順序補跑，再蓋章。你的勾選/釘選/自訂任務永遠不會被覆寫——只補預設欄位、只清懸空 key。
-2. 上游刪了某 row（例如 `id` 改名）：該 row 殘留的勾選/隱藏/排序會被清掉。改名 = 刪除+新增，舊進度不會繼承——重要進度先用頁尾 匯出 JSON 備份。
-3. 只改內容（敘述、`max`）：即時生效；進行中的計次保留，下次點擊時按新 `max` 夾取。
+1. On load, missing structural defaults are filled in first (ancient saves with
+   no version number and hand-edited saves get repaired, never a blank screen),
+   then the save's schema `version` is compared and missing steps run in order
+   before stamping. Your checks/pins/custom tasks are never overwritten — only
+   default fields are filled and dangling keys pruned.
+2. If upstream deletes a row (e.g. an `id` rename): leftover checks/hides/order
+   for that row are cleared. Rename = delete + add, old progress does not carry
+   over — back up important progress via footer 匯出 JSON (Export JSON) first.
+3. Content-only changes (descriptions, `max`): take effect immediately;
+   in-progress counters are kept and clamped to the new `max` on next tap.
 
-## 衝突與逃生門（你的資料你作主）
+## Conflicts & escape hatches (your data, your call)
 
-- 跨裝置請用跨裝置同步（自動合併）或頁尾 匯出 JSON → 另一台 匯入 JSON（整包取代，先匯出備份）。
-- 匯入舊版備份：照常匯入——缺欄位當場補、懸空 key 當場清；備份裡的多餘欄位會在下次存檔時丟棄。
-- 壞掉/想重來：頁尾 重置所有資料（二次確認後回到預設：1 角色 + 必換釘選）。
-- 手動開刀：DevTools → Application → Local Storage → `mabiroutine:v2`；改壞了就匯入備份或重置。
+- Across devices: use cross-device sync (auto-merges) or footer 匯出 JSON
+  (Export) → 匯入 JSON (Import) on the other device (full replace — export a
+  backup first).
+- Importing an old backup: works as usual — missing fields are filled and
+  dangling keys cleared on the spot; extra fields in the backup are dropped on
+  the next save.
+- Broken / start over: footer 重置所有資料 (Reset all data, double-confirmed,
+  back to defaults: 1 character + must-have pins).
+- Surgery by hand: DevTools → Application → Local Storage → `mabiroutine:v2`;
+  if you break it, import a backup or reset.

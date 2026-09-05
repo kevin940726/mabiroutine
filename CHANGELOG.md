@@ -18,7 +18,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Barter dedupe: 3 exact-duplicate `yen-` rows dropped (98→95 rows; notebook ids kept, no migration bump — v6 prune generalizes); `在燃燒`→`再燃燒` typo fixed in `dun-st6/st7` name+give; server-sharing conflicts (`tir-l3`/`col-c2`/`col-c3` vs yenyen rows) held for in-game verification
 - Barter server-sharing verdict (in-game): `tir-l3`/`col-c2`/`col-c3` are all 伺服器-shared — notebook counts stand (1次/5次/10次), 3 `yen-` twins dropped (95→92 rows)
 - README intro no longer says "heavily inspired" — credits live in 出處與授權 + footer
-- READMEs rebuilt user-facing: `README.md` (EN) sells the product with key features, new `README-zh_TW.md` in native TW voice, headers link each other; techy parts moved to `docs/development.md` + `docs/storage.md`; AGENTS.md gate now covers both READMEs
+- READMEs rebuilt user-facing: `README.md` (EN) sells the product with key features, new `README-zh_TW.md` in native TW voice, headers link each other; techy parts moved to `docs/development.md` + `docs/storage.md` (storage doc now in English); AGENTS.md gate now covers both READMEs
 - `tracker.json` replaces `builtin.ts`: both data files are hand-owned JSON sources of truth
 - Single global pin list: fork/personal model removed, tap toggles for all characters (old saves reset to must defaults)
 - Barter explorer filters persist across reloads (selects only; search stays session-only, stale towns reset to all)
