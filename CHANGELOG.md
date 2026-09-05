@@ -15,6 +15,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - 巴哈姆特 citations dropped everywhere (docs cross-refs + new attribution): day-one counts treated as public knowledge per user, not cited sources
 - Barter notes now hand-owned voice: 8 evaluative notes rewritten (incl. cat-merchant game quote paraphrased), 10 empty notes filled, 11 blueprint notes say 學會後可取消釘選
 - Second notes pass: source-voiced lines rewritten in our words (egg rows → 公雞腳下偷雞蛋, chain rows → 後續可向X兌換 formal, 詐騙/爆倉/漂漂 retired)
+- Barter dedupe: 3 exact-duplicate `yen-` rows dropped (98→95 rows; notebook ids kept, no migration bump — v6 prune generalizes); `在燃燒`→`再燃燒` typo fixed in `dun-st6/st7` name+give; server-sharing conflicts (`tir-l3`/`col-c2`/`col-c3` vs yenyen rows) held for in-game verification
 - `tracker.json` replaces `builtin.ts`: both data files are hand-owned JSON sources of truth
 - Single global pin list: fork/personal model removed, tap toggles for all characters (old saves reset to must defaults)
 - Barter explorer filters persist across reloads (selects only; search stays session-only, stale towns reset to all)
