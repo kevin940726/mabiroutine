@@ -245,7 +245,7 @@ export default function App() {
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="flex max-w-[88px] items-center gap-1 truncate rounded-full px-1 py-1 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex max-w-[40vw] items-center gap-1 truncate rounded-full px-1 py-1 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       aria-label="switch character"
                     >
                       <span className="truncate">{active?.name}</span>
