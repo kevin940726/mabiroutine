@@ -33,4 +33,4 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 `pnpm check` = `lint` + `test:migrations` + `build`. All three must pass:
 - `test:migrations` bundles the real `migratePersisted` and runs fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic barter ids, removed-id prune, passthrough, filter sanitize). If you add a migrate step, add a fixture block (A/B/C/D/E/F pattern) proving old data survives.
 - Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if the premise line fails, update the fixture, not the data.
-- `suggestions/` is gitignored; `src/data/*.json` diffs need human review — never auto-apply fetcher output.
+- `suggestions/` is gitignored (review scratch only); `src/data/*.json` is hand-edited and needs human review — no scraper scripts in this tree (removed on open-sourcing).

@@ -59,30 +59,20 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 - **Full:** `nipponhashi 226` — currently all 226 appear in TW mode, but treat as TW *unless* row has `verified:"kr"` in notebook or `data-available="kr-only"` / hidden when `tw` active.
 - `src/data/barter.json` (98 rows: notebook 70 + yenyen union) is hand-owned. Full seed is notebook 70 tw as base, extended to yenyen 86 after diff, never include notebook 18 kr.
 - `perChar` / `limit` / `rec` / `region` come from notebook/yenyen, not invented.
-- **Default pins are a hand-owned list:** `src/data/defaultPins.json` (`pins` array of barter ids) — NOT derived from `priority==="must"`. Curate it by hand; `pnpm suggest-barter` appends `pinSuggestions` (`add` = fetched must ∉ list, `remove` = listed id whose fetched priority ≠ must, `stale` = listed id ∉ barter.json) for manual apply. Store sanitizes the list against barter.json ids at load (unknown ids dropped, order kept).
+- **Default pins are a hand-owned list:** `src/data/defaultPins.json` (`pins` array of barter ids) — NOT derived from `priority==="must"`. Curate it by hand; when checking sources by hand, watch for must-priority drift the same way. Store sanitizes the list against barter.json ids at load (unknown ids dropped, order kept).
 
-## Filtering Rules — manual-first, fetch is suggestion-only
+## Filtering Rules — manual-only, no fetchers
 
-**You own `src/data/tracker.json` and `src/data/barter.json` by hand. Fetchers never overwrite them — they only write `suggestions/` diffs (gitignored) for reference:**
-- `pnpm suggest-tracker` → diff tracker rows vs TW tracker page → `suggestions/tracker.json`
-- `pnpm suggest-barter` → diff barter.json vs notebook70+yenyen → `suggestions/barter.json`
-- `pnpm update-barter` (= `--write`) overwrites `barter.json` — escape hatch only, wipes manual edits.
+**You own `src/data/tracker.json` and `src/data/barter.json` by hand. The
+suggest/update fetcher scripts were removed from this tree on open-sourcing
+(recoverable from git history); never re-add them. Check sources in a browser
+by hand:**
 
-1. Fetch `https://mabinogimobile.nipponhashi.com/tracker/` **without** `kr` — default is TW for tracker. For barter, fetch `https://mabinogi-mobile-notebook.vercel.app/barter-data.js` (`verified==="tw"` 70) + `https://mabi.yenyen.dev/` (86) as ground truth; only fetch `https://mabinogimobile.nipponhashi.com/barter/` for diff.
-2. Parse only TW-visible nodes:
-   - **Tracker:** While `button[data-server-set="tw"].active`, select island content. Exclude any node with `data-server="kr"`, `hidden` when `tw` active, or text `韓服`/`KR預覽`/`台服未實裝`. For `barrier`/`black-hole`, use hardcoded 7 / 7+7 above, don't re-derive from KR text.
-   - **Barter:** Seed from `notebook verified==="tw"` (70) + `yenyen` union; exclude `verified==="kr"` (18) even if present in nipponhashi 226. Never seed nipponhashi barter directly.
-3. Never fetch `/ko/*` for seeding; only diff to log `TW: ${n} / skipped KR: ${m}`.
-4. `召喚結界` and `黑色坑洞` counts are **hardcoded TW** per user (7 and 7+7) — script must not overwrite with `韓服社群` fallback.
-5. Write `src/data/tracker.json` and `src/data/barter.json` only with filtered rows.
-
-Pseudo:
-```ts
-const twHtml = await fetch(TW_URL).text(); // default tw
-const notebook = await fetch(NOTEBOOK_URL).text(); // window.MABINOGI_BARTER_DATA
-const twBarterIds = new Set(notebook.items.filter(i=>i.verified==="tw").map(i=>i.id)); // 70
-// seed barter.json only with twBarterIds
-```
+1. Open `https://mabinogimobile.nipponhashi.com/tracker/` in TW view (default) for tracker; `https://mabinogi-mobile-notebook.vercel.app/barter-data.js` (`verified==="tw"`) + `https://mabi.yenyen.dev/` for barter ground truth; `https://mabinogimobile.nipponhashi.com/barter/` for eyeball diff only.
+2. Take only TW-visible content: tracker TW tab active; exclude anything marked `韓服`/`KR預覽`/`台服未實裝`; barter excludes notebook `verified==="kr"`. For `barrier`/`black-hole`, use hardcoded 7 / 7+7 above, don't re-derive from KR text.
+3. Never use `/ko/*` content for seeding.
+4. `召喚結界` and `黑色坑洞` counts are **hardcoded TW** per user (7 and 7+7) — do not overwrite with `韓服社群` fallback.
+5. Edit `src/data/tracker.json` and `src/data/barter.json` by hand with filtered rows only. Write `note` in our own voice (short facts stay; see DATA_LICENSE).
 
 ## Maintenance
 

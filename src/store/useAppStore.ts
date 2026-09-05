@@ -146,8 +146,8 @@ export function barterToTask(b: BarterJsonItem): Task {
 }
 
 // Default pins are a hand-owned list (src/data/defaultPins.json), NOT derived
-// from barter.json priorities — curate it by hand; `pnpm suggest-barter`
-// proposes additions/removals when source priorities drift.
+// from barter.json priorities — curate it by hand; watch for must-priority
+// drift when checking sources by hand.
 const DEFAULT_MUST_PINS: string[] = [...new Set((defaultPinsJson.pins ?? []) as string[])].filter((id) =>
   (barterJson as BarterJsonItem[]).some((b) => b.id === id)
 );

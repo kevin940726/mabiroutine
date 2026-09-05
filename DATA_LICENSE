@@ -1,0 +1,12 @@
+# Data license — CC BY-NC 4.0
+
+`src/data/tracker.json`, `src/data/barter.json` and `src/data/defaultPins.json`
+are licensed under Creative Commons Attribution-NonCommercial 4.0 International
+(CC BY-NC 4.0): https://creativecommons.org/licenses/by-nc/4.0/
+
+- Non-commercial fan use only, with credit to this repo and the sources listed
+  in README 出處與授權.
+- `public/npc/*` is EXCLUDED from this grant: self-taken game screenshots —
+  all rights belong to NEXON / devCAT, used here as non-commercial fan content.
+  Do not redistribute. Takedown on request via GitHub issue.
+- Everything else (code, config, docs prose) is MIT — see LICENSE.

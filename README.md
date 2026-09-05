@@ -51,15 +51,12 @@ pnpm dev:api          # full stack: vercel dev + Vite on :52608 (API routes live
 pnpm build            # tsc -b && vite build → dist/ (+ sw.js)
 pnpm preview          # vite preview
 pnpm check            # gate: lint + migration fixtures + build
-pnpm suggest-tracker  # diff tracker.json vs TW tracker page → suggestions/ (reference only)
-pnpm suggest-barter   # diff barter.json vs notebook70+yenyen → suggestions/ (reference only)
-pnpm update-barter    # = --write: overwrite barter.json (escape hatch, wipes manual edits)
 ```
 
-## Data Updates (manual-first)
+## Data Updates (manual-only)
 
 `src/data/tracker.json` (21 rows) and `src/data/barter.json` (98 rows) are hand-owned sources of truth.
-Fetchers only write `suggestions/` diffs (gitignored) for reference — see `skills/update-tracker/SKILL.md`.
+No fetcher scripts in this tree — check sources in a browser by hand, see `skills/update-tracker/SKILL.md`.
 Edit the JSON by hand (`id` must stay stable — progress keys off it), then `pnpm build`.
 
 ## 出處與授權 (Sources & licenses)
@@ -67,12 +64,12 @@ Edit the JSON by hand (`id` must stay stable — progress keys off it), then `pn
 Fan-made, non-commercial, TW-only tracker. Not affiliated with NEXON / devCAT; game names, NPCs, items and art belong to their owners (NPC avatars are self-taken screenshots). Values are community-verified — in-game wins. Rights concern? Open a GitHub issue and the content comes down.
 
 - **瑪奇Mobile Wiki DB** (`mabinogimobile.nipponhashi.com/tracker/`) — tracker structure + reset-time cross-check. Its barter page is diff-only, never seeded. That site states its data is hand-compiled with no datamining; no reprint grant to us, credited by link.
-- **Meowka 以物易物記事本** (`mabinogi-mobile-notebook.vercel.app`) — barter skeleton (70 TW rows). Its `rec`/`note` commentary is being rewritten in our own words; until then treat it as others' expression.
+- **Meowka 以物易物記事本** (`mabinogi-mobile-notebook.vercel.app`) — barter skeleton (70 TW rows). Its `rec`/`note` commentary is rewritten in our own voice.
 - **yenyen 繁中資料庫** (`mabi.yenyen.dev`, incl. `/sources` + `/privacy`) — 16-row supplement + region/recommendation cross-check. Its notebook reprint grant covers that site only, not us. Its chain also credits Femiwiki (CC BY-SA 4.0) and Inven forum authors — credited here in turn.
 - **mabitw** (`mabitw.com/daily`) — daily-list cross-check as it converges to TW implementation.
 - **bobogameguides** (`bobogameguides.com/mabinogi-mobile/checklist/daily/`) — official-vs-community arbiter (only 專注遊玩活動/公會任務/格里斯貝恩 are 官方已確認 there).
 - Day-one forum posts (e.g. Bahamut) informed initial counts but are treated as public knowledge, not cited sources.
-- Code is MIT (`LICENSE`); splitting data text (`tracker.json`/`barter.json`) under CC BY-NC with NPC art excluded is Phase 2 work — not yet in effect (notes rewrite + license files still pending).
+- Code is MIT (`LICENSE`); data text (`tracker.json`/`barter.json`/`defaultPins.json`) is CC BY-NC 4.0 (`DATA_LICENSE`), NPC art excluded (NEXON fan-use, takedown on request).
 
 ## 資料、版本更新與 localStorage 衝突處理
 
@@ -118,7 +115,7 @@ src/
   App.tsx / main.tsx / index.css
 api/session.ts           # sync API (Upstash Redis, per-key arrival order)
 public/manifest.webmanifest
-scripts/update-barter.mjs / suggest-tracker.mjs / check-migrations.mjs
+scripts/check-migrations.mjs (+ crop-npc.py local art tool)
 docs/sync.md             # sync design record
 ```
 
