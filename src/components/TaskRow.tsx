@@ -279,7 +279,6 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const count = !isCheck ? (typeof value === "number" ? value : 0) : 0;
   const isDone = isCheck ? checked : count >= (task.max ?? 0) && (task.max ?? 0) > 0;
 
-  const isCustom = task.source === "custom";
   const isBarter = task.source === "barter";
   const [npcImgError, setNpcImgError] = useState(false);
   const showNpc = isBarter && task.npc && !npcImgError;
@@ -291,8 +290,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       data-task-row="true"
       className={cn(
         // compact: progress lives inside the action tile, so no reserved bar height
-        "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors min-h-[88px]",
-        isCustom ? "pr-20" : "pr-14",
+        "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors min-h-[88px] pr-14",
         isDone ? "bg-muted/50 border-muted" : "bg-card hover:bg-accent/50",
         isHidden ? "opacity-50" : ""
       )}
@@ -369,19 +367,21 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         )}
       </div>
 
-      {/* A) always-faint in gutter — balances ≡ left weight, no overlap, reserved pr-24 */}
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded-md border bg-card/95 backdrop-blur shadow-sm p-0.5 opacity-20 pointer-events-auto group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-        {task.source === "custom" && onEdit && (
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onEdit} aria-label="edit">
-            <Pencil className="h-3 w-3" />
-          </Button>
-        )}
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleHidden(task.id)} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
-          {isHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-        </Button>
-        {task.source === "custom" && (
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => removeCustom(task.id)} aria-label="delete">
-            <Trash2 className="h-3 w-3" />
+      {/* A) always-faint in gutter — balances ≡ left weight, no overlap.
+          Custom rows get the same ⋯ dropdown as mobile (edit/hide/delete);
+          builtin rows keep the single hide icon. */}
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-card/95 backdrop-blur shadow-sm p-0.5 opacity-20 pointer-events-auto group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+        {task.source === "custom" ? (
+          <RowMenu
+            isHidden={isHidden}
+            hideScope={hideScope}
+            onEdit={onEdit}
+            onToggleHidden={() => toggleHidden(task.id)}
+            onRemove={() => removeCustom(task.id)}
+          />
+        ) : (
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleHidden(task.id)} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
+            {isHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
           </Button>
         )}
       </div>
