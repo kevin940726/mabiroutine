@@ -3,6 +3,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { useGrabCounter } from "@/hooks/useGrabCounter";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical } from "lucide-react";
@@ -174,37 +175,34 @@ function RowMenu({ isHidden, hideScope, onEdit, onToggleHidden, onRemove }: {
   onToggleHidden: () => void;
   onRemove: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const run = (fn?: () => void) => () => {
-    fn?.();
-    setOpen(false);
-  };
+  // Radix portal escapes the section Card's overflow-hidden; collision
+  // handling flips the menu automatically near viewport edges. Also gains
+  // outside-click / Escape dismiss over the old hand-rolled absolute menu.
+  // Non-modal: a row menu must not scroll-lock the page beneath it.
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="h-7 w-7 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-        aria-label="row actions"
-        aria-expanded={open}
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-8 z-10 w-28 rounded-md border bg-popover p-1 shadow-md">
-          {onEdit && (
-            <button onClick={run(onEdit)} className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent">
-              <Pencil className="h-3.5 w-3.5" />編輯
-            </button>
-          )}
-          <button onClick={run(onToggleHidden)} className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent">
-            {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}{isHidden ? "顯示" : "隱藏"}{hideScope}
-          </button>
-          <button onClick={run(onRemove)} className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs text-destructive hover:bg-accent">
-            <Trash2 className="h-3.5 w-3.5" />刪除
-          </button>
-        </div>
-      )}
-    </div>
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="h-7 w-7 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="row actions"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-28">
+        {onEdit && (
+          <DropdownMenuItem onSelect={onEdit} className="text-xs">
+            <Pencil className="h-3.5 w-3.5" />編輯
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={onToggleHidden} className="text-xs">
+          {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}{isHidden ? "顯示" : "隱藏"}{hideScope}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={onRemove} className="text-xs text-destructive focus:text-destructive">
+          <Trash2 className="h-3.5 w-3.5" />刪除
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -368,10 +366,10 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       </div>
 
       {/* A) always-faint in gutter — balances ≡ left weight, no overlap.
-          Custom rows get the same ⋯ dropdown as mobile (edit/hide/delete);
-          builtin rows keep the single hide icon. */}
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-card/95 backdrop-blur shadow-sm p-0.5 opacity-20 pointer-events-auto group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-        {task.source === "custom" ? (
+          Custom rows: bare ⋯ at full opacity (hide lives inside the menu).
+          Builtin rows keep the single faint hide icon. */}
+      {task.source === "custom" ? (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
           <RowMenu
             isHidden={isHidden}
             hideScope={hideScope}
@@ -379,12 +377,14 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
             onToggleHidden={() => toggleHidden(task.id)}
             onRemove={() => removeCustom(task.id)}
           />
-        ) : (
+        </div>
+      ) : (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-card/95 backdrop-blur shadow-sm p-0.5 opacity-20 pointer-events-auto group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleHidden(task.id)} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
             {isHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
