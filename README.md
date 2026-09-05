@@ -19,7 +19,7 @@ Heavily inspired by https://mabinogimobile.nipponhashi.com/tracker/ + https://ma
 
 ### Barter Merge — Both surfaces
 
-**Data:** `src/data/barter.json` checked-in snapshot (95 rows: notebook TW 70 + yenyen union; KR rows never seeded). Skill chart (伐木/釣魚/挖礦…) + `priority` (`must`/`extra`/`once`/`situational`/`skip` → `一定要換` etc) + `town` + `gatherSkill`.
+**Data:** `src/data/barter.json` checked-in snapshot (92 rows: notebook TW 70 + yenyen union; KR rows never seeded). Skill chart (伐木/釣魚/挖礦…) + `priority` (`must`/`extra`/`once`/`situational`/`skip` → `一定要換` etc) + `town` + `gatherSkill`.
 
 **1) Daily expanded group** `🔄 以物易物` in `TrackerSection.tsx:122` — shows effective pins for active char, expand to list pinned barter `TaskRow`s.
 
@@ -55,7 +55,7 @@ pnpm check            # gate: lint + migration fixtures + build
 
 ## Data Updates (manual-only)
 
-`src/data/tracker.json` (21 rows) and `src/data/barter.json` (95 rows) are hand-owned sources of truth.
+`src/data/tracker.json` (21 rows) and `src/data/barter.json` (92 rows) are hand-owned sources of truth.
 No fetcher scripts in the committed tree — check sources in a browser by hand, see `skills/update-tracker/SKILL.md`.
 (Maintainer-only fetchers live on your own disk, gitignored, never committed.)
 Edit the JSON by hand (`id` must stay stable — progress keys off it), then `pnpm build`.
@@ -99,7 +99,7 @@ Fan-made, non-commercial, TW-only tracker. Not affiliated with NEXON / devCAT; g
 ```
 src/
   data/tracker.json      # 21 tracker rows (hand-owned source of truth)
-  data/barter.json       # 95 barter rows (hand-owned source of truth)
+  data/barter.json       # 92 barter rows (hand-owned source of truth)
   lib/types.ts           # Task/Character/AppState (persist schema v12)
   lib/reset.ts           # Asia/Taipei 06:00 daily / Mon 06:00 weekly (UTC+8 fixed)
   lib/utils.ts           # cn()

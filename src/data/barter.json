@@ -855,36 +855,6 @@
     "note": "此處是唯一取得管道；投入材料取得困難，成本偏高。"
   },
   {
-    "id": "yen-康納生命的魔力石峽谷的魔-72",
-    "name": "康納 峽谷的魔力石 ← 生命的魔力石",
-    "give": "生命的魔力石",
-    "get": "峽谷的魔力石",
-    "town": "庫漢",
-    "priority": "situational",
-    "gatherSkill": "庫漢",
-    "perChar": true,
-    "limit": "每日 1 次",
-    "rec": "視需求",
-    "verified": "tw",
-    "npc": "康納",
-    "note": "店裡就有賣，缺了再來。"
-  },
-  {
-    "id": "yen-康納生命的魔力石廢墟的魔-77",
-    "name": "康納 廢墟的魔力石 ← 生命的魔力石",
-    "give": "生命的魔力石",
-    "get": "廢墟的魔力石",
-    "town": "庫漢",
-    "priority": "situational",
-    "gatherSkill": "庫漢",
-    "perChar": true,
-    "limit": "每日 1 次",
-    "rec": "視需求",
-    "verified": "tw",
-    "npc": "康納",
-    "note": "產出物本身採集或商店就有。"
-  },
-  {
     "id": "yen-凱雅拉聖水10裝水的瓶子-83",
     "name": "凱雅拉 裝水的瓶子 ×50 ← 聖水 ×10",
     "give": "聖水 ×10",
@@ -1048,21 +1018,6 @@
     "verified": "tw",
     "npc": "蘿拉",
     "note": "價值普通，有餘裕再換。"
-  },
-  {
-    "id": "yen-麗莎高級鍊金術再燃燒催化-76",
-    "name": "麗莎 稀有鍊金術再燃燒催化劑 ← 高級鍊金術再燃燒催化劑 ×15",
-    "give": "高級鍊金術再燃燒催化劑 ×15",
-    "get": "稀有鍊金術再燃燒催化劑",
-    "town": "提爾克那",
-    "priority": "situational",
-    "gatherSkill": "提爾克那",
-    "perChar": true,
-    "limit": "每日 1 次",
-    "rec": "視需求",
-    "verified": "tw",
-    "npc": "麗莎",
-    "note": "此處是唯一取得管道；投入材料取得困難，成本偏高。"
   },
   {
     "id": "dug-e2",

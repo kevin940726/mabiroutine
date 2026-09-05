@@ -21,7 +21,7 @@ explicit human "apply this" for the specific rows.
    yenyen list) and compare against the JSON rows. No `fetch`, no scripts,
    no bulk download.
 2. **Report the diff** — added / removed / changed rows. If counts drift far
-   from `docs/tracker-data.md` (21 tracker, 95 barter), flag for human review.
+   from `docs/tracker-data.md` (21 tracker, 92 barter), flag for human review.
 3. **Human applies by hand** — edit `src/data/tracker.json` / `src/data/barter.json`
    directly. Keep hardcodes: `barrier max 7`, `black-hole` max 14 (7+7) —
    do not re-derive from `韓服社群` fallback text.
@@ -36,4 +36,4 @@ explicit human "apply this" for the specific rows.
 
 ## References
 - `docs/tracker-data.md` Filtering Rules + Source terms
-- `src/data/tracker.json` (21 TW rows, hand-owned), `src/data/barter.json` (95 rows, hand-owned)
+- `src/data/tracker.json` (21 TW rows, hand-owned), `src/data/barter.json` (92 rows, hand-owned)

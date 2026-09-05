@@ -57,8 +57,8 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 - **Primary TW gold set:** `notebook 70 tw` (`verified:"tw"`). These are TW-verified; use as `priority=must` defaults.
 - **Secondary:** `yenyen 86` (all TW) — overlaps notebook 70 + 16 extra TW rows.
 - **Full:** `nipponhashi 226` — currently all 226 appear in TW mode, but treat as TW *unless* row has `verified:"kr"` in notebook or `data-available="kr-only"` / hidden when `tw` active.
-- `src/data/barter.json` (95 rows: notebook 70 + yenyen union, 3 exact dups dropped 2026-09-06) is hand-owned. Full seed is notebook 70 tw as base, extended to yenyen 86 after diff, never include notebook 18 kr.
-- **Pending in-game check — do not dedupe:** `yen-麗莎高級鍊金術再燃燒催化-76` vs `tir-l3`, `yen-康納生命的魔力石峽谷的魔-72`/`廢墟的魔-77` vs `col-c3`/`col-c2` disagree on 伺服器共用 (`perChar`) and daily limits — user verifying in game; notebook claims server-shared.
+- `src/data/barter.json` (92 rows: notebook 70 + yenyen union, 6 `yen-` dups/conflicts dropped 2026-09-06) is hand-owned. Full seed is notebook 70 tw as base, extended to yenyen 86 after diff, never include notebook 18 kr.
+- **Resolved in-game 2026-09-06:** `tir-l3`/`col-c2`/`col-c3` are all 伺服器-shared (`perChar=false`) — notebook counts stand (1次/5次/10次), `yen-` twins dropped.
 - `perChar` / `limit` / `rec` / `region` come from notebook/yenyen, not invented.
 - **Default pins are a hand-owned list:** `src/data/defaultPins.json` (`pins` array of barter ids) — NOT derived from `priority==="must"`. Curate it by hand; when checking sources by hand, watch for must-priority drift the same way. Store sanitizes the list against barter.json ids at load (unknown ids dropped, order kept).
 
