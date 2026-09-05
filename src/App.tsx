@@ -11,17 +11,17 @@ import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
 import { InstallButton } from "@/components/InstallButton";
 import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { SyncImport } from "@/sync/SyncImport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { Task } from "@/lib/types";
-import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react";
+import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronLeft, ChevronRight, ChevronDown, MoreHorizontal } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -349,21 +349,29 @@ export default function App() {
             </form>
           ) : (
             <>
-              <Select
-                value={active?.id ?? ""}
-                onValueChange={(v) => useAppStore.getState().setActiveChar(v)}
-              >
-                <SelectTrigger className="h-7 w-auto min-w-[120px] rounded-full text-xs px-2.5">
-                  <SelectValue placeholder="選擇角色" />
-                </SelectTrigger>
-                <SelectContent>
-                  {chars.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* character switcher: DropdownMenu (non-modal) instead of Select —
+                  Radix Select always scroll-locks (scrollbar vanishes + body
+                  padding shifts the fixed pill); this never touches the page. */}
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex h-7 w-auto min-w-[120px] items-center justify-between gap-1 rounded-full border border-input bg-transparent px-2.5 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <span className="truncate">{active?.name ?? "選擇角色"}</span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center">
+                  <DropdownMenuRadioGroup
+                    value={active?.id ?? ""}
+                    onValueChange={(v) => useAppStore.getState().setActiveChar(v)}
+                  >
+                    {chars.map((c) => (
+                      <DropdownMenuRadioItem key={c.id} value={c.id} className="text-xs">
+                        {c.name}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 type="button"
                 variant="ghost"
