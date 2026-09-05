@@ -12,6 +12,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 ### Features
 - Open-sourcing Phase 1 attribution: in-app footer 資料來源 row (6 source links + 非官方 NEXON/devCAT disclaimer + 以遊戲內為準 + takedown via GitHub issue); README 出處與授權 section records per-source take-vs-not-take; `docs/tracker-data.md` gains a source-terms section (NEXON consent clause → disclaimer path, yenyen grant scope, Femiwiki BY-SA chain, Taiwan scraping posture)
 - 巴哈姆特 citations dropped everywhere (docs cross-refs + new attribution): day-one counts treated as public knowledge per user, not cited sources
+- Barter notes now hand-owned voice: 8 evaluative notes rewritten (incl. cat-merchant game quote paraphrased), 10 empty notes filled, 11 blueprint notes say 學會後可取消釘選
 - `tracker.json` replaces `builtin.ts`: both data files are hand-owned JSON sources of truth
 - Single global pin list: fork/personal model removed, tap toggles for all characters (old saves reset to must defaults)
 - Barter explorer filters persist across reloads (selects only; search stays session-only, stale towns reset to all)
