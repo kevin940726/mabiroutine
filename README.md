@@ -1,6 +1,6 @@
 # MabiRoutine — 瑪奇 Mobile 日課追蹤
 
-Heavily inspired by https://mabinogimobile.nipponhashi.com/tracker/ + https://mabinogimobile.nipponhashi.com/barter/. TW only.
+Heavily inspired by https://mabinogimobile.nipponhashi.com/tracker/ + https://mabinogimobile.nipponhashi.com/barter/. TW only. Full source credits: 出處與授權 below (same links as the in-app footer).
 
 - **Stack:** TypeScript + React 19 + Vite 8 + Tailwind v4 + shadcn/ui + Zustand (persist) + @dnd-kit + workbox (PWA) + Upstash Redis (sync, via Vercel functions)
 - **Storage:** progress lives in your browser (`localStorage` key `mabiroutine:v2`, schema `version: 12`, see below) with optional cloud sync (see Sync). `Asia/Taipei` 06:00 daily / Mon 06:00 weekly auto-reset, live countdown.
@@ -61,6 +61,18 @@ pnpm update-barter    # = --write: overwrite barter.json (escape hatch, wipes ma
 `src/data/tracker.json` (21 rows) and `src/data/barter.json` (98 rows) are hand-owned sources of truth.
 Fetchers only write `suggestions/` diffs (gitignored) for reference — see `skills/update-tracker/SKILL.md`.
 Edit the JSON by hand (`id` must stay stable — progress keys off it), then `pnpm build`.
+
+## 出處與授權 (Sources & licenses)
+
+Fan-made, non-commercial, TW-only tracker. Not affiliated with NEXON / devCAT; game names, NPCs, items and art belong to their owners (NPC avatars are self-taken screenshots). Values are community-verified — in-game wins. Rights concern? Open a GitHub issue and the content comes down.
+
+- **瑪奇Mobile Wiki DB** (`mabinogimobile.nipponhashi.com/tracker/`) — tracker structure + reset-time cross-check. Its barter page is diff-only, never seeded. That site states its data is hand-compiled with no datamining; no reprint grant to us, credited by link.
+- **Meowka 以物易物記事本** (`mabinogi-mobile-notebook.vercel.app`) — barter skeleton (70 TW rows). Its `rec`/`note` commentary is being rewritten in our own words; until then treat it as others' expression.
+- **yenyen 繁中資料庫** (`mabi.yenyen.dev`, incl. `/sources` + `/privacy`) — 16-row supplement + region/recommendation cross-check. Its notebook reprint grant covers that site only, not us. Its chain also credits Femiwiki (CC BY-SA 4.0) and Inven forum authors — credited here in turn.
+- **mabitw** (`mabitw.com/daily`) — daily-list cross-check as it converges to TW implementation.
+- **bobogameguides** (`bobogameguides.com/mabinogi-mobile/checklist/daily/`) — official-vs-community arbiter (only 專注遊玩活動/公會任務/格里斯貝恩 are 官方已確認 there).
+- Day-one forum posts (e.g. Bahamut) informed initial counts but are treated as public knowledge, not cited sources.
+- Code is MIT (`LICENSE`); splitting data text (`tracker.json`/`barter.json`) under CC BY-NC with NPC art excluded is Phase 2 work — not yet in effect (notes rewrite + license files still pending).
 
 ## 資料、版本更新與 localStorage 衝突處理
 

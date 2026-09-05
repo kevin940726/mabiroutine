@@ -474,6 +474,21 @@ export default function App() {
           ℹ️ 重置時間 06:00 已依台服官方公告驗證。資料為本地儲存，亦可選用跨裝置同步。<br />
           釘選：<span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600 inline-block" /> 已釘選</span> = 點擊切換，所有角色共用（以物易物頁）。
         </p>
+
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          資料來源：
+          <a className="underline underline-offset-2" href="https://mabinogimobile.nipponhashi.com/tracker/" target="_blank" rel="noreferrer">瑪奇Mobile Wiki DB</a>
+          （追蹤器；
+          <a className="underline underline-offset-2" href="https://mabinogimobile.nipponhashi.com/barter/" target="_blank" rel="noreferrer">以物易物</a>
+          僅對照）・
+          <a className="underline underline-offset-2" href="https://mabinogi-mobile-notebook.vercel.app/" target="_blank" rel="noreferrer">Meowka 以物易物記事本</a>・
+          <a className="underline underline-offset-2" href="https://mabi.yenyen.dev/" target="_blank" rel="noreferrer">yenyen 繁中資料庫</a>・
+          <a className="underline underline-offset-2" href="https://mabitw.com/daily" target="_blank" rel="noreferrer">mabitw</a>・
+          <a className="underline underline-offset-2" href="https://bobogameguides.com/mabinogi-mobile/checklist/daily/" target="_blank" rel="noreferrer">bobogameguides</a>
+          <br />
+          本站為非官方粉絲工具，與 NEXON / devCAT 無關；遊戲名稱、NPC、道具等權利歸原權利人所有（NPC 頭像自截自遊戲畫面），數值以遊戲內為準。權利疑慮請開{" "}
+          <a className="underline underline-offset-2" href="https://github.com/kevin940726/mabiroutine/issues" target="_blank" rel="noreferrer">GitHub issue</a>，會下架相關內容。
+        </p>
       </main>
 
       <AddTaskDialog
