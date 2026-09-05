@@ -1,6 +1,6 @@
 # MabiRoutine 🎯 — Mabinogi Mobile (TW) daily tracker
 
-**[正體中文版](README-zh_TW.md)**
+**[繁體中文版](README-zh_TW.md)**
 
 Log in, stare at twenty things to do, forget half of them. MabiRoutine fixes
 that: a fast, private checklist for 瑪奇 Mobile (TW server) covering dailies,
