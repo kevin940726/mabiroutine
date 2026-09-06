@@ -9,6 +9,7 @@ import { BarterExplorer } from "@/components/BarterExplorer";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
+import { syncAndResets } from "@/sync/session";
 import { InstallButton } from "@/components/InstallButton";
 import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
 import { PillProgress } from "@/components/PillProgress";
@@ -28,7 +29,6 @@ import { Analytics } from "@vercel/analytics/react";
 const BUILTIN_TASKS = trackerJson as Task[];
 
 export default function App() {
-  const checkResets = useAppStore((s) => s.checkResets);
   const chars = useAppStore((s) => s.characters);
   const active = useAppStore((s) => s.getActiveChar());
   const accountValues = useAppStore((s) => s.accountValues);
@@ -52,12 +52,16 @@ export default function App() {
   const [renameDraft, setRenameDraft] = useState("");
   const isMobile = useIsMobile();
 
-  // periodic reset check
+  // periodic reset check — always pull-first (syncAndResets): the reset's
+  // tombstone decision needs fresh peer markers, or a late-waking device
+  // nukes the peer's same-bucket progress. Boot included (the store no
+  // longer self-checks on hydrate, for the same reason).
   useEffect(() => {
     if (!hasHydrated) return;
-    const id = setInterval(() => checkResets(), 60_000);
+    void syncAndResets();
+    const id = setInterval(() => void syncAndResets(), 60_000);
     // also on focus
-    const onFocus = () => checkResets();
+    const onFocus = () => void syncAndResets();
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
     return () => {
@@ -65,7 +69,7 @@ export default function App() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [hasHydrated, checkResets]);
+  }, [hasHydrated]);
 
   // compact pill toggles at a simple scroll threshold
   useEffect(() => {

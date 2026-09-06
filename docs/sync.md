@@ -41,6 +41,8 @@ pin:{bid}        pin membership (true; unpin = null)
 custom:{id}      custom task object, order stripped | null
 char:{cid}:name  character name
 meta:active      active character id
+meta:resetDaily | meta:resetWeekly   reset-bucket signals (peers gate
+                                     tombstones on them; never user data)
 pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 ```
 
@@ -57,7 +59,12 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
   acknowledged push over the GET result (a lagged/cached read must never
   resurrect a pre-push absence — the merge would adopt it and the next push
   would tombstone it), apply wholesale via `unflattenMerge` (remote values,
-  **local ordering**), save base.
+  **local ordering**), save base + seen peer markers.
+- **Reset** (`syncAndResets`: pull → `checkResets` → maybe pull): every trigger
+  (boot, focus, 60s) pulls first so the tombstone decision sees fresh peer
+  markers; a branch firing into an already-peer-reached bucket suppresses its
+  tombstones (scrubs them from the base) and re-pulls to re-adopt. Serialized
+  — overlapping triggers share one run.
 - **Adopt** (`?s=` boot, paste field): pristine → silent wholesale adopt;
   other session + non-pristine → confirm dialog (consent for binding *switch*,
   not conflict resolution); same session → pull round.
@@ -83,10 +90,15 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
    local order is also arguably better UX (different screens, different ideal
    orders). Fresh adopts fall back to deterministic id-sorted layout.
    Cost: reordering on desktop doesn't move phone rows. Accepted.
-5. **Reset markers stay local; resets delete keys.** Each device resets
-   itself by Taipei clock; deletions propagate as tombstones and revive on
-   next cycle. Ordering guarantee that makes this safe: reset-check runs
-   before any post-boot push (hydrate/focus cadence; mount path only pulls).
+5. **Reset markers stay local; resets delete keys — but tombstones are
+   marker-gated.** Each device resets itself by Taipei clock; deletions
+   propagate as tombstones and revive on next cycle. The FIRST device into a
+   bucket resets fully (stale keys die everywhere, correctly). A LATE device
+   (peer marker already in the bucket) still wipes locally but suppresses its
+   tombstones — otherwise it nukes the peer's same-bucket progress every
+   morning it wakes second (the pre-gate ordering note below was wrong about
+   exactly this). Adopt/import stamp the current bucket so arrivals never
+   wipe-and-tombstone on next tick.
 6. **Timestamp trust is the load-bearing remainder — solved by arrival
    order.** Phone clocks skew, so wall time is out; HLCs would bloat user
    state. A single server's receive order is total and matches real order
@@ -113,6 +125,14 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
     depth (no-store fetches + `Cache-Control: no-store` + acknowledged-push
     overlay), but they cannot fix a server that drops writes — only atomicity
     can.
+11. **Same key, two buckets — markers break the tie.** A late device's reset
+    deletions are indistinguishable from news at the key level (its stale
+    Monday copy vs the peer's fresh Tuesday write share one key), so the
+    decision moved up one level: synced `meta:reset*` bucket signals + a
+    local per-session seen-sidecar. Suppress = scrub-from-base (never send),
+    never delete-from-server. Residual: sub-second simultaneous first-wakes
+    both reset fully (same stale keys, idempotent nulls — converges); mixed
+    versions fall back to full resets until all devices update.
 
 ## Trade-offs and residual risks
 

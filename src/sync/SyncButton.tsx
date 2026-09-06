@@ -34,6 +34,7 @@ import {
   setSessionParam,
   stripSessionParam,
   setPullHook,
+  saveSeen,
   markFullPush,
   takeFullPush,
   toast,
@@ -176,6 +177,12 @@ export const SyncButton = memo(function SyncButton() {
       const merged = unflattenMerge(serverView, buildSnapshot(), useAppStore.getState().version);
       if (!applySnapshot(merged)) return;
       saveBase(session.id, serverView);
+      // Peer reset-bucket signals for the catch-up decision (syncAndResets).
+      const marker = (v: unknown): string => (typeof v === "string" ? v : "");
+      saveSeen(session.id, {
+        daily: marker(serverView["meta:resetDaily"]),
+        weekly: marker(serverView["meta:resetWeekly"]),
+      });
       const next = { id: session.id, updatedAt: remote.updatedAt };
       saveSession(next);
       setLinked(next);
@@ -215,7 +222,7 @@ export const SyncButton = memo(function SyncButton() {
     }, 60_000);
     // Mount pull: this device's storage may predate another device's push.
     void pullNow();
-    setPullHook(() => void pullNow());
+    setPullHook(() => pullNow());
     return () => {
       unsub();
       clearInterval(repoll);

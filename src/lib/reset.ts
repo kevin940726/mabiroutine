@@ -89,6 +89,17 @@ export function getTaipeiDateKey(now: Date = new Date()): string {
   return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
 }
 
+/** Current daily-reset bucket: before 06:00 Taipei counts as yesterday. */
+export function currentDailyBucket(now: Date = new Date()): string {
+  const pHour = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TAIPEI_TZ,
+    hour: "2-digit",
+    hour12: false,
+  }).format(now);
+  if (Number(pHour) >= 6) return getTaipeiDateKey(now);
+  return getTaipeiDateKey(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+}
+
 export function getTaipeiWeekKey(now: Date = new Date()): string {
   // ISO week? Use local Monday-based week key: YYYY-WW where WW is week number with Monday start
   // Simpler: get Monday date's ISO string

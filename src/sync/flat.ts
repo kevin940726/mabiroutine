@@ -1,5 +1,6 @@
 import type { AppState, Character, Task } from "@/lib/types";
 import type { SyncSnapshot } from "@/sync/session";
+import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
 
 // Flat key-space for conflict-free sync. Every mutation anywhere in the app
 // is an absolute set of one of these keys, so per-key last-arrival-wins is
@@ -13,11 +14,14 @@ import type { SyncSnapshot } from "@/sync/session";
 //   custom:{id}      custom task object (order stripped) | null
 //   char:{cid}:name  character name
 //   meta:active      active character id
+//   meta:resetDaily | meta:resetWeekly   reset-bucket signals (read-only —
+//                                        peers gate tombstones on them)
 //   pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 //
 // Deliberately NOT synced (per-device local): all ordering (drag order,
 // character tabs, pin order — deterministic id-sorted fallback on fresh
-// adopt), reset markers (each device resets itself by Taipei clock).
+// adopt). Reset markers sync as signals, but each device still resets itself
+// by Taipei clock and decides first-vs-catch-up locally (see syncAndResets).
 
 export type FlatMap = Record<string, unknown>;
 
@@ -38,6 +42,11 @@ export function flattenSnapshot(s: SyncSnapshot): FlatMap {
     flat[`custom:${t.id}`] = rest;
   }
   if (s.activeCharId) flat["meta:active"] = s.activeCharId;
+  // Reset markers: peers use them to tell a first reset (tombstones welcome)
+  // from a late catch-up reset (tombstones suppressed) — see syncAndResets.
+  // Absent when never reset (fresh installs, old clients).
+  if (s.lastDailyReset) flat["meta:resetDaily"] = s.lastDailyReset;
+  if (s.lastWeeklyReset) flat["meta:resetWeekly"] = s.lastWeeklyReset;
   if (s.prefs) flat["pref:hideCompleted"] = s.prefs.hideCompleted === true;
   const f = s.barterFilters;
   if (f) {
@@ -168,6 +177,9 @@ export function unflattenReplace(flat: FlatMap, version: number): AppState & { v
     typeof flat["meta:active"] === "string" && characters.some((c) => c.id === flat["meta:active"])
       ? (flat["meta:active"] as string)
       : (characters[0]?.id ?? "");
+  // Adopted state counts as current-bucket: null markers would wipe the
+  // adoption on next tick and tombstone the peer's same-bucket progress.
+  const now = new Date();
   return {
     version,
     characters,
@@ -176,8 +188,8 @@ export function unflattenReplace(flat: FlatMap, version: number): AppState & { v
     hiddenAccountTaskIds: pickTrue(flat, "hide:acc:"),
     barterPins: pins,
     customTasks: withOrder,
-    lastDailyReset: null,
-    lastWeeklyReset: null,
+    lastDailyReset: currentDailyBucket(now),
+    lastWeeklyReset: getTaipeiWeekKey(now),
     prefs: { hideCompleted: flat["pref:hideCompleted"] === true },
     barterFilters: {
       priority: pickOne(flat["filter:priority"], ["all", "must", "extra", "once", "situational", "skip"], "all"),

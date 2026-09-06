@@ -4,7 +4,7 @@ import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
 import type { AppState, BarterFilters, Character, Task, BarterPriority } from "@/lib/types";
-import { shouldDailyReset, shouldWeeklyReset, getTaipeiDateKey, getTaipeiWeekKey } from "@/lib/reset";
+import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 import { idleStorage } from "@/lib/storage";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -26,72 +26,95 @@ function defaultChar(name: string): Character {
   return { id: uid(), name, taskValues: {}, hiddenTaskIds: [] };
 }
 
-function applyResets(state: AppState): Partial<AppState> {
+export type ResetResult = {
+  daily: boolean;
+  weekly: boolean;
+  dailyKeys: string[];
+  weeklyKeys: string[];
+};
+
+type ResetReport = {
+  patch: Partial<AppState>;
+  // Flat sync keys each branch deleted (v:{cid}:{tid} / acc:{tid}), for the
+  // sync layer's catch-up suppression (late resets must not tombstone a
+  // peer's same-bucket progress — see syncAndResets).
+  dailyKeys: string[];
+  weeklyKeys: string[];
+};
+
+function applyResets(state: AppState): ResetReport {
   const now = new Date();
   const patch: Partial<AppState> = {};
-  // daily bucket for per-char daily tasks
-  const pHour = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    hour: "2-digit",
-    hour12: false,
-  }).format(now);
+  const dailyKeys = new Set<string>();
+  const weeklyKeys = new Set<string>();
   // use helper
   const shouldDaily = shouldDailyReset(state.lastDailyReset, now);
   const shouldWeekly = shouldWeeklyReset(state.lastWeeklyReset, now);
 
   if (shouldDaily) {
-    const p = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Taipei",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour12: false,
-    }).format(now);
     // Compute bucket key
-    const bucket = (() => {
-      const hour = Number(pHour);
-      if (hour >= 6) return getTaipeiDateKey(now);
-      const y = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      return getTaipeiDateKey(y);
-    })();
+    const bucket = currentDailyBucket(now);
     patch.lastDailyReset = bucket;
     // reset daily tasks for all characters + account-daily
     state.characters.forEach((c) => {
       for (const t of [...BUILTIN_TASKS, ...state.customTasks]) {
-        if (t.kind === "daily") delete c.taskValues[t.id];
+        if (t.kind === "daily") {
+          delete c.taskValues[t.id];
+          dailyKeys.add(`v:${c.id}:${t.id}`);
+        }
         // also barter pinned tasks that are daily
-        if (t.source === "barter" && t.kind === "daily") delete c.taskValues[t.id];
+        if (t.source === "barter" && t.kind === "daily") {
+          delete c.taskValues[t.id];
+          dailyKeys.add(`v:${c.id}:${t.id}`);
+        }
       }
       const pins = state.barterPins;
-      for (const pid of pins) delete c.taskValues[pid];
+      for (const pid of pins) {
+        delete c.taskValues[pid];
+        dailyKeys.add(`v:${c.id}:${pid}`);
+      }
       // fallback for any barter json id
-      for (const b of barterJson as BarterJsonItem[]) delete c.taskValues[b.id];
+      for (const b of barterJson as BarterJsonItem[]) {
+        delete c.taskValues[b.id];
+        dailyKeys.add(`v:${c.id}:${b.id}`);
+      }
     });
     // account daily
     for (const t of [...BUILTIN_TASKS, ...state.customTasks]) {
-      if (t.kind === "account-daily") delete state.accountValues[t.id];
+      if (t.kind === "account-daily") {
+        delete state.accountValues[t.id];
+        dailyKeys.add(`acc:${t.id}`);
+      }
     }
-    void p;
   }
   if (shouldWeekly) {
     patch.lastWeeklyReset = getTaipeiWeekKey(now);
     state.characters.forEach((c) => {
       for (const t of [...BUILTIN_TASKS, ...state.customTasks]) {
-        if (t.kind === "weekly") delete c.taskValues[t.id];
+        if (t.kind === "weekly") {
+          delete c.taskValues[t.id];
+          weeklyKeys.add(`v:${c.id}:${t.id}`);
+        }
       }
     });
     for (const t of [...BUILTIN_TASKS, ...state.customTasks]) {
-      if (t.kind === "account-weekly") delete state.accountValues[t.id];
+      if (t.kind === "account-weekly") {
+        delete state.accountValues[t.id];
+        weeklyKeys.add(`acc:${t.id}`);
+      }
     }
   }
-  return Object.keys(patch).length ? patch : {};
+  return { patch, dailyKeys: [...dailyKeys], weeklyKeys: [...weeklyKeys] };
 }
 
 type Store = AppState & {
   // actions
   _hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
-  checkResets: () => void;
+  // Runs due resets; reports which branches fired and which flat keys they
+  // deleted so the sync layer can suppress catch-up tombstones. Prefer
+  // syncAndResets (pulls first so the decision sees fresh peer markers).
+  checkResets: () => ResetResult;
   getActiveChar: () => Character | undefined;
   setActiveChar: (id: string) => void;
   addCharacter: (name?: string) => void;
@@ -360,8 +383,14 @@ export const useAppStore = create<Store>()(
 
       checkResets: () => {
         const state = get();
-        const patch = applyResets(state);
+        const { patch, dailyKeys, weeklyKeys } = applyResets(state);
         if (Object.keys(patch).length) set(patch);
+        return {
+          daily: "lastDailyReset" in patch,
+          weekly: "lastWeeklyReset" in patch,
+          dailyKeys,
+          weeklyKeys,
+        };
       },
 
       getActiveChar: () => {
@@ -572,6 +601,11 @@ export const useAppStore = create<Store>()(
           if (!data.characters || !Array.isArray(data.characters)) throw new Error("invalid");
           // same normalize + migrate path as load: old backups can't crash the app
           const migrated = migratePersisted(data, typeof data.version === "number" ? data.version : 0);
+          // Treat imported state as current-bucket: ancient markers would wipe
+          // the import on next tick and tombstone peers' same-bucket progress.
+          const now = new Date();
+          migrated.lastDailyReset = currentDailyBucket(now);
+          migrated.lastWeeklyReset = getTaipeiWeekKey(now);
           set({ ...migrated, _hasHydrated: true });
         } catch (e) {
           alert("匯入失敗：JSON 格式錯誤");
@@ -606,8 +640,9 @@ export const useAppStore = create<Store>()(
         }
         // cap 6 chars
         if (state && state.characters.length > 6) state.characters = state.characters.slice(0, 6);
-        // trigger reset check
-        setTimeout(() => state?.checkResets(), 0);
+        // Reset check runs from App after hydration (syncAndResets pulls
+        // first, so the tombstone decision sees fresh peer markers — a boot
+        // check here would nuke a peer's same-bucket progress on late wakes).
       },
       partialize: (s) => ({
         version: s.version,

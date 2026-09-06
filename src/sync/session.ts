@@ -1,7 +1,7 @@
 import { useAppStore, migratePersisted } from "@/store/useAppStore";
 import type { AppState } from "@/lib/types";
 import { getSession, SyncNotFound, type FlatMap } from "@/sync/api";
-import { flattenSnapshot, unflattenReplace } from "@/sync/flat";
+import { flattenSnapshot, loadBase, saveBase, unflattenReplace } from "@/sync/flat";
 
 // Local session binding: which cloud session this device is linked to, plus
 // the last server timestamp seen (ordering debug aid — merges are
@@ -157,14 +157,95 @@ export function toast(message: string): void {
 
 export type ImportRequest = { id: string; state: unknown; updatedAt: number };
 
-// Background engine hook (owned by SyncButton's effect). Lets SyncImport
-// trigger a pull round for same-session links without prop drilling.
-let pullHook: (() => void) | null = null;
-export function setPullHook(fn: (() => void) | null): void {
+// Background engine hook (owned by SyncButton's effect). Lets session-level
+// flows trigger a pull round without prop drilling. Promise-returning so
+// syncAndResets can order reset-after-pull.
+let pullHook: (() => Promise<void>) | null = null;
+export function setPullHook(fn: (() => Promise<void>) | null): void {
   pullHook = fn;
 }
 export function requestPull(): void {
-  pullHook?.();
+  void pullHook?.();
+}
+
+// Last remote reset markers seen per session (local-only sidecar, no store
+// migration). A device whose reset bucket a peer already reached is late:
+// its deletions are stale echoes, not news — tombstones suppressed.
+const SEEN_KEY = "mabiroutine:seenmarkers";
+export type SeenMarkers = { daily: string; weekly: string };
+
+export function loadSeen(sessionId: string): SeenMarkers {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    if (!raw) return { daily: "", weekly: "" };
+    const p = JSON.parse(raw) as { sessionId?: unknown; daily?: unknown; weekly?: unknown };
+    if (p.sessionId !== sessionId) return { daily: "", weekly: "" };
+    return {
+      daily: typeof p.daily === "string" ? p.daily : "",
+      weekly: typeof p.weekly === "string" ? p.weekly : "",
+    };
+  } catch {
+    return { daily: "", weekly: "" };
+  }
+}
+
+export function saveSeen(sessionId: string, seen: SeenMarkers): void {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify({ sessionId, ...seen }));
+  } catch {
+    // private mode — next reset degrades to full (pre-marker behavior)
+  }
+}
+
+// Drop keys from the sync base without sending: the next diff then stays
+// silent for them instead of tombstoning. Catch-up resets only.
+function scrubBase(sessionId: string, keys: string[]): void {
+  if (keys.length === 0) return;
+  const base = loadBase(sessionId);
+  let changed = false;
+  for (const k of keys) {
+    if (k in base) {
+      delete base[k];
+      changed = true;
+    }
+  }
+  if (changed) saveBase(sessionId, base);
+}
+
+// Reset entry point — App calls this instead of checkResets. Pulls first so
+// the tombstone decision sees fresh peer markers, then resets: a branch
+// firing into a bucket the peer already reached suppresses its tombstones
+// (scrubs them from the base) and re-pulls promptly to re-adopt the peer's
+// same-bucket values the local wipe just dropped. Unlinked devices (or
+// unknown peer markers) take the full path — today's behavior, unchanged.
+// Serialized: overlapping triggers (focus + interval on one wake) must not
+// interleave a reset between the other's pull and decision.
+let running: Promise<void> | null = null;
+export function syncAndResets(): Promise<void> {
+  running ??= runResets().finally(() => {
+    running = null;
+  });
+  return running;
+}
+
+async function runResets(): Promise<void> {
+  await pullHook?.();
+  const r = useAppStore.getState().checkResets();
+  if (!r.daily && !r.weekly) return;
+  const session = loadSession();
+  if (!session) return;
+  const seen = loadSeen(session.id);
+  const stamped = useAppStore.getState();
+  let suppressed = false;
+  if (r.daily && seen.daily >= (stamped.lastDailyReset ?? "")) {
+    scrubBase(session.id, r.dailyKeys);
+    suppressed = true;
+  }
+  if (r.weekly && seen.weekly >= (stamped.lastWeeklyReset ?? "")) {
+    scrubBase(session.id, r.weeklyKeys);
+    suppressed = true;
+  }
+  if (suppressed) await pullHook?.();
 }
 
 // One-shot flag: after seeing a legacy (v1 blob) session, the next push
