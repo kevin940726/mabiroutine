@@ -23,15 +23,21 @@ const EDGE_CANDIDATES = [
   "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
 ];
 
+class Skip extends Error {}
 const skip = (why) => {
   console.log(`SKIP: browser-e2e ${why}`);
-  process.exit(0);
+  throw new Skip();
 };
 let failures = 0;
 const ok = (name, cond, extra = "") => {
   console.log(`${cond ? "ok" : "FAIL"}: ${name}${extra && cond ? "" : ` ${extra}`}`);
   if (!cond) failures += 1;
 };
+
+// process.exit() while undici sockets are open crashes Node on Windows
+// (UV_HANDLE_CLOSING assert) — set exitCode and let the loop drain instead.
+async function main() {
+try {
 
 // --- prereqs ---
 const edge = EDGE_CANDIDATES.find((p) => fs.existsSync(p));
@@ -51,8 +57,14 @@ const created = await fetch(API, {
 }).then((r) => r.json());
 const SID = created.id;
 if (!SID) {
+  if (created.error && /too many sessions/i.test(created.error)) {
+    console.log("SKIP: browser-e2e create budget spent (10/hr/IP) — retry later");
+    process.exitCode = 0; // nothing to clean: no session, Edge not launched yet
+    return;
+  }
   console.log("FAIL: could not create session", JSON.stringify(created));
-  process.exit(1);
+  process.exitCode = 1;
+  return;
 }
 const apiGet = () => fetch(`${API}?id=${SID}`).then((r) => r.json());
 
@@ -224,4 +236,11 @@ try {
 }
 
 console.log(failures === 0 ? "BROWSER E2E PASSED" : `${failures} FAILURES`);
-process.exit(failures === 0 ? 0 : 1);
+process.exitCode = failures === 0 ? 0 : 1;
+} catch (e) {
+  if (e instanceof Skip) process.exitCode = 0;
+  else throw e;
+}
+}
+
+await main();

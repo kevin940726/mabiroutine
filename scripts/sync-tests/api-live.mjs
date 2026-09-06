@@ -36,13 +36,18 @@ try {
 } catch {
   reachable = false;
 }
+// process.exit() while undici sockets are open crashes Node on Windows
+// (UV_HANDLE_CLOSING assert) — set exitCode and let the loop drain instead.
+async function main() {
 if (!reachable) {
   console.log("SKIP: api-live needs `pnpm dev:api` on :52608 (not running)");
-  process.exit(0);
+  process.exitCode = 0;
+  return;
 }
 if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
   console.log("SKIP: api-live needs Upstash REST credentials (env or .env.local)");
-  process.exit(0);
+  process.exitCode = 0;
+  return;
 }
 process.env.UPSTASH_REDIS_REST_URL = env.UPSTASH_REDIS_REST_URL;
 process.env.UPSTASH_REDIS_REST_TOKEN = env.UPSTASH_REDIS_REST_TOKEN;
@@ -65,8 +70,15 @@ const uuid = () => globalThis.crypto.randomUUID();
 const created = [];
 
 // 1. create + hash layout on disk
+// 429 here is environmental (10/hr/IP create budget spent by earlier runs),
+// not a product failure — SKIP loudly, retry within the hour.
 {
   const r = await post({ state: { t: 1 } });
+  if (r.status === 429) {
+    console.log("SKIP: api-live create budget spent (10/hr/IP) — retry later");
+    process.exitCode = 0;
+    return;
+  }
   ok("create 200", r.status === 200, r.status);
   const id = r.json.id;
   created.push(id);
@@ -141,4 +153,7 @@ const created = [];
 }
 
 console.log(failures === 0 ? "ALL API CHECKS PASSED" : `${failures} FAILURES`);
-process.exit(failures === 0 ? 0 : 1);
+process.exitCode = failures === 0 ? 0 : 1;
+}
+
+await main();
