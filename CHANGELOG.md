@@ -14,6 +14,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - READMEs stop claiming character reorder + skill filtering (neither exists)
 
 ### Fixes
+- Sync stops eating daily checks across devices: server PATCH was read-modify-write on one blob, so two devices pushing in the same window resolved to last-record-wins — the loser's keys vanished, pulls adopted the loss, and tombstones made it permanent (looked like focus makes the other device truth; weeklies survived only because they're tapped once). PATCH is now a single HSET on one hash per session (atomic per-field last-writer-wins); pre-hash records upgrade transparently, API shapes unchanged
 - 兼職 is now a single checkbox (18:00 refresh only) instead of a 0/2 counter; saves with a count of 1–2 carry over as checked (store v11→v12)
 - 每日挑戰 max 10→8 and 每週挑戰 max 11→9 (member-only 2 split out in the text); stored counts above the new max clamp down on load, rest untouched
 - `timeGated` retired everywhere: no more amber time badge on rows, and the 新增自訂 form no longer offers 時間限制 (old custom values are stripped on load, store v11→v12)

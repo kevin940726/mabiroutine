@@ -7,16 +7,24 @@ tapped what.
 
 ## Protocol
 
-One Upstash record per session: `{ v: 2, updatedAt, writerId, seq, keys }`
-where `keys` maps flat string keys to `{ seq, v }`. The server is
-schema-agnostic: it versions JSON paths, never tracker semantics.
+One Upstash **hash** per session (key `` `${SESSION_PREFIX}${id}:h` ``):
+field `~meta` holds `{ v: 2, updatedAt, writerId, seq }`, every other field is
+one flat sync key with a tagged-JSON value (`j:` + JSON — the tag keeps values
+plain strings through client deserialization; `~`-prefixed keys are rejected
+with 400 so no client can forge meta). The server is schema-agnostic: it
+versions JSON paths, never tracker semantics. A PATCH is a **single HSET** of
+meta + changed fields, so concurrent PATCHes from two devices are per-field
+last-writer-wins and can never interleave a read-modify-write and drop each
+other's keys (the pre-hash single-blob layout did exactly that — see 10).
+Pre-hash string records (v1 blobs, v2 blobs) are still served and upgrade
+into the hash on first PATCH.
 
 | Method | Body | Effect |
 |---|---|---|
 | POST | `{ state: flat map }` | Mint id, all keys at seq 1..n |
 | GET | `?id=` | `{ state: flat map (nulls incl.), updatedAt }`, or `{ legacy, updatedAt }` for v1 blobs |
-| PATCH | `{ id, changes: {k: v} }` | Apply unconditionally, each key stamped `++seq`. Never 409s |
-| DELETE | `{ id }` | Drop record (idempotent) |
+| PATCH | `{ id, changes: {k: v} }` | One HSET of meta + fields (atomic per-field LWW). Never 409s |
+| DELETE | `{ id }` | Drop hash + legacy string (idempotent) |
 
 Rate limits: create 10/hr/IP, everything else 60/min/IP. Payload cap 200KB.
 Code: `api/session.ts`. Namespace `mabiroutine:` prod / `mabiroutine:dev:` local
@@ -84,11 +92,23 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
    aren't re-sent.
 8. **v1 sessions upgrade transparently.** GET serves the blob under `legacy`;
    client adopts/flattens locally; next push sends full flat and the server
-   replaces the record. No re-linking, verified live against a seeded v1.
+   upgrades the record (v2 strings upgrade the same way). No re-linking,
+   verified live against a seeded v1.
 9. **Whole-state LWW + 409 + dialog deleted** (server guard, conflict UI,
    badge, takeTheirs/keepMine). The 409 era's lesson is preserved as a
    negative: detection was automatic but announcement was manual — silent
    limbo. The new design has no limbo state to announce.
+10. **PATCH must be single-command atomic — the blob RMW lost updates.**
+    The v2 blob PATCHed via get → merge → set; two devices pushing inside the
+    same window (each PATCH is several sequential REST round trips) resolved
+    to last-*record*-wins, silently dropping the loser's keys. Clients then
+    adopted the loss on next pull and tombstoned it everywhere — a permanent,
+    ping-ponging wipe that looked like "focus makes the other device truth".
+    The hash layout fixes the class: concurrent PATCHes only ever race on the
+    *same field*, which is true per-key LWW. Client shields stay as defense in
+    depth (no-store fetches + `Cache-Control: no-store` + acknowledged-push
+    overlay), but they cannot fix a server that drops writes — only atomicity
+    can.
 
 ## Trade-offs and residual risks
 
@@ -106,7 +126,8 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 ## Quota budget (Upstash free: 500K cmds/mo)
 
 Merge model adds zero commands vs 409 era (same round trips; smaller push
-payloads). Per round ≈ 3 cmds (INCR + GET/SET).
+payloads). Per round ≈ INCR + HGETALL/HSET (same count as the blob's
+INCR + GET/SET).
 
 | Profile | Cost | Headroom |
 |---|---|---|
@@ -122,3 +143,6 @@ Disjoint edits converge · same-counter race converges, no dialog · unpin
 tombstone propagates, no resurrection · legacy blob adopts (values + toast)
 and upgrades to flat · cancel strips `?s=` · offline shell renders ·
 rebuild-under-open-page auto-updates with toast · zero page errors throughout.
+Server, live against prod Redis (`mabiroutine:dev:`): `j:`-tag round-trips as
+plain strings through client deserialization · 20 concurrent disjoint HSETs
+all survive · immediate HGETALL-after-HSET reads fresh on this database.
