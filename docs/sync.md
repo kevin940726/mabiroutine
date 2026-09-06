@@ -137,8 +137,11 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
     Monday copy vs the peer's fresh Tuesday write share one key), so the
     decision moved up one level: synced `meta:reset*` bucket signals + a
     local per-session seen-sidecar. Suppress = scrub-from-base (never send),
-    never delete-from-server. Residual: sub-second simultaneous first-wakes
-    both reset fully (same stale keys, idempotent nulls — converges); mixed
+    never delete-from-server. Seen is **monotonic** (lexicographic max): a
+    lagged-replica/cached GET must never walk it backward, or the next
+    catch-up reset degrades to a full tombstoning reset. Residual:
+    sub-second simultaneous first-wakes both reset fully (same stale keys,
+    idempotent nulls — converges); mixed
     versions fall back to full resets until all devices update.
 12. **The base must track the tab's memory vintage, not the browser's
     freshest.** localStorage is shared across tabs but memory isn't: a shared
@@ -204,6 +207,7 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | T3 | Late wake suppresses tombstones, re-adopts | real store + `syncAndResets` |
 | T3b | Early reset still tombstones + stamps | same |
 | T4 | Chain: legit reset adopted, peer count kept | same |
+| T7 | Seen never regresses on stale reads; late reset still suppresses | same |
 | T5 | Adopt/import stamp current bucket | same |
 | T6 | resetAll propagation (locked behavior) | same |
 | P | 300 randomized `checkResets` key-exactness runs | real store, seeded |

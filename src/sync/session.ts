@@ -191,8 +191,17 @@ export function loadSeen(sessionId: string): SeenMarkers {
 }
 
 export function saveSeen(sessionId: string, seen: SeenMarkers): void {
+  // Monotonic: a lagged-replica/cached GET must never walk markers backward.
+  // A regressed seen would turn the next catch-up reset into a full
+  // tombstoning reset (the decision compares seen against the new bucket).
+  // Buckets are fixed-width date strings, so lexicographic max == latest.
   try {
-    localStorage.setItem(SEEN_KEY, JSON.stringify({ sessionId, ...seen }));
+    const prev = loadSeen(sessionId);
+    const next: SeenMarkers = {
+      daily: seen.daily >= prev.daily ? seen.daily : prev.daily,
+      weekly: seen.weekly >= prev.weekly ? seen.weekly : prev.weekly,
+    };
+    localStorage.setItem(SEEN_KEY, JSON.stringify({ sessionId, ...next }));
   } catch {
     // private mode — next reset degrades to full (pre-marker behavior)
   }

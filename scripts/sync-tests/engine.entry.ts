@@ -51,6 +51,7 @@ const FILTERS = { priority: "all", town: "all", skill: "all", onlyPinned: false 
 const TODAY = currentDailyBucket(new Date());
 const YESTERDAY = currentDailyBucket(new Date(Date.now() - 24 * 3600 * 1000));
 const THIS_WEEK = getTaipeiWeekKey(new Date());
+const LAST_WEEK = getTaipeiWeekKey(new Date(Date.now() - 7 * 24 * 3600 * 1000));
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Snap = any;
@@ -258,5 +259,33 @@ const COUNT = "tower";
 }
 
 setPullHook(null);
+
+// T7: seen is monotonic — a stale read must not regress it, and the next
+// late reset must still suppress. Regression test for the acc:null
+// full-reset tombstones: without the max() in saveSeen, the stale save
+// below rewinds seen and the reset below emits peer tombstones.
+{
+  isolate();
+  const SID = "t7-seenmono";
+  saveSession({ id: SID, updatedAt: 1 });
+  saveSeen(SID, { daily: TODAY, weekly: THIS_WEEK }); // prior fresh pull
+  saveSeen(SID, { daily: YESTERDAY, weekly: LAST_WEEK }); // lagged replica
+  const held = loadSeen(SID);
+  ok("T7 seen holds daily", held.daily === TODAY, held);
+  ok("T7 seen holds weekly", held.weekly === THIS_WEEK, held);
+
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  seedStore(snap({ [CHECK]: true }, YESTERDAY, THIS_WEEK));
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  server.flat = flattenSnapshot(snap({ [CHECK]: true, [COUNT]: 5 }, TODAY, THIS_WEEK));
+  await syncAndResets();
+  const nulled = pushes.flatMap((p) => Object.entries(p).filter(([, v]) => v === null).map(([k]) => k));
+  ok("T7 late reset still suppresses", !nulled.some((k) => k === `v:c1:${COUNT}`), nulled);
+  setPullHook(null);
+}
+
 console.log(failures === 0 ? "ALL ENGINE SCENARIOS PASSED" : `${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);
