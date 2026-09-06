@@ -5,6 +5,7 @@ import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
 import type { AppState, BarterFilters, Character, Task, BarterPriority } from "@/lib/types";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
+import { cycleBucketFor } from "@/lib/cycle";
 import { idleStorage } from "@/lib/storage";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -26,95 +27,62 @@ function defaultChar(name: string): Character {
   return { id: uid(), name, taskValues: {}, hiddenTaskIds: [] };
 }
 
-export type ResetResult = {
-  daily: boolean;
-  weekly: boolean;
-  dailyKeys: string[];
-  weeklyKeys: string[];
-};
-
-type ResetReport = {
-  patch: Partial<AppState>;
-  // Flat sync keys each branch deleted (v:{cid}:{tid} / acc:{tid}), for the
-  // sync layer's catch-up suppression (late resets must not tombstone a
-  // peer's same-bucket progress — see syncAndResets).
-  dailyKeys: string[];
-  weeklyKeys: string[];
-};
-
-function applyResets(state: AppState): ResetReport {
+// Local memory expiry: drop values whose cycle bucket rolled over.
+// MEMORY-ONLY by design — bucketed sync keys expire at read time and are
+// GC'd server-side; these deletions never propagate (no tombstones, no
+// markers, no suppression). Runs on every checkResets tick (idempotent,
+// cheap) — a device waking at any hour prunes exactly its stale values.
+function applyResets(state: AppState): Partial<AppState> {
   const now = new Date();
   const patch: Partial<AppState> = {};
-  const dailyKeys = new Set<string>();
-  const weeklyKeys = new Set<string>();
-  // use helper
-  const shouldDaily = shouldDailyReset(state.lastDailyReset, now);
-  const shouldWeekly = shouldWeeklyReset(state.lastWeeklyReset, now);
+  if (shouldDailyReset(state.lastDailyReset, now)) patch.lastDailyReset = currentDailyBucket(now);
+  if (shouldWeeklyReset(state.lastWeeklyReset, now)) patch.lastWeeklyReset = getTaipeiWeekKey(now);
 
-  if (shouldDaily) {
-    // Compute bucket key
-    const bucket = currentDailyBucket(now);
-    patch.lastDailyReset = bucket;
-    // reset daily tasks for all characters + account-daily
-    state.characters.forEach((c) => {
-      for (const t of [...BUILTIN_TASKS, ...state.customTasks]) {
-        if (t.kind === "daily") {
-          delete c.taskValues[t.id];
-          dailyKeys.add(`v:${c.id}:${t.id}`);
-        }
-        // also barter pinned tasks that are daily
-        if (t.source === "barter" && t.kind === "daily") {
-          delete c.taskValues[t.id];
-          dailyKeys.add(`v:${c.id}:${t.id}`);
-        }
-      }
-      const pins = state.barterPins;
-      for (const pid of pins) {
-        delete c.taskValues[pid];
-        dailyKeys.add(`v:${c.id}:${pid}`);
-      }
-      // fallback for any barter json id
-      for (const b of barterJson as BarterJsonItem[]) {
-        delete c.taskValues[b.id];
-        dailyKeys.add(`v:${c.id}:${b.id}`);
-      }
-    });
-    // account daily
-    for (const t of [...BUILTIN_TASKS, ...state.customTasks]) {
-      if (t.kind === "account-daily") {
-        delete state.accountValues[t.id];
-        dailyKeys.add(`acc:${t.id}`);
-      }
-    }
+  const keep = (tid: string): boolean => {
+    const b = state.taskBuckets[tid];
+    return b === undefined || b === cycleBucketFor(tid, state.customTasks, now);
+  };
+  const changedChars = state.characters.some(
+    (c) => Object.keys(c.taskValues).some((tid) => !keep(tid))
+  );
+  const changedAcc = Object.keys(state.accountValues).some((tid) => !keep(tid));
+  const staleBucketTids = Object.keys(state.taskBuckets).filter((tid) => !keep(tid));
+  if (changedChars) {
+    patch.characters = state.characters.map((c) => ({
+      ...c,
+      taskValues: Object.fromEntries(Object.entries(c.taskValues).filter(([tid]) => keep(tid))),
+    }));
   }
-  if (shouldWeekly) {
-    patch.lastWeeklyReset = getTaipeiWeekKey(now);
-    state.characters.forEach((c) => {
-      for (const t of [...BUILTIN_TASKS, ...state.customTasks]) {
-        if (t.kind === "weekly") {
-          delete c.taskValues[t.id];
-          weeklyKeys.add(`v:${c.id}:${t.id}`);
-        }
-      }
-    });
-    for (const t of [...BUILTIN_TASKS, ...state.customTasks]) {
-      if (t.kind === "account-weekly") {
-        delete state.accountValues[t.id];
-        weeklyKeys.add(`acc:${t.id}`);
-      }
-    }
+  if (changedAcc) {
+    patch.accountValues = Object.fromEntries(
+      Object.entries(state.accountValues).filter(([tid]) => keep(tid))
+    );
   }
-  return { patch, dailyKeys: [...dailyKeys], weeklyKeys: [...weeklyKeys] };
+  if (staleBucketTids.length) {
+    const taskBuckets = { ...state.taskBuckets };
+    for (const tid of staleBucketTids) delete taskBuckets[tid];
+    patch.taskBuckets = taskBuckets;
+  }
+  if (
+    !changedChars &&
+    !changedAcc &&
+    !staleBucketTids.length &&
+    !patch.lastDailyReset &&
+    !patch.lastWeeklyReset
+  ) {
+    return {};
+  }
+  return patch;
 }
 
 type Store = AppState & {
   // actions
   _hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
-  // Runs due resets; reports which branches fired and which flat keys they
-  // deleted so the sync layer can suppress catch-up tombstones. Prefer
-  // syncAndResets (pulls first so the decision sees fresh peer markers).
-  checkResets: () => ResetResult;
+  // Runs due local resets (memory-only expiry — see applyResets). Prefer
+  // syncAndResets, which pulls first so a late wake adopts the peer's
+  // current-bucket values before expiring stale local ones.
+  checkResets: () => void;
   getActiveChar: () => Character | undefined;
   setActiveChar: (id: string) => void;
   addCharacter: (name?: string) => void;
@@ -193,7 +161,7 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 12,
+  version: 13,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -204,7 +172,50 @@ const initial: AppState = {
   lastWeeklyReset: null,
   prefs: { hideCompleted: false },
   barterFilters: { ...DEFAULT_BARTER_FILTERS },
+  taskBuckets: {},
 };
+
+// Cycle provenance normalize: every existing value gets a bucket entry
+// (current bucket — values without provenance are current-cycle by
+// definition, e.g. v12 saves), stale-bucket values are pruned (memory-only
+// reset — the sync layer never deletes cycle keys), orphan bucket entries
+// dropped. Runs on every load AND import.
+function normalizeTaskBuckets(
+  chars: Character[],
+  accountValues: Record<string, number | boolean>,
+  customTasks: Task[],
+  raw: unknown
+): Record<string, string> {
+  const inRaw = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const out: Record<string, string> = {};
+  const now = new Date();
+  const consider = (tid: string): void => {
+    const expected = cycleBucketFor(tid, customTasks, now);
+    const stored = typeof inRaw[tid] === "string" ? (inRaw[tid] as string) : undefined;
+    if (stored === undefined) out[tid] = expected; // untagged (v12) → current
+    else if (stored === expected) out[tid] = stored; // current → keep
+    // else stale bucket → prune (value dropped by caller)
+  };
+  for (const c of chars) for (const tid of Object.keys(c.taskValues)) consider(tid);
+  for (const tid of Object.keys(accountValues)) consider(tid);
+  return out;
+}
+
+function pruneStaleValues(
+  chars: Character[],
+  accountValues: Record<string, number | boolean>,
+  buckets: Record<string, string>
+): void {
+  for (const c of chars) {
+    c.taskValues = Object.fromEntries(
+      Object.entries(c.taskValues).filter(([tid]) => buckets[tid] !== undefined)
+    );
+  }
+  const keep = accountValues as Record<string, number | boolean>;
+  for (const tid of Object.keys(keep)) {
+    if (buckets[tid] === undefined) delete keep[tid];
+  }
+}
 
 // Backward-compat: fill structural defaults for data that bypassed migrate
 // (versionless ancient saves, hand-edited storage, old import backups).
@@ -219,20 +230,25 @@ function normalizePersisted(input: unknown): AppState {
     c.hiddenTaskIds = Array.isArray(c.hiddenTaskIds) ? c.hiddenTaskIds : [];
   }
   const activeOk = chars.some((c) => c.id === d.activeCharId);
+  const customTasks: Task[] = Array.isArray(d.customTasks) ? d.customTasks : [];
+  const accountValues = d.accountValues && typeof d.accountValues === "object" ? d.accountValues : {};
+  const taskBuckets = normalizeTaskBuckets(chars, accountValues, customTasks, d.taskBuckets);
+  pruneStaleValues(chars, accountValues, taskBuckets);
   return {
     ...initial,
     ...d,
     version: typeof d.version === "number" ? d.version : 0,
     characters: chars,
     activeCharId: activeOk ? (d.activeCharId as string) : chars[0].id,
-    accountValues: d.accountValues && typeof d.accountValues === "object" ? d.accountValues : {},
+    accountValues,
     hiddenAccountTaskIds: Array.isArray(d.hiddenAccountTaskIds) ? d.hiddenAccountTaskIds : [],
     barterPins: Array.isArray(d.barterPins) ? d.barterPins : [...DEFAULT_MUST_PINS],
-    customTasks: Array.isArray(d.customTasks) ? d.customTasks : [],
+    customTasks,
     lastDailyReset: d.lastDailyReset ?? null,
     lastWeeklyReset: d.lastWeeklyReset ?? null,
     prefs: { hideCompleted: d.prefs?.hideCompleted ?? false },
     barterFilters: sanitizeBarterFilters(d.barterFilters),
+    taskBuckets,
   };
 }
 
@@ -370,6 +386,13 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     }
     s.version = 12;
   }
+  if (from < 13) {
+    // v12 → v13: cycle provenance (taskBuckets) for bucketed sync keys.
+    // normalizePersisted already assigned the current bucket to every
+    // existing value (v12 values are current-cycle by definition) and
+    // pruned stale ones — here we only stamp. No values touched.
+    s.version = 13;
+  }
   return s as AppState;
 }
 
@@ -383,14 +406,8 @@ export const useAppStore = create<Store>()(
 
       checkResets: () => {
         const state = get();
-        const { patch, dailyKeys, weeklyKeys } = applyResets(state);
+        const patch = applyResets(state);
         if (Object.keys(patch).length) set(patch);
-        return {
-          daily: "lastDailyReset" in patch,
-          weekly: "lastWeeklyReset" in patch,
-          dailyKeys,
-          weeklyKeys,
-        };
       },
 
       getActiveChar: () => {
@@ -419,18 +436,29 @@ export const useAppStore = create<Store>()(
 
       toggleCheck: (taskId, isAccount) =>
         set((s) => {
+          const bucket = cycleBucketFor(taskId, s.customTasks, new Date());
           if (isAccount) {
             const cur = s.accountValues[taskId];
             const next = { ...s.accountValues };
-            if (cur) delete next[taskId];
-            else next[taskId] = true;
-            return { accountValues: next };
+            const nextBuckets = { ...s.taskBuckets };
+            if (cur) {
+              delete next[taskId];
+              delete nextBuckets[taskId];
+            } else {
+              next[taskId] = true;
+              nextBuckets[taskId] = bucket;
+            }
+            return { accountValues: next, taskBuckets: nextBuckets };
           }
           const char = s.characters.find((c) => c.id === s.activeCharId);
           if (!char) return s;
           const cur = char.taskValues[taskId];
           const nextVal = cur ? undefined : true;
+          const nextBuckets = { ...s.taskBuckets };
+          if (nextVal === undefined) delete nextBuckets[taskId];
+          else nextBuckets[taskId] = bucket;
           return {
+            taskBuckets: nextBuckets,
             characters: s.characters.map((c) =>
               c.id === s.activeCharId
                 ? {
@@ -447,13 +475,17 @@ export const useAppStore = create<Store>()(
       setCounter: (taskId, value, isAccount) =>
         set((s) => {
           const clamped = Math.max(0, value);
+          const nextBuckets = { ...s.taskBuckets };
+          if (clamped === 0) delete nextBuckets[taskId];
+          else nextBuckets[taskId] = cycleBucketFor(taskId, s.customTasks, new Date());
           if (isAccount) {
             const next = { ...s.accountValues };
             if (clamped === 0) delete next[taskId];
             else next[taskId] = clamped;
-            return { accountValues: next };
+            return { accountValues: next, taskBuckets: nextBuckets };
           }
           return {
+            taskBuckets: nextBuckets,
             characters: s.characters.map((c) =>
               c.id === s.activeCharId
                 ? {
@@ -485,12 +517,14 @@ export const useAppStore = create<Store>()(
           // daily/weekly -> per char active; account -> accountValues
           if (section === "account") {
             const nextAcc = { ...s.accountValues };
+            const nextBuckets = { ...s.taskBuckets };
             for (const t of [...BUILTIN_TASKS, ...s.customTasks]) {
               if (t.section !== "account") continue;
               if (kind && t.kind !== kind) continue;
               delete nextAcc[t.id];
+              delete nextBuckets[t.id];
             }
-            return { accountValues: nextAcc };
+            return { accountValues: nextAcc, taskBuckets: nextBuckets };
           }
           const char = s.getActiveChar();
           if (!char) return s;
@@ -503,12 +537,14 @@ export const useAppStore = create<Store>()(
           if (section === "daily") {
             for (const pid of s.barterPins) idsToClear.add(pid);
           }
+          const nextBuckets = { ...s.taskBuckets };
+          for (const id of idsToClear) delete nextBuckets[id];
           const nextChars = s.characters.map((c) =>
             c.id === s.activeCharId
               ? { ...c, taskValues: Object.fromEntries(Object.entries(c.taskValues).filter(([k]) => !idsToClear.has(k))) }
               : c
           );
-          return { characters: nextChars };
+          return { characters: nextChars, taskBuckets: nextBuckets };
         }),
 
       // single global list: one tap toggles for every character
@@ -532,6 +568,8 @@ export const useAppStore = create<Store>()(
         })),
       removeCustomTask: (id) =>
         set((s) => {
+          const nextBuckets = { ...s.taskBuckets };
+          delete nextBuckets[id];
           return {
             customTasks: s.customTasks.filter((t) => t.id !== id),
             // also clean values
@@ -543,6 +581,7 @@ export const useAppStore = create<Store>()(
             accountValues: Object.fromEntries(Object.entries(s.accountValues).filter(([k]) => k !== id)),
             hiddenAccountTaskIds: (s.hiddenAccountTaskIds ?? []).filter((x) => x !== id),
             barterPins: s.barterPins.filter((x) => x !== id),
+            taskBuckets: nextBuckets,
           };
         }),
       toggleHidden: (taskId) =>
@@ -624,13 +663,14 @@ export const useAppStore = create<Store>()(
           accountValues: {},
           lastDailyReset: null,
           lastWeeklyReset: null,
+          taskBuckets: {},
         });
       },
     }),
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 12,
+      version: 13,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
@@ -641,8 +681,8 @@ export const useAppStore = create<Store>()(
         // cap 6 chars
         if (state && state.characters.length > 6) state.characters = state.characters.slice(0, 6);
         // Reset check runs from App after hydration (syncAndResets pulls
-        // first, so the tombstone decision sees fresh peer markers — a boot
-        // check here would nuke a peer's same-bucket progress on late wakes).
+        // first so a late wake adopts the peer's current-bucket values
+        // before its local prune expires stale ones).
       },
       partialize: (s) => ({
         version: s.version,
@@ -657,6 +697,7 @@ export const useAppStore = create<Store>()(
         prefs: s.prefs,
         globalTaskOrder: s.globalTaskOrder,
         barterFilters: s.barterFilters,
+        taskBuckets: s.taskBuckets,
       }),
     }
   )

@@ -34,7 +34,6 @@ import {
   setSessionParam,
   stripSessionParam,
   setPullHook,
-  saveSeen,
   scrubBase,
   markFullPush,
   takeFullPush,
@@ -48,6 +47,7 @@ import {
   saveBase,
   unflattenMerge,
   capOverflowKeys,
+  expiredCycleKeys,
   type FlatMap,
 } from "@/sync/flat";
 
@@ -179,12 +179,21 @@ export const SyncButton = memo(function SyncButton() {
       const merged = unflattenMerge(serverView, buildSnapshot(), useAppStore.getState().version);
       if (!applySnapshot(merged)) return;
       saveBase(session.id, serverView);
-      // Peer reset-bucket signals for the catch-up decision (syncAndResets).
-      const marker = (v: unknown): string => (typeof v === "string" ? v : "");
-      saveSeen(session.id, {
-        daily: marker(serverView["meta:resetDaily"]),
-        weekly: marker(serverView["meta:resetWeekly"]),
-      });
+      // GC: tombstone cycle keys past the retention window. Real deletes of
+      // values no device reads anymore — bounds the server hash; racing
+      // tabs dedupe via base-advance and tombstones-once.
+      const expired = expiredCycleKeys(serverView);
+      if (expired.length) {
+        try {
+          await patchSession(
+            session.id,
+            Object.fromEntries(expired.map((k) => [k, null])) as FlatMap
+          );
+        } catch {
+          // best-effort — the next pull retries
+        }
+        for (const k of expired) delete serverView[k];
+      }
       // Cap-sliced characters keep their keys server-side (never tombstoned).
       scrubBase(
         session.id,

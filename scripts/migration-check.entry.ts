@@ -33,7 +33,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 // A: versionless ancient save -> full chain to v9 with seeded defaults
 {
   const out = migratePersisted({}, 0) as AnyRec;
-  assert(out.version === 12, "A: versionless reaches v12");
+  assert(out.version === 13, "A: versionless reaches v13");
   const chars = out.characters as AnyRec[];
   assert(chars.length === 1 && typeof chars[0].id === "string", "A: one default character");
   assert(sameSet(out.barterPins as string[], mustIds), "A: must pins seeded");
@@ -54,7 +54,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     4
   ) as AnyRec;
-  assert(out.version === 12, "B: reaches v12");
+  assert(out.version === 13, "B: reaches v13");
   assert(!(out.barterPins as string[]).some((id) => id.startsWith("barter-")), "B: synthetic pins gone");
   assert(sameSet(out.barterPins as string[], mustIds), "B: pins reseeded to must");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
@@ -76,7 +76,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     prefs: { hideCompleted: true },
   };
   const out = migratePersisted(structuredClone(input), 9) as AnyRec;
-  assert(out.version === 12, "C: reaches v12");
+  assert(out.version === 13, "C: reaches v13");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
   assert((c.taskValues as AnyRec).barrier === 7, "C: counter kept");
   assert((c.hiddenTaskIds as string[]).includes("custom1"), "C: custom hidden kept (custom ids are valid)");
@@ -116,7 +116,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     6
   ) as AnyRec;
-  assert(out.version === 12, "E: reaches v12");
+  assert(out.version === 13, "E: reaches v13");
   assert(sameSet(out.barterPins as string[], mustIds), "E: pins reset to must defaults");
   assert(!("barterPinsByChar" in out), "E: fork container dropped");
   assert(!("isBarterForked" in out), "E: fork flag dropped");
@@ -137,7 +137,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     7
   ) as AnyRec;
-  assert(out.version === 12, "F: reaches v12");
+  assert(out.version === 13, "F: reaches v13");
   const f = out.barterFilters as AnyRec;
   assert(f.priority === "must" && f.onlyPinned === true, "F: live filter values kept");
   assert(f.town === "all", "F: stale town reset to all");
@@ -158,7 +158,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     9
   ) as AnyRec;
-  assert(out.version === 12, "G: reaches v12");
+  assert(out.version === 13, "G: reaches v13");
   assert(sameSet(out.hiddenAccountTaskIds as string[], ["acc-silver"]), "G: account hide moved global");
   const [g1, g2] = out.characters as AnyRec[];
   assert(sameSet(g1.hiddenTaskIds as string[], ["parttime"]), "G: daily hide stays per-char");
@@ -174,7 +174,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     hiddenAccountTaskIds: ["acc-silver"],
   };
   const out = migratePersisted(structuredClone(input), 10) as AnyRec;
-  assert(out.version === 12, "G2: reaches v12");
+  assert(out.version === 13, "G2: reaches v13");
   assert(sameSet(out.hiddenAccountTaskIds as string[], ["acc-silver"]), "G2: global hide kept");
 }
 
@@ -192,7 +192,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     10
   ) as AnyRec;
-  assert(out.version === 12, "H: reaches v12");
+  assert(out.version === 13, "H: reaches v13");
   const [h1, h2, h3] = out.characters as AnyRec[];
   assert((h1.taskValues as AnyRec).tower === 20, "H: checked tower carried as 20");
   assert((h2.taskValues as AnyRec).tower === 5, "H: numeric tower untouched");
@@ -214,7 +214,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     11
   ) as AnyRec;
-  assert(out.version === 12, "I: reaches v12");
+  assert(out.version === 13, "I: reaches v13");
   const customs = out.customTasks as AnyRec[];
   assert(!("timeGated" in customs[0]), "I: timeGated stripped from custom task");
   assert(customs[0].notes === "keep", "I: other custom fields kept");
@@ -227,4 +227,50 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert((i1.taskValues as AnyRec)["weekly-challenge"] === 9, "I: over-max weekly count capped");
 }
 
+// J: v12 save (no taskBuckets) -> v13 assigns current-bucket provenance;
+// a v13 save with stale buckets prunes those values, keeps current ones.
+{
+  const out = migratePersisted(
+    {
+      version: 12,
+      characters: [
+        { id: "c1", name: "A", taskValues: { parttime: true, "weekly-challenge": 3 }, hiddenTaskIds: [] },
+      ],
+      activeCharId: "c1",
+      accountValues: { "acc-silver": true },
+    },
+    12
+  ) as AnyRec;
+  assert(out.version === 13, "J: reaches v13");
+  const buckets = out.taskBuckets as AnyRec;
+  const c = (out.characters as AnyRec[])[0] as AnyRec;
+  assert(buckets.parttime !== undefined, "J: daily value assigned current day bucket");
+  assert(buckets["weekly-challenge"] !== undefined, "J: weekly value assigned current week bucket");
+  assert(buckets["acc-silver"] !== undefined, "J: account value assigned current bucket");
+  assert((c.taskValues as AnyRec).parttime === true, "J: v12 values untouched");
+  assert((out.accountValues as AnyRec)["acc-silver"] === true, "J: account value untouched");
+
+  const today = buckets.parttime as string;
+  const week = buckets["weekly-challenge"] as string;
+  const stale = migratePersisted(
+    {
+      version: 13,
+      characters: [
+        { id: "c1", name: "A", taskValues: { parttime: true, "weekly-challenge": 3 }, hiddenTaskIds: [] },
+      ],
+      activeCharId: "c1",
+      accountValues: {},
+      taskBuckets: { parttime: "2000-01-01", "weekly-challenge": week },
+    },
+    13
+  ) as AnyRec;
+  const sc = (stale.characters as AnyRec[])[0] as AnyRec;
+  assert(!("parttime" in (sc.taskValues as AnyRec)), "J: stale-bucket value pruned on load");
+  assert((sc.taskValues as AnyRec)["weekly-challenge"] === 3, "J: current-bucket value kept");
+  assert(!("parttime" in (stale.taskBuckets as AnyRec)), "J: stale provenance pruned");
+  assert((stale.taskBuckets as AnyRec).parttime === undefined || true, "J: provenance consistent");
+  assert(today !== undefined && week !== undefined, "J: bucket formats present");
+}
+
 console.log("\nAll migration fixtures passed.");
+

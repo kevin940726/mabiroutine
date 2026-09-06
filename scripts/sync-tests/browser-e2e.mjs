@@ -185,10 +185,10 @@ try {
   let serverVal = null;
   for (let i = 0; i < 14; i++) { // debounced push (3s) + margin
     const g = await apiGet();
-    if (g.state?.[`v:${cidA}:parttime`] === true) { serverVal = true; break; }
+    if (Object.entries(g.state ?? {}).some(([k, v]) => k.startsWith(`v:${cidA}:parttime@`) && v === true)) { serverVal = true; break; }
     await new Promise((r) => setTimeout(r, 1000));
   }
-  ok("E1 tap reached server", serverVal === true, `v:${cidA}:parttime`);
+  ok("E1 tap reached server", serverVal === true, `v:${cidA}:parttime@*`);
 
   const tabB = await newTab(ctxB);
   await gotoApp(tabB.sessionId);
@@ -230,7 +230,7 @@ try {
   await send("Page.bringToFront", {}, tabA.sessionId).catch(() => ({}));
   await new Promise((r) => setTimeout(r, 8000)); // focus pull + push cycle
   const g2 = await apiGet();
-  ok("E2 server value survives wake-pull", g2.state?.[`v:${cidA}:parttime`] === true, JSON.stringify(g2.state?.[`v:${cidA}:parttime`]));
+  ok("E2 server value survives wake-pull", Object.entries(g2.state ?? {}).some(([k, v]) => k.startsWith(`v:${cidA}:parttime@`) && v === true), "parttime@*");
 } catch (e) {
   console.log(`FAIL: browser-e2e harness: ${e.message}`);
   failures += 1;

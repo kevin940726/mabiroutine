@@ -1,8 +1,14 @@
-// Two-tab sync-poison harness. Each fake tab gets its own vm realm running
+// Two-tab sync harness (rev 3). Each fake tab gets its own vm realm running
 // the REAL bundled flat.ts (per-tab module state + storage globals); the two
 // browser tabs share one localStorage object (the browser bucket), the phone
-// gets its own. Run with a bundle path + label:
-//   node run.cjs <flat-old.cjs|flat-new.cjs> <label>
+// gets its own. Run with a bundle path + label (check-sync.mjs wires this):
+//   node tabs.cjs <flat-bundle.cjs> <label>
+//
+// Scenario A (T1): a tab whose base holds cycle keys its memory lacks (the
+//   shared-base / stale-seed world) must NOT tombstone them — cycle keys
+//   expire, never delete. On pre-rev-3 code this emits the production wipe.
+// Scenario B (T2): a 6-cap merge slice must not tombstone the sliced
+//   character's persistent keys (capOverflowKeys scrub).
 const fs = require("node:fs");
 const vm = require("node:vm");
 
@@ -36,7 +42,7 @@ function spawnTab(ls, ss) {
 const SID = "test-session";
 const FILTERS = { priority: "all", town: "all", skill: "all", onlyPinned: false };
 const mem = (values, daily, weekly) => ({
-  version: 12,
+  version: 13,
   characters: [{ id: "c1", name: "A", taskValues: { ...values }, hiddenTaskIds: [] }],
   activeCharId: "c1",
   accountValues: {},
@@ -48,7 +54,11 @@ const mem = (values, daily, weekly) => ({
   prefs: { hideCompleted: false },
   globalTaskOrder: undefined,
   barterFilters: { ...FILTERS },
+  taskBuckets: {},
 });
+const nullsOf = (changes) =>
+  Object.entries(changes).filter(([, v]) => v === null).map(([k]) => k);
+const d2Key = (flat) => Object.keys(flat).find((k) => k.startsWith("v:c1:d2@"));
 
 // Faithful-enough server: per-field LWW, tombstones retained.
 let server = {};
@@ -62,7 +72,7 @@ const tabB = spawnTab(sharedLS, memStorage());
 const phone = spawnTab(memStorage(), memStorage());
 const log = [];
 
-// 1. Tab A boots Monday (d1 checked), pushes full map.
+// 1. Tab A boots (d1 checked), pushes full map.
 {
   const m = mem({ d1: true }, "2026-09-01", "2026-W0901");
   const flat = tabA.flattenSnapshot(m);
@@ -70,60 +80,61 @@ const log = [];
   tabA.saveBase(SID, flat);
   log.push(`1 server keys: ${Object.keys(server).sort().join(",")}`);
 }
-// 2. Fresh tab B opens in the same browser (seeds base on new code).
+// 2. Fresh tab B opens in the same browser (seeds base from shared).
 {
   const base = tabB.loadBase(SID);
-  log.push(`2 tabB base has d1: ${"v:c1:d1" in base}`);
+  log.push(`2 tabB base has d1: ${Object.keys(base).some((k) => k.startsWith("v:c1:d1"))}`);
 }
-// 3. Phone's Tuesday: d1 + d2 checked, Tue markers; pushes its diff.
+// 3. Phone checks d2 too; pushes its diff.
 {
   const m = mem({ d1: true, d2: true }, "2026-09-02", "2026-W0901");
   phone.saveBase(SID, tabA.flattenSnapshot(mem({ d1: true }, "2026-09-01", "2026-W0901")));
   const changes = phone.diffFlat(phone.loadBase(SID), phone.flattenSnapshot(m));
   serverApply(changes);
   phone.saveBase(SID, { ...phone.loadBase(SID), ...changes });
-  log.push(`3 phone pushed d2: ${changes["v:c1:d2"] === true}, server d2: ${JSON.stringify(server["v:c1:d2"])}`);
+  log.push(`3 phone pushed d2: ${changes[d2Key(changes)] === true}, server d2: ${JSON.stringify(server[d2Key(server)])}`);
 }
 // 4. Tab B pulls: converges (advances ITS base view).
-let pushB;
 {
   const m = mem({ d1: true }, "2026-09-01", "2026-W0901");
-  pushB = tabB.diffFlat(tabB.loadBase(SID), tabB.flattenSnapshot(m));
+  const pushB = tabB.diffFlat(tabB.loadBase(SID), tabB.flattenSnapshot(m));
   serverApply(pushB);
-  const remote = serverGet();
-  const merged = tabB.unflattenMerge(remote, m, 12);
-  tabB.saveBase(SID, remote);
+  const merged = tabB.unflattenMerge(serverGet(), m, 13);
+  tabB.saveBase(SID, serverGet());
   log.push(`4 tabB push keys: ${Object.keys(pushB).join(",") || "(none)"}, tabB d2: ${JSON.stringify(merged.characters[0]?.taskValues?.["d2"] ?? null)}`);
 }
-// 5. STALE tab A wakes: focus pull pushes FIRST.
+// 5. STALE tab A wakes with a poisoned base (holds d2@* its memory lacks —
+//    the shared-base world). Push-first must NOT tombstone the cycle key.
 let changesA;
 {
   const m = mem({ d1: true }, "2026-09-01", "2026-W0901");
+  const poisoned = { ...tabA.loadBase(SID) };
+  const phoneD2 = Object.keys(server).find((k) => k.startsWith("v:c1:d2@"));
+  if (phoneD2) poisoned[phoneD2] = true;
+  tabA.saveBase(SID, poisoned);
   changesA = tabA.diffFlat(tabA.loadBase(SID), tabA.flattenSnapshot(m));
   serverApply(changesA);
   tabA.saveBase(SID, { ...tabA.loadBase(SID), ...changesA });
-  const tomb = Object.entries(changesA)
-    .filter(([, v]) => v === null)
-    .map(([k]) => k);
-  log.push(`5 tabA push tombstones: ${tomb.join(",") || "(none)"}`);
+  log.push(`5 tabA push tombstones: ${nullsOf(changesA).join(",") || "(none)"}`);
 }
 // 6. Tab A pulls after.
 let memA2d2 = null;
 {
   const m = mem({ d1: true }, "2026-09-01", "2026-W0901");
-  const merged = tabA.unflattenMerge(serverGet(), m, 12);
+  const merged = tabA.unflattenMerge(serverGet(), m, 13);
   memA2d2 = merged.characters[0]?.taskValues?.["d2"] ?? null;
 }
 
+const serverD2 = server[d2Key(server)] ?? null;
+const aTombstones = nullsOf(changesA);
 console.log(
   JSON.stringify(
     {
       label,
-      tabATombstonedD2: changesA["v:c1:d2"] === null,
-      serverD2: server["v:c1:d2"] ?? null,
+      tabATombstonedD2: aTombstones.some((k) => k.startsWith("v:c1:d2")),
+      serverD2,
       tabASeesD2: memA2d2,
-      tabBPushKeys: Object.keys(pushB),
-      guilty: changesA["v:c1:d2"] === null,
+      guilty: aTombstones.length > 0,
       log,
     },
     null,
@@ -142,7 +153,7 @@ console.log(
     hiddenTaskIds: [],
   }));
   const mem7 = {
-    version: 12,
+    version: 13,
     characters: chars,
     activeCharId: "cx0",
     accountValues: {},
@@ -154,15 +165,16 @@ console.log(
     prefs: { hideCompleted: false },
     globalTaskOrder: undefined,
     barterFilters: { ...FILTERS },
+    taskBuckets: {},
   };
   const SID2 = "test-cap";
   let server2 = { ...tab.flattenSnapshot(mem7) };
   // Tab pulls: empty base → full push (harmless), merge slices to 6.
   const push0 = tab.diffFlat(tab.loadBase(SID2), tab.flattenSnapshot(mem7));
   server2 = { ...server2, ...push0 };
-  const merged = tab.unflattenMerge({ ...server2 }, mem7, 12);
+  const merged = tab.unflattenMerge({ ...server2 }, mem7, 13);
   tab.saveBase(SID2, { ...server2 });
-  // What pullNow does next (new code): scrub overflow keys from the base.
+  // What pullNow does next: scrub overflow keys from the base.
   if (typeof tab.capOverflowKeys === "function") {
     const overflow = tab.capOverflowKeys(server2, merged.characters.map((c) => c.id));
     const base = tab.loadBase(SID2);
@@ -183,7 +195,7 @@ console.log(
       label: `${label}-cap`,
       mergedChars: merged.characters.length,
       victimTombstones: victimTombstones.map(([k]) => k),
-      serverKeepsCx6: server2["v:cx6:d1"] === true,
+      serverKeepsCx6: Object.keys(server2).some((k) => k.startsWith("v:cx6:")),
       flagged,
       guilty: victimTombstones.length > 0,
     })

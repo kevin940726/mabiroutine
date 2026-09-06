@@ -84,17 +84,19 @@ and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 - Sync is the retention-critical path and has its own gate (`pnpm test:sync`,
   wired into `pnpm check`). Suites in `scripts/sync-tests/` (orchestrated by
   `scripts/check-sync.mjs`), all against REAL code — no unit tests:
-  - `engine.entry.ts` — T3 late-wake suppression, T3b early reset, T4 chain,
-    T5 adopt/import stamping, T6 resetAll; real store + real
+  - `engine.entry.ts` — bucketed-key scenarios: local reset never
+    tombstones, adoption filters by tag, legacy keys inert, delete split
+    (cycle silent vs persistent tombstoned once), resetAll, GC, the
+    production stale-evening-device scenario; real store + real
     flat/session/reset functions, modeled server, stubbed storage.
-  - `prop-reset.ts` — 300 seeded-random `checkResets` runs asserting reported
-    keys == removed keys exactly (the suppression load-bearer).
-  - `tabs.cjs` — T1 stale-tab + T2 cap-overflow in vm-realm tabs running the
-    real bundled `flat.ts` (fails on pre-fix code).
+  - `prop-reset.ts` — 300 seeded-random prune runs: stale-bucket values
+    removed, current kept, idempotent, non-value fields untouched.
+  - `tabs.cjs` — poisoned-base stale tab + cap-overflow in vm-realm tabs
+    running the real bundled `flat.ts` (fails on pre-fix code).
   - `api-live.mjs` — dev-API concurrency (25 parallel PATCHes),
     same-key LWW, legacy upgrades, failure paths, no-store headers.
-  - `browser-e2e.mjs` — real Edge over CDP: E1 tap→server→second-device
-    render, E2 wake-pull convergence. Needs `pnpm dev:api` + Edge.
+  - `browser-e2e.mjs` — real Edge over CDP: tap→server→second-device
+    render, wake-pull convergence. Needs `pnpm dev:api` + Edge.
   - Live suites SKIP loudly (exit 0) without their deps; hermetic suites
     always run. `pnpm test:sync --skip-live` for offline.
   - `SYNC_TEST_BASE` points the live suites at another base (default local

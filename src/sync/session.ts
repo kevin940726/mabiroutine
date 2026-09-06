@@ -49,6 +49,7 @@ export type SyncSnapshot = Pick<
   | "prefs"
   | "globalTaskOrder"
   | "barterFilters"
+  | "taskBuckets"
 >;
 
 export function buildSnapshot(): SyncSnapshot {
@@ -66,6 +67,7 @@ export function buildSnapshot(): SyncSnapshot {
     prefs: s.prefs,
     globalTaskOrder: s.globalTaskOrder,
     barterFilters: s.barterFilters,
+    taskBuckets: s.taskBuckets,
   };
 }
 
@@ -169,47 +171,9 @@ export function requestPull(): void {
   void pullHook?.();
 }
 
-// Last remote reset markers seen per session (local-only sidecar, no store
-// migration). A device whose reset bucket a peer already reached is late:
-// its deletions are stale echoes, not news — tombstones suppressed.
-const SEEN_KEY = "mabiroutine:seenmarkers";
-export type SeenMarkers = { daily: string; weekly: string };
-
-export function loadSeen(sessionId: string): SeenMarkers {
-  try {
-    const raw = localStorage.getItem(SEEN_KEY);
-    if (!raw) return { daily: "", weekly: "" };
-    const p = JSON.parse(raw) as { sessionId?: unknown; daily?: unknown; weekly?: unknown };
-    if (p.sessionId !== sessionId) return { daily: "", weekly: "" };
-    return {
-      daily: typeof p.daily === "string" ? p.daily : "",
-      weekly: typeof p.weekly === "string" ? p.weekly : "",
-    };
-  } catch {
-    return { daily: "", weekly: "" };
-  }
-}
-
-export function saveSeen(sessionId: string, seen: SeenMarkers): void {
-  // Monotonic: a lagged-replica/cached GET must never walk markers backward.
-  // A regressed seen would turn the next catch-up reset into a full
-  // tombstoning reset (the decision compares seen against the new bucket).
-  // Buckets are fixed-width date strings, so lexicographic max == latest.
-  try {
-    const prev = loadSeen(sessionId);
-    const next: SeenMarkers = {
-      daily: seen.daily >= prev.daily ? seen.daily : prev.daily,
-      weekly: seen.weekly >= prev.weekly ? seen.weekly : prev.weekly,
-    };
-    localStorage.setItem(SEEN_KEY, JSON.stringify({ sessionId, ...next }));
-  } catch {
-    // private mode — next reset degrades to full (pre-marker behavior)
-  }
-}
-
 // Drop keys from the sync base without sending: the next diff then stays
-// silent for them instead of tombstoning. Catch-up resets and cap-overflow
-// (keys nobody deleted) only — never user deletes.
+// silent for them instead of tombstoning. Cap-overflow only (keys nobody
+// deleted) — cycle keys handle expiry inside diffFlat, user deletes go out.
 export function scrubBase(sessionId: string, keys: string[]): void {
   if (keys.length === 0) return;
   const base = loadBase(sessionId);
@@ -224,13 +188,12 @@ export function scrubBase(sessionId: string, keys: string[]): void {
 }
 
 // Reset entry point — App calls this instead of checkResets. Pulls first so
-// the tombstone decision sees fresh peer markers, then resets: a branch
-// firing into a bucket the peer already reached suppresses its tombstones
-// (scrubs them from the base) and re-pulls promptly to re-adopt the peer's
-// same-bucket values the local wipe just dropped. Unlinked devices (or
-// unknown peer markers) take the full path — today's behavior, unchanged.
-// Serialized: overlapping triggers (focus + interval on one wake) must not
-// interleave a reset between the other's pull and decision.
+// a device waking late adopts the peer's current-bucket values BEFORE its
+// local reset expires them from memory (reset-then-pull would flash-wipe
+// freshly adopted values until the next pull). The reset's deletions are
+// memory-only: cycle keys expire by bucket, never tombstone, so ordering
+// cannot lose data — pull-first is a UX nicety, not a safety requirement.
+// Serialized: overlapping triggers (focus + interval on one wake) share one run.
 let running: Promise<void> | null = null;
 export function syncAndResets(): Promise<void> {
   running ??= runResets().finally(() => {
@@ -241,22 +204,7 @@ export function syncAndResets(): Promise<void> {
 
 async function runResets(): Promise<void> {
   await pullHook?.();
-  const r = useAppStore.getState().checkResets();
-  if (!r.daily && !r.weekly) return;
-  const session = loadSession();
-  if (!session) return;
-  const seen = loadSeen(session.id);
-  const stamped = useAppStore.getState();
-  let suppressed = false;
-  if (r.daily && seen.daily >= (stamped.lastDailyReset ?? "")) {
-    scrubBase(session.id, r.dailyKeys);
-    suppressed = true;
-  }
-  if (r.weekly && seen.weekly >= (stamped.lastWeeklyReset ?? "")) {
-    scrubBase(session.id, r.weeklyKeys);
-    suppressed = true;
-  }
-  if (suppressed) await pullHook?.();
+  useAppStore.getState().checkResets();
 }
 
 // One-shot flag: after seeing a legacy (v1 blob) session, the next push

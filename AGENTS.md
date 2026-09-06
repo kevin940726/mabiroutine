@@ -5,7 +5,7 @@ Data knowledge lives in `docs/` (read it before touching data or sync):
   Hard rule: **never seed KR rows into `src/data/*`**.
 - `docs/sync.md` — sync protocol, key space, decisions, quota.
 
-## Store Version Bumps (persist schema `useAppStore.ts`, current `v12`)
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v13`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
 User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.

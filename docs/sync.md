@@ -37,41 +37,45 @@ Code: `api/session.ts`. Namespace `mabiroutine:` prod / `mabiroutine:dev:` local
 (the latter is a Development-scoped project env var — `vercel dev` does NOT
 forward `.env.local` custom keys to functions).
 
-## Key space (`src/sync/flat.ts`)
+## Key space (`src/sync/flat.ts`, rev 3)
 
 ```
-v:{cid}:{tid}    task values (number|boolean)
-acc:{tid}        account values
+v:{cid}:{tid}@{bucket}   task values, tagged with the cycle they belong to
+acc:{tid}@{bucket}       account values (same tagging)
 hide:{cid}:{tid} | hide:acc:{tid}   hidden flags (true)
 pin:{bid}        pin membership (true; unpin = null)
 custom:{id}      custom task object, order stripped | null
 char:{cid}:name  character name
 meta:active      active character id
-meta:resetDaily | meta:resetWeekly   reset-bucket signals (peers gate
-                                     tombstones on them; never user data)
 pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 ```
+
+`{bucket}` is the Taipei day key (`YYYY-MM-DD`) for daily-kind values
+(daily, account-daily, barter rows) and the week key (`YYYY-Wmmdd`) for
+weekly kinds. Provenance lives in the store (`taskBuckets: tid -> bucket`,
+v13) and rides the wire on every value key.
 
 ## Client engine (`src/sync/SyncButton.tsx`, `src/sync/session.ts`)
 
 - **Push** (debounced 3s, flushed on tab-hide): diff current flat vs retained
   **per-tab** base (sessionStorage `flattab`, seeded once from the shared
-  localStorage `flatbase`) → PATCH changed keys; base-keys
-  gone from current go as `null` (tombstones). Resolves the pushed key-set
-  ({} when clean) or null when nothing was sent — callers must not treat
-  remote state as newer than unsent local edits.
+  localStorage `flatbase`) → PATCH changed keys. Two silences: base-keys
+  already null stay silent (tombstones send exactly once), and **cycle keys
+  never tombstone** (they expire by bucket — a stale device physically
+  cannot delete anything). Resolves the pushed key-set ({} when clean) or
+  null when nothing was sent — callers must not treat remote state as newer
+  than unsent local edits.
 - **Pull** (mount, tab-visible, window-focus, 60s foreground repoll, 10s
   throttle): flush first (arrival = order, so local edits land before adopting
   remote), abort if still dirty, GET, abort if edited mid-flight, fold the
   acknowledged push over the GET result (a lagged/cached read must never
-  resurrect a pre-push absence — the merge would adopt it and the next push
-  would tombstone it), apply wholesale via `unflattenMerge` (remote values,
-  **local ordering**), save base + seen peer markers.
-- **Reset** (`syncAndResets`: pull → `checkResets` → maybe pull): every trigger
-  (boot, focus, 60s) pulls first so the tombstone decision sees fresh peer
-  markers; a branch firing into an already-peer-reached bucket suppresses its
-  tombstones (scrubs them from the base) and re-pulls to re-adopt. Serialized
-  — overlapping triggers share one run.
+  resurrect a pre-push absence), apply wholesale via `unflattenMerge`
+  (current-bucket values only, **local ordering**), GC expired cycle keys
+  (tombstone once past the 60-day retention), save base.
+- **Reset** (`syncAndResets`: pull → `checkResets`): the pull-first order is
+  UX only (a late wake adopts the peer's current-bucket values before its own
+  stale ones are pruned). The prune is memory-only; there is nothing to
+  suppress, gate, or re-pull. Serialized — overlapping triggers share one run.
 - **Adopt** (`?s=` boot, paste field): pristine → silent wholesale adopt;
   other session + non-pristine → confirm dialog (consent for binding *switch*,
   not conflict resolution); same session → pull round.
@@ -97,15 +101,14 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
    local order is also arguably better UX (different screens, different ideal
    orders). Fresh adopts fall back to deterministic id-sorted layout.
    Cost: reordering on desktop doesn't move phone rows. Accepted.
-5. **Reset markers stay local; resets delete keys — but tombstones are
-   marker-gated.** Each device resets itself by Taipei clock; deletions
-   propagate as tombstones and revive on next cycle. The FIRST device into a
-   bucket resets fully (stale keys die everywhere, correctly). A LATE device
-   (peer marker already in the bucket) still wipes locally but suppresses its
-   tombstones — otherwise it nukes the peer's same-bucket progress every
-   morning it wakes second (the pre-gate ordering note below was wrong about
-   exactly this). Adopt/import stamp the current bucket so arrivals never
-   wipe-and-tombstone on next tick.
+5. **Resets are read-time expiry, never deletes** (rev 3 — supersedes the
+   marker-gating of #11). Every wiped session traced to one domain decision:
+   resets as write-time deletes. Rev 3 tags every value with its cycle
+   bucket (store provenance `taskBuckets`, v13); reads consider only the
+   current bucket; a reset prunes memory and writes NOTHING. A stale device
+   (opened days late) can no longer wipe a peer: it never deletes, and its
+   stale values live under old buckets no one reads. Local prune ordering
+   vs pulls is a UX nicety, not a safety property.
 6. **Timestamp trust is the load-bearing remainder — solved by arrival
    order.** Phone clocks skew, so wall time is out; HLCs would bloat user
    state. A single server's receive order is total and matches real order
@@ -116,7 +119,8 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 8. **v1 sessions upgrade transparently.** GET serves the blob under `legacy`;
    client adopts/flattens locally; next push sends full flat and the server
    upgrades the record (v2 strings upgrade the same way). No re-linking,
-   verified live against a seeded v1.
+   verified live against a seeded v1. Rev-2 untagged value keys are inert
+   garbage under rev 3: never adopted, never tombstoned.
 9. **Whole-state LWW + 409 + dialog deleted** (server guard, conflict UI,
    badge, takeTheirs/keepMine). The 409 era's lesson is preserved as a
    negative: detection was automatic but announcement was manual — silent
@@ -132,37 +136,40 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
     depth (no-store fetches + `Cache-Control: no-store` + acknowledged-push
     overlay), but they cannot fix a server that drops writes — only atomicity
     can.
-11. **Same key, two buckets — markers break the tie.** A late device's reset
-    deletions are indistinguishable from news at the key level (its stale
-    Monday copy vs the peer's fresh Tuesday write share one key), so the
-    decision moved up one level: synced `meta:reset*` bucket signals + a
-    local per-session seen-sidecar. Suppress = scrub-from-base (never send),
-    never delete-from-server. Seen is **monotonic** (lexicographic max): a
-    lagged-replica/cached GET must never walk it backward, or the next
-    catch-up reset degrades to a full tombstoning reset. Residual:
-    sub-second simultaneous first-wakes both reset fully (same stale keys,
-    idempotent nulls — converges); mixed
-    versions fall back to full resets until all devices update.
+11. *(superseded by #5 — marker-gated tombstone suppression, removed with the
+    reset-deletion machinery it existed to protect)*
 12. **The base must track the tab's memory vintage, not the browser's
     freshest.** localStorage is shared across tabs but memory isn't: a shared
     base lets a suspended tab wake, diff stale memory against another tab's
-    fresh base, and tombstone live keys it never saw — no reset involved, so
-    no marker can catch it (proven both directions in-harness:
-    `suggestions/sync-harness/run.cjs` against old/new `flat.ts`). Bases are
-    per-tab (sessionStorage, memory fallback); the shared copy is seed-only
-    for tabs born later. Verified: stale-tab wake-push sends nothing, peer
-    keys survive server-side, pulling tab re-adopts them.
+    fresh base, and tombstone live keys it never saw. Bases are per-tab
+    (sessionStorage, memory fallback); the shared copy is seed-only for tabs
+    born later. Under rev 3 the remaining exposure (cycle keys) is silent by
+    #5; persistent keys are still scrubbed for cap slices (#13).
 13. **Cap-sliced characters must not tombstone.** The 6-cap merge drops
     overflow characters from memory while the saved base still holds their
     keys — the next diff then deletes a character nobody removed, permanently
     (same victim every merge, never returns). Pulls scrub sliced ids' keys
     from the base (`capOverflowKeys`, account scope excluded); the keys stay
     server-side and re-adopt if a slot frees. Same-harness proof both ways.
+14. **Cycle-key GC bounds the wire.** Old buckets are inert but not free:
+    HGETALL grows ~1.2KB/day/device. Pulls tombstone cycle keys older than
+    60 days once (real deletes of values no device reads; racing GCs dedupe
+    via tombstones-once + base advance). Unformatted/legacy keys never
+    expire — bounded by the one-time pre-rev-3 dump.
 
 ## Trade-offs and residual risks
 
 - Same-key concurrent edits resolve by arrival with no trace. By design
   tolerance; add per-key versions to GET only if a real complaint arrives.
+- A stale device's own values can arrive tagged with the CURRENT bucket if
+  its provenance is missing (v12-era memory): normalize assigns the current
+  bucket, so a yesterday value written by a never-since-opened device reads
+  as today's until the first prune tick. Self-heals within one tick; never
+  destructive.
+- Mixed-version window: pre-rev-3 devices read/write untagged keys, so they
+  neither see nor destroy rev-3 values (but cannot adopt them either).
+  Update all devices promptly; old keys age out via GC... untagged keys are
+  never GC'd (no parseable bucket) — bounded by the one-time pre-rev-3 dump.
 - Tombstones grow on deletes that are never reused (deleted customs/chars).
   Bounded by user behavior; revisit if a record ever approaches the 200KB cap.
 - 6-character cap: a merge yielding 7+ slices like load does. Two devices
@@ -202,19 +209,21 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 
 | ID | What | How |
 |---|---|---|
-| T1 | Stale-tab wake-push sends nothing | vm-realm tabs, real `flat.ts` |
+| T1 | Stale tab with poisoned base sends NO cycle tombstones | vm-realm tabs, real `flat.ts` |
 | T2 | Cap-sliced characters never tombstoned | same harness, 7-char union |
-| T3 | Late wake suppresses tombstones, re-adopts | real store + `syncAndResets` |
-| T3b | Early reset still tombstones + stamps | same |
-| T4 | Chain: legit reset adopted, peer count kept | same |
-| T7 | Seen never regresses on stale reads; late reset still suppresses | same |
-| T5 | Adopt/import stamp current bucket | same |
-| T6 | resetAll propagation (locked behavior) | same |
-| P | 300 randomized `checkResets` key-exactness runs | real store, seeded |
+| E1 | Local reset (bucket rollover) pushes no tombstones; old keys stay server-side | real store + `syncAndResets` |
+| E2 | Adoption filters by tag; provenance recorded; memory keys plain | same |
+| E3 | Legacy untagged keys inert (not adopted, not tombstoned) | same |
+| E4 | Uncheck silent; unpin tombstoned once; no echo | same |
+| E5 | resetAll nukes persistent keys only (locked behavior) | same |
+| E6 | GC tombstones only >60-day buckets, exactly once | same |
+| E7 | Adopt/import stamp markers; values preserved | same |
+| E8 | Production scenario: stale evening device can't wipe the 09:00 peer | same |
+| P | 300 randomized prune runs (stale removed, current kept, idempotent) | real store, seeded |
 | A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
-| E1 | Real tap → server → second device renders checked | real Edge (CDP) |
-| E2 | Wake-pull leaves server value intact | same |
+| E1E | Real tap → server → second device renders checked | real Edge (CDP) |
+| E2E | Wake-pull leaves server value intact | same |
 
-Teeth: suppression disabled → T3 fails with the exact production wipe
-payload (`v:c1:parttime:null`, `v:c1:tower:null`). Live suites SKIP loudly
-without `pnpm dev:api`/Edge; hermetic suites always run.
+Teeth: removing the cycle-key exemption from `diffFlat` fails E1/E4/E5 with
+the exact production wipe payload (`v:c1:parttime@…: null` on reset). Live
+suites SKIP loudly without `pnpm dev:api`/Edge; hermetic suites always run.

@@ -66,6 +66,11 @@ export type AppState = {
   barterFilters: BarterFilters;
   // for reorder: global order for builtins + custom
   globalTaskOrder?: Record<string, number>;
+  // Cycle provenance: taskId -> the Taipei bucket the value was set in
+  // (shared by taskValues + accountValues; buckets are per-task-cycle, so
+  // one global map is enough). Values whose bucket != current read as unset
+  // and are pruned locally — resets never delete from the sync layer.
+  taskBuckets: Record<string, string>;
 };
 
 export type BarterItem = {

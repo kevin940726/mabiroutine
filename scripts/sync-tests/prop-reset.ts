@@ -1,16 +1,14 @@
-// Property test: checkResets() key-collection exactness on the REAL store.
-// For randomized states, asserts:
-//  (a) reported dailyKeys/weeklyKeys == EXACTLY the flat keys removed
-//      (flatten before minus flatten after) — the load-bearing property for
-//      catch-up suppression: no leaked tombstones, no missed ones.
-//  (b) every removed value's task kind belongs to the fired scope.
-//  (c) fired markers stamp the current bucket; silent runs touch nothing.
-//  (d) immediate second call is a no-op (idempotent).
-//  (e) all non-removed values byte-identical.
-// Markers are ancient-or-today (no clock mocking needed).
+// Property test: checkResets() local prune on the REAL store (rev 3).
+// Resets are memory-only bucket expiry — for randomized states, asserts:
+//  (a) every removed value's provenance bucket was stale (or provenance was
+//      absent-with-stale-expected — never a current-bucket value);
+//  (b) every survivor's provenance is current;
+//  (c) fired markers stamp the current bucket; silent runs touch nothing;
+//  (d) immediate second call is a no-op (idempotent);
+//  (e) all non-removed values byte-identical; non-value fields untouched.
 import { useAppStore } from "@/store/useAppStore";
-import { flattenSnapshot } from "@/sync/flat";
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
+import { cycleBucketFor } from "@/lib/cycle";
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 
@@ -36,7 +34,7 @@ const ACC_DAILY = BUILTINS.filter((t) => t.kind === "account-daily");
 const ACC_WEEKLY = BUILTINS.filter((t) => t.kind === "account-weekly");
 const CUSTOM_KINDS = ["daily", "weekly", "account-daily", "account-weekly"];
 
-function randomState(ancient: boolean): Record<string, unknown> {
+function randomState(stale: boolean): Record<string, unknown> {
   const nChars = 1 + rnd(3);
   const chars = [];
   const customs = [];
@@ -51,56 +49,57 @@ function randomState(ancient: boolean): Record<string, unknown> {
       order: (i + 1) * 10,
     });
   }
-  const allDailyIds = [
+  const allIds = [
     ...DAILY_BUILTINS.map((t) => t.id),
-    ...customs.filter((t) => t.kind === "daily").map((t) => t.id),
-  ];
-  const allWeeklyIds = [
     ...WEEKLY_BUILTINS.map((t) => t.id),
-    ...customs.filter((t) => t.kind === "weekly").map((t) => t.id),
-  ];
-  const allAccDaily = [
-    ...ACC_DAILY.map((t) => t.id),
-    ...customs.filter((t) => t.kind === "account-daily").map((t) => t.id),
-  ];
-  const allAccWeekly = [
-    ...ACC_WEEKLY.map((t) => t.id),
-    ...customs.filter((t) => t.kind === "account-weekly").map((t) => t.id),
+    ...customs.map((t) => t.id),
   ];
   const barterIds = [...BARTER_IDS];
+  const buckets: Record<string, string> = {};
+  const today = currentDailyBucket(new Date());
+  const week = getTaipeiWeekKey(new Date());
+  const yesterday = currentDailyBucket(new Date(Date.now() - 24 * 3600 * 1000));
   for (let i = 0; i < nChars; i++) {
     const tv: Record<string, number | boolean> = {};
-    for (const id of [...allDailyIds, ...allWeeklyIds]) if (rnd(2)) tv[id] = rnd(2) ? true : 1 + rnd(5);
-    for (let b = 0; b < 3; b++) if (rnd(2)) tv[pick(barterIds)] = true;
+    for (const id of allIds) {
+      if (rnd(2)) {
+        tv[id] = rnd(2) ? true : 1 + rnd(5);
+        // stale provenance on ~half the values (weekly kinds get week tags)
+        const kind = BUILTINS.find((t) => t.id === id)?.kind ?? customs.find((t) => t.id === id)!.kind;
+        buckets[id] = stale && rnd(2) ? yesterday : kind === "weekly" || kind === "account-weekly" ? week : today;
+      }
+    }
+    for (let b = 0; b < 3; b++) {
+      if (rnd(2)) {
+        const bid = pick(barterIds);
+        tv[bid] = true;
+        buckets[bid] = stale && rnd(2) ? yesterday : today;
+      }
+    }
     chars.push({ id: `c${i}`, name: `C${i}`, taskValues: tv, hiddenTaskIds: [] });
   }
   const accountValues: Record<string, number | boolean> = {};
-  for (const id of [...allAccDaily, ...allAccWeekly]) if (rnd(2)) accountValues[id] = true;
-  const today = currentDailyBucket(new Date());
-  const week = getTaipeiWeekKey(new Date());
+  for (const id of [...ACC_DAILY.map((t) => t.id), ...ACC_WEEKLY.map((t) => t.id)]) {
+    if (rnd(2)) {
+      accountValues[id] = true;
+      buckets[id] = stale && rnd(2) ? yesterday : week;
+    }
+  }
   return {
-    version: 12,
+    version: 13,
     characters: chars,
     activeCharId: "c0",
     accountValues,
     hiddenAccountTaskIds: [],
     barterPins: barterIds.slice(0, rnd(6)),
     customTasks: customs,
-    lastDailyReset: ancient ? "2000-01-01" : today,
-    lastWeeklyReset: ancient ? "2000-W0101" : week,
+    lastDailyReset: stale ? "2000-01-01" : today,
+    lastWeeklyReset: stale ? "2000-W0101" : week,
     prefs: { hideCompleted: false },
     globalTaskOrder: undefined,
     barterFilters: { priority: "all", town: "all", skill: "all", onlyPinned: false },
+    taskBuckets: buckets,
   };
-}
-
-function kindOf(id: string, customs: Task[]): string | null {
-  const b = BUILTINS.find((t) => t.id === id);
-  if (b) return b.kind;
-  const c = customs.find((t) => t.id === id);
-  if (c) return c.kind;
-  if (BARTER_IDS.has(id)) return "daily"; // barter rows reset with daily
-  return null; // pins of removed ids etc.
 }
 
 let failures = 0;
@@ -111,65 +110,68 @@ function fail(msg: string, extra?: unknown): void {
 
 const N = 300;
 for (let it = 0; it < N; it++) {
-  const ancient = rnd(2) === 0;
-  const before = randomState(ancient);
+  const stale = rnd(2) === 0;
+  const before = randomState(stale);
   useAppStore.setState(JSON.parse(JSON.stringify(before)));
   const st0 = useAppStore.getState();
-  const flatBefore = flattenSnapshot(st0) as Record<string, unknown>;
-  const r = st0.checkResets();
+  const customs = st0.customTasks as Task[];
+  const now = new Date();
+  st0.checkResets();
   const after = useAppStore.getState();
-  const flatAfter = flattenSnapshot(after) as Record<string, unknown>;
 
-  const removed = Object.keys(flatBefore).filter((k) => !(k in flatAfter));
-  // Collection is catalog-wide (includes valueless ids — harmless no-ops
-  // for scrubbing); exactness is required only on valued keys.
-  const beforeKeys = new Set(Object.keys(flatBefore));
-  const reportedValued = [...r.dailyKeys, ...r.weeklyKeys].filter((k) => beforeKeys.has(k)).sort();
-  // (a) exactness on valued keys
-  const rs = [...removed].sort();
-  if (JSON.stringify(rs) !== JSON.stringify(reportedValued)) {
-    fail(`iter ${it}: reported keys != removed keys`, { removed: rs, reported: reportedValued });
-  }
-  // (b) kind scope
-  const customs = ((before.customTasks ?? []) as Task[]);
-  for (const k of removed) {
-    const m = /^(v:[^:]+:|acc:)(.+)$/.exec(k);
-    if (!m) {
-      fail(`iter ${it}: removed non-value key`, { k });
-      continue;
-    }
-    const kind = kindOf(m[2], customs);
-    const inDaily = r.dailyKeys.includes(k);
-    const inWeekly = r.weeklyKeys.includes(k);
-    if (kind === "daily" || kind === "account-daily" || kind === null) {
-      if (!inDaily || inWeekly) fail(`iter ${it}: daily-ish key mis-scoped`, { k, kind });
-    } else if (kind === "weekly" || kind === "account-weekly") {
-      if (!inWeekly || inDaily) fail(`iter ${it}: weekly-ish key mis-scoped`, { k, kind });
+  // (a) removed values had stale provenance; (b) survivors current
+  const b0 = (before.characters as { id: string; taskValues: Record<string, unknown> }[]) ?? [];
+  for (let ci = 0; ci < b0.length; ci++) {
+    for (const [tid, v] of Object.entries(b0[ci].taskValues)) {
+      const kept = after.characters[ci]?.taskValues?.[tid] !== undefined;
+      const expected = cycleBucketFor(tid, customs, now);
+      const was = (before.taskBuckets as Record<string, string>)[tid];
+      if (kept && was !== expected) fail(`iter ${it}: stale value kept`, { tid, was, expected });
+      if (!kept && was === expected) fail(`iter ${it}: current value pruned`, { tid, was, expected });
+      if (kept && JSON.stringify(after.characters[ci].taskValues[tid]) !== JSON.stringify(v)) {
+        fail(`iter ${it}: survivor mutated`, { tid });
+      }
     }
   }
-  // (c) markers
+  for (const [tid, v] of Object.entries(before.accountValues as Record<string, unknown>)) {
+    const kept = after.accountValues[tid] !== undefined;
+    const expected = cycleBucketFor(tid, customs, now);
+    const was = (before.taskBuckets as Record<string, string>)[tid];
+    if (kept && was !== expected) fail(`iter ${it}: stale acc kept`, { tid, was, expected });
+    if (!kept && was === expected) fail(`iter ${it}: current acc pruned`, { tid, was, expected });
+    if (kept && after.accountValues[tid] !== v) fail(`iter ${it}: acc survivor mutated`, { tid });
+  }
+  // orphan bucket entries pruned
+  for (const tid of Object.keys(after.taskBuckets)) {
+    const hasValue =
+      after.characters.some((c: { taskValues: Record<string, unknown> }) => tid in c.taskValues) ||
+      tid in after.accountValues;
+    if (!hasValue) fail(`iter ${it}: orphan bucket entry`, { tid });
+  }
+  // (c) markers stamp current bucket on stale runs
   const today = currentDailyBucket(new Date());
   const week = getTaipeiWeekKey(new Date());
-  if (ancient) {
-    if (!r.daily || after.lastDailyReset !== today) fail(`iter ${it}: daily marker`, { d: r.daily, m: after.lastDailyReset });
-    if (!r.weekly || after.lastWeeklyReset !== week) fail(`iter ${it}: weekly marker`, { w: r.weekly, m: after.lastWeeklyReset });
-  } else {
-    if (r.daily || r.weekly) fail(`iter ${it}: spurious reset on fresh markers`, r);
-    if (after.lastDailyReset !== today || after.lastWeeklyReset !== week) fail(`iter ${it}: marker moved`, null);
+  if (stale) {
+    if (after.lastDailyReset !== today) fail(`iter ${it}: daily marker`, after.lastDailyReset);
+    if (after.lastWeeklyReset !== week) fail(`iter ${it}: weekly marker`, after.lastWeeklyReset);
   }
-  // (e) survivors byte-identical (markers excluded: they legitimately
-  // advance on reset and are asserted in (c))
-  for (const k of Object.keys(flatAfter)) {
-    if (k === "meta:resetDaily" || k === "meta:resetWeekly") continue;
-    if (JSON.stringify(flatAfter[k]) !== JSON.stringify(flatBefore[k])) {
-      fail(`iter ${it}: survivor mutated`, { k });
-    }
-  }
+  // (e) non-value fields untouched
+  if (JSON.stringify(after.barterPins) !== JSON.stringify(before.barterPins)) fail(`iter ${it}: pins moved`);
+  if (JSON.stringify(after.customTasks) !== JSON.stringify(before.customTasks)) fail(`iter ${it}: customs moved`);
   // (d) idempotent second call
-  const r2 = useAppStore.getState().checkResets();
-  if (r2.daily || r2.weekly || r2.dailyKeys.length || r2.weeklyKeys.length) {
-    fail(`iter ${it}: second call not noop`, r2);
-  }
+  const snap2 = JSON.stringify([
+    after.characters.map((c: { taskValues: object }) => c.taskValues),
+    after.accountValues,
+    after.taskBuckets,
+  ]);
+  useAppStore.getState().checkResets();
+  const st2 = useAppStore.getState();
+  const snap3 = JSON.stringify([
+    st2.characters.map((c: { taskValues: object }) => c.taskValues),
+    st2.accountValues,
+    st2.taskBuckets,
+  ]);
+  if (snap2 !== snap3) fail(`iter ${it}: second call not noop`);
 }
 
 console.log(failures === 0 ? `ALL ${N} ITERATIONS PASSED` : `${failures} FAILURES`);
