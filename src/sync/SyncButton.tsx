@@ -115,15 +115,16 @@ export const SyncButton = memo(function SyncButton() {
 
   // Background auto-push: while linked, any progress change pushes its key
   // diff after a quiet window. Absolute sets only — the server stamps arrival
-  // order, so pushes never conflict. Returns false when edits remain unsent
-  // (offline/failure): callers must not clobber them.
-  async function pushNow(): Promise<boolean> {
+  // order, so pushes never conflict. Resolves the pushed key-set ({} when
+  // already in sync) or null when nothing was sent (offline/failure/busy):
+  // callers must not treat remote state as newer than unsent local edits.
+  async function pushNow(): Promise<FlatMap | null> {
     const session = linkedRef.current;
-    if (!session || busyRef.current) return true;
+    if (!session || busyRef.current) return null;
     const flat = flattenSnapshot(buildSnapshot());
     const base = loadBase(session.id);
     const changes = takeFullPush() ? { ...flat } : diffFlat(base, flat);
-    if (Object.keys(changes).length === 0) return true;
+    if (Object.keys(changes).length === 0) return {};
     try {
       const updatedAt = await patchSession(session.id, changes as FlatMap);
       const next = { id: session.id, updatedAt };
@@ -131,22 +132,25 @@ export const SyncButton = memo(function SyncButton() {
       setLinked(next);
       saveBase(session.id, { ...base, ...changes });
       pushFails.current = 0;
-      return true;
+      return changes;
     } catch (e) {
       if (e instanceof SyncNotFound) {
         dropDeadLink();
-        return true; // nothing left to protect — binding is gone
+        return null; // binding is gone — nothing left to protect or pull
       }
       pushFails.current += 1;
       if (pushFails.current === 3) toast("自動同步失敗，請檢查網路");
-      return false;
+      return null;
     }
   }
 
   // Pull round: flush local edits first (arrival = order, so ours land
   // before we adopt remote), then adopt remote wholesale — safe, because the
-  // flush guarantees every local key already exists remotely. Mid-flight
-  // edits abort the apply; the scheduled push + next pull converge.
+  // flush guarantees every local key already exists remotely. The acknowledged
+  // push is folded over the GET result: a lagged-replica or cached read that
+  // predates our own write must never resurrect a pre-push absence (the merge
+  // would adopt it and the next push would tombstone it — a permanent wipe).
+  // Mid-flight edits abort the apply; the scheduled push + next pull converge.
   // Legacy (v1 blob) sessions upgrade via one full push, then proceed.
   async function pullNow(): Promise<void> {
     const session = linkedRef.current;
@@ -155,19 +159,23 @@ export const SyncButton = memo(function SyncButton() {
     if (now - lastPullAt.current < 10_000) return;
     lastPullAt.current = now;
     try {
-      if (!(await pushNow())) return;
+      const pushed = await pushNow();
+      if (pushed === null) return;
       const before = JSON.stringify(flattenSnapshot(buildSnapshot()));
       let remote = await getSession(session.id);
       if (remote.legacy !== undefined) {
         markFullPush();
-        if (!(await pushNow())) return;
+        const full = await pushNow();
+        if (full === null) return;
+        Object.assign(pushed, full);
         remote = await getSession(session.id);
       }
       if (!remote.state || typeof remote.state !== "object" || Array.isArray(remote.state)) return;
       if (JSON.stringify(flattenSnapshot(buildSnapshot())) !== before) return;
-      const merged = unflattenMerge(remote.state as FlatMap, buildSnapshot(), useAppStore.getState().version);
+      const serverView = { ...(remote.state as FlatMap), ...pushed };
+      const merged = unflattenMerge(serverView, buildSnapshot(), useAppStore.getState().version);
       if (!applySnapshot(merged)) return;
-      saveBase(session.id, remote.state as FlatMap);
+      saveBase(session.id, serverView);
       const next = { id: session.id, updatedAt: remote.updatedAt };
       saveSession(next);
       setLinked(next);

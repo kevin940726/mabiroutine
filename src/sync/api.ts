@@ -28,6 +28,9 @@ export async function createSession(state: FlatMap): Promise<{ id: string; updat
   const res = await fetch("/api/session", {
     method: "POST",
     headers: { "content-type": "application/json" },
+    // Sync payloads must never be served from HTTP cache: a stale read
+    // adopted wholesale would wipe newer local state (then tombstone it).
+    cache: "no-store",
     body: JSON.stringify({ state }),
   });
   if (res.ok) return (await res.json()) as { id: string; updatedAt: number };
@@ -39,7 +42,10 @@ export async function createSession(state: FlatMap): Promise<{ id: string; updat
 
 export async function getSession(id: string): Promise<RemoteSession> {
   if (offline()) throw new SyncFailed("offline");
-  const res = await fetch(`/api/session?id=${encodeURIComponent(id)}`);
+  const res = await fetch(`/api/session?id=${encodeURIComponent(id)}`, {
+    // See POST: a stale GET adopted by a pull wipes + tombstones live keys.
+    cache: "no-store",
+  });
   if (res.ok) return (await res.json()) as RemoteSession;
   const body = await readError(res);
   if (res.status === 404) throw new SyncNotFound(body.error ?? "unknown session");
@@ -52,6 +58,7 @@ export async function patchSession(id: string, changes: FlatMap): Promise<number
   const res = await fetch("/api/session", {
     method: "PATCH",
     headers: { "content-type": "application/json" },
+    cache: "no-store",
     body: JSON.stringify({ id, changes }),
   });
   if (res.ok) return ((await res.json()) as { updatedAt: number }).updatedAt;
@@ -67,6 +74,7 @@ export async function deleteSession(id: string): Promise<void> {
   const res = await fetch("/api/session", {
     method: "DELETE",
     headers: { "content-type": "application/json" },
+    cache: "no-store",
     body: JSON.stringify({ id }),
   });
   if (res.ok || res.status === 404) return;

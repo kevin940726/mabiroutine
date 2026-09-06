@@ -48,12 +48,16 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 
 - **Push** (debounced 3s, flushed on tab-hide): diff current flat vs retained
   base (`mabiroutine:flatbase`, per-session) → PATCH changed keys; base-keys
-  gone from current go as `null` (tombstones). Returns false when edits remain
-  unsent — callers must not clobber them.
+  gone from current go as `null` (tombstones). Resolves the pushed key-set
+  ({} when clean) or null when nothing was sent — callers must not treat
+  remote state as newer than unsent local edits.
 - **Pull** (mount, tab-visible, window-focus, 60s foreground repoll, 10s
   throttle): flush first (arrival = order, so local edits land before adopting
-  remote), abort if still dirty, GET, abort if edited mid-flight, apply
-  wholesale via `unflattenMerge` (remote values, **local ordering**), save base.
+  remote), abort if still dirty, GET, abort if edited mid-flight, fold the
+  acknowledged push over the GET result (a lagged/cached read must never
+  resurrect a pre-push absence — the merge would adopt it and the next push
+  would tombstone it), apply wholesale via `unflattenMerge` (remote values,
+  **local ordering**), save base.
 - **Adopt** (`?s=` boot, paste field): pristine → silent wholesale adopt;
   other session + non-pristine → confirm dialog (consent for binding *switch*,
   not conflict resolution); same session → pull round.
