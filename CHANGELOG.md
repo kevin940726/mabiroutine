@@ -19,6 +19,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Character switchers (floating pill + mobile tabs) swapped from Radix Select (always scroll-locks: scrollbar vanishes, body padding shifts the fixed pill) to non-modal DropdownMenu radio lists — page never moves; `ui/dropdown-menu` gains radio items
 - Mobile floating pill: tapping the character name opens the roster jump (‹ › stay for adjacent steps)
 - Mobile floating pill drops the ‹ › stepper — name dropdown is the switcher
+- Mobile pill name slot fixed at 12ch (no jump on switch, truncate inside); pill containers use svw instead of vw
 - Floating pills use a solid fill meter instead of the horizontal bar: the pill background fills with progress at zero extra width (prototyped as `prototype/pill-progress`, fill won; fill color round 2 picked emerald to match the done-language)
 - Open-sourcing Phase 2: data text under CC BY-NC 4.0 (`DATA_LICENSE`, NPC art excluded as NEXON fan-use with takedown); fetcher scripts are private-local only (gitignored, never committed, never published), all references rewritten manual-only
 - Open-sourcing Phase 1 attribution: in-app footer 資料來源 row (6 source links + 非官方 NEXON/devCAT disclaimer + 以遊戲內為準 + takedown via GitHub issue); README 出處與授權 section records per-source take-vs-not-take; `docs/tracker-data.md` gains a source-terms section (NEXON consent clause → disclaimer path, yenyen grant scope, Femiwiki BY-SA chain, Taiwan scraping posture)

@@ -211,7 +211,7 @@ export default function App() {
         className={`fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${compact ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
         style={{ top: 70 }}
       >
-        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 whitespace-nowrap max-w-[calc(100vw-2rem)] text-xs relative isolate overflow-hidden">
+        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 whitespace-nowrap max-w-[calc(100svw-2rem)] text-xs relative isolate overflow-hidden">
           <PillProgress pct={overall.pct} />
           <div className="h-4 w-px bg-border shrink-0" />
           {pillRenaming ? (
@@ -245,7 +245,7 @@ export default function App() {
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="flex max-w-[40vw] items-center gap-1 truncate rounded-full px-1 py-1 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex min-w-[12ch] max-w-[12ch] shrink-0 items-center justify-between gap-1 truncate rounded-full px-1 py-1 text-xs font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       aria-label="switch character"
                     >
                       <span className="truncate">{active?.name}</span>
@@ -323,7 +323,7 @@ export default function App() {
         className={`fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300 ${compact ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"}`}
         style={{ top: 88 }}
       >
-        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 w-max max-w-[calc(100vw-2rem)] flex-wrap justify-center text-xs relative isolate overflow-hidden">
+        <div className="flex items-center gap-2 rounded-full border bg-card shadow-md px-3.5 py-1.5 w-max max-w-[calc(100svw-2rem)] flex-wrap justify-center text-xs relative isolate overflow-hidden">
           <PillProgress pct={overall.pct} />
           <div className="h-4 w-px bg-border shrink-0" />
           {renamingId === active?.id ? (
