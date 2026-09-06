@@ -64,9 +64,14 @@ const MAX_STATE_BYTES = 200 * 1024;
 
 // POST / create is the abuse-sensitive endpoint (mints keys): 10/hr per IP.
 // Everything else: 60/min per IP — invisible to humans, fatal to scripts.
-const RL_CREATE_LIMIT = 10;
+// Non-prod namespaces (local `vercel dev` runs `mabiroutine:dev:`) get roomy
+// budgets so the regression gate (`pnpm test:sync`) never trips them —
+// throwaway keys, same Redis, zero prod impact. Gated on the server-side
+// namespace (clients can't choose it), so prod abuse protection is untouched.
+const IS_TEST_NS = NS !== "mabiroutine:";
+const RL_CREATE_LIMIT = IS_TEST_NS ? 500 : 10;
 const RL_CREATE_WINDOW_S = 3600;
-const RL_GENERAL_LIMIT = 60;
+const RL_GENERAL_LIMIT = IS_TEST_NS ? 600 : 60;
 const RL_GENERAL_WINDOW_S = 60;
 
 type SessionMeta = {

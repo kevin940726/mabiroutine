@@ -8,15 +8,19 @@
 //  E2 focus convergence: a second tab focuses later — server value intact,
 //     tab shows checked (no phantom tombstone on wake-pull).
 //
-// Needs `pnpm dev:api` on :52608 + Edge. SKIP (exit 0, loud) otherwise.
+// Needs an app + API base: local `pnpm dev:api` by default, or a preview
+// deployment via SYNC_TEST_BASE (previews run the dev key prefix, so test
+// sessions stay off prod data — but the build must postdate the Preview
+// SYNC_KEY_PREFIX variable). Needs Edge. SKIP (exit 0, loud) otherwise.
 // Throwaway session, deleted afterwards. Budget ~2 min.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const APP = "http://127.0.0.1:52608/";
-const API = "http://127.0.0.1:52608/api/session";
+const BASE = (process.env.SYNC_TEST_BASE || "http://127.0.0.1:52608").replace(/\/+$/, "");
+const APP = `${BASE}/`;
+const API = `${BASE}/api/session`;
 const DEBUG_PORT = 9333;
 const EDGE_CANDIDATES = [
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
@@ -44,9 +48,9 @@ const edge = EDGE_CANDIDATES.find((p) => fs.existsSync(p));
 if (!edge) skip("(Edge not found)");
 try {
   const code = await fetch(APP, { method: "HEAD" }).then((r) => r.status);
-  if (code !== 200) skip(`(dev server :52608 answered ${code})`);
+  if (code !== 200) skip(`(test base ${BASE} answered ${code})`);
 } catch {
-  skip("(needs `pnpm dev:api` on :52608)");
+  skip(`(needs the app reachable at ${BASE} — local: \`pnpm dev:api\`)`);
 }
 
 // --- throwaway session ---

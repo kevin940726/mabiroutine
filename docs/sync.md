@@ -26,7 +26,13 @@ into the hash on first PATCH.
 | PATCH | `{ id, changes: {k: v} }` | One HSET of meta + fields (atomic per-field LWW). Never 409s |
 | DELETE | `{ id }` | Drop hash + legacy string (idempotent) |
 
-Rate limits: create 10/hr/IP, everything else 60/min/IP. Payload cap 200KB.
+Rate limits: create 10/hr/IP, everything else 60/min/IP (prod). Dev
+namespace (`mabiroutine:dev:`): 500/hr + 600/min — the regression gate would
+trip prod budgets, and dev keys are throwaway. Payload cap 200KB.
+Namespace by Vercel scope (`SYNC_KEY_PREFIX`): Development + Preview use
+`mabiroutine:dev:`, Production uses the default — preview deployments are
+the staging environment (prod code path, isolated data). Env changes bake
+in at deploy time: a new preview deployment is needed to pick them up.
 Code: `api/session.ts`. Namespace `mabiroutine:` prod / `mabiroutine:dev:` local
 (the latter is a Development-scoped project env var — `vercel dev` does NOT
 forward `.env.local` custom keys to functions).

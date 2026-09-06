@@ -89,6 +89,8 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 ### Chores
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)
 - Sync live suites SKIP honestly on the 10/hr/IP create budget (retry within the hour) and exit via drain instead of `process.exit` (hard-crashed Node on Windows)
+- Dev-namespace API budgets raised (create 500/hr, rest 600/min) so `pnpm test:sync` never trips rate limits; prod budgets unchanged (gated on server-side namespace, clients can't choose it)
+- Preview deployments are now staging: `SYNC_KEY_PREFIX=mabiroutine:dev:` in the Vercel Preview scope (was prod data); live test suites take `SYNC_TEST_BASE` to verify a deployed build
 - `pnpm dev:api` runs the full stack locally (`vercel dev` + Vite on :52608); `pnpm dev` stays plain Vite (`dev` can't invoke `vercel dev` — it spawns the dev script, so that's a refused infinite loop)
 - Vercel Analytics mounted at app root (`@vercel/analytics/react`)
 - Retired the frozen-desktop rule: UI changes now consider both desktop and mobile variants (code comments updated; history entries left as-is)

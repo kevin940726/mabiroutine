@@ -97,6 +97,10 @@ and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
     render, E2 wake-pull convergence. Needs `pnpm dev:api` + Edge.
   - Live suites SKIP loudly (exit 0) without their deps; hermetic suites
     always run. `pnpm test:sync --skip-live` for offline.
+  - `SYNC_TEST_BASE` points the live suites at another base (default local
+    `:52608`): `SYNC_TEST_BASE=https://<preview>.vercel.app pnpm test:sync`
+    verifies the deployed build. Previews run the dev key prefix (Vercel
+    Preview scope), so test sessions never touch prod data.
   - Sabotage standard: disabling suppression must fail T3 (verified — the
     sabotaged run emits the exact production wipe payload). A sync change
     whose suite still passes while broken is a suite bug; fix the suite.

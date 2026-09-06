@@ -1,5 +1,6 @@
 // Live-API checks: concurrency, upgrade paths, failure modes, cache headers.
-// Runs against `pnpm dev:api` (:52608, dev key prefix — never prod).
+// Base: local `pnpm dev:api` by default, preview deployment via
+// SYNC_TEST_BASE (previews run the dev key prefix — never prod).
 // Needs Upstash REST credentials (process env, else .env.local's
 // KV_REST_API_URL/TOKEN — same source vercel dev uses).
 // SKIP (exit 0, loud) when the server or credentials are absent, so
@@ -7,7 +8,7 @@
 import fs from "node:fs";
 import { Redis } from "@upstash/redis";
 
-const BASE = "http://127.0.0.1:52608/api/session";
+const BASE = `${(process.env.SYNC_TEST_BASE || "http://127.0.0.1:52608").replace(/\/+$/, "")}/api/session`;
 
 function loadEnv() {
   const out = { ...process.env };
@@ -40,7 +41,7 @@ try {
 // (UV_HANDLE_CLOSING assert) — set exitCode and let the loop drain instead.
 async function main() {
 if (!reachable) {
-  console.log("SKIP: api-live needs `pnpm dev:api` on :52608 (not running)");
+  console.log(`SKIP: api-live needs the app reachable at ${BASE.replace(/\/api\/session$/, "")} (local: \`pnpm dev:api\`)`);
   process.exitCode = 0;
   return;
 }
