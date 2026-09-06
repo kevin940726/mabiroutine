@@ -69,7 +69,7 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:migrations` + `build`. All three must pass.
+`pnpm check` = `lint` + `test:migrations` + `test:sync` + `build`. All four must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 
@@ -81,5 +81,23 @@ and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 - Workbox packages must stay explicit in `package.json` (the PWA build needs
   them resolvable, not hoisted-by-luck).
 - `suggestions/` is gitignored review scratch — never committed, never required.
-- The only test suite is the migration fixtures (`pnpm test:migrations`); UI
-  changes are verified by build + by-eye in dev (mobile + desktop variants).
+- Sync is the retention-critical path and has its own gate (`pnpm test:sync`,
+  wired into `pnpm check`). Suites in `scripts/sync-tests/` (orchestrated by
+  `scripts/check-sync.mjs`), all against REAL code — no unit tests:
+  - `engine.entry.ts` — T3 late-wake suppression, T3b early reset, T4 chain,
+    T5 adopt/import stamping, T6 resetAll; real store + real
+    flat/session/reset functions, modeled server, stubbed storage.
+  - `prop-reset.ts` — 300 seeded-random `checkResets` runs asserting reported
+    keys == removed keys exactly (the suppression load-bearer).
+  - `tabs.cjs` — T1 stale-tab + T2 cap-overflow in vm-realm tabs running the
+    real bundled `flat.ts` (fails on pre-fix code).
+  - `api-live.mjs` — dev-API concurrency (25 parallel PATCHes),
+    same-key LWW, legacy upgrades, failure paths, no-store headers.
+  - `browser-e2e.mjs` — real Edge over CDP: E1 tap→server→second-device
+    render, E2 wake-pull convergence. Needs `pnpm dev:api` + Edge.
+  - Live suites SKIP loudly (exit 0) without their deps; hermetic suites
+    always run. `pnpm test:sync --skip-live` for offline.
+  - Sabotage standard: disabling suppression must fail T3 (verified — the
+    sabotaged run emits the exact production wipe payload). A sync change
+    whose suite still passes while broken is a suite bug; fix the suite.
+- UI changes are verified by build + by-eye in dev (mobile + desktop variants).

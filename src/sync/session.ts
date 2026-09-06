@@ -25,12 +25,12 @@ export function loadSession(): LocalSession | null {
 
 export function saveSession(s: LocalSession): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(s));
-  window.dispatchEvent(new Event("mabiroutine:session-changed"));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("mabiroutine:session-changed"));
 }
 
 export function clearSession(): void {
   localStorage.removeItem(SESSION_KEY);
-  window.dispatchEvent(new Event("mabiroutine:session-changed"));
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("mabiroutine:session-changed"));
 }
 
 // Snapshot = exactly the persisted slice (same fields as partialize), so a
@@ -152,6 +152,7 @@ export async function copyText(text: string): Promise<boolean> {
 
 // Minimal toast bus: any sync module can toast without prop drilling.
 export function toast(message: string): void {
+  if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent<string>("mabiroutine:toast", { detail: message }));
 }
 
@@ -198,8 +199,9 @@ export function saveSeen(sessionId: string, seen: SeenMarkers): void {
 }
 
 // Drop keys from the sync base without sending: the next diff then stays
-// silent for them instead of tombstoning. Catch-up resets only.
-function scrubBase(sessionId: string, keys: string[]): void {
+// silent for them instead of tombstoning. Catch-up resets and cap-overflow
+// (keys nobody deleted) only — never user deletes.
+export function scrubBase(sessionId: string, keys: string[]): void {
   if (keys.length === 0) return;
   const base = loadBase(sessionId);
   let changed = false;

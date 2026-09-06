@@ -32,7 +32,8 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 
 ## Pre-push Gate (agents: run this before every push)
 
-`pnpm check` = `lint` + `test:migrations` + `build`. All three must pass:
+`pnpm check` = `lint` + `test:migrations` + `test:sync` + `build`. All four must pass:
 - `test:migrations` bundles the real `migratePersisted` and runs fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic barter ids, removed-id prune, passthrough, filter sanitize). If you add a migrate step, add a fixture block (A/B/C/D/E/F pattern) proving old data survives.
+- `test:sync` runs `scripts/check-sync.mjs`: hermetic engine/property/tab suites (real store+sync code, always) plus live API + real-Edge E2E (SKIP loudly without `pnpm dev:api`/Edge). If you touch sync, reset, or merge code, these must pass for real — not skipped. Sabotage standard: a suppression/marker change must fail T3 (proven 2026-09-06).
 - Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if the premise line fails, update the fixture, not the data.
 - `suggestions/` is gitignored (review scratch only); `src/data/*.json` is hand-edited and needs human review — fetcher scripts stay private-local (gitignored, never committed).

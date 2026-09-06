@@ -191,7 +191,6 @@ function bucketize(flat: FlatMap): Map<string, CharBucket> {
   }
   return map;
 }
-
 function buildCharacters(
   buckets: Map<string, CharBucket>,
   order: string[],
@@ -208,6 +207,23 @@ function buildCharacters(
       hiddenTaskIds: b.hidden,
     } as Character;
   });
+}
+
+// Flat keys belonging to characters the cap slice dropped from a merge.
+// The merge keeps the 6-cap invariant for the UI, but the sync base must
+// forget these keys: otherwise the next diff reads "base has them, memory
+// doesn't" and tombstones a character nobody deleted — permanent, silent
+// loss (the victim is deterministic per id-sort, so it never comes back).
+// Scrubbed keys stay server-side and re-adopt if a slot ever frees up.
+export function capOverflowKeys(flat: FlatMap, keptIds: string[]): string[] {
+  const kept = new Set(keptIds);
+  const out: string[] = [];
+  for (const k of Object.keys(flat)) {
+    const m = /^(?:v|hide):([^:]+):.+$/.exec(k) ?? /^char:([^:]+):name$/.exec(k);
+    if (!m || m[1] === "acc") continue; // hide:acc:* is account scope, not a char
+    if (!kept.has(m[1])) out.push(k);
+  }
+  return out;
 }
 
 // Fresh adopt (no local order to preserve): deterministic id-sorted layout.

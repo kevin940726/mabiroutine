@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "lint": "oxlint",
     "test:migrations": "node scripts/check-migrations.mjs",
-    "check": "pnpm lint && pnpm test:migrations && pnpm build"
+    "check": "pnpm lint && pnpm test:migrations && pnpm test:sync && pnpm build",
+    "test:sync": "node scripts/check-sync.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

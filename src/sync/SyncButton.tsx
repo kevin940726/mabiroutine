@@ -35,6 +35,7 @@ import {
   stripSessionParam,
   setPullHook,
   saveSeen,
+  scrubBase,
   markFullPush,
   takeFullPush,
   toast,
@@ -46,6 +47,7 @@ import {
   loadBase,
   saveBase,
   unflattenMerge,
+  capOverflowKeys,
   type FlatMap,
 } from "@/sync/flat";
 
@@ -183,6 +185,14 @@ export const SyncButton = memo(function SyncButton() {
         daily: marker(serverView["meta:resetDaily"]),
         weekly: marker(serverView["meta:resetWeekly"]),
       });
+      // Cap-sliced characters keep their keys server-side (never tombstoned).
+      scrubBase(
+        session.id,
+        capOverflowKeys(
+          serverView,
+          merged.characters.map((c) => c.id)
+        )
+      );
       const next = { id: session.id, updatedAt: remote.updatedAt };
       saveSession(next);
       setLinked(next);

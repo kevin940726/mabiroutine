@@ -111,6 +111,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       ref={setNodeRef}
       style={style}
       data-task-row="true"
+      data-task-id={task.id}
       className={cn(
         "rounded-lg border bg-card p-3 transition-colors relative",
         isDone ? "bg-muted/50 border-muted" : "hover:bg-accent/50",
@@ -291,6 +292,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       ref={setNodeRef}
       style={style}
       data-task-row="true"
+      data-task-id={task.id}
       className={cn(
         // compact: progress lives inside the action tile, so no reserved bar height
         "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors min-h-[88px] pr-14",

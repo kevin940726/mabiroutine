@@ -143,6 +143,12 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
     per-tab (sessionStorage, memory fallback); the shared copy is seed-only
     for tabs born later. Verified: stale-tab wake-push sends nothing, peer
     keys survive server-side, pulling tab re-adopts them.
+13. **Cap-sliced characters must not tombstone.** The 6-cap merge drops
+    overflow characters from memory while the saved base still holds their
+    keys — the next diff then deletes a character nobody removed, permanently
+    (same victim every merge, never returns). Pulls scrub sliced ids' keys
+    from the base (`capOverflowKeys`, account scope excluded); the keys stay
+    server-side and re-adopt if a slot frees. Same-harness proof both ways.
 
 ## Trade-offs and residual risks
 
@@ -180,3 +186,25 @@ rebuild-under-open-page auto-updates with toast · zero page errors throughout.
 Server, live against prod Redis (`mabiroutine:dev:`): `j:`-tag round-trips as
 plain strings through client deserialization · 20 concurrent disjoint HSETs
 all survive · immediate HGETALL-after-HSET reads fresh on this database.
+
+## Regression gate (`pnpm test:sync`, in `pnpm check`)
+
+No unit tests — every suite drives real code (`scripts/sync-tests/`):
+
+| ID | What | How |
+|---|---|---|
+| T1 | Stale-tab wake-push sends nothing | vm-realm tabs, real `flat.ts` |
+| T2 | Cap-sliced characters never tombstoned | same harness, 7-char union |
+| T3 | Late wake suppresses tombstones, re-adopts | real store + `syncAndResets` |
+| T3b | Early reset still tombstones + stamps | same |
+| T4 | Chain: legit reset adopted, peer count kept | same |
+| T5 | Adopt/import stamp current bucket | same |
+| T6 | resetAll propagation (locked behavior) | same |
+| P | 300 randomized `checkResets` key-exactness runs | real store, seeded |
+| A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
+| E1 | Real tap → server → second device renders checked | real Edge (CDP) |
+| E2 | Wake-pull leaves server value intact | same |
+
+Teeth: suppression disabled → T3 fails with the exact production wipe
+payload (`v:c1:parttime:null`, `v:c1:tower:null`). Live suites SKIP loudly
+without `pnpm dev:api`/Edge; hermetic suites always run.
