@@ -4,6 +4,15 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 
 ## 2026-09-03 — Unreleased batch (pins, data, perf, branding)
 
+### Features
+- Barter notes now show on the desktop explorer too (were mobile-only): quiet 12px muted-gray line with a hairline indent so it reads as an aside, barter tab only — pinned tracker rows stay note-free
+- Barter tab drops the 採集技能 filter + skill chart (gatherSkill was source-copied noise); stale saves pin back to 全部 so nobody is trapped in a filter with no control, no store bump
+- Barter tab drops the duplicate priority quick-pills (the select does the same job) and the mobile 展開篩選 collapse (two selects fit inline on all screens)
+- All dropdowns unified on one non-modal DropdownMenu pattern (new `MenuSelect`): barter filters + custom-task dialog (icon/section/kind/type) leave Radix Select behind — no more body scroll-lock shifting header/pill on mobile
+- PWA update discovery: `sw.js` revalidates on foreground (10-min throttle) + reconnect, so resumed apps take deploys via the existing auto-takeover toast instead of needing force-restart; deliberately no hourly poll and no interaction triggers (mid-session reloads lose UI state)
+- Barter header drops stale wording (點擊切換, 代幣 — no token shop in-app)
+- READMEs stop claiming character reorder + skill filtering (neither exists)
+
 ### Fixes
 - 兼職 is now a single checkbox (18:00 refresh only) instead of a 0/2 counter; saves with a count of 1–2 carry over as checked (store v11→v12)
 - 每日挑戰 max 10→8 and 每週挑戰 max 11→9 (member-only 2 split out in the text); stored counts above the new max clamp down on load, rest untouched

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { MenuSelect } from "@/components/MenuSelect";
 import type { Task, ResetKind, TaskSection, TaskType } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -61,14 +61,7 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
             </div>
             <div>
               <Label>圖示</Label>
-              <Select value={icon} onValueChange={(v) => setIcon(v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="選擇圖示" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ICONS.map((i) => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <MenuSelect value={icon} options={ICONS.map((i) => ({ value: i, label: i }))} onChange={(v) => setIcon(v)} triggerClassName="w-full" />
             </div>
           </div>
           <div>
@@ -82,45 +75,45 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>區段</Label>
-              <Select value={section} onValueChange={changeSection}>
-                <SelectTrigger>
-                  <SelectValue placeholder="選擇區段" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">☀️ 每日</SelectItem>
-                  <SelectItem value="weekly">🗓️ 每週</SelectItem>
-                  <SelectItem value="account">👥 帳號共通</SelectItem>
-                </SelectContent>
-              </Select>
+              <MenuSelect
+                value={section}
+                options={[
+                  { value: "daily", label: "☀️ 每日" },
+                  { value: "weekly", label: "🗓️ 每週" },
+                  { value: "account", label: "👥 帳號共通" },
+                ]}
+                onChange={changeSection}
+                triggerClassName="w-full"
+              />
             </div>
             <div>
               <Label>重置</Label>
-              <Select value={kind} onValueChange={(v) => setKind(v as ResetKind)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="選擇重置" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">每日 06:00</SelectItem>
-                  <SelectItem value="weekly">每週 Mon 06:00</SelectItem>
-                  <SelectItem value="account-daily">帳號每日</SelectItem>
-                  <SelectItem value="account-weekly">帳號每週</SelectItem>
-                </SelectContent>
-              </Select>
+              <MenuSelect
+                value={kind}
+                options={[
+                  { value: "daily", label: "每日 06:00" },
+                  { value: "weekly", label: "每週 Mon 06:00" },
+                  { value: "account-daily", label: "帳號每日" },
+                  { value: "account-weekly", label: "帳號每週" },
+                ]}
+                onChange={(v) => setKind(v as ResetKind)}
+                triggerClassName="w-full"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>類型</Label>
-              <Select value={type} onValueChange={(v) => setType(v as TaskType)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="選擇類型" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="check">勾選</SelectItem>
-                  <SelectItem value="counter">計數</SelectItem>
-                  <SelectItem value="countdown">倒數（顯示剩餘）</SelectItem>
-                </SelectContent>
-              </Select>
+              <MenuSelect
+                value={type}
+                options={[
+                  { value: "check", label: "勾選" },
+                  { value: "counter", label: "計數" },
+                  { value: "countdown", label: "倒數（顯示剩餘）" },
+                ]}
+                onChange={(v) => setType(v as TaskType)}
+                triggerClassName="w-full"
+              />
             </div>
             {type!=="check" && (
               <div>

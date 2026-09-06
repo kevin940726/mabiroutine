@@ -5,11 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { MenuSelect } from "@/components/MenuSelect";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { Pin, PinOff, Search, ChevronDown } from "lucide-react";
+import { Pin, PinOff, Search } from "lucide-react";
 import type { BarterPriority } from "@/lib/types";
 
 const PRIORITY_LABEL: Record<BarterPriority, string> = {
@@ -21,7 +21,6 @@ const PRIORITY_LABEL: Record<BarterPriority, string> = {
 };
 const PRIORITY_ORDER: BarterPriority[] = ["must", "extra", "once", "situational", "skip"];
 const TOWNS = [...new Set((barterJson as unknown as typeof barterJson).map((b) => b.town))];
-const SKILLS = [...new Set((barterJson as unknown as typeof barterJson).map((b) => b.gatherSkill))];
 
 type BarterRow = (typeof barterJson)[number];
 
@@ -106,6 +105,9 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
           </span>
           <span className="ml-auto shrink-0">{b.limit}</span>
         </div>
+        {b.note && (
+          <p className="text-xs leading-snug text-muted-foreground/80 mt-1 italic truncate border-l-2 border-muted pl-1.5">📝 {b.note}</p>
+        )}
       </div>
       <PinButton barterId={b.id} />
     </div>
@@ -165,7 +167,7 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
             {b.give} → {b.get}
           </div>
           {b.note && (
-            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {b.note}</p>
+            <p className="text-xs leading-snug text-muted-foreground/80 mt-1.5 italic break-words border-l-2 border-muted pl-1.5">📝 {b.note}</p>
           )}
         </div>
         <div className="w-11 shrink-0 flex justify-end">
@@ -185,17 +187,15 @@ export function BarterExplorer() {
   const [q, setQ] = useState("");
   // React 19: keep keystrokes urgent, defer the 98-row filter + card re-render
   const deferredQ = useDeferredValue(q);
-  const { priority, town, skill, onlyPinned } = filters;
+  const { priority, town, onlyPinned } = filters;
   const setPriority = (v: BarterPriority | "all") => setBarterFilters({ priority: v });
   const setTown = (v: string) => setBarterFilters({ town: v });
-  const setSkill = (v: string) => setBarterFilters({ skill: v });
   const setOnlyPinned = (v: boolean) => setBarterFilters({ onlyPinned: v });
 
   const filtered = useMemo(() => {
     return (barterJson as unknown as typeof barterJson).filter((b) => {
       if (priority !== "all" && b.priority !== priority) return false;
       if (town !== "all" && b.town !== town) return false;
-      if (skill !== "all" && b.gatherSkill !== skill) return false;
       if (onlyPinned) {
         if (!barterPins.includes(b.id)) return false;
       }
@@ -210,71 +210,24 @@ export function BarterExplorer() {
       if (pa !== pb) return pa - pb;
       return a.town.localeCompare(b.town);
     });
-  }, [deferredQ, priority, town, skill, onlyPinned, barterPins]);
+  }, [deferredQ, priority, town, onlyPinned, barterPins]);
 
-  // chart data for skills — counts the filtered rows so town/priority/search/pin filters are reflected
-  const skillCountMap = useMemo(() => {
-    const m = new Map<string, number>();
-    filtered.forEach((b) => m.set(b.gatherSkill, (m.get(b.gatherSkill) ?? 0) + 1));
-    return m;
-  }, [filtered]);
-  // stable full-data order: every skill always renders (0 = empty track), so the
-  // chart block never changes height when filters change — no layout jump
-  const allSkillOrder = useMemo(() => {
-    const m = new Map<string, number>();
-    (barterJson as unknown as typeof barterJson).forEach((b) => m.set(b.gatherSkill, (m.get(b.gatherSkill) ?? 0) + 1));
-    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
-  }, []);
-  const maxCount = Math.max(...[...skillCountMap.values()], 1);
-
-  // filter controls below are rendered twice from these consts (pure RWD, no
-  // JS split): once inside a mobile-only <details>, once in the desktop flow.
+  // filter controls are one shared const rendered inline on all screens
   const filterSelects = (
     <div className="flex flex-wrap gap-2">
-      <Select value={priority} onValueChange={(v) => setPriority(v as BarterPriority | "all")}>
-        <SelectTrigger className="w-auto">
-          <SelectValue placeholder="全部優先度" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">全部優先度</SelectItem>
-          {PRIORITY_ORDER.map((p) => <SelectItem key={p} value={p}>{PRIORITY_LABEL[p]}</SelectItem>)}
-        </SelectContent>
-      </Select>
-      <Select value={town} onValueChange={(v) => setTown(v)}>
-        <SelectTrigger className="w-auto">
-          <SelectValue placeholder="全部城鎮" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">全部城鎮</SelectItem>
-          {TOWNS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-        </SelectContent>
-      </Select>
-      <Select value={skill} onValueChange={(v) => setSkill(v)}>
-        <SelectTrigger className="w-auto">
-          <SelectValue placeholder="全部採集技能" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">全部採集技能</SelectItem>
-          {SKILLS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-        </SelectContent>
-      </Select>
+      <MenuSelect
+        value={priority}
+        options={[{ value: "all", label: "全部優先度" }, ...PRIORITY_ORDER.map((p) => ({ value: p, label: PRIORITY_LABEL[p] }))]}
+        onChange={(v) => setPriority(v as BarterPriority | "all")}
+      />
+      <MenuSelect
+        value={town}
+        options={[{ value: "all", label: "全部城鎮" }, ...TOWNS.map((t) => ({ value: t, label: t }))]}
+        onChange={(v) => setTown(v)}
+      />
       <span className="text-xs text-muted-foreground self-center">
         顯示 {filtered.length} / {barterJson.length} 筆 · 已釘選 {barterPins.length}
       </span>
-    </div>
-  );
-
-  const filterPills = (
-    <div className="flex flex-wrap gap-1.5">
-      {PRIORITY_ORDER.map((p) => (
-        <button
-          key={p}
-          onClick={() => setPriority(priority === p ? "all" : p)}
-          className={cn("rounded-full border px-3 py-1 text-xs", priority === p ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-accent")}
-        >
-          {PRIORITY_LABEL[p]}
-        </button>
-      ))}
     </div>
   );
 
@@ -284,34 +237,14 @@ export function BarterExplorer() {
     </div>
   );
 
-  const skillChart = (
-    <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">各採集技能的換物需求（次）</p>
-      <div className="grid gap-1">
-        {allSkillOrder.map((name) => {
-          const n = skillCountMap.get(name) ?? 0;
-          return (
-            <div key={name} className="flex items-center gap-2 text-xs">
-              <span className="w-20 shrink-0 text-right">{name}</span>
-              <div className="flex-1 h-3 rounded bg-muted overflow-hidden">
-                <div className="h-full bg-primary transition-all" style={{ width: `${(n / maxCount) * 100}%` }} />
-              </div>
-              <span className="w-8 font-mono">{n}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-wrap items-center gap-2">
-            🔄 以物易物 · 代幣 <Badge variant="secondary">{barterJson.length} 筆</Badge>
+            🔄 以物易物 <Badge variant="secondary">{barterJson.length} 筆</Badge>
             <span className="text-xs font-normal text-muted-foreground">
-              已釘選 {barterPins.length} 項 · 點擊切換，所有角色共用
+              已釘選 {barterPins.length} 項，所有角色共用
             </span>
           </CardTitle>
           <CardDescription>
@@ -330,33 +263,12 @@ export function BarterExplorer() {
             </Button>
           </div>
 
-          {/* mobile-only collapse (pure RWD: the whole <details> hides on sm+) */}
-          <details className="sm:hidden group">
-            <summary className="flex w-full cursor-pointer list-none items-center justify-between py-1 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">
-              <span>展開篩選</span>
-              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="space-y-4 pt-3">
-              {filterSelects}
-              {filterPills}
-            </div>
-          </details>
-
-          {/* desktop filters — same boxes as before, hidden below sm */}
-          <div className="hidden sm:block">
-            <div className="space-y-4">
-              {filterSelects}
-              {filterPills}
-            </div>
-          </div>
+          {/* filters — always visible on both mobile and desktop (two
+              selects only; the old mobile collapse died with the pill row) */}
+          {filterSelects}
 
           {/* legend — always visible, inside and outside the collapse */}
           {filterLegend}
-
-          {/* skill chart — desktop only (pure RWD) */}
-          <div className="hidden sm:block">
-            {skillChart}
-          </div>
         </CardContent>
       </Card>
 

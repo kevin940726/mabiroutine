@@ -159,11 +159,12 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
   const r = (f ?? {}) as Partial<BarterFilters>;
   const prios = ["all", "must", "extra", "once", "situational", "skip"];
   const towns = new Set(["all", ...(barterJson as BarterJsonItem[]).map((b) => b.town)]);
-  const skills = new Set(["all", ...(barterJson as BarterJsonItem[]).map((b) => b.gatherSkill)]);
   return {
     priority: (prios.includes(r.priority as string) ? r.priority : "all") as BarterFilters["priority"],
     town: towns.has(r.town as string) ? (r.town as string) : "all",
-    skill: skills.has(r.skill as string) ? (r.skill as string) : "all",
+    // skill filter removed from UI (gatherSkill was source-copied noise):
+    // pin stale saves to "all" so nobody is trapped in a filter with no control
+    skill: "all",
     onlyPinned: r.onlyPinned === true,
   };
 }
