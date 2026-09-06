@@ -12,7 +12,7 @@ import { SyncButton, SyncToasts } from "@/sync/SyncButton";
 import { InstallButton } from "@/components/InstallButton";
 import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
 import { PillProgress } from "@/components/PillProgress";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { SyncImport } from "@/sync/SyncImport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,6 @@ export default function App() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [compact, setCompact] = useState(false);
-  const [pillMenuOpen, setPillMenuOpen] = useState(false);
   const [pillRenaming, setPillRenaming] = useState(false);
   const [pillDraft, setPillDraft] = useState("");
   // desktop pill still uses its own rename state
@@ -275,42 +274,39 @@ export default function App() {
               >
                 <Plus className="h-4 w-4" />
               </button>
-              <span className="relative shrink-0">
-                <button
-                  onClick={() => setPillMenuOpen((v) => !v)}
-                  className="h-7 w-7 grid place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
-                  aria-label="character actions"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-                {pillMenuOpen && (
-                  <span className="absolute right-0 top-8 z-10 block w-32 rounded-md border bg-popover p-1 shadow-md">
-                    <button
-                      onClick={() => {
-                        setPillMenuOpen(false);
-                        if (active) setPillDraft(active.name);
-                        setPillRenaming(true);
-                      }}
-                      className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent"
-                    >
-                      重新命名
-                    </button>
-                      <button
-                        onClick={() => {
-                          setPillMenuOpen(false);
-                          if (!active || chars.length <= 1) return;
-                          void confirmRemoveCharacter(active.name).then((ok) => {
-                            if (ok) useAppStore.getState().removeCharacter(active.id);
-                          });
-                        }}
-                        disabled={chars.length <= 1}
-                      className="flex h-9 w-full items-center gap-2 rounded px-2 text-xs hover:bg-accent disabled:opacity-30 disabled:pointer-events-none"
-                    >
-                      刪除角色
-                    </button>
-                  </span>
-                )}
-              </span>
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="h-7 w-7 shrink-0 grid place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label="character actions"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-32">
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      if (active) setPillDraft(active.name);
+                      setPillRenaming(true);
+                    }}
+                    className="text-xs"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />重新命名
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={chars.length <= 1}
+                    onSelect={() => {
+                      if (!active || chars.length <= 1) return;
+                      void confirmRemoveCharacter(active.name).then((ok) => {
+                        if (ok) useAppStore.getState().removeCharacter(active.id);
+                      });
+                    }}
+                    className="text-xs text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />刪除角色
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
         </div>
