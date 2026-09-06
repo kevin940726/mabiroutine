@@ -73,26 +73,80 @@ export function diffFlat(base: FlatMap, now: FlatMap): FlatMap {
 
 // Per-session sync base (last synced flat, nulls included). Switching
 // sessions resets it — first push then sends the full map (always safe).
+//
+// The base is PER TAB, not per browser: localStorage is shared across tabs
+// but each tab has its own memory, so a shared base lets a suspended tab wake
+// up, diff its stale memory against another tab's fresh base, and tombstone
+// live keys it simply never saw (a same-browser "late wake" no marker can
+// catch — no reset is involved). Tab bases live in sessionStorage with an
+// in-memory fallback; the shared localStorage copy is only the seed for tabs
+// born later (so a fresh tab doesn't full-push over keys a peer tombstoned
+// while this browser was away) — never read after seeding.
 const BASE_KEY = "mabiroutine:flatbase";
+const TAB_BASE_KEY = "mabiroutine:flattab";
 
-export function loadBase(sessionId: string): FlatMap {
+type BaseDoc = { sessionId: string; flat: FlatMap };
+
+function validBaseDoc(d: unknown): d is BaseDoc {
+  if (!d || typeof d !== "object") return false;
+  const b = d as Partial<BaseDoc>;
+  return typeof b.sessionId === "string" && !!b.flat && typeof b.flat === "object";
+}
+
+function readSharedBase(): BaseDoc | null {
   try {
     const raw = localStorage.getItem(BASE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as { sessionId?: unknown; flat?: unknown };
-    if (parsed.sessionId !== sessionId || !parsed.flat || typeof parsed.flat !== "object") return {};
-    return parsed.flat as FlatMap;
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    return validBaseDoc(parsed) ? parsed : null;
   } catch {
-    return {};
+    return null;
   }
 }
 
-export function saveBase(sessionId: string, flat: FlatMap): void {
+// sessionStorage access itself can throw (blocked cookies) — fall back to a
+// module-level doc (lost on reload, which safely degrades to a full push).
+let memBase: BaseDoc | null = null;
+
+function readTabBase(): BaseDoc | null {
   try {
-    localStorage.setItem(BASE_KEY, JSON.stringify({ sessionId, flat }));
+    if (typeof sessionStorage === "undefined") return memBase;
+    const raw = sessionStorage.getItem(TAB_BASE_KEY);
+    if (!raw) return memBase;
+    const parsed: unknown = JSON.parse(raw);
+    return validBaseDoc(parsed) ? parsed : memBase;
+  } catch {
+    return memBase;
+  }
+}
+
+function writeBase(doc: BaseDoc): void {
+  memBase = doc;
+  try {
+    if (typeof sessionStorage !== "undefined") sessionStorage.setItem(TAB_BASE_KEY, JSON.stringify(doc));
+  } catch {
+    // memory only — next load re-seeds from shared
+  }
+  try {
+    localStorage.setItem(BASE_KEY, JSON.stringify(doc));
   } catch {
     // private mode — next push degrades to full map, still correct
   }
+}
+
+export function loadBase(sessionId: string): FlatMap {
+  const tab = readTabBase();
+  if (tab && tab.sessionId === sessionId) return tab.flat;
+  const shared = readSharedBase();
+  if (shared && shared.sessionId === sessionId) {
+    writeBase(shared);
+    return shared.flat;
+  }
+  return {};
+}
+
+export function saveBase(sessionId: string, flat: FlatMap): void {
+  writeBase({ sessionId, flat });
 }
 
 function validCustom(v: unknown): v is Task {

@@ -49,7 +49,8 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 ## Client engine (`src/sync/SyncButton.tsx`, `src/sync/session.ts`)
 
 - **Push** (debounced 3s, flushed on tab-hide): diff current flat vs retained
-  base (`mabiroutine:flatbase`, per-session) → PATCH changed keys; base-keys
+  **per-tab** base (sessionStorage `flattab`, seeded once from the shared
+  localStorage `flatbase`) → PATCH changed keys; base-keys
   gone from current go as `null` (tombstones). Resolves the pushed key-set
   ({} when clean) or null when nothing was sent — callers must not treat
   remote state as newer than unsent local edits.
@@ -133,6 +134,15 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
     never delete-from-server. Residual: sub-second simultaneous first-wakes
     both reset fully (same stale keys, idempotent nulls — converges); mixed
     versions fall back to full resets until all devices update.
+12. **The base must track the tab's memory vintage, not the browser's
+    freshest.** localStorage is shared across tabs but memory isn't: a shared
+    base lets a suspended tab wake, diff stale memory against another tab's
+    fresh base, and tombstone live keys it never saw — no reset involved, so
+    no marker can catch it (proven both directions in-harness:
+    `suggestions/sync-harness/run.cjs` against old/new `flat.ts`). Bases are
+    per-tab (sessionStorage, memory fallback); the shared copy is seed-only
+    for tabs born later. Verified: stale-tab wake-push sends nothing, peer
+    keys survive server-side, pulling tab re-adopts them.
 
 ## Trade-offs and residual risks
 
