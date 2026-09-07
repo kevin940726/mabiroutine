@@ -241,10 +241,17 @@ function buildCharacters(
   order: string[],
   cap = 6
 ): Character[] {
-  const ids = sortedIds([...buckets.keys()]);
-  const ordered = [...order.filter((id) => buckets.has(id)), ...ids.filter((id) => !order.includes(id))];
+  // Dropped-character suppression: a bucket with value keys but no live name
+  // key is a deleted character — removeCharacter/resetAll tombstone the
+  // persistent char:<cid>:name while the v: keys linger till GC. Rebuilding
+  // it here would resurrect the character on every pull (and every link
+  // adopt). Live characters always carry their name key (flatten emits it
+  // for every char; pushes are single-PATCH atomic), so absence ⟺ deleted.
+  const live = new Map([...buckets].filter(([, b]) => b.name));
+  const ids = sortedIds([...live.keys()]);
+  const ordered = [...order.filter((id) => live.has(id)), ...ids.filter((id) => !order.includes(id))];
   return ordered.slice(0, cap).map((id) => {
-    const b = buckets.get(id)!;
+    const b = live.get(id)!;
     return {
       id,
       name: b.name || "角色",

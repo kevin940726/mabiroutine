@@ -125,11 +125,17 @@ v13) and rides the wire on every value key.
 7. **Base map is per-session and minimal.** First push after session switch
    sends the full map (always safe); `null`s persist in base so tombstones
    aren't re-sent.
-8. **v1 sessions upgrade transparently.** GET serves the blob under `legacy`;
-   client adopts/flattens locally; next push sends full flat and the server
-   upgrades the record (v2 strings upgrade the same way). No re-linking,
-   verified live against a seeded v1. Rev-2 untagged value keys are inert
-   garbage under rev 3: never adopted, never tombstoned.
+ 8. **v1 sessions upgrade transparently.** GET serves the blob under `legacy`;
+    client adopts/flattens locally; next push sends full flat and the server
+    upgrades the record (v2 strings upgrade the same way). No re-linking,
+    verified live against a seeded v1. Rev-2 untagged value keys are inert
+    garbage under rev 3: never adopted, never tombstoned.
+ 8b. **Merges never rebuild nameless characters.** removeCharacter/resetAll
+    tombstone the persistent `char:<cid>:name` while the `v:` keys linger
+    till GC; both merge paths drop buckets with no live name key (absence ⟺
+    deleted — flatten always emits names and pushes are single-PATCH atomic).
+    Without this the removed character resurrects on every pull (proven
+    2026-09-07: E10 failed pre-fix with `["c1","c2"]`).
 9. **Whole-state LWW + 409 + dialog deleted** (server guard, conflict UI,
    badge, takeTheirs/keepMine). The 409 era's lesson is preserved as a
    negative: detection was automatic but announcement was manual — silent
@@ -235,6 +241,8 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | E7 | Adopt/import stamp markers; values preserved | same |
 | E8 | Production scenario: stale evening device can't wipe the 09:00 peer | same |
 | E9 | clearSection zeroes in place, propagates, never resurrects | same |
+| E10 | Removed character stays removed after pull (no ghosts) | same |
+| E11 | Custom kind change re-stamps provenance, keeps the check | same |
 | P | 300 randomized prune runs (stale removed, current kept, idempotent) | real store, seeded |
 | A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
 | E1E | Real tap → server → second device renders checked | real Edge (CDP) |

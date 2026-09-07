@@ -290,6 +290,8 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E5 pin tombstoned", ns.includes("pin:pin-a"), ns);
   ok("E5 old char name tombstoned", ns.some((k) => /^char:[^:]+:name$/.test(k) && k !== `char:${useAppStore.getState().characters[0]?.id}:name`), ns);
   ok("E5 cycle values not tombstoned", !ns.some((k) => isCycleKey(k)), ns);
+  const e5chars = useAppStore.getState().characters;
+  ok("E5 pull converges to the single fresh char (no ghosts)", e5chars.length === 1, e5chars.map((c) => c.id));
 }
 
 // E6: GC tombstones only cycle keys past the retention window (60d).
@@ -406,6 +408,53 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E9 cleared state stays cleared", pushes.length === m, pushes.slice(m));
   const mem2 = useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>;
   ok("E9 no resurrection after pull", mem2?.[DAILY_CHECK] === false && mem2?.[DAILY_COUNT] === 0, mem2);
+}
+
+// E11: editing a custom task's kind (day ↔ week) re-stamps provenance —
+// the stored check must survive, not read as stale and prune away.
+{
+  isolate();
+  const SID = "e11-kind";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  const seeded = snap({ cx1: true }, { cx1: TODAY }, TODAY, THIS_WEEK);
+  seeded.customTasks = [{ id: "cx1", name: "X", kind: "daily", section: "custom", type: "check", order: 10 }];
+  seedStore(seeded);
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  server.flat = flattenSnapshot(buildSnapshot());
+  (useAppStore.getState() as { updateCustomTask: (id: string, patch: unknown) => void }).updateCustomTask("cx1", { kind: "weekly" });
+  await syncAndResets();
+  const st = useAppStore.getState();
+  ok("E11 kind change keeps the check", (st.characters[0]?.taskValues as Record<string, unknown>)?.cx1 === true, st.characters[0]?.taskValues);
+  ok("E11 provenance re-stamped to week bucket", st.taskBuckets.cx1 === THIS_WEEK, st.taskBuckets);
+}
+
+// E10: removing a character must not resurrect via pull — the
+// name tombstones (persistent) but the v: keys linger till GC, and the
+// merge must not rebuild the character from orphan value keys.
+{
+  isolate();
+  const SID = "e10-rmchar";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  seedStore({
+    ...snap({ [DAILY_CHECK]: true }, { [DAILY_CHECK]: TODAY }, TODAY, THIS_WEEK),
+    characters: [
+      { id: "c1", name: "A", taskValues: { [DAILY_CHECK]: true }, hiddenTaskIds: [] },
+      { id: "c2", name: "B", taskValues: { [DAILY_CHECK]: true }, hiddenTaskIds: [] },
+    ],
+  });
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  server.flat = flattenSnapshot(buildSnapshot());
+  (useAppStore.getState() as { removeCharacter: (id: string) => void }).removeCharacter("c2");
+  await syncAndResets();
+  await syncAndResets();
+  const ids = useAppStore.getState().characters.map((c) => c.id);
+  ok("E10 removed character stays removed", !ids.includes("c2"), ids);
 }
 
 setPullHook(null);

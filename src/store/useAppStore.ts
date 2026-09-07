@@ -585,9 +585,19 @@ export const useAppStore = create<Store>()(
           return { customTasks: [...s.customTasks, newTask] };
         }),
       updateCustomTask: (id, patch) =>
-        set((s) => ({
-          customTasks: s.customTasks.map((t) => (t.id === id ? { ...t, ...patch } : t)),
-        })),
+        set((s) => {
+          const nextCustoms = s.customTasks.map((t) => (t.id === id ? { ...t, ...patch } : t));
+          const nextBuckets = { ...s.taskBuckets };
+          // A kind change moves the value to a different cycle (day ↔ week):
+          // the old bucket would read as stale and the next prune would eat
+          // a check the user never cleared. Re-stamp current-bucket instead.
+          const oldKind = s.customTasks.find((t) => t.id === id)?.kind;
+          const newKind = (patch as Partial<Task>).kind;
+          if (newKind !== undefined && oldKind !== undefined && newKind !== oldKind && nextBuckets[id] !== undefined) {
+            nextBuckets[id] = cycleBucketFor(id, nextCustoms, new Date());
+          }
+          return { customTasks: nextCustoms, taskBuckets: nextBuckets };
+        }),
       removeCustomTask: (id) =>
         set((s) => {
           const nextBuckets = { ...s.taskBuckets };
