@@ -161,7 +161,7 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 13,
+  version: 14,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -407,6 +407,62 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     // untagged values, dropped for pre-rollover ones (markers witness) — and
     // pruned stale ones; here we only stamp. No values touched.
     s.version = 13;
+  }
+  if (from < 14) {
+    // v13 → v14: tracker reshuffle — weekly-challenge moved weekly
+    // (per-char) → account-weekly (shared); acc-field-last removed.
+    // Move char-level progress into accountValues (max across chars, capped
+    // at the live max; provenance follows — same week-bucket domain) and
+    // union per-char hides into the global list, then re-run the v6
+    // valid-set prune (now including taskBuckets) for removed ids.
+    // Old per-char wire keys age out server-side via GC, never adopted
+    // (prefix mismatch) — no tombstones needed.
+    const liveMax = (trackerJson as Task[]).find((t) => t.id === "weekly-challenge")?.max ?? 9;
+    const numOf = (v: unknown): number => (typeof v === "number" ? v : v === true ? liveMax : 0);
+    // Buckets are per-tid (shared across chars): capture once, then clear.
+    const buckets = (s.taskBuckets ?? {}) as Record<string, string>;
+    let moved = numOf((s.accountValues ?? {} as Record<string, number | boolean>)["weekly-challenge"]);
+    let movedBucket = buckets["weekly-challenge"] as string | undefined;
+    let hideGlobally = (s.hiddenAccountTaskIds ?? []).includes("weekly-challenge");
+    for (const c of s.characters ?? []) {
+      if (c.taskValues && "weekly-challenge" in c.taskValues) {
+        moved = Math.max(moved, numOf(c.taskValues["weekly-challenge"]));
+        delete c.taskValues["weekly-challenge"];
+      }
+      if (c.hiddenTaskIds?.includes("weekly-challenge")) {
+        c.hiddenTaskIds = c.hiddenTaskIds.filter((id) => id !== "weekly-challenge");
+        hideGlobally = true;
+      }
+    }
+    delete buckets["weekly-challenge"];
+    if (moved > 0) {
+      s.accountValues = { ...(s.accountValues ?? {}), "weekly-challenge": Math.min(moved, liveMax) };
+      if (movedBucket !== undefined) s.taskBuckets = { ...(s.taskBuckets ?? {}), "weekly-challenge": movedBucket };
+    } else {
+      if (s.accountValues) delete s.accountValues["weekly-challenge"];
+      if (s.taskBuckets) delete (s.taskBuckets as Record<string, string>)["weekly-challenge"];
+    }
+    if (hideGlobally && !(s.hiddenAccountTaskIds ?? []).includes("weekly-challenge")) {
+      s.hiddenAccountTaskIds = [...(s.hiddenAccountTaskIds ?? []), "weekly-challenge"];
+    }
+    const valid = new Set<string>([
+      ...(trackerJson as Task[]).map((t) => t.id),
+      ...(barterJson as BarterJsonItem[]).map((b) => b.id),
+      ...(s.customTasks ?? []).map((t) => t.id),
+    ]);
+    const pruneArr = (arr?: string[]) => (arr ?? []).filter((id) => valid.has(id));
+    const pruneRec = <T,>(rec?: Record<string, T>) =>
+      Object.fromEntries(Object.entries(rec ?? {}).filter(([k]) => valid.has(k))) as Record<string, T>;
+    for (const c of s.characters ?? []) {
+      c.taskValues = pruneRec(c.taskValues);
+      c.hiddenTaskIds = pruneArr(c.hiddenTaskIds);
+    }
+    s.accountValues = pruneRec(s.accountValues);
+    s.hiddenAccountTaskIds = pruneArr(s.hiddenAccountTaskIds);
+    s.barterPins = pruneArr(s.barterPins);
+    s.taskBuckets = pruneRec(s.taskBuckets);
+    if (s.globalTaskOrder) s.globalTaskOrder = pruneRec(s.globalTaskOrder);
+    s.version = 14;
   }
   return s as AppState;
 }
@@ -702,7 +758,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 13,
+      version: 14,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

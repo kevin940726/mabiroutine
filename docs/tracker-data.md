@@ -35,7 +35,6 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | abyss | 深淵 | counter | 3 | 每週通關獎勵 3 次，入場次數無限制；週一 06:00 重置。 | nipponhashi 官方原文 |
 | raid-gris | 團隊副本（格里斯貝恩） | counter | 1 | 每個首領每週 1 次獎勵，入門與困難共用同一次。週一 06:00 重置。 | nipponhashi; bobogameguides 已確認 65級+困難已開放 |
 | field-boss | 野外首領 | counter | 1 | 每週 1 次討伐戰利品，週一 06:00 重置。之後仍有基本獎勵。每日 12/18/20/22 時出現。 | nipponhashi |
-| weekly-challenge | 每週挑戰 | counter | 9 | 每週 9 個挑戰，會員有另外 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。 | user hand-added 2026-09-04; max 11→9, store v11→v12 caps over-max |
 
 ### 👥 帳號共通
 | id | name | kind | desc (TW-only) | cross-ref |
@@ -47,10 +46,10 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | acc-attendance | 每日簽到 | account-daily | 出席獎勵領取 | nipponhashi |
 | acc-member | 會員每日領取 | account-daily | 會員每日道具會寄到伺服器信箱（06:00 發放），記得收。 | nipponhashi |
 | guild-challenges | 公會挑戰 | account-weekly | 每週全公會完成 80 次公會挑戰，週一 06:00 重置。 | user hand-added (replaces acc-guild-weekly) |
-| acc-field-last | 野外首領尾刀 | account-weekly | 每週首領最後一擊稱號挑戰 | nipponhashi |
+| weekly-challenge | 每週挑戰 | account-weekly counter 0/9 | 每週 9 個挑戰，會員有另外 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。 | user hand-added 2026-09-04; max 11→9 (store v11→v12 caps over-max); moved weekly→account 2026-09-07 per user (store v13→v14 moves progress char→account, max wins) |
 | friend-challenges | 好友共同挑戰 | account-weekly | 每週與好友共同完成挑戰，週一 06:00 重置。 | user hand-added |
 
-**Result: `src/data/tracker.json` now 21 TW rows (5 daily + 7 weekly + 9 account). 2026-09-04: added `daily-challenge` + `weekly-challenge`, `tower` counter→check, `black-hole` daily→weekly (prior hunt / barter-check / life-weekly / acc-guild-weekly removals already landed). `barrier` + `black-hole` are type `countdown` (倒數: counter semantics, tile shows 剩餘, mobile + desktop; fill still rises with used). No store bump: additions need no backfill, old `tower` numbers degrade to truthy checks, `black-hole` values carry as weekly progress. No KR rows.**
+**Result: `src/data/tracker.json` now 20 TW rows (5 daily + 6 weekly + 9 account). 2026-09-07: `weekly-challenge` moved to account-shared (progress migrates, max across chars), `acc-field-last` (野外首領尾刀) removed — store v14 prunes it from every container incl. provenance.** 2026-09-04: added `daily-challenge` + `weekly-challenge`, `tower` counter→check, `black-hole` daily→weekly (prior hunt / barter-check / life-weekly / acc-guild-weekly removals already landed). `barrier` + `black-hole` are type `countdown` (倒數: counter semantics, tile shows 剩餘, mobile + desktop; fill still rises with used). No KR rows.
 
 ### Barter — TW-only guidance
 

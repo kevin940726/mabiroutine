@@ -41,11 +41,11 @@ class MemStorage {
 
 const FILTERS = { priority: "all", town: "all", skill: "all", onlyPinned: false };
 // Real ids (kind lookup must resolve): parttime = daily check,
-// tower = daily counter, weekly-challenge = weekly, guild-challenges =
+// tower = daily counter, abyss = weekly counter, guild-challenges =
 // account-weekly.
 const DAILY_CHECK = "parttime";
 const DAILY_COUNT = "tower";
-const WEEKLY = "weekly-challenge";
+const WEEKLY = "abyss";
 const ACC_WEEKLY = "guild-challenges";
 
 const TODAY = currentDailyBucket(new Date());
@@ -184,7 +184,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
     [`v:c1:${DAILY_CHECK}@${TODAY}`]: true, // current
     [`v:c1:${WEEKLY}@${THIS_WEEK}`]: 3, // current week
     [`acc:${ACC_WEEKLY}@${THIS_WEEK}`]: true, // current account-weekly
-    "pin:some-barter": true, // persistent
+    "pin:tir-f3": true, // persistent (real barter id — v14 prunes dangling pins)
     "char:c1:name": "A",
     "meta:active": "c1",
   };
@@ -196,7 +196,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E2 adopts current account-weekly", st.accountValues[ACC_WEEKLY] === true, st.accountValues);
   ok("E2 provenance recorded", st.taskBuckets[DAILY_CHECK] === TODAY && st.taskBuckets[WEEKLY] === THIS_WEEK, st.taskBuckets);
   ok("E2 expired bucket filtered", !(`${OLD}` in st.taskBuckets) && tv[DAILY_CHECK] === true);
-  ok("E2 adopts persistent pin", st.barterPins.includes("some-barter"));
+  ok("E2 adopts persistent pin", st.barterPins.includes("tir-f3"));
 }
 
 // E3: legacy untagged value keys are inert — never adopted, never tombstoned.

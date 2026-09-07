@@ -184,18 +184,6 @@
     "source": "builtin",
     "order": 250
   },
-   {
-    "id": "weekly-challenge",
-    "name": "每週挑戰",
-    "icon": "📜",
-    "desc": "每週 9 個挑戰，會員有另外 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。",
-    "section": "weekly",
-    "kind": "weekly",
-    "type": "counter",
-    "max": 9,
-    "source": "builtin",
-    "order": 255
-  },
   {
     "id": "acc-member",
     "name": "會員每日領取",
@@ -208,6 +196,18 @@
     "order": 260
   },
   {
+    "id": "weekly-challenge",
+    "name": "每週挑戰",
+    "icon": "📜",
+    "desc": "每週 9 個挑戰，會員有另外 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。",
+    "section": "account",
+    "kind": "account-weekly",
+    "type": "counter",
+    "max": 9,
+    "source": "builtin",
+    "order": 265
+  },
+  {
     "id": "guild-challenges",
     "name": "公會挑戰",
     "icon": "🛡️",
@@ -217,17 +217,6 @@
     "type": "check",
     "source": "builtin",
     "order": 270
-  },
-  {
-    "id": "acc-field-last",
-    "name": "野外首領尾刀",
-    "icon": "🏆",
-    "desc": "每週首領最後一擊稱號挑戰",
-    "section": "account",
-    "kind": "account-weekly",
-    "type": "check",
-    "source": "builtin",
-    "order": 280
   },
   {
     "id": "friend-challenges",
