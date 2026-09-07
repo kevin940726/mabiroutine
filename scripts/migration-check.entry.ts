@@ -12,6 +12,7 @@ const mem = new Map<string, string>();
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
+import { getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 const { migratePersisted } = await import("@/store/useAppStore");
 
 type AnyRec = Record<string, unknown>;
@@ -270,6 +271,48 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert(!("parttime" in (stale.taskBuckets as AnyRec)), "J: stale provenance pruned");
   assert((stale.taskBuckets as AnyRec).parttime === undefined || true, "J: provenance consistent");
   assert(today !== undefined && week !== undefined, "J: bucket formats present");
+}
+
+// K: v12 save with STALE reset markers (upgrade landed after a rollover) ->
+// pre-rollover values drop instead of stamping current (the Monday-morning
+// wipe-that-wasn't: last week's checks kept all week, then synced everywhere).
+// Markers computed relative to now so the fixture holds any day it runs:
+// 8d ago is always a different week, 48h always crosses a 06:00 boundary.
+{
+  assert(trackerIds.has("parttime") && trackerIds.has("weekly-challenge"), "K premise: parttime + weekly-challenge exist (update fixture if removed)");
+  const nowMs = Date.now();
+  const staleWeek = getTaipeiWeekKey(new Date(nowMs - 8 * 24 * 3600 * 1000));
+  const staleDay = currentDailyBucket(new Date(nowMs - 48 * 3600 * 1000));
+  const curWeek = getTaipeiWeekKey(new Date(nowMs));
+  const curDay = currentDailyBucket(new Date(nowMs));
+  assert(staleWeek !== curWeek && staleDay !== curDay, "K premise: relative markers differ from current");
+  const v12input = {
+    version: 12,
+    characters: [
+      { id: "c1", name: "A", taskValues: { parttime: true, "weekly-challenge": 3 }, hiddenTaskIds: [] },
+    ],
+    activeCharId: "c1",
+    accountValues: {},
+    customTasks: [],
+    lastDailyReset: staleDay,
+    lastWeeklyReset: staleWeek,
+  };
+  const out = migratePersisted(structuredClone(v12input), 12) as AnyRec;
+  assert(out.version === 13, "K: reaches v13");
+  const c = (out.characters as AnyRec[])[0] as AnyRec;
+  assert(!("parttime" in (c.taskValues as AnyRec)), "K: pre-rollover daily dropped, not stamped");
+  assert(!("weekly-challenge" in (c.taskValues as AnyRec)), "K: pre-rollover weekly dropped, not stamped");
+  assert(!("parttime" in (out.taskBuckets as AnyRec)), "K: no laundered daily provenance");
+  assert(!("weekly-challenge" in (out.taskBuckets as AnyRec)), "K: no laundered weekly provenance");
+
+  // Same save, markers already current (reset ran, checks are fresh) -> kept.
+  const fresh = migratePersisted(
+    structuredClone({ ...v12input, lastDailyReset: curDay, lastWeeklyReset: curWeek }),
+    12
+  ) as AnyRec;
+  const fc = (fresh.characters as AnyRec[])[0] as AnyRec;
+  assert((fc.taskValues as AnyRec).parttime === true, "K: fresh daily kept");
+  assert((fc.taskValues as AnyRec)["weekly-challenge"] === 3, "K: fresh weekly kept");
 }
 
 console.log("\nAll migration fixtures passed.");

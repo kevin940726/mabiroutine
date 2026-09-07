@@ -101,14 +101,18 @@ v13) and rides the wire on every value key.
    local order is also arguably better UX (different screens, different ideal
    orders). Fresh adopts fall back to deterministic id-sorted layout.
    Cost: reordering on desktop doesn't move phone rows. Accepted.
-5. **Resets are read-time expiry, never deletes** (rev 3 — supersedes the
-   marker-gating of #11). Every wiped session traced to one domain decision:
-   resets as write-time deletes. Rev 3 tags every value with its cycle
-   bucket (store provenance `taskBuckets`, v13); reads consider only the
-   current bucket; a reset prunes memory and writes NOTHING. A stale device
-   (opened days late) can no longer wipe a peer: it never deletes, and its
-   stale values live under old buckets no one reads. Local prune ordering
-   vs pulls is a UX nicety, not a safety property.
+ 5. **Resets are read-time expiry, never deletes** (rev 3 — supersedes the
+    marker-gating of #11). Every wiped session traced to one domain decision:
+    resets as write-time deletes. Rev 3 tags every value with its cycle
+    bucket (store provenance `taskBuckets`, v13); reads consider only the
+    current bucket; a reset prunes memory and writes NOTHING. A stale device
+    (opened days late) can no longer wipe a peer: it never deletes, and its
+    stale values live under old buckets no one reads. Local prune ordering
+    vs pulls is a UX nicety, not a safety property. Provenance-less values
+    (v12 upgrades, ancient imports) are NOT blindly stamped current — the
+    last-reset markers witness their age, and a stale marker drops them
+    (2026-09-07: an upgrade landing after the Monday reset otherwise keeps
+    last week's checks all week, then sync adopts them everywhere).
 6. **Timestamp trust is the load-bearing remainder — solved by arrival
    order.** Phone clocks skew, so wall time is out; HLCs would bloat user
    state. A single server's receive order is total and matches real order
@@ -162,10 +166,11 @@ v13) and rides the wire on every value key.
 - Same-key concurrent edits resolve by arrival with no trace. By design
   tolerance; add per-key versions to GET only if a real complaint arrives.
 - A stale device's own values can arrive tagged with the CURRENT bucket if
-  its provenance is missing (v12-era memory): normalize assigns the current
-  bucket, so a yesterday value written by a never-since-opened device reads
-  as today's until the first prune tick. Self-heals within one tick; never
-  destructive.
+  its provenance was laundered at upgrade (fixed 2026-09-07: stale reset
+  markers now drop provenance-less values instead of stamping them). With no
+  witness (null markers on versionless imports) stamp-current remains, and a
+  yesterday value on a never-since-opened device reads as today's until the
+  first prune tick. Self-heals within one tick; never destructive.
 - Mixed-version window: pre-rev-3 devices read/write untagged keys, so they
   neither see nor destroy rev-3 values (but cannot adopt them either).
   Update all devices promptly; old keys age out via GC... untagged keys are

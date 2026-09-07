@@ -14,6 +14,10 @@ const BARTER_IDS = new Set((barterJson as { id: string }[]).map((b) => b.id));
 
 const WEEKLY_KINDS = new Set(["weekly", "account-weekly"]);
 
+export function isWeeklyTask(tid: string, customTasks: { id: string; kind: string }[]): boolean {
+  return WEEKLY_KINDS.has(taskKind(tid, customTasks));
+}
+
 export function taskKind(tid: string, customTasks: { id: string; kind: string }[]): string {
   const b = BUILTIN_KIND.get(tid);
   if (b) return b;

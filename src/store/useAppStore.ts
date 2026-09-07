@@ -5,7 +5,7 @@ import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
 import type { AppState, BarterFilters, Character, Task, BarterPriority } from "@/lib/types";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
-import { cycleBucketFor } from "@/lib/cycle";
+import { cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
 import { idleStorage } from "@/lib/storage";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -175,16 +175,25 @@ const initial: AppState = {
   taskBuckets: {},
 };
 
-// Cycle provenance normalize: every existing value gets a bucket entry
-// (current bucket — values without provenance are current-cycle by
-// definition, e.g. v12 saves), stale-bucket values are pruned (memory-only
-// reset — the sync layer never deletes cycle keys), orphan bucket entries
-// dropped. Runs on every load AND import.
+// Cycle provenance normalize: every existing value gets a bucket entry,
+// stale-bucket values are pruned (memory-only reset — the sync layer never
+// deletes cycle keys), orphan bucket entries dropped. Runs on every load
+// AND import.
+// Untagged values (v12 saves, ancient backups, hand edits) predate
+// provenance, so stamping them "current" would launder pre-rollover checks
+// into the new cycle (proven wipe: upgrade after a reset keeps last week's
+// state, then sync adopts it everywhere). The last-reset markers disambiguate:
+// v12 ran resets on the same tick, so a marker older than the current bucket
+// proves the value predates the rollover and it drops instead of stamping.
+// Null markers (versionless/imported) keep the old stamp-current behavior —
+// with no witness, dropping would risk real data.
 function normalizeTaskBuckets(
   chars: Character[],
   accountValues: Record<string, number | boolean>,
   customTasks: Task[],
-  raw: unknown
+  raw: unknown,
+  lastDailyReset: string | null,
+  lastWeeklyReset: string | null
 ): Record<string, string> {
   const inRaw = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const out: Record<string, string> = {};
@@ -192,8 +201,14 @@ function normalizeTaskBuckets(
   const consider = (tid: string): void => {
     const expected = cycleBucketFor(tid, customTasks, now);
     const stored = typeof inRaw[tid] === "string" ? (inRaw[tid] as string) : undefined;
-    if (stored === undefined) out[tid] = expected; // untagged (v12) → current
-    else if (stored === expected) out[tid] = stored; // current → keep
+    if (stored === undefined) {
+      if (isWeeklyTask(tid, customTasks)) {
+        if (lastWeeklyReset !== null && lastWeeklyReset !== getTaipeiWeekKey(now)) return; // pre-rollover → prune
+      } else if (lastDailyReset !== null && lastDailyReset !== currentDailyBucket(now)) {
+        return; // pre-rollover → prune
+      }
+      out[tid] = expected;
+    } else if (stored === expected) out[tid] = stored; // current → keep
     // else stale bucket → prune (value dropped by caller)
   };
   for (const c of chars) for (const tid of Object.keys(c.taskValues)) consider(tid);
@@ -232,7 +247,7 @@ function normalizePersisted(input: unknown): AppState {
   const activeOk = chars.some((c) => c.id === d.activeCharId);
   const customTasks: Task[] = Array.isArray(d.customTasks) ? d.customTasks : [];
   const accountValues = d.accountValues && typeof d.accountValues === "object" ? d.accountValues : {};
-  const taskBuckets = normalizeTaskBuckets(chars, accountValues, customTasks, d.taskBuckets);
+  const taskBuckets = normalizeTaskBuckets(chars, accountValues, customTasks, d.taskBuckets, d.lastDailyReset ?? null, d.lastWeeklyReset ?? null);
   pruneStaleValues(chars, accountValues, taskBuckets);
   return {
     ...initial,
@@ -388,9 +403,9 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
   }
   if (from < 13) {
     // v12 → v13: cycle provenance (taskBuckets) for bucketed sync keys.
-    // normalizePersisted already assigned the current bucket to every
-    // existing value (v12 values are current-cycle by definition) and
-    // pruned stale ones — here we only stamp. No values touched.
+    // normalizePersisted already assigned buckets — current for fresh
+    // untagged values, dropped for pre-rollover ones (markers witness) — and
+    // pruned stale ones; here we only stamp. No values touched.
     s.version = 13;
   }
   return s as AppState;
