@@ -108,7 +108,12 @@ v13) and rides the wire on every value key.
     current bucket; a reset prunes memory and writes NOTHING. A stale device
     (opened days late) can no longer wipe a peer: it never deletes, and its
     stale values live under old buckets no one reads. Local prune ordering
-    vs pulls is a UX nicety, not a safety property. Provenance-less values
+    vs pulls is a UX nicety, not a safety property. Companion rule (2026-09-07):
+    user-initiated clears write explicit PRESENT values (uncheck → `false`,
+    counter-zero/clear → `0`), never absence — presence is the propagation
+    bit. Deleting on uncheck stays silent on the wire (correct for resets)
+    but the server's old `true` then resurrects on the next pull; explicit
+    falses propagate through the ordinary value path and converge. Provenance-less values
     (v12 upgrades, ancient imports) are NOT blindly stamped current — the
     last-reset markers witness their age, and a stale marker drops them
     (2026-09-07: an upgrade landing after the Monday reset otherwise keeps
@@ -180,6 +185,11 @@ v13) and rides the wire on every value key.
 - 6-character cap: a merge yielding 7+ slices like load does. Two devices
   both creating at cap is the only trigger; accepted.
 - Repoll-while-visible is the quota driver, not the merge model (below).
+- Explicit `false`/`0` values accumulate per cycle (every uncheck leaves a
+  present value instead of an absence). Bounded: the next cycle prune drops
+  them with their bucket, 60-day GC bounds the server hash. All readers
+  (`TaskRow`, progress, `hideCompleted`, `isPristine`, migration caps) are
+  falsy-safe by audit; `isPristine` counts set values, not keys.
 - `handle_links: preferred` routes tapped links into the installed app
   (Chrome 122+); iOS web apps and mismatched Android browsers still need the
   paste field — buckets are per-browser-partition and no manifest bridges them.
@@ -219,11 +229,12 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | E1 | Local reset (bucket rollover) pushes no tombstones; old keys stay server-side | real store + `syncAndResets` |
 | E2 | Adoption filters by tag; provenance recorded; memory keys plain | same |
 | E3 | Legacy untagged keys inert (not adopted, not tombstoned) | same |
-| E4 | Uncheck silent; unpin tombstoned once; no echo | same |
+| E4 | Uncheck pushes false / zero pushes 0; peer adopts, pair goes quiet | same |
 | E5 | resetAll nukes persistent keys only (locked behavior) | same |
 | E6 | GC tombstones only >60-day buckets, exactly once | same |
 | E7 | Adopt/import stamp markers; values preserved | same |
 | E8 | Production scenario: stale evening device can't wipe the 09:00 peer | same |
+| E9 | clearSection zeroes in place, propagates, never resurrects | same |
 | P | 300 randomized prune runs (stale removed, current kept, idempotent) | real store, seeded |
 | A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
 | E1E | Real tap → server → second device renders checked | real Edge (CDP) |

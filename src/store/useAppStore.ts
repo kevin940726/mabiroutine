@@ -452,13 +452,17 @@ export const useAppStore = create<Store>()(
       toggleCheck: (taskId, isAccount) =>
         set((s) => {
           const bucket = cycleBucketFor(taskId, s.customTasks, new Date());
+          // Explicit unchecked is a PRESENT false, not an absence: absence
+          // means "reset pruned" and stays silent on the wire (rev 3), so
+          // deleting here would never reach the server and the next pull
+          // would resurrect the server's true. Presence is the propagation bit.
           if (isAccount) {
             const cur = s.accountValues[taskId];
             const next = { ...s.accountValues };
             const nextBuckets = { ...s.taskBuckets };
             if (cur) {
-              delete next[taskId];
-              delete nextBuckets[taskId];
+              next[taskId] = false;
+              nextBuckets[taskId] = bucket;
             } else {
               next[taskId] = true;
               nextBuckets[taskId] = bucket;
@@ -468,21 +472,12 @@ export const useAppStore = create<Store>()(
           const char = s.characters.find((c) => c.id === s.activeCharId);
           if (!char) return s;
           const cur = char.taskValues[taskId];
-          const nextVal = cur ? undefined : true;
-          const nextBuckets = { ...s.taskBuckets };
-          if (nextVal === undefined) delete nextBuckets[taskId];
-          else nextBuckets[taskId] = bucket;
+          const nextVal = cur ? false : true;
+          const nextBuckets = { ...s.taskBuckets, [taskId]: bucket };
           return {
             taskBuckets: nextBuckets,
             characters: s.characters.map((c) =>
-              c.id === s.activeCharId
-                ? {
-                    ...c,
-                    taskValues: nextVal === undefined
-                      ? Object.fromEntries(Object.entries(c.taskValues).filter(([k]) => k !== taskId))
-                      : { ...c.taskValues, [taskId]: true },
-                  }
-                : c
+              c.id === s.activeCharId ? { ...c, taskValues: { ...c.taskValues, [taskId]: nextVal } } : c
             ),
           };
         }),
@@ -490,27 +485,19 @@ export const useAppStore = create<Store>()(
       setCounter: (taskId, value, isAccount) =>
         set((s) => {
           const clamped = Math.max(0, value);
-          const nextBuckets = { ...s.taskBuckets };
-          if (clamped === 0) delete nextBuckets[taskId];
-          else nextBuckets[taskId] = cycleBucketFor(taskId, s.customTasks, new Date());
+          // Zero is a PRESENT 0 for the same reason as toggleCheck's false:
+          // deleting would stay silent and the server's old count would
+          // resurrect on the next pull. Stale-cycle zeros prune like the
+          // values they zero (bucket goes stale with the cycle).
+          const bucket = cycleBucketFor(taskId, s.customTasks, new Date());
+          const nextBuckets = { ...s.taskBuckets, [taskId]: bucket };
           if (isAccount) {
-            const next = { ...s.accountValues };
-            if (clamped === 0) delete next[taskId];
-            else next[taskId] = clamped;
-            return { accountValues: next, taskBuckets: nextBuckets };
+            return { accountValues: { ...s.accountValues, [taskId]: clamped }, taskBuckets: nextBuckets };
           }
           return {
             taskBuckets: nextBuckets,
             characters: s.characters.map((c) =>
-              c.id === s.activeCharId
-                ? {
-                    ...c,
-                    taskValues:
-                      clamped === 0
-                        ? Object.fromEntries(Object.entries(c.taskValues).filter(([k]) => k !== taskId))
-                        : { ...c.taskValues, [taskId]: clamped },
-                  }
-                : c
+              c.id === s.activeCharId ? { ...c, taskValues: { ...c.taskValues, [taskId]: clamped } } : c
             ),
           };
         }),
@@ -529,17 +516,41 @@ export const useAppStore = create<Store>()(
 
       clearSection: (section, kind) =>
         set((s) => {
+          // User-initiated clear zeroes in place (false/0 by stored type)
+          // instead of deleting — same propagation-bit rule as toggleCheck:
+          // a deleted clear would stay silent and resurrect on next pull.
+          // Tids with no stored value stay absent (nothing to propagate).
+          const now = new Date();
+          const zeroOut = (
+            values: Record<string, number | boolean>,
+            ids: Set<string> | ((id: string) => boolean)
+          ): { values: Record<string, number | boolean>; touched: string[] } => {
+            const next = { ...values };
+            const touched: string[] = [];
+            for (const [id, v] of Object.entries(values)) {
+              const hit = typeof ids === "function" ? ids(id) : ids.has(id);
+              if (!hit) continue;
+              next[id] = typeof v === "number" ? 0 : false;
+              touched.push(id);
+            }
+            return { values: next, touched };
+          };
+          const stamp = (base: Record<string, string>, touched: string[]): Record<string, string> => {
+            const nextBuckets = { ...base };
+            for (const id of touched) {
+              nextBuckets[id] = cycleBucketFor(id, s.customTasks, now);
+            }
+            return nextBuckets;
+          };
           // daily/weekly -> per char active; account -> accountValues
           if (section === "account") {
-            const nextAcc = { ...s.accountValues };
-            const nextBuckets = { ...s.taskBuckets };
-            for (const t of [...BUILTIN_TASKS, ...s.customTasks]) {
-              if (t.section !== "account") continue;
-              if (kind && t.kind !== kind) continue;
-              delete nextAcc[t.id];
-              delete nextBuckets[t.id];
-            }
-            return { accountValues: nextAcc, taskBuckets: nextBuckets };
+            const match = (id: string): boolean => {
+              const t = [...BUILTIN_TASKS, ...s.customTasks].find((x) => x.id === id);
+              if (!t || t.section !== "account") return false;
+              return !kind || t.kind === kind;
+            };
+            const { values: nextAcc, touched } = zeroOut(s.accountValues, match);
+            return { accountValues: nextAcc, taskBuckets: stamp(s.taskBuckets, touched) };
           }
           const char = s.getActiveChar();
           if (!char) return s;
@@ -552,14 +563,10 @@ export const useAppStore = create<Store>()(
           if (section === "daily") {
             for (const pid of s.barterPins) idsToClear.add(pid);
           }
-          const nextBuckets = { ...s.taskBuckets };
-          for (const id of idsToClear) delete nextBuckets[id];
-          const nextChars = s.characters.map((c) =>
-            c.id === s.activeCharId
-              ? { ...c, taskValues: Object.fromEntries(Object.entries(c.taskValues).filter(([k]) => !idsToClear.has(k))) }
-              : c
-          );
-          return { characters: nextChars, taskBuckets: nextBuckets };
+          const target = s.characters.find((c) => c.id === s.activeCharId) ?? char;
+          const { values: nextVal, touched } = zeroOut(target.taskValues, idsToClear);
+          const nextChars = s.characters.map((c) => (c.id === s.activeCharId ? { ...c, taskValues: nextVal } : c));
+          return { characters: nextChars, taskBuckets: stamp(s.taskBuckets, touched) };
         }),
 
       // single global list: one tap toggles for every character

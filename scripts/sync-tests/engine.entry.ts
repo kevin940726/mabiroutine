@@ -219,30 +219,53 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E3 untagged not tombstoned", !nullsOf(pushes).some((k) => k.startsWith("v:c1:")), nullsOf(pushes));
 }
 
-// E4: deletions split correctly — unchecking (cycle) sends nothing, unpinning
-// (persistent) tombstones exactly once with no echo.
+// E4: user clears propagate as explicit values and CONVERGE. Uncheck pushes
+// false, counter-zero pushes 0 (presence is the propagation bit — absence
+// means "reset pruned" and stays silent, which is why deletes resurrect).
+// A peer adopts the clears (no resurrection) and the pair goes quiet.
+// Unpinning (persistent) still tombstones exactly once with no echo.
 {
-  isolate();
-  const SID = "e4-deletes";
   const server = { flat: {} as FlatMap };
-  const pushes: FlatMap[] = [];
-  setPullHook(makeEngine(server, pushes));
-  const seeded = snap({ [DAILY_CHECK]: true }, { [DAILY_CHECK]: TODAY }, TODAY, THIS_WEEK);
+  const SID = "e4-uncheck";
+  const keyCheck = `v:c1:${DAILY_CHECK}@${TODAY}`;
+  const keyCount = `v:c1:${DAILY_COUNT}@${TODAY}`;
+  // --- device A: checked state, synced, then the user clears ---
+  isolate();
+  const pushesA: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesA));
+  const seeded = snap({ [DAILY_CHECK]: true, [DAILY_COUNT]: 5 }, { [DAILY_CHECK]: TODAY, [DAILY_COUNT]: TODAY }, TODAY, THIS_WEEK);
   seeded.barterPins = ["pin-a"];
   seedStore(seeded);
   saveSession({ id: SID, updatedAt: 1 });
   saveBase(SID, flattenSnapshot(buildSnapshot()));
   server.flat = flattenSnapshot(buildSnapshot());
-  // user unchecks the daily + unpins the barter row
   useAppStore.getState().toggleCheck(DAILY_CHECK, false);
+  useAppStore.getState().setCounter(DAILY_COUNT, 0, false);
   useAppStore.getState().toggleBarterPin("pin-a");
   await syncAndResets();
-  const ns = nullsOf(pushes);
-  ok("E4 uncheck silent", !ns.some((k) => k.includes(DAILY_CHECK)), ns);
-  ok("E4 unpin tombstoned once", ns.filter((k) => k === "pin:pin-a").length === 1, ns);
+  ok("E4 uncheck pushes explicit false", pushesA.some((p) => p[keyCheck] === false), pushesA);
+  ok("E4 counter-zero pushes explicit 0", pushesA.some((p) => p[keyCount] === 0), pushesA);
+  ok("E4 cycle clear sends no tombstone", !nullsOf(pushesA).some((k) => isCycleKey(k)), nullsOf(pushesA));
+  ok("E4 unpin tombstoned once", nullsOf(pushesA).filter((k) => k === "pin:pin-a").length === 1, nullsOf(pushesA));
+  ok("E4 server holds the clears", server.flat[keyCheck] === false && server.flat[keyCount] === 0, server.flat);
+  const nA = pushesA.length;
   await syncAndResets();
   await syncAndResets();
-  ok("E4 no echo on later rounds", nullsOf(pushes).length === 1, nullsOf(pushes));
+  ok("E4 A quiet after push (no echo)", pushesA.length === nA && nullsOf(pushesA).length === 1, pushesA.slice(nA));
+  // --- device B: empty, joins later — adopts the clears, nothing resurrects ---
+  isolate();
+  const pushesB: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesB));
+  seedStore(snap({}, {}, TODAY, THIS_WEEK));
+  saveSession({ id: SID, updatedAt: 2 });
+  await syncAndResets();
+  const btv = useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>;
+  ok("E4 peer adopts false (stays unchecked)", btv?.[DAILY_CHECK] === false, btv);
+  ok("E4 peer adopts zero", btv?.[DAILY_COUNT] === 0, btv);
+  ok("E4 peer provenance stamped", useAppStore.getState().taskBuckets[DAILY_CHECK] === TODAY, useAppStore.getState().taskBuckets);
+  const nB = pushesB.length;
+  await syncAndResets();
+  ok("E4 peer quiet after adopt (no ping-pong)", pushesB.length === nB, pushesB.slice(nB));
 }
 
 // E5: resetAll propagates persistent keys as a nuke (locked behavior);
@@ -350,6 +373,39 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   await syncAndResets();
   await syncAndResets();
   ok("E8 steady state quiet", pushes.length === n, pushes.slice(n));
+}
+
+// E9: clearSection zeroes in place (false/0 by stored type) and propagates —
+// a cleared section must not resurrect on the next pull like deletes did.
+{
+  isolate();
+  const SID = "e9-clear";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  seedStore(
+    snap({ [DAILY_CHECK]: true, [DAILY_COUNT]: 5 }, { [DAILY_CHECK]: TODAY, [DAILY_COUNT]: TODAY }, TODAY, THIS_WEEK)
+  );
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  server.flat = flattenSnapshot(buildSnapshot());
+  (useAppStore.getState() as { clearSection: (s: "daily" | "weekly" | "account") => void }).clearSection("daily");
+  const mem = useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>;
+  ok("E9 clear zeroes in place", mem?.[DAILY_CHECK] === false && mem?.[DAILY_COUNT] === 0, mem);
+  await syncAndResets();
+  ok(
+    "E9 clear pushes false + 0",
+    pushes.some((p) => p[`v:c1:${DAILY_CHECK}@${TODAY}`] === false) &&
+      pushes.some((p) => p[`v:c1:${DAILY_COUNT}@${TODAY}`] === 0),
+    pushes
+  );
+  ok("E9 clear sends no tombstone", !nullsOf(pushes).some((k) => isCycleKey(k)), nullsOf(pushes));
+  const m = pushes.length;
+  await syncAndResets();
+  await syncAndResets();
+  ok("E9 cleared state stays cleared", pushes.length === m, pushes.slice(m));
+  const mem2 = useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>;
+  ok("E9 no resurrection after pull", mem2?.[DAILY_CHECK] === false && mem2?.[DAILY_COUNT] === 0, mem2);
 }
 
 setPullHook(null);

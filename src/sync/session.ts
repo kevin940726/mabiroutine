@@ -86,17 +86,18 @@ export function applySnapshot(snapshot: unknown): boolean {
   }
 }
 
-// True when this device holds no user data worth protecting: no progress
-// values anywhere, no custom tasks, single character. Opening a sync link
-// on such a profile adopts silently — the confirm dialog would only ask
+// True when this device holds no user data worth protecting: no SET progress
+// values anywhere (explicit false/0 zeroes don't count — they carry no
+// information), no custom tasks, single character. Opening a sync link on
+// such a profile adopts silently — the confirm dialog would only ask
 // permission to delete defaults.
 export function isPristine(): boolean {
   const s = useAppStore.getState();
   if (s.customTasks.length > 0) return false;
   if (s.characters.length !== 1) return false;
-  if (Object.keys(s.accountValues).length > 0) return false;
+  if (Object.values(s.accountValues).some((v) => v)) return false;
   for (const c of s.characters) {
-    if (Object.keys(c.taskValues).length > 0) return false;
+    if (Object.values(c.taskValues).some((v) => v)) return false;
   }
   return true;
 }
