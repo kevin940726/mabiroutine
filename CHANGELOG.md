@@ -94,6 +94,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Account-section hide is now global: one tap hides for every character (daily/weekly stay per-character); saves with per-char-hidden account ids migrate automatically (store v9→v10)
 - Removed unused `date-fns` / `date-fns-tz` dependencies; fixed newly-surfaced lint failures without behavior change (add-task form reset via remount key, theme init via lazy state, dead fetcher variable dropped)
 - Barter rows skip off-screen layout/paint via `content-visibility` with intrinsic-size scroll placeholders (desktop + mobile)
+- Barter spelling standardized on 鍊金 (was mixed 煉金/鍊金 across sources); display-text only, no ids touched so saved progress is unaffected
 
 ### Chores
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)
