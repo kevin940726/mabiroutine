@@ -13,6 +13,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Barter header drops stale wording (點擊切換, 代幣 — no token shop in-app)
 - READMEs stop claiming character reorder + skill filtering (neither exists)
 - New `src/data/recipes.json`: base-ingredient routes for all 92 barter gives (118 items: make station/level/components/batch, shop NPC + weekly limits, barter costs, gather/quest/drop leaves). TW-only: 10 KR-flagged recipes verified in-game, yenyen's 棉 typo corrected to 麵, 完美繃帶 marked sourceless. Data-only for now — no UI yet
+- Barter rows show their base materials: tap what you hand over to expand a squashed shopping list — one-line ×1 recipe, store stops grouped by NPC with weekly limits, multi-exchange barter costs scaled (換3次：薰衣草×3 或 雞蛋×30), self-only leaves stay toggle-free. Gather-first ordering; no day estimates (other sources assumed unless flagged single-source)
 
 ### Fixes
 - Sync rebuilt on bucketed keys (store v13): every value now carries the Taipei day/week cycle it was set in, reads consider only the current cycle, and a reset prunes memory without writing anything — resets can no longer delete anything on any device, which kills the entire wipe class (late-wake tombstones, stale-tab poisoning, echo nulls, marker gating) at the root; the sync protocol no longer contains reset deletes at all

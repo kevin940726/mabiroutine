@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import barterJson from "@/data/barter.json";
 import { useAppStore } from "@/store/useAppStore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MenuSelect } from "@/components/MenuSelect";
+import { BreakdownVariant, PrototypeSwitcher, type BreakdownVariantKey } from "@/components/MaterialBreakdownProto";
+import { parseItemQty, squashTree } from "@/lib/materials";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { Pin, PinOff, Search } from "lucide-react";
+import { ChevronDown, Pin, PinOff, Search } from "lucide-react";
 import type { BarterPriority } from "@/lib/types";
 
 const PRIORITY_LABEL: Record<BarterPriority, string> = {
@@ -70,17 +72,25 @@ function MobilePinButton({ barterId }: { barterId: string }) {
 }
 
 // desktop row — evolves together with the mobile row; every change considers both
-function BarterRowDesktop({ b }: { b: BarterRow }) {
+function BarterRowDesktop({ b, variant, defaultOpen }: { b: BarterRow; variant: BreakdownVariantKey; defaultOpen?: boolean }) {
   const pinned = useAppStore((s) => s.barterPins.includes(b.id));
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  // No toggle when the breakdown would just echo the give (trivial self-only leaf).
+  const hasBreakdown = useMemo(() => {
+    const { name, qty } = parseItemQty(b.give);
+    const t = squashTree(name, qty);
+    return t.status === "ok" && (t.children.length > 0 || t.alternatives > 0);
+  }, [b.give]);
   return (
     <div
       className={cn(
-        "flex items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-colors",
+        "rounded-lg border bg-card px-3 py-2.5 transition-colors",
         // Off-screen rows skip layout/paint; intrinsic size holds scroll height.
         "[content-visibility:auto] [contain-intrinsic-size:auto_80px]",
         pinned && "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20"
       )}
     >
+      <div className="flex items-center gap-3">
       <img
         src={`/npc/${encodeURIComponent(b.npc)}.png`}
         alt={b.npc}
@@ -101,7 +111,20 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
         </div>
         <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
           <span className="truncate">
-            你給 {b.give} → 你拿 {b.get}
+            你給{" "}
+            <button
+              onClick={() => setOpen(!open)}
+              aria-expanded={open}
+              aria-label={open ? "收起材料" : "展開材料"}
+              className="inline-flex max-w-[65%] items-center gap-0.5 align-bottom text-foreground disabled:cursor-default"
+              disabled={!hasBreakdown}
+            >
+              <span className="truncate font-medium">{b.give}</span>
+              {hasBreakdown && (
+                <ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", open && "rotate-180")} />
+              )}
+            </button>{" "}
+            → 你拿 {b.get}
           </span>
           <span className="ml-auto shrink-0">{b.limit}</span>
         </div>
@@ -110,6 +133,8 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
         )}
       </div>
       <PinButton barterId={b.id} />
+      </div>
+      {open && hasBreakdown && <BreakdownVariant give={b.give} variant={variant} />}
     </div>
   );
 }
@@ -117,9 +142,16 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
 // mobile row (B4): tracker TaskRowMobile language — 20px pfp in the title
 // line, priority chip on its own wrapping line, bold NPC · town · limit,
 // bare give → get with zero truncation, 📝 note line, 44px icon pin.
-function BarterRowMobile({ b }: { b: BarterRow }) {
+function BarterRowMobile({ b, variant, defaultOpen }: { b: BarterRow; variant: BreakdownVariantKey; defaultOpen?: boolean }) {
   const pinned = useAppStore((s) => s.barterPins.includes(b.id));
   const [imgError, setImgError] = useState(false);
+  const [open, setOpen] = useState(defaultOpen ?? false);
+  // No toggle when the breakdown would just echo the give (trivial self-only leaf).
+  const hasBreakdown = useMemo(() => {
+    const { name, qty } = parseItemQty(b.give);
+    const t = squashTree(name, qty);
+    return t.status === "ok" && (t.children.length > 0 || t.alternatives > 0);
+  }, [b.give]);
   return (
     <div
       className={cn(
@@ -164,7 +196,19 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
             <span className="font-semibold text-foreground">{b.npc}</span> · {b.town} · {b.limit}
           </div>
           <div className="text-xs break-words">
-            {b.give} → {b.get}
+            <button
+              onClick={() => setOpen(!open)}
+              aria-expanded={open}
+              aria-label={open ? "收起材料" : "展開材料"}
+              className="inline-flex max-w-full items-center gap-0.5 text-left font-medium disabled:cursor-default"
+              disabled={!hasBreakdown}
+            >
+              <span className="break-words">{b.give}</span>
+              {hasBreakdown && (
+                <ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", open && "rotate-180")} />
+              )}
+            </button>{" "}
+            → {b.get}
           </div>
           {b.note && (
             <p className="text-xs leading-snug text-muted-foreground/80 mt-1.5 italic break-words border-l-2 border-muted pl-1.5">📝 {b.note}</p>
@@ -174,6 +218,7 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
           <MobilePinButton barterId={b.id} />
         </div>
       </div>
+      {open && hasBreakdown && <BreakdownVariant give={b.give} variant={variant} />}
     </div>
   );
 }
@@ -185,6 +230,19 @@ export function BarterExplorer() {
   const filters = useAppStore((s) => s.barterFilters);
   const setBarterFilters = useAppStore((s) => s.setBarterFilters);
   const [q, setQ] = useState("");
+  // PROTOTYPE: breakdown variant, shareable via ?variant=a|b|c (dev switcher bar).
+  // Default is B (store-grouped base leaves); the bar is dev-only so prod always shows B.
+  const [variant, setVariant] = useState<BreakdownVariantKey>(() => {
+    const v = new URLSearchParams(window.location.search).get("variant");
+    return v === "a" || v === "c" ? v : "b";
+  });
+  const [protoActive] = useState(() => new URLSearchParams(window.location.search).has("variant"));
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("variant", variant);
+    window.history.replaceState(null, "", url);
+  }, [variant]);
   // React 19: keep keystrokes urgent, defer the 98-row filter + card re-render
   const deferredQ = useDeferredValue(q);
   const { priority, town, onlyPinned } = filters;
@@ -274,13 +332,14 @@ export function BarterExplorer() {
 
       {/* list view — desktop: compact single-line cards; mobile: two-line B4 row */}
       <div className="space-y-2">
-        {filtered.map((b) => (
+        {filtered.map((b, i) => (
           isMobile
-            ? <BarterRowMobile key={b.id} b={b} />
-            : <BarterRowDesktop key={b.id} b={b} />
+            ? <BarterRowMobile key={b.id} b={b} variant={variant} defaultOpen={protoActive && i === 0} />
+            : <BarterRowDesktop key={b.id} b={b} variant={variant} defaultOpen={protoActive && i === 0} />
         ))}
       </div>
       {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">沒有符合的項目</p>}
+      <PrototypeSwitcher variant={variant} onChange={setVariant} />
     </div>
   );
 }

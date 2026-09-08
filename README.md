@@ -23,7 +23,8 @@ handled for you.
 - 🔄 **A barter explorer that answers "what do I trade today".** 92 以物易物
   trades with must/extra/once/situational guidance, search by what you have or
   what you need, filter by town and priority. Pin the good ones and they
-  show up in your dailies.
+  show up in your dailies. Tap what you hand over to see the base materials
+  squashed to a shopping list (which store, which NPC, weekly limits).
 - ✏️ **Make it yours.** Custom tasks, drag-to-reorder everything, hide what you
   never do, dark mode.
 - 🔗 **Optional sync across devices.** No account, no password — one link joins
