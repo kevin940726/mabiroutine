@@ -127,9 +127,17 @@ function validId(id: unknown): id is string {
 }
 
 function bodyOf(req: VercelRequest): { id?: unknown; state?: unknown; changes?: unknown } {
-  const b = req.body as { id?: unknown; state?: unknown; changes?: unknown } | undefined;
+  // req.body parses lazily on some platforms: vercel dev throws (ApiError 400)
+  // on malformed JSON instead of answering 400, and the uncaught throw kills
+  // the dev server. Treat unparseable as absent — validators 400/404 below.
+  let b: unknown;
+  try {
+    b = req.body;
+  } catch {
+    return {};
+  }
   if (!b || typeof b !== "object") return {};
-  return b;
+  return b as { id?: unknown; state?: unknown; changes?: unknown };
 }
 
 const enc = (v: unknown): string => `j:${JSON.stringify(v)}`;
