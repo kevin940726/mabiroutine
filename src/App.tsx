@@ -6,7 +6,6 @@ import { summarizeProgress } from "@/lib/progress";
 import { CharacterTabs } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
 import { BarterExplorer } from "@/components/BarterExplorer";
-import { ShellSwitcher, readBreakdownShell, type BreakdownShellKey } from "@/components/TrackerBreakdownShells";
 import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
@@ -42,15 +41,6 @@ export default function App() {
   const customTasks = useAppStore((s) => s.customTasks);
   const barterPins = useAppStore((s) => s.barterPins);
   const [tab, setTab] = useState<"tracker" | "barter">("tracker");
-  // PROTOTYPE: tracker breakdown shell (?shell=overlay|line|drawer|tip,
-  // dev switcher on the tracker tab).
-  const [shell, setShell] = useState<BreakdownShellKey>(readBreakdownShell);
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("shell", shell);
-    window.history.replaceState(null, "", url);
-  }, [shell]);
   const [addOpen, setAddOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
@@ -454,14 +444,13 @@ export default function App() {
 
         {tab === "tracker" ? (
           <div className="grid gap-6 grid-cols-1">
-            <TrackerSection title="每日任務" icon="☀️" tasks={dailyWithCustom} isAccount={false} onEditTask={openEdit} shell={shell} />
-            <TrackerSection title="每週任務" icon="🗓️" tasks={weeklyWithCustom} isAccount={false} onEditTask={openEdit} shell={shell} />
-            <TrackerSection title="帳號共通" icon="👥" tasks={accountWithCustom} isAccount={true} onEditTask={openEdit} shell={shell} />
+            <TrackerSection title="每日任務" icon="☀️" tasks={dailyWithCustom} isAccount={false} onEditTask={openEdit} />
+            <TrackerSection title="每週任務" icon="🗓️" tasks={weeklyWithCustom} isAccount={false} onEditTask={openEdit} />
+            <TrackerSection title="帳號共通" icon="👥" tasks={accountWithCustom} isAccount={true} onEditTask={openEdit} />
           </div>
         ) : (
           <BarterExplorer />
         )}
-        {tab === "tracker" && <ShellSwitcher shell={shell} onChange={setShell} />}
 
         {/* footer actions */}
         <Separator />
