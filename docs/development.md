@@ -47,9 +47,14 @@ case — switch to `dev:api`.
   functions). Read `docs/sync.md` before touching any of it; the short version:
   every mutation is an absolute set of flat keys, server stamps arrival order,
   no conflict UI exists by design.
-- **PWA via `vite-plugin-pwa` `generateSW`** — precached shell, offline
-  support, auto-update toast. Service worker is disabled in dev; test install /
-  offline against `pnpm build && pnpm preview`.
+- **PWA via `vite-plugin-pwa` `generateSW`** — silent-fresh: navigations are
+  NetworkFirst (every online load renders the current build), SW updates only
+  refresh caches (prompt mode acked silently, client reload suppressed), and a
+  return after 6h+ away reloads once iff online, no dialog open, and an update
+  is pending. No update toast exists. Offline revisits fall back to the runtime
+  `pages` cache (index.html is out of the precache by design — a precached
+  NavigationRoute/directoryIndex would shadow NetworkFirst). Service worker is
+  disabled in dev; test install / offline against `pnpm build && pnpm preview`.
 - **UI** — React 19 + Tailwind v4 + shadcn/ui (Radix pattern) + `@dnd-kit` for
   drag reorder; `src/components/` for tracker, barter explorer, dialogs.
 

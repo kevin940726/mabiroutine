@@ -79,21 +79,6 @@ export default function App() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Build stamp: after an SW auto-update takeover (or plain redeploy) the page
-  // reloads into a new build — announce it once. Child SyncToasts subscribes
-  // before this parent effect runs, so the toast lands.
-  useEffect(() => {
-    try {
-      const prev = localStorage.getItem("mabiroutine:build");
-      if (prev && prev !== __BUILD_TIME__) {
-        window.dispatchEvent(new CustomEvent("mabiroutine:toast", { detail: "已更新到新版本" }));
-      }
-      localStorage.setItem("mabiroutine:build", __BUILD_TIME__);
-    } catch {
-      // private mode — skip
-    }
-  }, []);
-
   const handleExport = () => {
     const blob = new Blob([exportJson()], { type: "application/json" });
     const url = URL.createObjectURL(blob);
