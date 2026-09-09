@@ -372,17 +372,22 @@ function VariantC({ give }: { give: string }) {
   );
 }
 
-export function BreakdownVariant({ give, variant }: { give: string; variant: BreakdownVariantKey }) {
-  return (
-    <div className="mt-2 rounded-md bg-muted/50 px-2.5 py-2">
+export function BreakdownVariant({ give, variant, bare }: { give: string; variant: BreakdownVariantKey; bare?: boolean }) {
+  // Boxed (default): the muted panel separates the breakdown from a surrounding
+  // row (explorer). Bare: inside the hover card, which is already a distinct
+  // panel — a box-in-a-box adds nothing.
+  const body = (
+    <>
       {variant !== "b" && (
         <div className="mb-1 text-[11px] font-semibold text-muted-foreground">材料 · 以{give}計</div>
       )}
       {variant === "a" && <VariantA give={give} />}
       {variant === "b" && <VariantB give={give} />}
       {variant === "c" && <VariantC give={give} />}
-    </div>
+    </>
   );
+  if (bare) return body;
+  return <div className="mt-2 rounded-md bg-muted/50 px-2.5 py-2">{body}</div>;
 }
 
 /** Floating variant switcher — dev only, never ships. */

@@ -221,7 +221,7 @@ export function MaterialHoverCard({ give, get, variant, compact }: Props) {
             style={{ maxHeight: maxH ?? undefined }}
             className="overflow-y-auto rounded-xl border bg-popover p-3 shadow-lg"
           >
-            <BreakdownVariant give={give} variant={variant} />
+            <BreakdownVariant give={give} variant={variant} bare />
           </div>
         </div>
       )}
