@@ -23,6 +23,26 @@ export const BREAKDOWN_VARIANTS: { key: BreakdownVariantKey; name: string }[] = 
   { key: "c", name: "工作檯排程" },
 ];
 
+/** Shared variant default: ?variant=a|b|c, falls back to B (store-grouped). */
+export function readBreakdownVariant(): BreakdownVariantKey {
+  const v = new URLSearchParams(window.location.search).get("variant");
+  return v === "a" || v === "c" ? v : "b";
+}
+
+/** No toggle when the breakdown would just echo the give (trivial self-only
+ *  leaf) — or when gather-preference leaves a lone 自採 group (vacuous:
+ *  make-roots always keep theirs for the 製作 queue). */
+export function giveHasBreakdown(give: string): boolean {
+  const { name, qty } = parseItemQty(give);
+  const t = squashTree(name, qty);
+  if (t.status !== "ok") return false;
+  if (t.children.length === 0 && t.route && t.route.kind !== "make") {
+    const kinds = new Set([t.route.kind, ...t.siblings.map((s) => s.kind)]);
+    if (kinds.has("gather")) return false;
+  }
+  return t.children.length > 0 || t.alternatives > 0;
+}
+
 function toolCost(l: SummedLeaf): string {
   return l.toolCosts.length > 0 ? `⁽${l.toolCosts.map((c) => `${c.name}×${c.qty}`).join("、")}⁾` : "";
 }
@@ -61,7 +81,7 @@ function StatusLine({ node }: { node: SquashNode }) {
       : node.status === "unknown"
         ? `${node.name}：找不到資料`
         : `${node.name}：循環引用，停止展開`;
-  return <div className="text-xs text-muted-foreground">{text}</div>;
+  return <div className="text-xs text-muted-foreground break-words">{text}</div>;
 }
 
 /** Shared squash: summed leaves in plan-need order + make queue + problem nodes. */
@@ -90,7 +110,7 @@ function VariantA({ give }: { give: string }) {
   const { summed, makes, problems } = useBreakdown(give);
   const plan = summed.filter((l) => l.route.kind !== "gather");
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 break-words">
       <div className="text-xs leading-relaxed break-words">
         {summed.map((l, i) => (
           <span key={l.name} className={cn(l.route.kind === "gather" && "text-muted-foreground")}>
@@ -151,6 +171,12 @@ function VariantB({ give }: { give: string }) {
         groups.push({ key, kind: r.kind, npc: r.npc, town: r.town, limit: r.limit, opts: costs, exchanges: ex });
       }
     }
+    // Gather-preferred: when the item itself is gatherable, the capped
+    // shop/barter alternatives are noise next to unlimited gathering —
+    // show the 自採 group only.
+    if (groups.some((g) => g.kind === "gather")) {
+      return groups.filter((g) => g.kind === "gather");
+    }
     return groups;
   }, [give]);
   // First line = the ×1 (single-batch) direct recipe, plain ingredients only.
@@ -178,7 +204,7 @@ function VariantB({ give }: { give: string }) {
     return { shops: [...byNpc.values()], rest, gather };
   }, [summed]);
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 break-words">
       {leafGroups ? (
         <div className="space-y-1">
           {leafGroups.map((g) => (
@@ -257,7 +283,9 @@ function VariantB({ give }: { give: string }) {
             <div className="text-xs">
               <span className="font-semibold">{l.name}×{l.qty}</span>
               {l.route.npc ? (
-                <span className="inline-flex items-center gap-1 align-middle text-muted-foreground">
+                // flex-wrap: a long "— 換NPC · town（limit）" run must wrap
+                // inside narrow cards; plain inline-flex overflows instead.
+                <span className="inline-flex flex-wrap items-center gap-1 align-middle text-muted-foreground">
                   {" "}— {SHORT_KIND[l.route.kind] ?? l.route.kind} <NpcFace npc={l.route.npc} />
                   {l.route.npc}{l.route.town ? ` · ${l.route.town}` : ""}{l.route.limit ? `（${l.route.limit}）` : ""}
                 </span>
@@ -327,7 +355,7 @@ function VariantC({ give }: { give: string }) {
     );
   }
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 break-words">
       {steps.map((s, i) => (
         <div key={`${s.name}-${i}`} className="text-xs">
           <span className="font-semibold">{s.station}{s.level ? ` Lv.${s.level}` : ""}</span>

@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MenuSelect } from "@/components/MenuSelect";
-import { BreakdownVariant, PrototypeSwitcher, type BreakdownVariantKey } from "@/components/MaterialBreakdownProto";
-import { parseItemQty, squashTree } from "@/lib/materials";
+import { BreakdownVariant, PrototypeSwitcher, giveHasBreakdown, readBreakdownVariant, type BreakdownVariantKey } from "@/components/MaterialBreakdownProto";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -76,11 +75,7 @@ function BarterRowDesktop({ b, variant, defaultOpen }: { b: BarterRow; variant: 
   const pinned = useAppStore((s) => s.barterPins.includes(b.id));
   const [open, setOpen] = useState(defaultOpen ?? false);
   // No toggle when the breakdown would just echo the give (trivial self-only leaf).
-  const hasBreakdown = useMemo(() => {
-    const { name, qty } = parseItemQty(b.give);
-    const t = squashTree(name, qty);
-    return t.status === "ok" && (t.children.length > 0 || t.alternatives > 0);
-  }, [b.give]);
+  const hasBreakdown = useMemo(() => giveHasBreakdown(b.give), [b.give]);
   return (
     <div
       className={cn(
@@ -147,11 +142,7 @@ function BarterRowMobile({ b, variant, defaultOpen }: { b: BarterRow; variant: B
   const [imgError, setImgError] = useState(false);
   const [open, setOpen] = useState(defaultOpen ?? false);
   // No toggle when the breakdown would just echo the give (trivial self-only leaf).
-  const hasBreakdown = useMemo(() => {
-    const { name, qty } = parseItemQty(b.give);
-    const t = squashTree(name, qty);
-    return t.status === "ok" && (t.children.length > 0 || t.alternatives > 0);
-  }, [b.give]);
+  const hasBreakdown = useMemo(() => giveHasBreakdown(b.give), [b.give]);
   return (
     <div
       className={cn(
@@ -232,10 +223,7 @@ export function BarterExplorer() {
   const [q, setQ] = useState("");
   // PROTOTYPE: breakdown variant, shareable via ?variant=a|b|c (dev switcher bar).
   // Default is B (store-grouped base leaves); the bar is dev-only so prod always shows B.
-  const [variant, setVariant] = useState<BreakdownVariantKey>(() => {
-    const v = new URLSearchParams(window.location.search).get("variant");
-    return v === "a" || v === "c" ? v : "b";
-  });
+  const [variant, setVariant] = useState<BreakdownVariantKey>(readBreakdownVariant);
   const [protoActive] = useState(() => new URLSearchParams(window.location.search).has("variant"));
   useEffect(() => {
     if (!import.meta.env.DEV) return;

@@ -8,6 +8,8 @@ import { confirmRemoveTask } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical } from "lucide-react";
+import { TrackerGiveShell, type BreakdownShellKey } from "@/components/TrackerBreakdownShells";
+import { readBreakdownVariant } from "@/components/MaterialBreakdownProto";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -16,6 +18,8 @@ type Props = {
   value: boolean | number | undefined;
   isAccount: boolean;
   onEdit?: () => void;
+  // PROTOTYPE: tracker breakdown shell (?shell=overlay|line|drawer, dev switcher)
+  shell?: BreakdownShellKey;
 };
 
 export function TaskRow(props: Props) {
@@ -23,7 +27,7 @@ export function TaskRow(props: Props) {
   return isMobile ? <TaskRowMobile {...props} /> : <TaskRowDesktop {...props} />;
 }
 
-function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
+function TaskRowMobile({ task, value, isAccount, onEdit, shell = "overlay" }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
@@ -93,7 +97,13 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         {task.npc} · {task.town} · {task.barterMeta?.limit}
       </div>
       <div className="text-xs text-muted-foreground break-words">
-        你給 {task.barterMeta?.give} → 你拿 {task.barterMeta?.get}
+        <TrackerGiveShell
+          barterId={task.id}
+          give={task.barterMeta?.give ?? ""}
+          get={task.barterMeta?.get ?? ""}
+          variant={readBreakdownVariant()}
+          shell={shell}
+        />
       </div>
       {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
     </div>
@@ -269,7 +279,7 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown }: { taskI
 // both.
 // ---------------------------------------------------------------------------
 
-function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
+function TaskRowDesktop({ task, value, isAccount, onEdit, shell = "overlay" }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
@@ -329,12 +339,36 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
               <span className="text-muted-foreground truncate">· {task.town}</span>
             </span>
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
-            <span className="truncate">
-              你給 {task.barterMeta?.give} → 你拿 {task.barterMeta?.get}
-            </span>
-            <span className="ml-auto shrink-0">{task.barterMeta?.limit}</span>
-          </div>
+          {shell === "line" ? (
+            <div className="mt-0.5 text-xs text-muted-foreground min-w-0">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <TrackerGiveShell
+                    barterId={task.id}
+                    give={task.barterMeta?.give ?? ""}
+                    get={task.barterMeta?.get ?? ""}
+                    variant={readBreakdownVariant()}
+                    shell={shell}
+                  />
+                </div>
+                <span className="shrink-0">{task.barterMeta?.limit}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
+              <span className="truncate">
+                <TrackerGiveShell
+                  barterId={task.id}
+                  give={task.barterMeta?.give ?? ""}
+                  get={task.barterMeta?.get ?? ""}
+                  variant={readBreakdownVariant()}
+                  shell={shell}
+                  compact
+                />
+              </span>
+              <span className="ml-auto shrink-0">{task.barterMeta?.limit}</span>
+            </div>
+          )}
           {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic line-clamp-1">📝 {task.notes}</p>}
         </div>
       ) : (

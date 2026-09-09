@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TaskRow } from "@/components/TaskRow";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Task } from "@/lib/types";
+import type { BreakdownShellKey } from "@/components/TrackerBreakdownShells";
 import { summarizeProgress } from "@/lib/progress";
 import { useAppStore, barterToTask } from "@/store/useAppStore";
 import { confirmClearSection } from "@/components/ConfirmDialog";
@@ -19,9 +20,11 @@ type Props = {
   tasks: Task[];
   isAccount: boolean;
   onEditTask?: (t: Task) => void;
+  // PROTOTYPE: tracker breakdown shell, drilled from App (?shell=)
+  shell?: BreakdownShellKey;
 };
 
-export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Props) {
+export function TrackerSection({ title, icon, tasks, isAccount, onEditTask, shell = "overlay" }: Props) {
   const char = useAppStore((s) => s.getActiveChar());
   const accountValues = useAppStore((s) => s.accountValues);
   const barterPins = useAppStore((s) => s.barterPins);
@@ -212,6 +215,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
                 value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]}
                 isAccount={isAccount}
                 onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined}
+                shell={shell}
               />
             ))}
           </SortableContext>
@@ -246,7 +250,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleBarterDragEnd}>
                     <SortableContext items={barterSubtasksFiltered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
                       {barterSubtasksFiltered.map((bt) => (
-                        <TaskRow key={bt.id} task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
+                        <TaskRow key={bt.id} task={bt} value={char?.taskValues[bt.id]} isAccount={false} shell={shell} />
                       ))}
                     </SortableContext>
                   </DndContext>
@@ -283,12 +287,12 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
               <div className="space-y-2">
                 {hiddenTasks.map((t) => (
                   <div key={t.id} className="opacity-60">
-                    <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} />
+                    <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} shell={shell} />
                   </div>
                 ))}
                 {hiddenBarter.map((bt) => (
                   <div key={bt.id} className="opacity-60">
-                    <TaskRow task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
+                    <TaskRow task={bt} value={char?.taskValues[bt.id]} isAccount={false} shell={shell} />
                   </div>
                 ))}
               </div>
