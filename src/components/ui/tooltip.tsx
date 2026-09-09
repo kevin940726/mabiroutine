@@ -1,29 +1,41 @@
 import * as React from "react";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { cn } from "@/lib/utils";
 
-export function Tooltip({ content, children, className }: { content: string; children: React.ReactNode; className?: string }) {
-  const [open, setOpen] = React.useState(false);
+// Shared hint tooltip. Radix-powered: the content portals to the body, so it
+// escapes overflow-hidden ancestors (section Cards) and flips at viewport
+// edges — the previous hand-rolled absolute bubble was clipped by both.
+export function Tooltip({
+  content,
+  children,
+  className,
+  side = "top",
+}: {
+  content: string;
+  children: React.ReactNode;
+  className?: string;
+  side?: "top" | "bottom" | "left" | "right";
+}) {
   return (
-    <span
-      className="relative inline-flex"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
-    >
-      {children}
-      {open && (
-        <span
-          role="tooltip"
-          className={cn(
-            "absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 whitespace-nowrap rounded-md bg-foreground text-background px-2.5 py-1 text-xs shadow-md pointer-events-none",
-            "after:absolute after:left-1/2 after:-translate-x-1/2 after:top-full after:border-4 after:border-transparent after:border-t-foreground",
-            className
-          )}
-        >
-          {content}
-        </span>
-      )}
-    </span>
+    <TooltipPrimitive.Provider delayDuration={200}>
+      <TooltipPrimitive.Root>
+        <TooltipPrimitive.Trigger asChild>
+          <span className="inline-flex items-center">{children}</span>
+        </TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Portal>
+          <TooltipPrimitive.Content
+            side={side}
+            sideOffset={6}
+            className={cn(
+              "z-50 max-w-[min(280px,80vw)] break-words rounded-md bg-foreground px-2.5 py-1 text-xs text-background shadow-md",
+              className
+            )}
+          >
+            {content}
+            <TooltipPrimitive.Arrow className="fill-foreground" width={11} height={5} />
+          </TooltipPrimitive.Content>
+        </TooltipPrimitive.Portal>
+      </TooltipPrimitive.Root>
+    </TooltipPrimitive.Provider>
   );
 }
