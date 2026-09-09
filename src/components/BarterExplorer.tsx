@@ -21,6 +21,11 @@ const PRIORITY_LABEL: Record<BarterPriority, string> = {
   skip: "別換",
 };
 const PRIORITY_ORDER: BarterPriority[] = ["must", "extra", "once", "situational", "skip"];
+// Options with no rows behind them (currently 別換/skip) are hidden, not
+// selectable into an empty list.
+const PRESENT_PRIORITIES = PRIORITY_ORDER.filter((p) =>
+  (barterJson as unknown as { priority: string }[]).some((b) => b.priority === p)
+);
 const TOWNS = [...new Set((barterJson as unknown as typeof barterJson).map((b) => b.town))];
 
 type BarterRow = (typeof barterJson)[number];
@@ -224,13 +229,16 @@ export function BarterExplorer() {
   // React 19: keep keystrokes urgent, defer the 98-row filter + card re-render
   const deferredQ = useDeferredValue(q);
   const { priority, town, onlyPinned } = filters;
+  // A persisted value with no rows (e.g. 別換 from before it was hidden)
+  // falls back to all instead of trapping the list empty.
+  const effPriority = PRESENT_PRIORITIES.includes(priority as BarterPriority) ? priority : "all";
   const setPriority = (v: BarterPriority | "all") => setBarterFilters({ priority: v });
   const setTown = (v: string) => setBarterFilters({ town: v });
   const setOnlyPinned = (v: boolean) => setBarterFilters({ onlyPinned: v });
   // Any active gate (selects persist per origin; search is session-only):
   // highlight the engaged controls + offer one-tap reset so a stale filter
   // never silently hides rows.
-  const isFiltering = priority !== "all" || town !== "all" || onlyPinned || q !== "";
+  const isFiltering = effPriority !== "all" || town !== "all" || onlyPinned || q !== "";
   const clearFilters = () => {
     setPriority("all");
     setTown("all");
@@ -241,7 +249,7 @@ export function BarterExplorer() {
 
   const filtered = useMemo(() => {
     return (barterJson as unknown as typeof barterJson).filter((b) => {
-      if (priority !== "all" && b.priority !== priority) return false;
+      if (effPriority !== "all" && b.priority !== effPriority) return false;
       if (town !== "all" && b.town !== town) return false;
       if (onlyPinned) {
         if (!barterPins.includes(b.id)) return false;
@@ -257,16 +265,16 @@ export function BarterExplorer() {
       if (pa !== pb) return pa - pb;
       return a.town.localeCompare(b.town);
     });
-  }, [deferredQ, priority, town, onlyPinned, barterPins]);
+  }, [deferredQ, effPriority, town, onlyPinned, barterPins]);
 
   // filter controls are one shared const rendered inline on all screens
   const filterSelects = (
     <div className="flex flex-wrap gap-2">
       <MenuSelect
-        value={priority}
-        options={[{ value: "all", label: "全部優先度" }, ...PRIORITY_ORDER.map((p) => ({ value: p, label: PRIORITY_LABEL[p] }))]}
+        value={effPriority}
+        options={[{ value: "all", label: "全部優先度" }, ...PRESENT_PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABEL[p] }))]}
         onChange={(v) => setPriority(v as BarterPriority | "all")}
-        triggerClassName={priority !== "all" ? activeTriggerClass : undefined}
+        triggerClassName={effPriority !== "all" ? activeTriggerClass : undefined}
       />
       <MenuSelect
         value={town}

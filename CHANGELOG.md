@@ -22,6 +22,7 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Material breakdowns drop 別換-tier barter legs: when an item has several sources, any 以物易物 route whose tracked row is 視需求/別換 (below 一次性) no longer shows — neither as the pick nor as an alternative. Single-source items keep their only leg, untracked exchanges are untouched
 - Barter tab filters announce themselves: an engaged priority/town select or search box gets an emerald ring, the count turns amber with （已篩選）, and a 清除篩選 button resets everything in one tap — a stale filter can no longer hide rows silently
 - Breakdown prototype retired, B (照店採買) wins: the A/B/C switcher, `?variant` URLs, and the losing variants are deleted; the winner lives in `MaterialBreakdown.tsx` and renders everywhere (explorer rows, tracker hover card) with no variant prop anywhere
+- Barter priority filter hides options with no rows (別換 has none, so it's gone); a stale persisted value falls back to all instead of trapping an empty list
 
 ### Fixes
 - Sync rebuilt on bucketed keys (store v13): every value now carries the Taipei day/week cycle it was set in, reads consider only the current cycle, and a reset prunes memory without writing anything — resets can no longer delete anything on any device, which kills the entire wipe class (late-wake tombstones, stale-tab poisoning, echo nulls, marker gating) at the root; the sync protocol no longer contains reset deletes at all
