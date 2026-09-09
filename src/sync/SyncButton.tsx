@@ -381,7 +381,7 @@ export const SyncButton = memo(function SyncButton() {
             <div className="space-y-4">
               <DialogHeader>
                 <DialogTitle asChild>
-                  <h1 className="text-lg font-semibold leading-none tracking-tight mb-2">跨裝置同步</h1>
+                  <h2 className="text-lg font-semibold leading-none tracking-tight mb-2">跨裝置同步</h2>
                 </DialogTitle>
                 <DialogDescription>
                   {linked ? "此裝置已連結，進度變更會自動同步，另一台裝置的變更也會自動合併。" : "正在產生連結…"}

@@ -49,7 +49,7 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
       <DialogContent className="max-h-[90vh] overflow-auto">
         <DialogHeader>
           <DialogTitle asChild>
-            <h1 className="text-lg font-semibold leading-none tracking-tight mb-2">{editing ? "編輯任務" : "新增自訂任務"}</h1>
+            <h2 className="text-lg font-semibold leading-none tracking-tight mb-2">{editing ? "編輯任務" : "新增自訂任務"}</h2>
           </DialogTitle>
           <DialogDescription>所有任務皆支援隱藏與拖曳排序。</DialogDescription>
         </DialogHeader>

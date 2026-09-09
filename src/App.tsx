@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useAppStore, barterToTask } from "@/store/useAppStore";
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 import { summarizeProgress } from "@/lib/progress";
 import { CharacterTabs } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
-import { BarterExplorer } from "@/components/BarterExplorer";
-import { AddTaskDialog } from "@/components/AddTaskDialog";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
 import { syncAndResets } from "@/sync/session";
@@ -28,6 +26,16 @@ import { Analytics } from "@vercel/analytics/react";
 
 const BUILTIN_TASKS = trackerJson as Task[];
 
+// Below-the-fold / on-demand routes, split out of the initial chunk:
+// BarterExplorer (breakdown engine + explorer UI) loads on first tab visit,
+// AddTaskDialog loads on first open.
+const BarterExplorer = lazy(() =>
+  import("@/components/BarterExplorer").then((m) => ({ default: m.BarterExplorer }))
+);
+const AddTaskDialog = lazy(() =>
+  import("@/components/AddTaskDialog").then((m) => ({ default: m.AddTaskDialog }))
+);
+
 export default function App() {
   const chars = useAppStore((s) => s.characters);
   const active = useAppStore((s) => s.getActiveChar());
@@ -42,6 +50,7 @@ export default function App() {
   const barterPins = useAppStore((s) => s.barterPins);
   const [tab, setTab] = useState<"tracker" | "barter">("tracker");
   const [addOpen, setAddOpen] = useState(false);
+  const [addMounted, setAddMounted] = useState(false); // mount (and fetch) the dialog chunk on first open only
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [compact, setCompact] = useState(false);
@@ -126,14 +135,13 @@ export default function App() {
   const weeklyWithCustom = [...weeklyTasks, ...customTasks.filter((t) => t.section === "weekly")];
   const accountWithCustom = [...accountTasks, ...customTasks.filter((t) => t.section === "account")];
 
-  const openEdit = (t: Task) => {
-    setEditingTask(t);
+  const openDialog = (editing: Task | null) => {
+    setEditingTask(editing);
+    setAddMounted(true);
     setAddOpen(true);
   };
-  const openAdd = () => {
-    setEditingTask(null);
-    setAddOpen(true);
-  };
+  const openEdit = (t: Task) => openDialog(t);
+  const openAdd = () => openDialog(null);
 
   if (!hasHydrated) {
     return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">載入中...</div>;
@@ -141,6 +149,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+      >
+        跳到主內容
+      </a>
       {/* Header */}
         <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-3xl px-3 sm:px-4 py-[10px] sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
@@ -409,14 +423,14 @@ export default function App() {
       </>
       )}
 
-      <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-6 space-y-6 focus:outline-none">
 
         {/* tabs */}
-        <div className="flex items-center gap-2 border-b">
-          <button onClick={() => setTab("tracker")} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "tracker" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+        <div className="flex items-center gap-2 border-b" role="tablist" aria-label="主分頁">
+          <button role="tab" aria-selected={tab === "tracker"} onClick={() => setTab("tracker")} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "tracker" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             任務追蹤
           </button>
-          <button onClick={() => setTab("barter")} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "barter" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+          <button role="tab" aria-selected={tab === "barter"} onClick={() => setTab("barter")} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "barter" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             以物易物
           </button>
           <div className="ml-auto flex items-center gap-1 pb-1">
@@ -434,7 +448,17 @@ export default function App() {
             <TrackerSection title="帳號共通" icon="👥" tasks={accountWithCustom} isAccount={true} onEditTask={openEdit} />
           </div>
         ) : (
-          <BarterExplorer />
+          <Suspense
+            fallback={
+              <div className="grid gap-6 grid-cols-1" role="status" aria-label="載入中">
+                {[0, 1].map((i) => (
+                  <div key={i} className="h-40 animate-pulse rounded-xl border bg-card" />
+                ))}
+              </div>
+            }
+          >
+            <BarterExplorer />
+          </Suspense>
         )}
 
         {/* footer actions */}
@@ -511,12 +535,16 @@ export default function App() {
         </p>
       </main>
 
-      <AddTaskDialog
-        key={`${addOpen}-${editingTask?.id ?? "new"}`}
-        open={addOpen}
-        onOpenChange={(v) => { setAddOpen(v); if (!v) setEditingTask(null); }}
-        editing={editingTask}
-      />
+      {addMounted && (
+      <Suspense fallback={null}>
+        <AddTaskDialog
+          key={`${addOpen}-${editingTask?.id ?? "new"}`}
+          open={addOpen}
+          onOpenChange={(v) => { setAddOpen(v); if (!v) setEditingTask(null); }}
+          editing={editingTask}
+        />
+      </Suspense>
+      )}
       <SyncToasts />
       <SyncImport />
       <ConfirmHost />

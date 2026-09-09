@@ -60,7 +60,7 @@ export function SyncImport() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle asChild>
-            <h1 className="text-lg font-semibold leading-none tracking-tight mb-2">同步到此裝置</h1>
+            <h2 className="text-lg font-semibold leading-none tracking-tight mb-2">同步到此裝置</h2>
           </DialogTitle>
           <DialogDescription>此連結的進度將取代本機進度。確定要在這台裝置繼續嗎？</DialogDescription>
         </DialogHeader>
