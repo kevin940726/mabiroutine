@@ -232,13 +232,16 @@ export function BarterExplorer() {
   // A persisted value with no rows (e.g. 別換 from before it was hidden)
   // falls back to all instead of trapping the list empty.
   const effPriority = PRESENT_PRIORITIES.includes(priority as BarterPriority) ? priority : "all";
+  // Same stale-value guard for town (towns derive from data, so this only
+  // trips if barter.json later loses one — falls back instead of trapping).
+  const effTown = town === "all" || TOWNS.includes(town) ? town : "all";
   const setPriority = (v: BarterPriority | "all") => setBarterFilters({ priority: v });
   const setTown = (v: string) => setBarterFilters({ town: v });
   const setOnlyPinned = (v: boolean) => setBarterFilters({ onlyPinned: v });
   // Any active gate (selects persist per origin; search is session-only):
   // highlight the engaged controls + offer one-tap reset so a stale filter
   // never silently hides rows.
-  const isFiltering = effPriority !== "all" || town !== "all" || onlyPinned || q !== "";
+  const isFiltering = effPriority !== "all" || effTown !== "all" || onlyPinned || q !== "";
   const clearFilters = () => {
     setPriority("all");
     setTown("all");
@@ -250,7 +253,7 @@ export function BarterExplorer() {
   const filtered = useMemo(() => {
     return (barterJson as unknown as typeof barterJson).filter((b) => {
       if (effPriority !== "all" && b.priority !== effPriority) return false;
-      if (town !== "all" && b.town !== town) return false;
+      if (effTown !== "all" && b.town !== effTown) return false;
       if (onlyPinned) {
         if (!barterPins.includes(b.id)) return false;
       }
@@ -265,7 +268,7 @@ export function BarterExplorer() {
       if (pa !== pb) return pa - pb;
       return a.town.localeCompare(b.town);
     });
-  }, [deferredQ, effPriority, town, onlyPinned, barterPins]);
+  }, [deferredQ, effPriority, effTown, onlyPinned, barterPins]);
 
   // filter controls are one shared const rendered inline on all screens
   const filterSelects = (
@@ -277,13 +280,13 @@ export function BarterExplorer() {
         triggerClassName={effPriority !== "all" ? activeTriggerClass : undefined}
       />
       <MenuSelect
-        value={town}
+        value={effTown}
         options={[{ value: "all", label: "全部城鎮" }, ...TOWNS.map((t) => ({ value: t, label: t }))]}
         onChange={(v) => setTown(v)}
-        triggerClassName={town !== "all" ? activeTriggerClass : undefined}
+        triggerClassName={effTown !== "all" ? activeTriggerClass : undefined}
       />
       <span className={cn("text-xs self-center", isFiltering ? "font-semibold text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
-        顯示 {filtered.length} / {barterJson.length} 筆{isFiltering && filtered.length !== barterJson.length ? "（已篩選）" : ""} · 已釘選 {barterPins.length}
+        顯示 {filtered.length} / {barterJson.length} 筆{isFiltering ? "（已篩選）" : ""} · 已釘選 {barterPins.length}
         {isFiltering && (
           <button onClick={clearFilters} className="ml-1.5 underline underline-offset-2 hover:text-foreground">
             清除篩選

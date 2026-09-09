@@ -54,7 +54,7 @@ function useBreakdown(give: string) {
   }, [give]);
 }
 
-const SHORT_KIND: Record<string, string> = {
+const SHORT_KIND: Record<RouteKind, string> = {
   shop: "買",
   barter: "換",
   gather: "採",
@@ -123,9 +123,9 @@ export function MaterialBreakdown({ give, bare }: { give: string; bare?: boolean
     }
     return { title: "", directs: [], showRecipe: false };
   }, [give]);
-  const { shops, rest, gather } = useMemo(() => {
+  const { shops, other, gather } = useMemo(() => {
     const byNpc = new Map<string, { npc: string; town?: string; items: SummedLeaf[] }>();
-    const rest: SummedLeaf[] = [];
+    const other: SummedLeaf[] = [];
     const gather: SummedLeaf[] = [];
     for (const l of summed) {
       if (l.route.kind === "shop" && l.route.npc) {
@@ -133,9 +133,9 @@ export function MaterialBreakdown({ give, bare }: { give: string; bare?: boolean
         g.items.push(l);
         byNpc.set(l.route.npc, g);
       } else if (l.route.kind === "gather") gather.push(l);
-      else rest.push(l);
+      else other.push(l);
     }
-    return { shops: [...byNpc.values()], rest, gather };
+    return { shops: [...byNpc.values()], other, gather };
   }, [summed]);
   // Boxed (default): the muted panel separates the breakdown from a
   // surrounding row (explorer). Bare: inside the hover card, which is
@@ -205,7 +205,7 @@ export function MaterialBreakdown({ give, bare }: { give: string; bare?: boolean
           )}
         </div>
       ))}
-      {rest.map((l) => {
+      {other.map((l) => {
         // Multi-exchange barter/shop: show scaled cost options (no day estimates —
         // assume other sources unless the item is flagged single-source).
         const costOpts =
