@@ -1,8 +1,10 @@
-// PROTOTYPE (throwaway, dev-only): three material-breakdown variants for one question —
-// "which compact style replaces the verbose tree?" Switch via ?variant=a|b|c or the
-// floating bar. Winner gets folded into MaterialBreakdown.tsx; the rest is deleted.
-import { useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+// Material breakdown (settled 2026-09-09 — variant B 照店採買, folded out of
+// the throwaway A/B/C prototype): action view grouped by store, base leaves
+// only (no intermediates, no craft queue). Shop leaves semibold
+// (plan-needed), gather one muted line. Leaf-root gives (the give IS the
+// leaf) render source-first with no item echo — the row already names it,
+// and "X — 換NPC" reads backwards.
+import { useMemo } from "react";
 import {
   flattenBreakdown,
   parseItemQty,
@@ -14,20 +16,6 @@ import {
   type SquashNode,
   type SummedLeaf,
 } from "@/lib/materials";
-import { cn } from "@/lib/utils";
-
-export type BreakdownVariantKey = "a" | "b" | "c";
-export const BREAKDOWN_VARIANTS: { key: BreakdownVariantKey; name: string }[] = [
-  { key: "a", name: "一行全料" },
-  { key: "b", name: "照店採買" },
-  { key: "c", name: "工作檯排程" },
-];
-
-/** Shared variant default: ?variant=a|b|c, falls back to B (store-grouped). */
-export function readBreakdownVariant(): BreakdownVariantKey {
-  const v = new URLSearchParams(window.location.search).get("variant");
-  return v === "a" || v === "c" ? v : "b";
-}
 
 /** No toggle when the breakdown would just echo the give (trivial self-only
  *  leaf) — or when gather-preference leaves a lone 自採 group (vacuous:
@@ -43,8 +31,27 @@ export function giveHasBreakdown(give: string): boolean {
   return t.children.length > 0 || t.alternatives > 0;
 }
 
-function toolCost(l: SummedLeaf): string {
-  return l.toolCosts.length > 0 ? `⁽${l.toolCosts.map((c) => `${c.name}×${c.qty}`).join("、")}⁾` : "";
+function StatusLine({ node }: { node: SquashNode }) {
+  const text =
+    node.status === "missing"
+      ? `${node.name}：目前沒有來源資料，先略過`
+      : node.status === "unknown"
+        ? `${node.name}：找不到資料`
+        : `${node.name}：循環引用，停止展開`;
+  return <div className="text-xs text-muted-foreground break-words">{text}</div>;
+}
+
+/** Shared squash: summed leaves in plan-need order + make queue + problem nodes. */
+function useBreakdown(give: string) {
+  return useMemo(() => {
+    const { name, qty } = parseItemQty(give);
+    const { leaves, makes } = flattenBreakdown(squashTree(name, qty));
+    return {
+      summed: sortByPlanNeed(sumLeaves(leaves)),
+      makes,
+      problems: leaves.filter((l) => l.status !== "ok"),
+    };
+  }, [give]);
 }
 
 const SHORT_KIND: Record<string, string> = {
@@ -74,80 +81,7 @@ function NpcFace({ npc }: { npc: string }) {
   );
 }
 
-function StatusLine({ node }: { node: SquashNode }) {
-  const text =
-    node.status === "missing"
-      ? `${node.name}：目前沒有來源資料，先略過`
-      : node.status === "unknown"
-        ? `${node.name}：找不到資料`
-        : `${node.name}：循環引用，停止展開`;
-  return <div className="text-xs text-muted-foreground break-words">{text}</div>;
-}
-
-/** Shared squash: summed leaves in plan-need order + make queue + problem nodes. */
-function useBreakdown(give: string) {
-  return useMemo(() => {
-    const { name, qty } = parseItemQty(give);
-    const { leaves, makes } = flattenBreakdown(squashTree(name, qty));
-    return {
-      summed: sortByPlanNeed(sumLeaves(leaves)),
-      makes,
-      problems: leaves.filter((l) => l.status !== "ok"),
-    };
-  }, [give]);
-}
-
-function leafTag(l: SummedLeaf): string {
-  const r = l.route;
-  if (r.kind === "shop") return `⁽買·${r.npc}${r.limit ? `·${r.limit}` : ""}⁾`;
-  if (r.kind === "barter") return `⁽換·${r.npc}⁾`;
-  if (r.kind === "gather") return "";
-  return `⁽${SHORT_KIND[r.kind] ?? r.kind}⁾`;
-}
-
-/** A — one-line full ingredients (gather muted), plan-needed block below. */
-function VariantA({ give }: { give: string }) {
-  const { summed, makes, problems } = useBreakdown(give);
-  const plan = summed.filter((l) => l.route.kind !== "gather");
-  return (
-    <div className="space-y-1.5 break-words">
-      <div className="text-xs leading-relaxed break-words">
-        {summed.map((l, i) => (
-          <span key={l.name} className={cn(l.route.kind === "gather" && "text-muted-foreground")}>
-            {i > 0 && " "}
-            {l.name}×{l.qty}
-            {toolCost(l) && <span className="text-muted-foreground">{toolCost(l)}</span>}
-            {leafTag(l) && <span className="font-medium">{leafTag(l)}</span>}
-          </span>
-        ))}
-      </div>
-      {plan.length > 0 && (
-        <div className="space-y-0.5">
-          <div className="text-[11px] font-semibold">需規劃</div>
-          {plan.map((l) => (
-            <div key={l.name} className="text-xs">
-              {l.name}×{l.qty} — {routeLabel(l.route)}
-            </div>
-          ))}
-        </div>
-      )}
-      {makes.length > 0 && (
-        <div className="text-xs">
-          製作：{makes.map((m) => `${m.name}（${m.station}${m.level ? ` Lv.${m.level}` : ""}${m.batches > 1 ? `×${m.batches}批` : ""}）`).join("、")}
-        </div>
-      )}
-      {problems.map((p) => (
-        <StatusLine key={p.name} node={p} />
-      ))}
-    </div>
-  );
-}
-
-/** B — action view grouped by store: base leaves only (no intermediates, no
- *  craft queue). Shop leaves semibold (plan-needed), gather one muted line.
- *  Leaf-root gives (the give IS the leaf) render source-first with no item
- *  echo — the row already names it, and "X — 換NPC" reads backwards. */
-function VariantB({ give }: { give: string }) {
+export function MaterialBreakdown({ give, bare }: { give: string; bare?: boolean }) {
   const { summed, problems } = useBreakdown(give);
   // Leaf-root source groups (null for make-roots, which use the rows below).
   const leafGroups = useMemo(() => {
@@ -203,7 +137,10 @@ function VariantB({ give }: { give: string }) {
     }
     return { shops: [...byNpc.values()], rest, gather };
   }, [summed]);
-  return (
+  // Boxed (default): the muted panel separates the breakdown from a
+  // surrounding row (explorer). Bare: inside the hover card, which is
+  // already a distinct panel — a box-in-a-box adds nothing.
+  const body = (
     <div className="space-y-1 break-words">
       {leafGroups ? (
         <div className="space-y-1">
@@ -311,121 +248,6 @@ function VariantB({ give }: { give: string }) {
       )}
     </div>
   );
-}
-
-/** C — workbench schedule first: each make step with direct inputs, leaves summed at the bottom. */
-function VariantC({ give }: { give: string }) {
-  const root = useMemo(() => {
-    const { name, qty } = parseItemQty(give);
-    return squashTree(name, qty);
-  }, [give]);
-  const { summed, problems } = useMemo(() => {
-    const { leaves } = flattenBreakdown(root);
-    return { summed: sortByPlanNeed(sumLeaves(leaves)), problems: leaves.filter((l) => l.status !== "ok") };
-  }, [root]);
-  const steps = useMemo(() => {
-    const out: { name: string; batches: number; station?: string; level?: string; inputs: { name: string; qty: number }[] }[] = [];
-    const walk = (n: SquashNode) => {
-      if (n.children.length > 0 && n.route?.kind === "make") {
-        out.push({
-          name: n.name, batches: n.batches, station: n.route.station, level: n.route.level,
-          inputs: n.children.map((c) => ({ name: c.name, qty: c.qty })),
-        });
-        n.children.forEach(walk);
-      }
-    };
-    walk(root);
-    return out;
-  }, [root]);
-  if (steps.length === 0) {
-    return (
-      <div className="text-xs leading-relaxed break-words">
-        <span className="text-muted-foreground">免製作 · </span>
-        {summed.map((l, i) => (
-          <span key={l.name}>
-            {i > 0 && " "}
-            {l.name}×{l.qty}
-            {leafTag(l) && <span className="text-muted-foreground">{leafTag(l)}</span>}
-          </span>
-        ))}
-        {problems.map((p) => (
-          <StatusLine key={p.name} node={p} />
-        ))}
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-1.5 break-words">
-      {steps.map((s, i) => (
-        <div key={`${s.name}-${i}`} className="text-xs">
-          <span className="font-semibold">{s.station}{s.level ? ` Lv.${s.level}` : ""}</span>
-          <span>：{s.name}{s.batches > 1 ? `×${s.batches}批` : ""} ← {s.inputs.map((c) => `${c.name}×${c.qty}`).join("、")}</span>
-        </div>
-      ))}
-      <div className="text-[11px] text-muted-foreground leading-relaxed break-words">
-        合計：{summed.map((l) => `${l.name}×${l.qty}`).join("、")}
-      </div>
-      {problems.map((p) => (
-        <StatusLine key={p.name} node={p} />
-      ))}
-    </div>
-  );
-}
-
-export function BreakdownVariant({ give, variant, bare }: { give: string; variant: BreakdownVariantKey; bare?: boolean }) {
-  // Boxed (default): the muted panel separates the breakdown from a surrounding
-  // row (explorer). Bare: inside the hover card, which is already a distinct
-  // panel — a box-in-a-box adds nothing.
-  const body = (
-    <>
-      {variant !== "b" && (
-        <div className="mb-1 text-[11px] font-semibold text-muted-foreground">材料 · 以{give}計</div>
-      )}
-      {variant === "a" && <VariantA give={give} />}
-      {variant === "b" && <VariantB give={give} />}
-      {variant === "c" && <VariantC give={give} />}
-    </>
-  );
   if (bare) return body;
   return <div className="mt-2 rounded-md bg-muted/50 px-2.5 py-2">{body}</div>;
-}
-
-/** Floating variant switcher — dev only, never ships. */
-export function PrototypeSwitcher({
-  variant,
-  onChange,
-}: {
-  variant: BreakdownVariantKey;
-  onChange: (v: BreakdownVariantKey) => void;
-}) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-      const i = BREAKDOWN_VARIANTS.findIndex((v) => v.key === variant);
-      if (e.key === "ArrowLeft") onChange(BREAKDOWN_VARIANTS[(i + BREAKDOWN_VARIANTS.length - 1) % BREAKDOWN_VARIANTS.length].key);
-      if (e.key === "ArrowRight") onChange(BREAKDOWN_VARIANTS[(i + 1) % BREAKDOWN_VARIANTS.length].key);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [variant, onChange]);
-  if (!import.meta.env.DEV) return null;
-  const label = BREAKDOWN_VARIANTS.find((v) => v.key === variant)?.name ?? variant;
-  const step = (d: number) => {
-    const i = BREAKDOWN_VARIANTS.findIndex((v) => v.key === variant);
-    onChange(BREAKDOWN_VARIANTS[(i + d + BREAKDOWN_VARIANTS.length) % BREAKDOWN_VARIANTS.length].key);
-  };
-  return (
-    <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full border bg-black px-2 py-1.5 text-white shadow-lg">
-      <button aria-label="上一個版本" onClick={() => step(-1)} className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/20">
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-      <span className="min-w-[110px] text-center text-xs font-semibold">
-        {variant.toUpperCase()} · {label}
-      </span>
-      <button aria-label="下一個版本" onClick={() => step(1)} className="grid h-8 w-8 place-items-center rounded-full hover:bg-white/20">
-        <ChevronRight className="h-4 w-4" />
-      </button>
-    </div>
-  );
 }

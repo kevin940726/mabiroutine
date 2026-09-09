@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical } from "lucide-react";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
-import { readBreakdownVariant } from "@/components/MaterialBreakdownProto";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -98,7 +97,6 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         <MaterialHoverCard
           give={task.barterMeta?.give ?? ""}
           get={task.barterMeta?.get ?? ""}
-          variant={readBreakdownVariant()}
         />
       </div>
       {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
@@ -340,7 +338,6 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
               <MaterialHoverCard
                 give={task.barterMeta?.give ?? ""}
                 get={task.barterMeta?.get ?? ""}
-                variant={readBreakdownVariant()}
                 compact
               />
             </span>

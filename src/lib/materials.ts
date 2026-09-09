@@ -1,3 +1,4 @@
+import barterJson from "@/data/barter.json";
 import recipesJson from "@/data/recipes.json";
 
 export type RouteKind =
@@ -28,6 +29,53 @@ export type RecipeEntry = {
 };
 
 const RECIPES = recipesJson as unknown as Record<string, RecipeEntry>;
+
+type BarterRow = {
+  id: string;
+  give: string;
+  get: string;
+  npc: string;
+  town?: string;
+  priority: "must" | "extra" | "once" | "situational";
+};
+
+const BARTER_ROWS = barterJson as unknown as BarterRow[];
+
+/** must(必換) > extra(推薦) > once(一次性/首次必換) > situational(視需求/別換). */
+const PRIORITY_RANK: Record<BarterRow["priority"], number> = {
+  must: 3,
+  extra: 2,
+  once: 1,
+  situational: 0,
+};
+
+/** Best priority rank among tracked rows trading this item at this NPC
+ *  (either side of the trade — the item can be the give or the cost).
+ *  Null when the exchange isn't a tracked barter row. */
+function barterRankFor(item: string, npc?: string): number | null {
+  if (!npc) return null;
+  let best: number | null = null;
+  for (const r of BARTER_ROWS) {
+    if (r.npc !== npc) continue;
+    if (parseItemQty(r.give).name !== item && parseItemQty(r.get).name !== item) continue;
+    const rank = PRIORITY_RANK[r.priority] ?? 0;
+    if (best === null || rank > best) best = rank;
+  }
+  return best;
+}
+
+/** Drop 別換-tier barter legs (source priority below 一次性) from multi-source
+ *  items. Single-source items keep their only leg; untracked exchanges keep
+ *  theirs. Falls back to all routes if filtering would leave none. */
+function filterDeprioritizedBarter(name: string, routes: RecipeRoute[]): RecipeRoute[] {
+  if (routes.length < 2) return routes;
+  const kept = routes.filter((r) => {
+    if (r.kind !== "barter") return true;
+    const rank = barterRankFor(name, r.npc);
+    return rank === null || rank >= PRIORITY_RANK.once;
+  });
+  return kept.length > 0 ? kept : routes;
+}
 
 /** "蘋果汁 ×1" -> { name: "蘋果汁", qty: 1 }. Every barter give is one item ×N. */
 export function parseItemQty(s: string): { name: string; qty: number } {
@@ -72,15 +120,16 @@ export function squashTree(name: string, qty: number, seen: Set<string> = new Se
   if (seen.has(name)) {
     return emptyNode(name, qty, "cycle");
   }
-  const make = entry.routes.find((r) => r.kind === "make" && (r.components?.length ?? 0) > 0);
+  const routes = filterDeprioritizedBarter(name, entry.routes);
+  const make = routes.find((r) => r.kind === "make" && (r.components?.length ?? 0) > 0);
   if (!make) {
-    const ranked = [...entry.routes].sort(
+    const ranked = [...routes].sort(
       (a, b) => LEAF_RANK.indexOf(a.kind) - LEAF_RANK.indexOf(b.kind)
     );
     const [chosen, ...siblings] = ranked;
     const exchanges = Math.ceil(qty / (chosen.outQty ?? 1));
     const scaledCosts = (chosen.components ?? []).map((c) => ({ name: c.name, qty: c.qty * exchanges }));
-    return { name, qty, route: chosen, batches: 1, exchanges, scaledCosts, siblings, alternatives: entry.routes.length - 1, status: "ok", children: [] };
+    return { name, qty, route: chosen, batches: 1, exchanges, scaledCosts, siblings, alternatives: routes.length - 1, status: "ok", children: [] };
   }
   const batches = Math.ceil(qty / (make.outQty ?? 1));
   const next = new Set(seen);
@@ -92,8 +141,8 @@ export function squashTree(name: string, qty: number, seen: Set<string> = new Se
     batches,
     exchanges: 1,
     scaledCosts: [],
-    siblings: entry.routes.filter((r) => r !== make),
-    alternatives: entry.routes.length - 1,
+    siblings: routes.filter((r) => r !== make),
+    alternatives: routes.length - 1,
     status: "ok",
     children: (make.components ?? []).map((c) => squashTree(c.name, c.qty * batches, next)),
   };

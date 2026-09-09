@@ -8,21 +8,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList } from "lucide-react";
 import {
-  BreakdownVariant,
+  MaterialBreakdown,
   giveHasBreakdown,
-  type BreakdownVariantKey,
-} from "@/components/MaterialBreakdownProto";
+} from "@/components/MaterialBreakdown";
 import { cn } from "@/lib/utils";
 
 type Props = {
   give: string;
   get: string;
-  variant: BreakdownVariantKey;
   /** Compact (desktop, truncated row) vs roomy (mobile, wrapping row) trigger. */
   compact?: boolean;
 };
 
-export function MaterialHoverCard({ give, get, variant, compact }: Props) {
+export function MaterialHoverCard({ give, get, compact }: Props) {
   const hasBreakdown = useMemo(() => giveHasBreakdown(give), [give]);
 
   const [open, setOpen] = useState(false);
@@ -221,7 +219,7 @@ export function MaterialHoverCard({ give, get, variant, compact }: Props) {
             style={{ maxHeight: maxH ?? undefined }}
             className="overflow-y-auto rounded-xl border bg-popover p-3 shadow-lg"
           >
-            <BreakdownVariant give={give} variant={variant} bare />
+            <MaterialBreakdown give={give} bare />
           </div>
         </div>
       )}
