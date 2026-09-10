@@ -64,21 +64,31 @@ v13) and rides the wire on every value key.
   never tombstone** (they expire by bucket — a stale device physically
   cannot delete anything). Resolves the pushed key-set ({} when clean) or
   null when nothing was sent — callers must not treat remote state as newer
-  than unsent local edits.
+  than unsent local edits. (→ S2)
 - **Pull** (mount, tab-visible, window-focus, 60s foreground repoll, 10s
-  throttle): flush first (arrival = order, so local edits land before adopting
+  throttle — hook-driven pulls via `syncAndResets` bypass the throttle so
+  reset-after-pull ordering holds on boot; a throttled no-op pull would let
+  `checkResets` prune before the adopt lands and trip the mid-flight guard;
+  mount GET preloaded by an `index.html` inline fetch so the round trip
+  overlaps JS bootstrap — consume-once, id-matched, 60s TTL, live-GET
+  fallback; concurrent pulls join one in-flight run):
+  flush first (arrival = order, so local edits land before adopting
   remote), abort if still dirty, GET, abort if edited mid-flight, fold the
   acknowledged push over the GET result (a lagged/cached read must never
-  resurrect a pre-push absence), apply wholesale via `unflattenMerge`
+  resurrect a pre-push absence — this also covers the preloaded pre-flush
+  read), apply wholesale via `unflattenMerge`
   (current-bucket values only, **local ordering**), GC expired cycle keys
-  (tombstone once past the 60-day retention), save base.
+  (tombstone once past the 60-day retention), save base. Offline (boot
+  included): `offline()` throws before any fetch, the round fails silent and
+  local state stands — resume on next foreground / 60s repoll. (→ S1, S3, S5)
 - **Reset** (`syncAndResets`: pull → `checkResets`): the pull-first order is
   UX only (a late wake adopts the peer's current-bucket values before its own
   stale ones are pruned). The prune is memory-only; there is nothing to
   suppress, gate, or re-pull. Serialized — overlapping triggers share one run.
+  (→ S3)
 - **Adopt** (`?s=` boot, paste field): pristine → silent wholesale adopt;
   other session + non-pristine → confirm dialog (consent for binding *switch*,
-  not conflict resolution); same session → pull round.
+  not conflict resolution); same session → pull round. (→ S4)
 - Binding shown in URL (`?s=`, `replaceState`, stripped on cancel).
 
 ## Findings → decisions

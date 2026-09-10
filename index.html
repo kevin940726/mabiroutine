@@ -32,6 +32,40 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Boot preload: fire the session GET before the module graph (React +
+      // app chunk) even loads, so the network round trip overlaps JS
+      // bootstrap instead of waiting behind it. The app consumes this once
+      // via takePreloaded (id-matched, 60s TTL); anything unexpected
+      // (offline, id mismatch, non-OK) falls back to the normal pull path.
+      // Early-read safety is free: the pull folds its acknowledged push over
+      // whatever this returns, so a pre-flush response can't resurrect
+      // anything. No SW interference: /api/* matches no runtimeCaching route.
+      (function () {
+        try {
+          var m = /[?&]s=([0-9a-f-]{36})/i.exec(location.search);
+          var id = m && m[1];
+          if (!id) {
+            var raw = localStorage.getItem("mabiroutine:session");
+            var parsed = raw && JSON.parse(raw);
+            if (parsed && typeof parsed.id === "string") id = parsed.id;
+          }
+          if (
+            id &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) &&
+            navigator.onLine !== false
+          ) {
+            window.__mabiPreload = {
+              id: id,
+              at: Date.now(),
+              res: fetch("/api/session?id=" + encodeURIComponent(id), { cache: "no-store" })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .catch(function () { return null; }),
+            };
+          }
+        } catch (e) { /* private mode / blocked storage — normal boot covers */ }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

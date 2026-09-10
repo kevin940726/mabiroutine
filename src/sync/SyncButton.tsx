@@ -83,6 +83,7 @@ export const SyncButton = memo(function SyncButton() {
   const busyRef = useRef(busy);
   busyRef.current = busy;
   const lastPullAt = useRef(0);
+  const inflightRef = useRef<Promise<void> | null>(null);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushFails = useRef(0);
 
@@ -155,11 +156,18 @@ export const SyncButton = memo(function SyncButton() {
   // would adopt it and the next push would tombstone it — a permanent wipe).
   // Mid-flight edits abort the apply; the scheduled push + next pull converge.
   // Legacy (v1 blob) sessions upgrade via one full push, then proceed.
-  async function pullNow(): Promise<void> {
+  // force (hook path: syncAndResets ordering + explicit same-session opens):
+  // bypass the 10s background throttle. syncAndResets orders reset-after-pull,
+  // so a throttled no-op pull would let checkResets prune BEFORE the fresh
+  // adopt lands — on rollover boots the prune even trips the mid-flight guard
+  // below and discards the mount pull's apply, leaving stale state until the
+  // next trigger (up to 60s). Overlapping forced runs still serialize via
+  // syncAndResets' shared promise.
+  async function runPull(force: boolean): Promise<void> {
     const session = linkedRef.current;
     if (!session || busyRef.current) return;
     const now = Date.now();
-    if (now - lastPullAt.current < 10_000) return;
+    if (!force && now - lastPullAt.current < 10_000) return;
     lastPullAt.current = now;
     try {
       const pushed = await pushNow();
@@ -211,6 +219,22 @@ export const SyncButton = memo(function SyncButton() {
     }
   }
 
+  // Join concurrent runs: boot and focus fire a background pull and a forced
+  // hook pull in the same task. Without joining, the awaited forced pull can
+  // lose the mid-flight race to the sibling and abort — leaving checkResets
+  // ordered behind a pull that adopted nothing. Joiners await the real
+  // in-flight round instead of duplicating its GET.
+  async function pullNow(force = false): Promise<void> {
+    if (inflightRef.current) return inflightRef.current;
+    const run = runPull(force);
+    inflightRef.current = run;
+    try {
+      await run;
+    } finally {
+      if (inflightRef.current === run) inflightRef.current = null;
+    }
+  }
+
   useEffect(() => {
     const schedule = () => {
       if (!linkedRef.current) return;
@@ -240,8 +264,10 @@ export const SyncButton = memo(function SyncButton() {
       if (document.visibilityState === "visible") void pullNow();
     }, 60_000);
     // Mount pull: this device's storage may predate another device's push.
+    // (The hook below joins this run when still in flight, else re-pulls
+    // forced — either way boot checkResets sees fresh remote.)
     void pullNow();
-    setPullHook(() => pullNow());
+    setPullHook(() => pullNow(true));
     return () => {
       unsub();
       clearInterval(repoll);

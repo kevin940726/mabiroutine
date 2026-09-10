@@ -31,7 +31,9 @@ MabiRoutine's design principle: static game data ships with the app;
 
 - Across devices: use cross-device sync (auto-merges) or footer 匯出 JSON
   (Export) → 匯入 JSON (Import) on the other device (full replace — export a
-  backup first).
+  backup first). With sync, opening the app pulls the other device's latest
+  first (launch shows their checks as soon as the boot pull lands; offline
+  you get your last local state) — stories S1/S5, mechanism in `docs/sync.md`.
 - Importing an old backup: works as usual — missing fields are filled and
   dangling keys cleared on the spot; extra fields in the backup are dropped on
   the next save.

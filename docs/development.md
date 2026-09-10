@@ -1,9 +1,10 @@
 # Development — getting started & contributor guide
 
 Audience: future-you, contributors, AI agents. Get productive in ~15 minutes.
-User-facing story lives in `README.md` / `README-zh_TW.md`; protocol details in
-`docs/sync.md`; data rules in `docs/tracker-data.md`; saved-progress behavior
-in `docs/storage.md`.
+User-facing story lives in `README.md` / `README-zh_TW.md`; sync user stories
+in `docs/stories.md` (read these before `docs/sync.md` — acceptance first,
+mechanism second); protocol details in `docs/sync.md`; data rules in
+`docs/tracker-data.md`; saved-progress behavior in `docs/storage.md`.
 
 ## Prerequisites
 
@@ -67,7 +68,8 @@ case — switch to `dev:api`.
 - **Change persisted store shape:** follow the store checklist in `AGENTS.md`
   (bump version twice, append a migrate step, extend fixtures) — then
   `pnpm check` must pass.
-- **Change sync behavior:** `docs/sync.md` first, including the quota budget.
+- **Change sync behavior:** `docs/stories.md` first (write/adjust the story +
+  acceptance criteria), then `docs/sync.md`, including the quota budget.
   `/api/*` responses are never cached by the SW — keep it that way.
 - **Change reset/count rules:** `src/lib/reset.ts` + data `max` + docs; remember
   countdown tiles, header countdown, and per-character isolation in tests-by-eye.

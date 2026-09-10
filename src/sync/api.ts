@@ -23,6 +23,39 @@ function offline(): boolean {
 
 export type RemoteSession = { state?: unknown; legacy?: unknown; updatedAt: number };
 
+// Boot preload (index.html inline fetch): the session GET fires before the
+// module graph loads so it overlaps JS bootstrap. Consume-once, id-matched,
+// 60s TTL — any mismatch, expiry, or failure returns null and the caller
+// falls back to a live GET, so this can never break the pull (only skip its
+// head start).
+declare global {
+  interface Window {
+    __mabiPreload?: { id: string; at: number; res: Promise<unknown> };
+  }
+}
+
+const PRELOAD_TTL_MS = 60_000;
+
+export function takePreloaded(id: string): Promise<RemoteSession | null> | null {
+  try {
+    if (typeof window === "undefined") return null;
+    const p = window.__mabiPreload;
+    if (!p) return null;
+    delete window.__mabiPreload; // take (any outcome discards — no late reuse)
+    if (p.id !== id) return null;
+    if (typeof p.at !== "number" || Date.now() - p.at > PRELOAD_TTL_MS) return null;
+    return p.res
+      .then((r) =>
+        r && typeof r === "object" && typeof (r as RemoteSession).updatedAt === "number"
+          ? (r as RemoteSession)
+          : null
+      )
+      .catch(() => null);
+  } catch {
+    return null;
+  }
+}
+
 export async function createSession(state: FlatMap): Promise<{ id: string; updatedAt: number }> {
   if (offline()) throw new SyncFailed("offline");
   const res = await fetch("/api/session", {
@@ -42,6 +75,13 @@ export async function createSession(state: FlatMap): Promise<{ id: string; updat
 
 export async function getSession(id: string): Promise<RemoteSession> {
   if (offline()) throw new SyncFailed("offline");
+  const pre = takePreloaded(id);
+  if (pre) {
+    const cached = await pre;
+    if (cached) return cached;
+    // Preload missed (non-OK / malformed) — fall through to a live GET so
+    // error semantics (404 → SyncNotFound etc.) stay exactly as before.
+  }
   const res = await fetch(`/api/session?id=${encodeURIComponent(id)}`, {
     // See POST: a stale GET adopted by a pull wipes + tombstones live keys.
     cache: "no-store",
