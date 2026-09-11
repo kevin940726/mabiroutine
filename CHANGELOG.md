@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- 班克爾 trio faces: 吉爾摩, 尚, 康格 raws cropped into `public/npc/` — their breakdown pills no longer fall back to the placeholder
+
 ## 2026-09-12 — shops SSOT + 9/9 data refresh
 
 ### Features
