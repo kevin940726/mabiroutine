@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-12 — whole-deal 共需
+
 ### Features
 - Explorer breakdowns and tracker hover cards now total the whole deal: the 共需 line multiplies by the row's exchange limit (e.g. 休馬斯 沙威瑪 每日 3 次 → 共需（3次）), with the same ceil/no-prorate math; L1 stays the per-1 recipe
 
