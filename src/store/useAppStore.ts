@@ -172,7 +172,7 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 16,
+  version: 15,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -476,12 +476,15 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.version = 14;
   }
   if (from < 15) {
-    // v14 → v15: barter dedupe — 4 `yen-` twins dropped from barter.json
-    // (exact npc+give+get dupes of col-k1/dun-st6/dun-st7, plus the
-    // dungeon-2 near-dupe). Rename-like: user state transfers to the kept
-    // twin first (pins, values, hides, provenance — moved verbatim; the
-    // twin's own state always wins), then the v6 valid-set prune drops the
-    // removed ids. Values otherwise untouched.
+    // v14 → v15: 9/9 barter refresh. (1) Dedupe — 4 `yen-` twins dropped
+    // from barter.json (exact npc+give+get dupes of col-k1/dun-st6/dun-st7,
+    // plus the dungeon-2 near-dupe). Rename-like: user state transfers to
+    // the kept twin first (pins, values, hides, provenance — moved verbatim;
+    // the twin's own state always wins), then the v6 valid-set prune drops
+    // the removed ids. (2) Seed the new default pins (edern/jennifer/seumas
+    // never existed before, so nobody could have unpinned them on purpose);
+    // stored order kept, deliberate unpins of older ids untouched.
+    // Values otherwise untouched.
     const RENAMED_BARTER: Record<string, string> = {
       "yen-基利安毒囊3藥品加工設備-21": "col-k1",
       "yen-史帝華強化再燃燒催化劑5-80": "dun-st6",
@@ -528,20 +531,12 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.barterPins = pruneArr(s.barterPins);
     s.taskBuckets = pruneRec(s.taskBuckets);
     if (s.globalTaskOrder) s.globalTaskOrder = pruneRec(s.globalTaskOrder);
-    s.version = 15;
-  }
-  if (from < 16) {
-    // v15 → v16: seed the 9/9 default pins into existing saves. Appends only
-    // ids that never existed before (nobody could have unpinned them on
-    // purpose); stored order kept, deliberate unpins of older ids untouched.
-    // Future batches: extend this list with that release's new ids.
-    const valid = new Set((barterJson as BarterJsonItem[]).map((b) => b.id));
-    for (const id of ["edern-silver-alloy-ingot", "jennifer-lean-meat"]) {
+    for (const id of ["edern-silver-alloy-ingot", "jennifer-lean-meat", "seumas-finest-bandage"]) {
       if (valid.has(id) && !(s.barterPins ?? []).includes(id)) {
         s.barterPins = [...(s.barterPins ?? []), id];
       }
     }
-    s.version = 16;
+    s.version = 15;
   }
   return s as AppState;
 }
@@ -841,7 +836,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 16,
+      version: 15,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

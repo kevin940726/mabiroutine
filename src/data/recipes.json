@@ -33,6 +33,53 @@
      }
     ]
    }
+   ]
+  },
+ "傷痕花": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "採集藥草",
+    "level": "20",
+    "outQty": 1
+   }
+  ]
+ },
+ "傷痕花粉末": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "藥品加工設備",
+    "level": "4",
+    "outQty": 5,
+    "components": [
+     {
+      "name": "傷痕花",
+      "qty": 20
+     }
+    ]
+   }
+  ],
+  "note": "自行加工約需 25 分鐘"
+ },
+ "光輝結晶": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "barter",
+    "npc": "史帝華",
+    "town": "杜巴頓",
+    "limit": "每日 5 次",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "鍊金術碎屑",
+      "qty": 1
+     }
+    ]
+   }
   ]
  },
  "冰": {
@@ -81,6 +128,24 @@
     ],
     "skill": "料理 Lv.1"
    }
+   ]
+  },
+ "冰霜結晶": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "barter",
+    "npc": "史帝華",
+    "town": "杜巴頓",
+    "limit": "每日 5 次",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "鍊金術碎屑",
+      "qty": 1
+     }
+    ]
+   }
   ]
  },
  "凱琳特製全麥麵包": {
@@ -122,6 +187,48 @@
     "station": "釣魚",
     "level": "1",
     "outQty": 1
+   }
+   ]
+  },
+ "卓越繃帶": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "藥品製作台",
+    "level": "4",
+    "outQty": 5,
+    "components": [
+     {
+      "name": "高級布料+",
+      "qty": 5
+     },
+     {
+      "name": "傷痕花粉末",
+      "qty": 6
+     },
+     {
+      "name": "火苗結晶",
+      "qty": 10
+     },
+     {
+      "name": "冰霜結晶",
+      "qty": 10
+     },
+     {
+      "name": "電氣結晶",
+      "qty": 10
+     },
+     {
+      "name": "光輝結晶",
+      "qty": 10
+     },
+     {
+      "name": "封印結晶",
+      "qty": 10
+     }
+    ],
+    "skill": "藥水調製 Lv.22"
    }
   ]
  },
@@ -394,6 +501,24 @@
      {
       "name": "腳掌印章",
       "qty": 5
+     }
+    ]
+   }
+   ]
+  },
+ "封印結晶": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "barter",
+    "npc": "史帝華",
+    "town": "杜巴頓",
+    "limit": "每日 5 次",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "鍊金術碎屑",
+      "qty": 1
      }
     ]
    }
@@ -811,6 +936,40 @@
      }
     ]
    }
+   ]
+  },
+ "沙威瑪": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物製作台",
+    "level": "4",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "清淡的肉",
+      "qty": 10
+     },
+     {
+      "name": "黃豆",
+      "qty": 12
+     },
+     {
+      "name": "麵粉",
+      "qty": 3
+     },
+     {
+      "name": "高麗菜",
+      "qty": 5
+     },
+     {
+      "name": "檸檬",
+      "qty": 2
+     }
+    ],
+    "skill": "料理 Lv.13"
+   }
   ]
  },
  "洋蔥": {
@@ -866,6 +1025,24 @@
     "station": "採集藥草",
     "level": "2",
     "outQty": 1
+   }
+   ]
+  },
+ "清淡的肉": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "barter",
+    "npc": "珍妮佛",
+    "town": "班克爾",
+    "limit": "每日 1 次",
+    "outQty": 15,
+    "components": [
+     {
+      "name": "黃豆",
+      "qty": 10
+     }
+    ]
    }
   ]
  },
@@ -2231,6 +2408,24 @@
     "level": "1",
     "outQty": 1
    }
+   ]
+  },
+ "電氣結晶": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "barter",
+    "npc": "史帝華",
+    "town": "杜巴頓",
+    "limit": "每日 5 次",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "鍊金術碎屑",
+      "qty": 1
+     }
+    ]
+   }
   ]
  },
  "食用油": {
@@ -2351,6 +2546,24 @@
     "station": "伐木",
     "level": "2",
     "outQty": 1
+   }
+   ]
+  },
+ "高級布料+": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "barter",
+    "npc": "潔米",
+    "town": "杜巴頓",
+    "limit": "每日 1 次",
+    "outQty": 4,
+    "components": [
+     {
+      "name": "蘋果鮮奶油蛋糕",
+      "qty": 1
+     }
+    ]
    }
   ]
  },

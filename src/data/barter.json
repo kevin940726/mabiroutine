@@ -225,6 +225,21 @@
     "note": "每日 1 次；投入的材料採集就有，近乎白拿。"
   },
   {
+    "id": "seumas-finest-bandage",
+    "name": "休馬斯 卓越繃帶 ×5 ← 沙威瑪 ×1",
+    "give": "沙威瑪 ×1",
+    "get": "卓越繃帶 ×5",
+    "town": "萊爾特丘陵",
+    "priority": "must",
+    "gatherSkill": "萊爾特丘陵",
+    "perChar": true,
+    "limit": "每日 3 次",
+    "rec": "必換",
+    "verified": "tw",
+    "npc": "休馬斯",
+    "note": "每日 3 次；沙威核這個野怪目前沒有上線。"
+  },
+  {
     "id": "edern-silver-alloy-ingot",
     "name": "艾頓 銀合金錠 ×10 ← 鱸魚辣魚湯 ×1",
     "give": "鱸魚辣魚湯 ×1",

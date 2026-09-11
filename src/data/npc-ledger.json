@@ -430,5 +430,16 @@
     "out": "public/npc/珍妮佛.png",
     "priority": "extra",
     "status": "done"
+  },
+  {
+    "npc": "休馬斯",
+    "town": "萊爾特丘陵",
+    "ids": [
+      "seumas-finest-bandage"
+    ],
+    "raw": "public/npc-raw/休馬斯.png",
+    "out": "public/npc/休馬斯.png",
+    "priority": "must",
+    "status": "done"
   }
 ]
