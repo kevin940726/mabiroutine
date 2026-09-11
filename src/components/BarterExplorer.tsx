@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MenuSelect } from "@/components/MenuSelect";
 import { MaterialBreakdown, giveHasBreakdown } from "@/components/MaterialBreakdown";
+import { parseItemQty, twinTradeLeg } from "@/lib/materials";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -29,6 +30,15 @@ const PRESENT_PRIORITIES = PRIORITY_ORDER.filter((p) =>
 const TOWNS = [...new Set((barterJson as unknown as typeof barterJson).map((b) => b.town))];
 
 type BarterRow = (typeof barterJson)[number];
+
+/** Cap text from the shops.json twin leg (SSOT); falls back to the
+ *  barter.json display string when no exact twin exists. A matched leg
+ *  with no limit means uncapped — the barter string is not consulted. */
+function capText(b: BarterRow): string | undefined {
+  const { name, qty } = parseItemQty(b.get);
+  const twin = twinTradeLeg(b.npc, name, qty);
+  return twin ? twin.limit : b.limit;
+}
 
 function PinButton({ barterId }: { barterId: string }) {
   const toggle = useAppStore((s) => s.toggleBarterPin);
@@ -81,6 +91,7 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
   const [open, setOpen] = useState(false);
   // No toggle when the breakdown would just echo the give (trivial self-only leaf).
   const hasBreakdown = useMemo(() => giveHasBreakdown(b.give), [b.give]);
+  const cap = capText(b);
   return (
     <div
       className={cn(
@@ -126,7 +137,7 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
             </button>{" "}
             → 你拿 {b.get}
           </span>
-          <span className="ml-auto shrink-0">{b.limit}</span>
+          <span className="ml-auto shrink-0">{cap}</span>
         </div>
         {b.note && (
           <p className="text-xs leading-snug text-muted-foreground/80 mt-1 italic truncate border-l-2 border-muted pl-1.5">📝 {b.note}</p>
@@ -148,6 +159,7 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
   const [open, setOpen] = useState(false);
   // No toggle when the breakdown would just echo the give (trivial self-only leaf).
   const hasBreakdown = useMemo(() => giveHasBreakdown(b.give), [b.give]);
+  const cap = capText(b);
   return (
     <div
       className={cn(
@@ -189,7 +201,7 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
             </span>
           </div>
           <div className="mt-1 text-xs text-muted-foreground break-words">
-            <span className="font-semibold text-foreground">{b.npc}</span> · {b.town} · {b.limit}
+            <span className="font-semibold text-foreground">{b.npc}</span> · {b.town}{cap ? ` · ${cap}` : ""}
           </div>
           <div className="text-xs break-words">
             <button

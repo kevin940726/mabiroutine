@@ -20,7 +20,7 @@ handled for you.
   back and play.
 - 👥 **Up to 6 characters, fully separated.** One tab per character, renameable;
   each keeps its own progress.
-- 🔄 **A barter explorer that answers "what do I trade today".** 92 以物易物
+- 🔄 **A barter explorer that answers "what do I trade today".** 94 以物易物
   trades with must/extra/once/situational guidance, search by what you have or
   what you need, filter by town and priority. Pin the good ones and they
   show up in your dailies. Tap what you hand over to see the base materials

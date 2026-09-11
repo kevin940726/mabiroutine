@@ -1,0 +1,110 @@
+{
+ "title": "Shopping source of truth (NPC → purchase/exchange options)",
+ "description": "Hand-edited. One entry per (NPC, item, kind) purchase option. materials.ts synthesizes every option into a route at load and merges it with the recipes make/gather/quest routes (single read path, no positional zip). NPC keys are dynamic; option shape is strict (additionalProperties false) so typos fail validation. Editors pick this up via the $schema pointer in shops.json.",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "type": "object",
+ "properties": {
+  "$schema": {
+   "type": "string"
+  }
+ },
+ "patternProperties": {
+  "^[^$].*": {
+   "$ref": "#/$defs/shop"
+  }
+ },
+ "additionalProperties": false,
+ "$defs": {
+  "shop": {
+   "type": "object",
+   "required": ["town", "items"],
+   "properties": {
+    "town": {
+     "type": "string",
+     "description": "Primary town label. Informational only — routes keep their own town."
+    },
+    "items": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/option"
+     }
+    }
+   },
+   "additionalProperties": false
+  },
+  "option": {
+   "type": "object",
+   "required": ["name", "cost"],
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "Item received per exchange."
+    },
+    "kind": {
+     "enum": ["shop", "barter"],
+     "default": "shop",
+      "description": "Omit for shop (counter purchase). Spell out barter for NPC exchanges. Same-name repeats = distinct options."
+    },
+    "cost": {
+     "$ref": "#/$defs/cost"
+    },
+    "get": {
+     "$ref": "#/$defs/get"
+    },
+    "limit": {
+     "$ref": "#/$defs/limit"
+    },
+    "scope": {
+     "enum": ["character", "account"],
+     "default": "character",
+     "description": "Who the cap binds. account covers the old 伺服器-suffixed caps (in today's data exactly the perChar=false rows) and any future per-account cap. Omit for character."
+    }
+   },
+   "additionalProperties": false
+  },
+  "cost": {
+   "type": "object",
+   "required": ["amount"],
+   "properties": {
+    "amount": {
+     "type": ["number", "null"],
+     "minimum": 0,
+     "description": "What you pay. Gold = per single item (total = amount × qty); item tokens = per whole exchange (total = amount × ceil(qty / get.amount)). Null = unfilled (gold only — token costs always known from routes; enforced by pnpm test:shops)."
+    },
+    "currency": {
+     "type": "string",
+     "default": "gold",
+     "description": "Omit for gold. Otherwise an item token name (e.g. 魔物討伐證明). Check script warns on unknown token names."
+    }
+   },
+   "additionalProperties": false
+  },
+  "get": {
+   "type": "object",
+   "description": "What you receive per exchange. Omit when 1 (the common case). Canonical home for outQty — the overlay writes it back onto routes.",
+   "required": ["amount"],
+   "properties": {
+    "amount": {
+     "type": "integer",
+     "minimum": 1
+    }
+   },
+   "additionalProperties": false
+  },
+  "limit": {
+   "type": "object",
+    "description": "Omit entirely when uncapped. Omitted times = uncapped (a bare 1 must be written out); period defaults to daily when times is present, and is rejected without times.",
+    "properties": {
+     "times": {
+      "type": "integer",
+      "minimum": 1
+     },
+    "period": {
+     "enum": ["daily", "weekly"],
+     "default": "daily"
+    }
+   },
+   "additionalProperties": false
+  }
+ }
+}

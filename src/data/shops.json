@@ -1,0 +1,2278 @@
+{
+  "$schema": "./shops.schema.json",
+  "卡琳": {
+    "town": "冰霜峽谷臨時哨所",
+    "items": [
+      {
+        "name": "寵物飼料",
+        "kind": "barter",
+        "cost": {
+          "amount": 3,
+          "currency": "馬鈴薯湯"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "貓商人": {
+    "town": "地下城、狩獵場",
+    "items": [
+      {
+        "name": "新芽蘑菇",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "血紅藥草"
+        },
+        "limit": {
+          "times": 3
+        }
+      },
+      {
+        "name": "愛心幣",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "擠著吃的點心"
+        },
+        "limit": {
+          "times": 3
+        }
+      },
+      {
+        "name": "鹽",
+        "kind": "barter",
+        "cost": {
+          "amount": 100,
+          "currency": "旅行者點心"
+        },
+        "get": {
+          "amount": 2
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "糖",
+        "kind": "barter",
+        "cost": {
+          "amount": 100,
+          "currency": "繃帶"
+        },
+        "get": {
+          "amount": 2
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "高麗菜",
+        "kind": "barter",
+        "cost": {
+          "amount": 100,
+          "currency": "恢復藥水"
+        },
+        "get": {
+          "amount": 2
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "毒囊",
+        "kind": "barter",
+        "cost": {
+          "amount": 20000,
+          "currency": "喵幣"
+        },
+        "get": {
+          "amount": 2
+        },
+        "limit": {
+          "times": 1,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "曠野的魔力石",
+        "kind": "barter",
+        "cost": {
+          "amount": 50000,
+          "currency": "喵幣"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 3,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "礦山的魔力石",
+        "kind": "barter",
+        "cost": {
+          "amount": 50000,
+          "currency": "喵幣"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 3,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "鱸魚",
+        "kind": "barter",
+        "cost": {
+          "amount": 20000,
+          "currency": "喵幣"
+        },
+        "limit": {
+          "times": 10,
+          "period": "weekly"
+        }
+      }
+    ]
+  },
+  "卡利克斯": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "皮革+",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "格莉娜的蘋果奶茶"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "胡椒",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "不死粉末"
+        },
+        "get": {
+          "amount": 2
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "檸檬",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "不死粉末"
+        },
+        "get": {
+          "amount": 3
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "史帝華": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "火苗結晶",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "鍊金術碎屑"
+        },
+        "limit": {
+          "times": 5
+        }
+      },
+      {
+        "name": "冰霜結晶",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "鍊金術碎屑"
+        },
+        "limit": {
+          "times": 5
+        }
+      },
+      {
+        "name": "光輝結晶",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "鍊金術碎屑"
+        },
+        "limit": {
+          "times": 5
+        }
+      },
+      {
+        "name": "封印結晶",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "鍊金術碎屑"
+        },
+        "limit": {
+          "times": 5
+        }
+      },
+      {
+        "name": "電氣結晶",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "鍊金術碎屑"
+        },
+        "limit": {
+          "times": 5
+        }
+      },
+      {
+        "name": "未加工黃金原石",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "強化再燃燒催化劑"
+        },
+        "get": {
+          "amount": 7
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "未加工黃金原石",
+        "kind": "barter",
+        "cost": {
+          "amount": 50,
+          "currency": "稀有鍊金術再燃燒催化劑"
+        },
+        "get": {
+          "amount": 7
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "瓦爾特": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "空瓶",
+        "cost": {
+          "amount": 50
+        },
+        "limit": {
+          "times": 1,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "紙",
+        "cost": {
+          "amount": 100
+        },
+        "limit": {
+          "times": 1,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "生皮",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "高級生皮",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "布料",
+        "cost": {
+          "amount": 500
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "滴答螢火蟲",
+        "cost": {
+          "amount": 400
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "白花蝶",
+        "cost": {
+          "amount": 400
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "皮革",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "特蕾西的原木音樂盒"
+        },
+        "get": {
+          "amount": 6
+        },
+        "limit": {
+          "times": 2
+        }
+      },
+      {
+        "name": "愛心幣",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "真愛魚"
+        },
+        "limit": {
+          "times": 2
+        }
+      },
+      {
+        "name": "火焰魔法榴彈",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "暗影幽靈魚"
+        },
+        "limit": {
+          "times": 3
+        }
+      },
+      {
+        "name": "閃電魔法榴彈",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "暗影幽靈魚"
+        },
+        "limit": {
+          "times": 3
+        }
+      },
+      {
+        "name": "風魔法榴彈",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "暗影幽靈魚"
+        },
+        "limit": {
+          "times": 3
+        }
+      },
+      {
+        "name": "酸蝕魔法榴彈",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "暗影幽靈魚"
+        },
+        "limit": {
+          "times": 3
+        }
+      }
+    ]
+  },
+  "奈麗絲": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "特殊鋼錠",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "合金鋼錠"
+        },
+        "limit": {
+          "times": 4
+        }
+      },
+      {
+        "name": "高級生皮",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "銅礦石"
+        },
+        "limit": {
+          "times": 10
+        }
+      }
+    ]
+  },
+  "芙蘿拉": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "無主的小說書",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "格莉娜手工蛋糕"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "格莉娜": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "烤肉",
+        "cost": {
+          "amount": 3000
+        },
+        "limit": {
+          "times": 3,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "烤整顆馬鈴薯",
+        "cost": {
+          "amount": 3000
+        },
+        "limit": {
+          "times": 3,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "蘋果汁",
+        "cost": {
+          "amount": 3000
+        },
+        "limit": {
+          "times": 3,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "肉",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "鹽",
+        "cost": {
+          "amount": 1000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "糖",
+        "cost": {
+          "amount": 1200
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "高麗菜",
+        "cost": {
+          "amount": 800
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "食用油",
+        "cost": {
+          "amount": 1200
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "蘋果",
+        "cost": {
+          "amount": 800
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "大蒜",
+        "cost": {
+          "amount": 1200
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "胡椒",
+        "cost": {
+          "amount": 2000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "檸檬",
+        "cost": {
+          "amount": 3000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "番茄",
+        "cost": {
+          "amount": 6800
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "蘆筍",
+        "cost": {
+          "amount": 10000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "豌豆",
+        "cost": {
+          "amount": 10000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "格莉娜手工蛋糕",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "牛奶燉豬肉"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "格莉娜的蘋果奶茶",
+        "kind": "barter",
+        "cost": {
+          "amount": 4,
+          "currency": "鮮奶油"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "食物製作台設計圖(3級)",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "蘋果舒芙蕾"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "馬努斯": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "血紅藥草",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "箭花",
+        "cost": {
+          "amount": 400
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "魔力藥草",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "毅力草",
+        "cost": {
+          "amount": 400
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "壯壯蘑菇粉末",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "壯壯蘑菇汁液",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "咻咻蘑菇",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "咻咻蘑菇汁液",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "新芽蘑菇汁液",
+        "cost": {
+          "amount": 400
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "生命的魔力石",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "寵物飼料"
+        },
+        "limit": {
+          "times": 2
+        }
+      }
+    ]
+  },
+  "傑羅姆": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "高級絲綢",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "奶油醬牛排"
+        },
+        "get": {
+          "amount": 4
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "絲綢",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "瑞可塔起司沙拉"
+        },
+        "get": {
+          "amount": 4
+        },
+        "limit": {
+          "times": 2
+        }
+      }
+    ]
+  },
+  "潔米": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "高級布料",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "蘋果舒芙蕾"
+        },
+        "get": {
+          "amount": 4
+        },
+        "limit": {
+          "times": 2
+        }
+      },
+      {
+        "name": "高級布料+",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "蘋果鮮奶油蛋糕"
+        },
+        "get": {
+          "amount": 4
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "蕾拉": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "紙",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "無主的小說書"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "艾爾文": {
+    "town": "杜加德走廊",
+    "items": [
+      {
+        "name": "高級木材",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "炒蔬菜"
+        },
+        "get": {
+          "amount": 4
+        },
+        "limit": {
+          "times": 2
+        }
+      },
+      {
+        "name": "高級原木",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "高級皮革"
+        },
+        "limit": {
+          "times": 10
+        }
+      },
+      {
+        "name": "單寧粉末",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "生皮"
+        },
+        "get": {
+          "amount": 5
+        },
+        "limit": {
+          "times": 10
+        }
+      },
+      {
+        "name": "皮革加工設備設計圖(3級)",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "布料+"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "特蕾西": {
+    "town": "杜加德走廊",
+    "items": [
+      {
+        "name": "生皮",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "原木"
+        },
+        "limit": {
+          "times": 10
+        }
+      },
+      {
+        "name": "特蕾西的原木音樂盒",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "蒸蛤蜊"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "高級生皮",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "原木"
+        },
+        "limit": {
+          "times": 10
+        }
+      },
+      {
+        "name": "樹液",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "高級原木"
+        },
+        "get": {
+          "amount": 4
+        },
+        "limit": {
+          "times": 5
+        }
+      },
+      {
+        "name": "木材加工設計圖(3級)",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "幼蟲"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "阿爾米斯": {
+    "town": "庫漢",
+    "items": [
+      {
+        "name": "聖水",
+        "kind": "barter",
+        "cost": {
+          "amount": 100,
+          "currency": "解除詛咒藥水"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "銀合金錠",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "特殊鋼錠"
+        },
+        "limit": {
+          "times": 1
+        },
+        "scope": "account"
+      },
+      {
+        "name": "銅礦石",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "白銅礦石"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "金屬加工設備設計圖(3級)",
+        "kind": "barter",
+        "cost": {
+          "amount": 20,
+          "currency": "煤炭"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "武器製作台設計圖(3級)",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "耐熱繃帶"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "基利安": {
+    "town": "庫漢",
+    "items": [
+      {
+        "name": "四葉草",
+        "cost": {
+          "amount": 750
+        },
+        "limit": {
+          "times": 5,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "躲躲花",
+        "cost": {
+          "amount": 150
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "躲躲花粉末",
+        "cost": {
+          "amount": 900
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "壯壯蘑菇粉末",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "淨淨蘑菇",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "淨淨蘑菇汁液",
+        "cost": {
+          "amount": 750
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "健康飲料",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "淨淨蘑菇孢子"
+        },
+        "limit": {
+          "times": 5
+        }
+      },
+      {
+        "name": "四葉草",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "蒜香橄欖油義大利麵"
+        },
+        "get": {
+          "amount": 8
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "藥品加工設備設計圖(3級)",
+        "kind": "barter",
+        "cost": {
+          "amount": 3,
+          "currency": "毒囊"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "藥品製作台設計圖(3級)",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "夕陽蝴蝶"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "康納": {
+    "town": "庫漢",
+    "items": [
+      {
+        "name": "空瓶",
+        "cost": {
+          "amount": 50
+        }
+      },
+      {
+        "name": "紙",
+        "cost": {
+          "amount": 100
+        }
+      },
+      {
+        "name": "肉",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "貝類",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "冰",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "草莓",
+        "cost": {
+          "amount": 1200
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "胡椒",
+        "cost": {
+          "amount": 2000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "番茄",
+        "cost": {
+          "amount": 6800
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "蘆筍",
+        "cost": {
+          "amount": 10000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "豌豆",
+        "cost": {
+          "amount": 10000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "高級生皮",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "高級生皮+",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "獨角仙",
+        "cost": {
+          "amount": 500
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "滴答螢火蟲",
+        "cost": {
+          "amount": 400
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "四葉草",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "健康飲料"
+        },
+        "get": {
+          "amount": 3
+        },
+        "limit": {
+          "times": 3
+        }
+      },
+      {
+        "name": "廢墟的魔力石",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "生命的魔力石"
+        },
+        "limit": {
+          "times": 5
+        },
+        "scope": "account"
+      },
+      {
+        "name": "峽谷的魔力石",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "生命的魔力石"
+        },
+        "limit": {
+          "times": 10
+        },
+        "scope": "account"
+      },
+      {
+        "name": "愛心幣",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "燈籠鮟鱇魚"
+        },
+        "limit": {
+          "times": 3
+        }
+      }
+    ]
+  },
+  "凱雅拉": {
+    "town": "庫漢",
+    "items": [
+      {
+        "name": "凝聚的風",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "高級木材+"
+        },
+        "get": {
+          "amount": 3
+        },
+        "limit": {
+          "times": 3
+        }
+      },
+      {
+        "name": "毒囊",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "高級木材+"
+        },
+        "get": {
+          "amount": 3
+        },
+        "limit": {
+          "times": 3
+        }
+      },
+      {
+        "name": "高級暴擊秘藥",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "冰草莓飲"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "裝水的瓶子",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "聖水"
+        },
+        "get": {
+          "amount": 50
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "艾琳": {
+    "town": "班克爾",
+    "items": [
+      {
+        "name": "銀合金錠",
+        "kind": "barter",
+        "cost": {
+          "amount": 3,
+          "currency": "特殊鋼錠"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "銀合金錠",
+        "kind": "barter",
+        "cost": {
+          "amount": 30,
+          "currency": "合金鋼錠"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "艾頓": {
+    "town": "班克爾",
+    "items": [
+      {
+        "name": "銀合金錠",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "鱸魚辣魚湯"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 1,
+          "period": "weekly"
+        }
+      }
+    ]
+  },
+  "珍妮佛": {
+    "town": "班克爾",
+    "items": [
+      {
+        "name": "肉",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "清淡的肉",
+        "cost": {
+          "amount": 400
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "貝類",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "鹽",
+        "cost": {
+          "amount": 1000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "辣椒粉",
+        "cost": {
+          "amount": 3000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "大蒜",
+        "cost": {
+          "amount": 1200
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "檸檬",
+        "cost": {
+          "amount": 3000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "白蘿蔔",
+        "cost": {
+          "amount": 10000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "清淡的肉",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "黃豆"
+        },
+        "get": {
+          "amount": 15
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "康格": {
+    "town": "班克爾",
+    "items": [
+      {
+        "name": "空瓶",
+        "cost": {
+          "amount": 50
+        }
+      },
+      {
+        "name": "血紅藥草",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "箭花",
+        "cost": {
+          "amount": 400
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "四葉草",
+        "cost": {
+          "amount": 750
+        },
+        "limit": {
+          "times": 5,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "傷痕花",
+        "cost": {
+          "amount": 900
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "傷痕花粉末",
+        "cost": {
+          "amount": 1200
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "增幅蘑菇",
+        "cost": {
+          "amount": 900
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "增幅蘑菇汁液",
+        "cost": {
+          "amount": 900
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "卓越恢復藥水",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "豆乳防風草蛋糕"
+        },
+        "get": {
+          "amount": 6
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "吉爾摩": {
+    "town": "班克爾",
+    "items": [
+      {
+        "name": "空瓶",
+        "cost": {
+          "amount": 50
+        }
+      },
+      {
+        "name": "紙",
+        "cost": {
+          "amount": 100
+        }
+      },
+      {
+        "name": "高級生皮+",
+        "cost": {
+          "amount": 600
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "最高級生皮",
+        "cost": {
+          "amount": 900
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "最高級蜘蛛網",
+        "cost": {
+          "amount": 900
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "錢幣瓢蟲",
+        "cost": {
+          "amount": 1000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "單寧粉末",
+        "cost": {
+          "amount": 500
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "樹液",
+        "cost": {
+          "amount": 500
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "最高級絲綢",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "最高級木材"
+        },
+        "get": {
+          "amount": 5
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "礦山的魔力石",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "生命的魔力石"
+        },
+        "scope": "account",
+        "limit": {
+          "times": 5
+        }
+      },
+      {
+        "name": "曠野的魔力石",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "生命的魔力石"
+        },
+        "scope": "account",
+        "limit": {
+          "times": 10
+        }
+      }
+    ]
+  },
+  "尚": {
+    "town": "班克爾",
+    "items": [
+      {
+        "name": "裝水的瓶子",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "傷痕花"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "用心準備的花束",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "古樸的包裝紙"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "休馬斯": {
+    "town": "萊爾特丘陵",
+    "items": [
+      {
+        "name": "古樸的包裝紙",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "裝水的瓶子"
+        },
+        "limit": {
+          "times": 3
+        }
+      },
+      {
+        "name": "卓越繃帶",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "沙威瑪"
+        },
+        "limit": {
+          "times": 3
+        }
+      }
+    ]
+  },
+  "安黛莉": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "空瓶",
+        "cost": {
+          "amount": 50
+        }
+      },
+      {
+        "name": "聖水",
+        "cost": {
+          "amount": 1500
+        },
+        "limit": {
+          "times": 5,
+          "period": "weekly"
+        },
+        "scope": "account"
+      },
+      {
+        "name": "聖水",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "凱琳特製全麥麵包"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "佛格斯": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "鐵礦石",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "分解的裝備零件"
+        },
+        "limit": {
+          "times": 10
+        }
+      },
+      {
+        "name": "煤炭",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "分解的裝備零件"
+        },
+        "get": {
+          "amount": 3
+        },
+        "limit": {
+          "times": 10
+        }
+      },
+      {
+        "name": "合金鋼錠",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "鋼錠"
+        },
+        "limit": {
+          "times": 4
+        }
+      },
+      {
+        "name": "分解的裝備零件",
+        "kind": "barter",
+        "cost": {
+          "amount": 100,
+          "currency": "礦石"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "迪莉絲": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "血紅藥草",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "新芽蘑菇",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "四葉草",
+        "kind": "barter",
+        "cost": {
+          "amount": 3,
+          "currency": "咻咻蘑菇"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "梅文": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "聖水",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "凱琳特製全麥麵包"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "麥爾坎": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "空瓶",
+        "cost": {
+          "amount": 50
+        }
+      },
+      {
+        "name": "紙",
+        "cost": {
+          "amount": 100
+        }
+      },
+      {
+        "name": "生皮",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "布料",
+        "cost": {
+          "amount": 500
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "獨角仙",
+        "cost": {
+          "amount": 500
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "麥爾坎的鬆軟羊毛枕頭",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "蜘蛛網"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "多用途製作台設計圖(3級)",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "專業營火套組"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "凱琳": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "雞蛋三明治",
+        "cost": {
+          "amount": 900
+        },
+        "limit": {
+          "times": 3,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "起司麵包",
+        "cost": {
+          "amount": 900
+        },
+        "limit": {
+          "times": 3,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "水煮蛋",
+        "cost": {
+          "amount": 900
+        },
+        "limit": {
+          "times": 3,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "肉",
+        "cost": {
+          "amount": 250
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "鹽",
+        "cost": {
+          "amount": 1000
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "糖",
+        "cost": {
+          "amount": 1200
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "蘋果",
+        "cost": {
+          "amount": 800
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "高麗菜",
+        "cost": {
+          "amount": 800
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "食用油",
+        "cost": {
+          "amount": 1200
+        },
+        "limit": {
+          "times": 30,
+          "period": "weekly"
+        }
+      },
+      {
+        "name": "凱琳特製全麥麵包",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "牛奶"
+        },
+        "get": {
+          "amount": 3
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "食材加工設備設計圖(3級)",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "麵粉"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "愛麗沙": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "鍊金術碎屑",
+        "kind": "barter",
+        "cost": {
+          "amount": 10,
+          "currency": "雞蛋"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "鍊金術碎屑",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "薰衣草花"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "麵粉",
+        "kind": "barter",
+        "cost": {
+          "amount": 3,
+          "currency": "雞蛋"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "麵粉",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "薰衣草花"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "麗莎": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "強化秘藥乳化劑",
+        "kind": "barter",
+        "cost": {
+          "amount": 5,
+          "currency": "愛心幣"
+        },
+        "limit": {
+          "times": 10,
+          "period": "weekly"
+        },
+        "scope": "account"
+      },
+      {
+        "name": "強化秘藥乳化劑",
+        "cost": {
+          "amount": 7500
+        },
+        "limit": {
+          "times": 20,
+          "period": "weekly"
+        },
+        "scope": "account"
+      },
+      {
+        "name": "高級鍊金術再燃燒催化劑",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "蘋果汁"
+        },
+        "limit": {
+          "times": 1
+        },
+        "scope": "account"
+      },
+      {
+        "name": "高級鍊金術再燃燒催化劑",
+        "kind": "barter",
+        "cost": {
+          "amount": 3,
+          "currency": "鍊金術碎屑"
+        },
+        "limit": {
+          "times": 1
+        },
+        "scope": "account"
+      },
+      {
+        "name": "稀有鍊金術再燃燒催化劑",
+        "kind": "barter",
+        "cost": {
+          "amount": 15,
+          "currency": "高級鍊金術再燃燒催化劑"
+        },
+        "limit": {
+          "times": 1
+        },
+        "scope": "account"
+      }
+    ]
+  },
+  "雷納德": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "暴擊秘藥",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "美乃滋炒肉"
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
+  "蘿拉": {
+    "town": "提爾克那",
+    "items": [
+      {
+        "name": "旅行者點心",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "麥爾坎的鬆軟羊毛枕頭"
+        },
+        "limit": {
+          "times": 3
+        }
+      }
+    ]
+  }
+}

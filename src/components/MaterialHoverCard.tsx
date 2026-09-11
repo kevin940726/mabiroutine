@@ -6,7 +6,7 @@
 // and the built-in Tooltip is pointer-events-none label-only. Known limits:
 // no screen-reader wiring, dismisses on scroll instead of repositioning.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardList } from "lucide-react";
+import { ReceiptText } from "lucide-react";
 import {
   MaterialBreakdown,
   giveHasBreakdown,
@@ -186,7 +186,7 @@ export function MaterialHoverCard({ give, get, compact }: Props) {
         )}
       >
         <span className={compact ? "truncate" : "break-words"}>{give}</span>
-        <ClipboardList className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <ReceiptText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>{" "}
       → 你拿 {get}
       {open && pos && (

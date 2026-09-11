@@ -293,7 +293,7 @@
     "priority": "extra",
     "gatherSkill": "地下城、狩獵場",
     "perChar": true,
-    "limit": "每週 1 次",
+    "limit": "每週 10 次",
     "rec": "推薦",
     "verified": "tw",
     "npc": "貓商人",
@@ -345,21 +345,6 @@
     "note": "繃帶幾乎無痛製作，建議兌換。"
   },
   {
-    "id": "dungeon-5",
-    "name": "貓商人 高麗菜 ×2 ← 恢復藥水 ×100",
-    "give": "恢復藥水 ×100",
-    "get": "高麗菜 ×2",
-    "town": "地下城、狩獵場",
-    "priority": "extra",
-    "gatherSkill": "地下城、狩獵場",
-    "perChar": true,
-    "limit": "每日 1 次",
-    "rec": "推薦",
-    "verified": "tw",
-    "npc": "貓商人",
-    "note": "恢復藥水幾乎無痛製作，建議兌換。"
-  },
-  {
     "id": "col-k3",
     "name": "基利安 健康飲料 ×1 ← 淨淨蘑菇孢子 ×5",
     "give": "淨淨蘑菇孢子 ×5",
@@ -406,8 +391,8 @@
   },
   {
     "id": "col-c4",
-    "name": "康納 愛心幣 ×1 ← 燈籠鮟鱇 ×5",
-    "give": "燈籠鮟鱇 ×5",
+    "name": "康納 愛心幣 ×1 ← 燈籠鮟鱇魚 ×5",
+    "give": "燈籠鮟鱇魚 ×5",
     "get": "愛心幣 ×1",
     "town": "庫漢",
     "priority": "extra",
@@ -1408,5 +1393,20 @@
     "verified": "tw",
     "npc": "艾琳",
     "note": "投入材料取得困難，成本偏高。"
+  },
+  {
+    "id": "dungeon-5",
+    "name": "貓商人 高麗菜 ×2 ← 恢復藥水 ×100",
+    "give": "恢復藥水 ×100",
+    "get": "高麗菜 ×2",
+    "town": "地下城、狩獵場",
+    "priority": "situational",
+    "gatherSkill": "地下城、狩獵場",
+    "perChar": true,
+    "limit": "每日 1 次",
+    "rec": "視需求",
+    "verified": "tw",
+    "npc": "貓商人",
+    "note": "高麗菜商店隨手可買（凱琳/格莉娜 每週 30 次），此兌換僅在缺菜又缺額度時考慮。"
   }
 ]

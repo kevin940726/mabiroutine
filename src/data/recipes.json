@@ -1,40 +1,4 @@
 {
- "不死粉末": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "limit": "每週 5 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "魔物討伐證明",
-      "qty": 100
-     }
-    ]
-   }
-  ]
- },
- "健康飲料": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "基利安",
-    "town": "庫漢",
-    "limit": "每日 5 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "淨淨蘑菇孢子",
-      "qty": 5
-     }
-    ]
-   }
-   ]
-  },
  "傷痕花": {
   "verified": "tw",
   "routes": [
@@ -64,34 +28,9 @@
   ],
   "note": "自行加工約需 25 分鐘"
  },
- "光輝結晶": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "史帝華",
-    "town": "杜巴頓",
-    "limit": "每日 5 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "鍊金術碎屑",
-      "qty": 1
-     }
-    ]
-   }
-  ]
- },
  "冰": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "shop",
-    "npc": "康納",
-    "town": "庫漢",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
    {
     "kind": "gather",
     "station": "採礦",
@@ -130,58 +69,9 @@
    }
    ]
   },
- "冰霜結晶": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "史帝華",
-    "town": "杜巴頓",
-    "limit": "每日 5 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "鍊金術碎屑",
-      "qty": 1
-     }
-    ]
-   }
-  ]
- },
- "凱琳特製全麥麵包": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "凱琳",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 3,
-    "components": [
-     {
-      "name": "牛奶",
-      "qty": 10
-     }
-    ]
-   }
-  ]
- },
  "分解的裝備零件": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "barter",
-    "npc": "佛格斯",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 10,
-    "components": [
-     {
-      "name": "礦石",
-      "qty": 100
-     }
-    ]
-   },
    {
     "kind": "gather",
     "station": "釣魚",
@@ -247,19 +137,6 @@
   "verified": "tw",
   "routes": [
    {
-    "kind": "barter",
-    "npc": "佛格斯",
-    "town": "提爾克那",
-    "limit": "每日 4 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "鋼錠",
-      "qty": 2
-     }
-    ]
-   },
-   {
     "kind": "make",
     "station": "金屬加工設備",
     "level": "2",
@@ -285,13 +162,6 @@
   "verified": "tw",
   "routes": [
    {
-    "kind": "shop",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
     "kind": "gather",
     "station": "採集藥草",
     "level": "1",
@@ -309,19 +179,6 @@
      {
       "name": "樹枝",
       "qty": 1
-     }
-    ]
-   },
-   {
-    "kind": "barter",
-    "npc": "艾爾文",
-    "town": "杜加德走廊",
-    "limit": "每日 10 次",
-    "outQty": 5,
-    "components": [
-     {
-      "name": "生皮",
-      "qty": 5
      }
     ]
    }
@@ -383,13 +240,6 @@
       "qty": 1
      }
     ]
-   },
-   {
-    "kind": "shop",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
    }
   ]
  },
@@ -407,13 +257,6 @@
       "qty": 20
      }
     ]
-   },
-   {
-    "kind": "shop",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
    }
   ]
  },
@@ -424,18 +267,6 @@
     "kind": "gather",
     "station": "昆蟲採集",
     "level": "1",
-    "outQty": 1
-   }
-  ]
- },
- "大蒜": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每週 30 次",
     "outQty": 1
    }
   ]
@@ -474,55 +305,6 @@
   "verified": "missing",
   "note": "in-game item, no source, no yenyen page — skip squash (per user 2026-09-09)",
   "routes": []
- },
- "寵物飼料": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "卡琳",
-    "town": "冰霜峽谷臨時哨所",
-    "limit": "每日 1 次",
-    "outQty": 10,
-    "components": [
-     {
-      "name": "馬鈴薯湯",
-      "qty": 3
-     }
-    ]
-   },
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "腳掌印章",
-      "qty": 5
-     }
-    ]
-   }
-   ]
-  },
- "封印結晶": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "史帝華",
-    "town": "杜巴頓",
-    "limit": "每日 5 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "鍊金術碎屑",
-      "qty": 1
-     }
-    ]
-   }
-  ]
  },
  "專業營火套組": {
   "verified": "tw",
@@ -575,13 +357,6 @@
       "qty": 10
      }
     ]
-   },
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
    }
   ]
  },
@@ -626,37 +401,6 @@
    }
   ]
  },
- "強化再燃燒催化劑": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "limit": "每週 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "魔物討伐證明",
-      "qty": 300
-     }
-    ]
-   },
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "limit": "每週 2 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "腳掌印章",
-      "qty": 50
-     }
-    ]
-   }
-  ]
- },
  "恢復藥水": {
   "verified": "tw",
   "routes": [
@@ -675,12 +419,6 @@
       "qty": 2
      }
     ]
-   },
-   {
-    "kind": "shop",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "outQty": 1
    }
   ]
  },
@@ -718,45 +456,12 @@
     "station": "採集藥草",
     "level": "1",
     "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "迪莉絲",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "貓商人",
-    "town": "地下城、狩獵場",
-    "limit": "每日 3 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "血紅藥草",
-      "qty": 1
-     }
-    ]
    }
   ]
  },
  "旅行者點心": {
   "verified": "tw-ingame",
   "routes": [
-   {
-    "kind": "barter",
-    "npc": "蘿拉",
-    "town": "提爾克那",
-    "limit": "每日 3 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "麥爾坎的鬆軟羊毛枕頭",
-      "qty": 1
-     }
-    ]
-   },
    {
     "kind": "make",
     "station": "食物製作台",
@@ -824,42 +529,6 @@
    }
   ]
  },
- "格莉娜手工蛋糕": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "牛奶燉豬肉",
-      "qty": 1
-     }
-    ]
-   }
-  ]
- },
- "格莉娜的蘋果奶茶": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "鮮奶油",
-      "qty": 4
-     }
-    ]
-   }
-  ]
- },
  "樹枝": {
   "verified": "tw",
   "routes": [
@@ -875,19 +544,6 @@
   "verified": "tw",
   "routes": [
    {
-    "kind": "barter",
-    "npc": "特蕾西",
-    "town": "杜加德走廊",
-    "limit": "每日 5 次",
-    "outQty": 4,
-    "components": [
-     {
-      "name": "高級原木",
-      "qty": 1
-     }
-    ]
-   },
-   {
     "kind": "gather",
     "station": "伐木",
     "level": "1",
@@ -895,49 +551,6 @@
    }
   ]
  },
- "檸檬": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "卡利克斯",
-    "town": "杜巴頓",
-    "limit": "每日 1 次",
-    "outQty": 3,
-    "components": [
-     {
-      "name": "不死粉末",
-      "qty": 5
-     }
-    ]
-   }
-  ]
- },
- "毒囊": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "凱雅拉",
-    "town": "庫漢",
-    "limit": "每日 3 次",
-    "outQty": 3,
-    "components": [
-     {
-      "name": "高級木材+",
-      "qty": 10
-     }
-    ]
-   }
-   ]
-  },
  "沙威瑪": {
   "verified": "tw",
   "routes": [
@@ -991,13 +604,6 @@
     "station": "採集藥草",
     "level": "2",
     "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "基利安",
-    "town": "庫漢",
-    "limit": "每週 30 次",
-    "outQty": 1
    }
   ]
  },
@@ -1028,40 +634,9 @@
    }
    ]
   },
- "清淡的肉": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "珍妮佛",
-    "town": "班克爾",
-    "limit": "每日 1 次",
-    "outQty": 15,
-    "components": [
-     {
-      "name": "黃豆",
-      "qty": 10
-     }
-    ]
-   }
-  ]
- },
  "火苗結晶": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "barter",
-    "npc": "史帝華",
-    "town": "杜巴頓",
-    "limit": "每日 5 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "鍊金術碎屑",
-      "qty": 1
-     }
-    ]
-   },
    {
     "kind": "make",
     "station": "藥品加工設備",
@@ -1087,19 +662,6 @@
     "station": "釣魚",
     "level": "1",
     "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "史帝華",
-    "town": "杜巴頓",
-    "limit": "每日 5 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "鍊金術碎屑",
-      "qty": 1
-     }
-    ]
    }
   ]
  },
@@ -1133,24 +695,6 @@
    }
   ]
  },
- "無主的小說書": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "芙蘿拉",
-    "town": "杜巴頓",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "格莉娜手工蛋糕",
-      "qty": 2
-     }
-    ]
-   }
-  ]
- },
  "煤炭": {
   "verified": "tw",
   "routes": [
@@ -1159,23 +703,10 @@
     "station": "採礦",
     "level": "5",
     "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "佛格斯",
-    "town": "提爾克那",
-    "limit": "每日 10 次",
-    "outQty": 3,
-    "components": [
-     {
-      "name": "分解的裝備零件",
-      "qty": 1
-     }
-    ]
    }
   ]
  },
- "燈籠鮟鱇": {
+ "燈籠鮟鱇魚": {
   "verified": "tw",
   "routes": [
    {
@@ -1237,19 +768,6 @@
   "verified": "tw",
   "routes": [
    {
-    "kind": "barter",
-    "npc": "奈麗絲",
-    "town": "杜巴頓",
-    "limit": "每日 4 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "合金鋼錠",
-      "qty": 2
-     }
-    ]
-   },
-   {
     "kind": "make",
     "station": "金屬加工設備",
     "level": "3",
@@ -1266,24 +784,6 @@
      {
       "name": "煤炭",
       "qty": 12
-     }
-    ]
-   }
-  ]
- },
- "特蕾西的原木音樂盒": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "特蕾西",
-    "town": "杜加德走廊",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "蒸蛤蜊",
-      "qty": 2
      }
     ]
    }
@@ -1315,62 +815,6 @@
    }
   ]
  },
- "生命的魔力石": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "馬努斯",
-    "town": "杜巴頓",
-    "limit": "每日 2 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "寵物飼料",
-      "qty": 10
-     }
-    ]
-   }
-  ]
- },
- "生皮": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "特蕾西",
-    "town": "杜加德走廊",
-    "limit": "每日 10 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "原木",
-      "qty": 1
-     }
-    ]
-   },
-    {
-     "kind": "shop",
-     "npc": "麥爾坎",
-     "town": "提爾克那",
-     "limit": "每週 30 次",
-     "outQty": 1
-    }
-   ]
-  },
- "白蘿蔔": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "珍妮佛",
-    "town": "班克爾",
-    "limit": "每週 30 次",
-    "outQty": 1
-   }
-  ],
-  "note": "商店價 10000 金/個"
- },
  "白銅礦石": {
   "verified": "tw",
   "routes": [
@@ -1396,38 +840,12 @@
       "qty": 10
      }
     ]
-   },
-   {
-    "kind": "barter",
-    "npc": "瓦爾特",
-    "town": "杜巴頓",
-    "limit": "每日 2 次",
-    "outQty": 6,
-    "components": [
-     {
-      "name": "特蕾西的原木音樂盒",
-      "qty": 1
-     }
-    ]
    }
   ]
  },
  "皮革+": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "barter",
-    "npc": "卡利克斯",
-    "town": "杜巴頓",
-    "limit": "每日 1 次",
-    "outQty": 10,
-    "components": [
-     {
-      "name": "格莉娜的蘋果奶茶",
-      "qty": 2
-     }
-    ]
-   },
    {
     "kind": "make",
     "station": "皮革加工設備",
@@ -1485,119 +903,9 @@
    }
   ]
  },
- "稀有鍊金術再燃燒催化劑": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "高級鍊金術再燃燒催化劑",
-      "qty": 15
-     }
-    ]
-   }
-  ]
- },
- "空瓶": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "康納",
-    "town": "庫漢",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "outQty": 1
-   }
-  ]
- },
- "糖": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "貓商人",
-    "town": "地下城、狩獵場",
-    "limit": "每日 1 次",
-    "outQty": 2,
-    "components": [
-     {
-      "name": "繃帶",
-      "qty": 100
-     }
-    ]
-   },
-   {
-    "kind": "shop",
-    "npc": "凱琳",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每週 30 次",
-    "outQty": 1
-   }
-  ]
- },
- "紙": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "康納",
-    "town": "庫漢",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "蕾拉",
-    "town": "杜巴頓",
-    "limit": "每日 1 次",
-    "outQty": 10,
-    "components": [
-     {
-      "name": "無主的小說書",
-      "qty": 1
-     }
-    ]
-   }
-  ]
- },
  "絲綢": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "barter",
-    "npc": "傑羅姆",
-    "town": "杜巴頓",
-    "limit": "每日 2 次",
-    "outQty": 4,
-    "components": [
-     {
-      "name": "瑞可塔起司沙拉",
-      "qty": 1
-     }
-    ]
-   },
    {
     "kind": "make",
     "station": "布料加工設備",
@@ -1626,12 +934,6 @@
       "qty": 2
      }
     ]
-   },
-   {
-    "kind": "shop",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "outQty": 1
    }
   ]
  },
@@ -1719,50 +1021,6 @@
    }
   ]
  },
- "聖水": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "阿爾米斯",
-    "town": "庫漢",
-    "limit": "每日 1 次",
-    "outQty": 10,
-    "components": [
-     {
-      "name": "解除詛咒藥水",
-      "qty": 100
-     }
-    ]
-   },
-   {
-    "kind": "barter",
-    "npc": "梅文",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "凱琳特製全麥麵包",
-      "qty": 1
-     }
-    ]
-   },
-   {
-    "kind": "barter",
-    "npc": "安黛莉",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 10,
-    "components": [
-     {
-      "name": "凱琳特製全麥麵包",
-      "qty": 10
-     }
-    ]
-   }
-  ]
- },
  "職業大師勳章": {
   "verified": "tw",
   "routes": [
@@ -1772,74 +1030,11 @@
    }
   ]
  },
- "肉": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "凱琳",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
-   }
-  ]
- },
- "胡椒": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "康納",
-    "town": "庫漢",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "卡利克斯",
-    "town": "杜巴頓",
-    "limit": "每日 1 次",
-    "outQty": 2,
-    "components": [
-     {
-      "name": "不死粉末",
-      "qty": 1
-     }
-    ]
-   }
-  ]
- },
  "腳掌印章": {
   "verified": "tw",
   "routes": [
    {
     "kind": "quest",
-    "outQty": 1
-   }
-  ]
- },
- "草莓": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "康納",
-    "town": "庫漢",
-    "limit": "每週 30 次",
     "outQty": 1
    }
   ]
@@ -1927,20 +1122,6 @@
  "蘋果": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "shop",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "凱琳",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
    {
     "kind": "gather",
     "station": "日常採集",
@@ -2058,32 +1239,12 @@
     "station": "採集藥草",
     "level": "1",
     "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
    }
   ]
  },
  "裝水的瓶子": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "barter",
-    "npc": "凱雅拉",
-    "town": "庫漢",
-    "limit": "每日 1 次",
-    "outQty": 50,
-    "components": [
-     {
-      "name": "聖水",
-      "qty": 10
-     }
-    ]
-   },
    {
     "kind": "gather",
     "station": "日常採集",
@@ -2098,47 +1259,9 @@
    }
   ]
  },
- "解除詛咒藥水": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "limit": "每週 10 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "魔物討伐證明",
-      "qty": 100
-     }
-    ]
-   },
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "limit": "每週 10 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "腳掌印章",
-      "qty": 20
-     }
-    ]
-   }
-  ]
- },
  "貝類": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "shop",
-    "npc": "康納",
-    "town": "庫漢",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
    {
     "kind": "gather",
     "station": "鋤地",
@@ -2168,19 +1291,6 @@
     }
    ]
   },
- "辣椒粉": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "珍妮佛",
-    "town": "班克爾",
-    "limit": "每週 30 次",
-    "outQty": 1
-   }
-  ],
-  "note": "商店價 3000 金/個"
- },
  "銀合金錠": {
   "verified": "tw",
   "routes": [
@@ -2201,45 +1311,6 @@
      {
       "name": "煤炭",
       "qty": 16
-     }
-    ]
-   },
-   {
-    "kind": "barter",
-    "npc": "艾頓",
-    "town": "班克爾",
-    "limit": "每週 1 次",
-    "outQty": 10,
-    "components": [
-     {
-      "name": "鱸魚辣魚湯",
-      "qty": 1
-     }
-    ]
-   },
-   {
-    "kind": "barter",
-    "npc": "阿爾米斯",
-    "town": "庫漢",
-    "limit": "每日 1 次 (伺服器)",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "特殊鋼錠",
-      "qty": 2
-     }
-    ]
-   },
-   {
-    "kind": "barter",
-    "npc": "艾琳",
-    "town": "班克爾",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "特殊鋼錠",
-      "qty": 3
      }
     ]
    }
@@ -2265,19 +1336,6 @@
     "station": "採礦",
     "level": "1",
     "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "阿爾米斯",
-    "town": "庫漢",
-    "limit": "每日 1 次",
-    "outQty": 10,
-    "components": [
-     {
-      "name": "白銅礦石",
-      "qty": 1
-     }
-    ]
    }
   ]
  },
@@ -2306,34 +1364,8 @@
   "verified": "tw",
   "routes": [
    {
-    "kind": "barter",
-    "npc": "愛麗沙",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "薰衣草花",
-      "qty": 1
-     }
-    ]
-   },
-   {
     "kind": "drop",
     "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "愛麗沙",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "雞蛋",
-      "qty": 10
-     }
-    ]
    }
   ]
  },
@@ -2345,19 +1377,6 @@
     "station": "採礦",
     "level": "1",
     "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "佛格斯",
-    "town": "提爾克那",
-    "limit": "每日 10 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "分解的裝備零件",
-      "qty": 1
-     }
-    ]
    }
   ]
  },
@@ -2410,43 +1429,6 @@
    }
    ]
   },
- "電氣結晶": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "史帝華",
-    "town": "杜巴頓",
-    "limit": "每日 5 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "鍊金術碎屑",
-      "qty": 1
-     }
-    ]
-   }
-  ]
- },
- "食用油": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "凱琳",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
-   }
-  ]
- },
  "馬鈴薯": {
   "verified": "tw",
   "routes": [
@@ -2522,19 +1504,6 @@
     "station": "伐木",
     "level": "1",
     "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "艾爾文",
-    "town": "杜加德走廊",
-    "limit": "每日 10 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "高級皮革",
-      "qty": 1
-     }
-    ]
    }
   ]
  },
@@ -2549,40 +1518,9 @@
    }
    ]
   },
- "高級布料+": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "潔米",
-    "town": "杜巴頓",
-    "limit": "每日 1 次",
-    "outQty": 4,
-    "components": [
-     {
-      "name": "蘋果鮮奶油蛋糕",
-      "qty": 1
-     }
-    ]
-   }
-  ]
- },
  "高級木材": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "barter",
-    "npc": "艾爾文",
-    "town": "杜加德走廊",
-    "limit": "每日 2 次",
-    "outQty": 4,
-    "components": [
-     {
-      "name": "炒蔬菜",
-      "qty": 1
-     }
-    ]
-   },
    {
     "kind": "make",
     "station": "木材加工設備",
@@ -2630,51 +1568,6 @@
    }
   ]
  },
- "高級生皮": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "特蕾西",
-    "town": "杜加德走廊",
-    "limit": "每日 10 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "原木",
-      "qty": 10
-     }
-    ]
-   },
-   {
-    "kind": "barter",
-    "npc": "奈麗絲",
-    "town": "杜巴頓",
-    "limit": "每日 10 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "銅礦石",
-      "qty": 1
-     }
-    ]
-   },
-   {
-    "kind": "shop",
-    "npc": "康納",
-    "town": "庫漢",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
-   }
-  ]
- },
  "高級皮革": {
   "verified": "tw",
   "routes": [
@@ -2704,19 +1597,6 @@
   "verified": "tw",
   "routes": [
    {
-    "kind": "barter",
-    "npc": "傑羅姆",
-    "town": "杜巴頓",
-    "limit": "每日 1 次",
-    "outQty": 4,
-    "components": [
-     {
-      "name": "奶油醬牛排",
-      "qty": 1
-     }
-    ]
-   },
-   {
     "kind": "make",
     "station": "布料加工設備",
     "level": "2",
@@ -2734,69 +1614,6 @@
    }
   ]
  },
- "高級鍊金術再燃燒催化劑": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "蘋果汁",
-      "qty": 1
-     }
-    ]
-   },
-   {
-    "kind": "barter",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "鍊金術碎屑",
-      "qty": 3
-     }
-    ]
-   }
-  ]
- },
- "高麗菜": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "shop",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "凱琳",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "貓商人",
-    "town": "地下城、狩獵場",
-    "limit": "每日 1 次",
-    "outQty": 2,
-    "components": [
-     {
-      "name": "恢復藥水",
-      "qty": 100
-     }
-    ]
-   }
-  ]
- },
  "魔力藥草": {
   "verified": "tw",
   "routes": [
@@ -2804,13 +1621,6 @@
     "kind": "gather",
     "station": "採集藥草",
     "level": "1",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "麗莎",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
     "outQty": 1
    }
   ]
@@ -2857,19 +1667,6 @@
     "station": "釣魚",
     "level": "25",
     "outQty": 1
-   },
-   {
-    "kind": "barter",
-    "npc": "貓商人",
-    "town": "地下城、狩獵場",
-    "limit": "每週 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "喵幣",
-      "qty": 20000
-     }
-    ]
    }
   ]
  },
@@ -2911,56 +1708,6 @@
    }
   ]
  },
- "鹽": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "貓商人",
-    "town": "地下城、狩獵場",
-    "limit": "每日 1 次",
-    "outQty": 2,
-    "components": [
-     {
-      "name": "旅行者點心",
-      "qty": 100
-     }
-    ]
-   },
-   {
-    "kind": "shop",
-    "npc": "格莉娜",
-    "town": "杜巴頓",
-    "limit": "每週 30 次",
-    "outQty": 1
-   },
-   {
-    "kind": "shop",
-    "npc": "凱琳",
-    "town": "提爾克那",
-    "limit": "每週 30 次",
-    "outQty": 1
-   }
-  ]
- },
- "麥爾坎的鬆軟羊毛枕頭": {
-  "verified": "tw",
-  "routes": [
-   {
-    "kind": "barter",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "蜘蛛網",
-      "qty": 5
-     }
-    ]
-   }
-  ]
- },
  "麵": {
   "verified": "tw-ingame",
   "routes": [
@@ -2990,32 +1737,6 @@
  "麵粉": {
   "verified": "tw",
   "routes": [
-   {
-    "kind": "barter",
-    "npc": "愛麗沙",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "雞蛋",
-      "qty": 3
-     }
-    ]
-   },
-   {
-    "kind": "barter",
-    "npc": "愛麗沙",
-    "town": "提爾克那",
-    "limit": "每日 1 次",
-    "outQty": 1,
-    "components": [
-     {
-      "name": "薰衣草花",
-      "qty": 1
-     }
-    ]
-   },
    {
     "kind": "make",
      "station": "食材加工設備",

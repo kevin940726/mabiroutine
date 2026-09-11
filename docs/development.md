@@ -33,11 +33,17 @@ case — switch to `dev:api`.
 
 ## Five-minute tour
 
-- **Game data is hand-owned JSON** — `src/data/tracker.json` (21 rows) +
-  `src/data/barter.json` (92 rows) + `src/data/defaultPins.json`. No codegen, no
+- **Game data is hand-owned JSON** — `src/data/tracker.json` (20 rows) +
+  `src/data/barter.json` (94 rows) + `src/data/defaultPins.json` +
+  `src/data/recipes.json` (make/gather/quest/drop routes per item — shop/barter legs live in `shops.json`) +
+  `src/data/shops.json` (NPC → purchase/exchange options, schema'd by
+  `shops.schema.json`). No codegen, no
   fetchers in this tree (maintainer-only scripts live on your own disk,
   gitignored, never committed). Rules: `docs/tracker-data.md`. Row `id`s are
-  stable — saved progress keys off them, so never rename casually.
+  stable — saved progress keys off them, so never rename casually. Shopping
+  options merge by key (npc+item) at load — file order is display-only
+  (town-grouped for in-game checking); never let a `barter.json` limit string
+  and its shops twin cap disagree (`test:shops` enforces parity).
 - **State is one Zustand store** — `src/store/useAppStore.ts`, persisted to
   `localStorage` key `mabiroutine:v2` (schema `v12`, migrated on load — see the
   store checklist in `AGENTS.md` before changing persisted shape).
@@ -76,9 +82,11 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:migrations` + `test:sync` + `build`. All four must pass.
+`pnpm check` = `lint` + `test:shops` + `test:migrations` + `test:sync` + `build`. All five must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
+Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
+`barter.json` (shape + currency + dup + no-trade-routes + shop-gold-only + twin cap parity).
 
 ## Gotchas
 

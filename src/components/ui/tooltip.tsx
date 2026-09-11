@@ -11,7 +11,7 @@ export function Tooltip({
   className,
   side = "top",
 }: {
-  content: string;
+  content: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   side?: "top" | "bottom" | "left" | "right";
