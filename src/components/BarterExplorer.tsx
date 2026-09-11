@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MenuSelect } from "@/components/MenuSelect";
 import { MaterialBreakdown, giveHasBreakdown } from "@/components/MaterialBreakdown";
-import { parseItemQty, twinTradeLeg } from "@/lib/materials";
+import { parseItemQty, twinTradeLeg, dealTimes } from "@/lib/materials";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -92,6 +92,10 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
   // No toggle when the breakdown would just echo the give (trivial self-only leaf).
   const hasBreakdown = useMemo(() => giveHasBreakdown(b.give), [b.give]);
   const cap = capText(b);
+  // Whole-deal multiplier for the breakdown's 共需 line (twin leg's
+  // limit.times, else the row limit string, else 1).
+  const get = parseItemQty(b.get);
+  const times = dealTimes(b.npc, get.name, get.qty, b.limit);
   return (
     <div
       className={cn(
@@ -145,7 +149,7 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
       </div>
       <PinButton barterId={b.id} />
       </div>
-      {open && hasBreakdown && <MaterialBreakdown give={b.give} />}
+      {open && hasBreakdown && <MaterialBreakdown give={b.give} times={times} />}
     </div>
   );
 }
@@ -160,6 +164,8 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
   // No toggle when the breakdown would just echo the give (trivial self-only leaf).
   const hasBreakdown = useMemo(() => giveHasBreakdown(b.give), [b.give]);
   const cap = capText(b);
+  const get = parseItemQty(b.get);
+  const times = dealTimes(b.npc, get.name, get.qty, b.limit);
   return (
     <div
       className={cn(
@@ -226,7 +232,7 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
           <MobilePinButton barterId={b.id} />
         </div>
       </div>
-      {open && hasBreakdown && <MaterialBreakdown give={b.give} />}
+      {open && hasBreakdown && <MaterialBreakdown give={b.give} times={times} />}
     </div>
   );
 }

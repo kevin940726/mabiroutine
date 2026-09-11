@@ -2,9 +2,10 @@
 // starmoon-inspired but item-led with zero user planning). L1 = the direct
 // recipe (unchanged), L2 = one pill per ingredient with its assumed source
 // only (faces for NPC alternatives, rendered side by side; skill text for
-// gather; counts ignored), L3 = deeply flattened terminal totals (共需）. Rank: gather >
-// free-craft > barter must/extra/untracked > shop > craft-fallback >
-// quest/drop > barter once/situational; barter ties break by priority then
+// gather; counts ignored), L3 = deeply flattened whole-deal terminal totals
+// (共需， × the row's exchange limit — the explorer passes times).
+// Rank: gather > free-craft > barter must/extra/untracked > shop >
+// craft-fallback > quest/drop > barter once/situational; barter ties break by priority then
 // barter.json order. NPC/town/limit names live only in face tooltips
 // (mobile users know their NPCs).
 import { useMemo } from "react";
@@ -74,8 +75,8 @@ function Pfp({ npc, town, limit, price }: { npc: string; town?: string; limit?: 
   );
 }
 
-export function MaterialBreakdown({ give, bare }: { give: string; bare?: boolean }) {
-  const plan = useMemo(() => assumedPlan(give), [give]);
+export function MaterialBreakdown({ give, bare, times }: { give: string; bare?: boolean; times?: number }) {
+  const plan = useMemo(() => assumedPlan(give, times ?? 1), [give, times]);
   // Boxed (default): the muted panel separates the breakdown from a
   // surrounding row (explorer). Bare: inside the hover card, which is
   // already a distinct panel — a box-in-a-box adds nothing.
@@ -120,7 +121,7 @@ export function MaterialBreakdown({ give, bare }: { give: string; bare?: boolean
         ))}
       </div>
       <div className="text-xs">
-        <span className="font-semibold">共需：</span>
+        <span className="font-semibold">共需{(times ?? 1) > 1 ? `×${times}` : ""}：</span>
         <span className="text-muted-foreground">
           {plan.totals.map((t) => `${t.name}×${t.qty}`).join("、")}
           {plan.gold > 0 && `、🪙${plan.gold}`}

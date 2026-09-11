@@ -18,9 +18,12 @@ type Props = {
   get: string;
   /** Compact (desktop, truncated row) vs roomy (mobile, wrapping row) trigger. */
   compact?: boolean;
+  /** Whole-deal multiplier for the 共需 line — the caller resolves it from
+   *  the row's exchange limit (default 1). */
+  times?: number;
 };
 
-export function MaterialHoverCard({ give, get, compact }: Props) {
+export function MaterialHoverCard({ give, get, compact, times }: Props) {
   const hasBreakdown = useMemo(() => giveHasBreakdown(give), [give]);
 
   const [open, setOpen] = useState(false);
@@ -219,7 +222,7 @@ export function MaterialHoverCard({ give, get, compact }: Props) {
             style={{ maxHeight: maxH ?? undefined }}
             className="overflow-y-auto rounded-xl border bg-popover p-3 shadow-lg"
           >
-            <MaterialBreakdown give={give} bare />
+            <MaterialBreakdown give={give} bare times={times} />
           </div>
         </div>
       )}

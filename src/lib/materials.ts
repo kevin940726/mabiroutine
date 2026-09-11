@@ -20,6 +20,9 @@ export type RecipeRoute = {
   town?: string;
   limit?: string;
   outQty?: number;
+  /** whole-deal exchange count from shops.json limit.times (barter/shop
+   *  legs only) — the explorer scales the 共需 line by this. */
+  times?: number;
   /** gold per single item (shop only) — checkout total = price × qty */
   price?: number;
   /** cap scope from shops.json (default character) — planning metadata only;
@@ -70,6 +73,9 @@ const RECIPES = ((): Record<string, RecipeEntry> => {
       if (it.limit) {
         const rebuilt = stringifyLimit(it.limit, scope);
         if (rebuilt !== null) route.limit = rebuilt;
+        if (Number.isInteger(it.limit.times) && (it.limit.times ?? 0) >= 1) {
+          route.times = it.limit.times as number;
+        }
       }
       if (it.get && Number.isInteger(it.get.amount) && it.get.amount >= 1) {
         route.outQty = it.get.amount;
@@ -162,6 +168,17 @@ export function twinTradeLeg(npc: string, name: string, qty: number): RecipeRout
     (r) => (r.kind === "barter" || r.kind === "shop") && r.npc === npc && (r.outQty ?? 1) === qty
   );
   return cands.length === 1 ? cands[0] : null;
+}
+
+/** Whole-deal exchange count for a barter-explorer row: the shops.json twin
+ *  leg's limit.times when an exact twin exists (a matched leg with no limit
+ *  means uncapped — the row string is never consulted), else the row's own
+ *  limit string ("每日 3 次" → 3, 一次性 → 1), else 1. */
+export function dealTimes(npc: string, name: string, qty: number, rowLimit?: string): number {
+  const twin = twinTradeLeg(npc, name, qty);
+  if (twin) return twin.times ?? 1;
+  const m = rowLimit?.match(/(\d+)\s*次/);
+  return m ? Number(m[1]) : 1;
 }
 
 const KIND_LABEL: Record<RouteKind, string> = {
@@ -332,25 +349,28 @@ export type AssumedPlan = {
   showRecipe: boolean;
   /** L2: one pill per direct ingredient, counts ignored. */
   pills: { item: string; pill: PillSource }[];
-  /** L3: deeply flattened terminal totals (barter costs × ceil exchanges, no
-   *  prorating — surplus stays silent; over-cap needs unflagged). */
+  /** L3: deeply flattened whole-deal terminal totals (per-1 walk × the
+   *  row's exchange limit; barter costs × ceil exchanges, no prorating —
+   *  surplus stays silent; over-cap needs unflagged). */
   totals: { name: string; qty: number }[];
   /** L3 gold estimate: price × qty summed over terminal shop-gold legs. */
   gold: number;
   problems: { name: string; status: string }[];
 };
 
-/** Full 3-line plan for a give ("沙威瑪 ×1"). L1 stays the ×1 direct recipe;
- *  L2 pills assume one path per ingredient; L3 sums what you must have. */
-export function assumedPlan(give: string): AssumedPlan {
+/** Full 3-line plan for a give ("沙威瑪 ×1", whole deal × times). L1 stays
+ *  the ×1 direct recipe; L2 pills assume one path per ingredient; L3 sums
+ *  what the whole deal needs (e.g. 每日 3 次 → 3×). */
+export function assumedPlan(give: string, times = 1): AssumedPlan {
   const { name, qty } = parseItemQty(give);
+  const deal = Number.isInteger(times) && times > 1 ? times : 1;
   const entry = RECIPES[name];
   const problems: { name: string; status: string }[] = [];
   if (!entry || entry.verified === "missing" || entry.routes.length === 0) {
     return {
       title: "", directs: [], showRecipe: false,
       pills: [{ item: name, pill: { faces: [], skills: [], labels: ["找不到資料"] } }],
-      totals: [{ name, qty }],
+      totals: [{ name, qty: qty * deal }],
       gold: 0,
       problems: [{ name, status: !entry ? "unknown" : "missing" }],
     };
@@ -396,7 +416,7 @@ export function assumedPlan(give: string): AssumedPlan {
     add(n, q);
   };
   const seen = new Set<string>();
-  for (const d of directs) walk(d.item, d.qty, seen);
+  for (const d of directs) walk(d.item, d.qty * deal, seen);
   return {
     title: make ? `材料 · 以${name}一份計` : "",
     directs: directs.map((d) => ({ name: d.item, qty: d.qty })),

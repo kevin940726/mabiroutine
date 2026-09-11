@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical } from "lucide-react";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
+import { dealTimes, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -22,6 +23,13 @@ type Props = {
 export function TaskRow(props: Props) {
   const isMobile = useIsMobile();
   return isMobile ? <TaskRowMobile {...props} /> : <TaskRowDesktop {...props} />;
+}
+
+/** Whole-deal multiplier for a tracker barter row's hover card (twin leg's
+ *  limit.times, else the row limit string, else 1). */
+function barterTimes(task: Task): number {
+  const get = parseItemQty(task.barterMeta?.get ?? "");
+  return dealTimes(task.npc ?? "", get.name, get.qty, task.barterMeta?.limit);
 }
 
 function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
@@ -97,6 +105,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         <MaterialHoverCard
           give={task.barterMeta?.give ?? ""}
           get={task.barterMeta?.get ?? ""}
+          times={barterTimes(task)}
         />
       </div>
       {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
@@ -339,6 +348,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
                 give={task.barterMeta?.give ?? ""}
                 get={task.barterMeta?.get ?? ""}
                 compact
+                times={barterTimes(task)}
               />
             </span>
             <span className="ml-auto shrink-0">{task.barterMeta?.limit}</span>
