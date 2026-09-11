@@ -2,7 +2,9 @@
 
 Reader-facing log of user-visible changes. Newest first. One section per release (a push to `main` deploys to prod); the top `Unreleased` section holds work not yet pushed and gets a date + label when it ships.
 
-## Unreleased — shops SSOT + 9/9 data refresh
+## Unreleased
+
+## 2026-09-12 — shops SSOT + 9/9 data refresh
 
 ### Features
 - Material breakdown rebuilt as an assumed-path 3-line plan (starmoon-inspired, item-led, zero planning UI): L1 direct recipe unchanged, L2 one pill per ingredient with its assumed source only (NPC faces with same-cost "or" ties, skill text for gather, counts ignored), L3 deeply flattened terminal totals (共需：黃豆×22、小麥×15…). Rank: gather > free-craft (make from gather-only chains, e.g. 麵粉→收割) > must/extra/untracked barter > shop > craft-fallback > quest/drop > once/situational barter; barter ties break by priority then barter.json order; exchange costs scale by ceil (surplus silent, over-cap unflagged). NPC/town/limit names live only in face tooltips. Data: dungeon-5 （貓商人 高麗菜） demoted 推薦→視需求 (shops win the assumed path), 檸檬 gains the 珍妮佛 shop leg (每週 30 次, user + starmoon corroborated — flag if in-game disagrees)
