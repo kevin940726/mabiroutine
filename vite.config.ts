@@ -35,7 +35,14 @@ export default defineConfig({
         // navigations fall back to the runtime 'pages' cache (populated on
         // every online visit) — only a first-visit-while-offline has nothing
         // to show.
-        globIgnores: ['**/npc-raw/**', 'index.html'],
+        globIgnores: [
+          '**/npc-raw/**',
+          // iOS startup splash: 32 files, fetched directly by iOS on install
+          // (cached by the OS) — precaching them would bloat every SW update
+          // for art no in-app route ever requests.
+          '**/splash/**',
+          'index.html',
+        ],
         navigateFallback: "",
         navigationPreload: true, // fetch starts during SW boot, hides the RTT
         // Prompt mode owns activation timing (updateSW(false) on waiting):

@@ -6,6 +6,49 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- iOS launch splash (pre-HTML gap): the OS shows the matching image
+      while the page itself is still fetching — the inline boot splash below
+      only covers post-paint. Generated from icon-512 by
+      scripts/gen-splash.cjs (rerun if the icon changes); dark entries pair
+      each size for dark-mode devices. -->
+    <link rel="apple-touch-startup-image" href="/splash/splash-1320x2868-dark.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1320x2868-light.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1290x2796-dark.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1290x2796-light.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1206x2622-dark.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1206x2622-light.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1179x2556-dark.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1179x2556-light.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1284x2778-dark.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1284x2778-light.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1170x2532-dark.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1170x2532-light.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1125x2436-dark.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1125x2436-light.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1242x2688-dark.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1242x2688-light.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1260x2736-dark.png" media="(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1260x2736-light.png" media="(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-828x1792-dark.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-828x1792-light.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-750x1334-dark.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-750x1334-light.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-640x1136-dark.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-640x1136-light.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-2048x2732-dark.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-2048x2732-light.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-2064x2752-dark.png" media="(device-width: 1032px) and (device-height: 1376px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-2064x2752-light.png" media="(device-width: 1032px) and (device-height: 1376px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1668x2420-dark.png" media="(device-width: 834px) and (device-height: 1210px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1668x2420-light.png" media="(device-width: 834px) and (device-height: 1210px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1668x2388-dark.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1668x2388-light.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1640x2360-dark.png" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1640x2360-light.png" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1488x2266-dark.png" media="(device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1488x2266-light.png" media="(device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1536x2048-dark.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: dark)" />
+    <link rel="apple-touch-startup-image" href="/splash/splash-1536x2048-light.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait) and (prefers-color-scheme: light)" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -39,10 +82,13 @@
       html.dark body { background: #101012; }
       #boot-splash {
         position: fixed; inset: 0; z-index: 9999;
-        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+        display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
         background: #ffffff;
         transition: opacity 0.22s ease;
       }
+      /* Shown only for installed-PWA launches (script below) — browser tabs
+         keep the normal loading behavior. */
+      #boot-splash.boot-show { display: flex; }
       html.dark #boot-splash { background: #101012; }
       #boot-splash.boot-hide { opacity: 0; pointer-events: none; }
       #boot-splash img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
@@ -51,11 +97,19 @@
         letter-spacing: .14em; color: #64748b;
       }
       html.dark #boot-splash .boot-name { color: #94a3b8; }
+      /* Delayed liveness signal: the splash stays static like a real launch
+         screen, but update launches can keep it up for seconds while the new
+         chunk downloads — the spinner fades in only if we're still here
+         after 1.5s, so fast launches never see it. */
       #boot-splash .boot-spin {
         width: 26px; height: 26px; border-radius: 50%;
         border: 3px solid rgba(100,116,139,.25); border-top-color: #10b981;
-        animation: boot-spin 0.9s linear infinite;
+        opacity: 0;
+        animation:
+          boot-spin-in 0.3s ease 1.5s forwards,
+          boot-spin 0.9s linear infinite;
       }
+      @keyframes boot-spin-in { to { opacity: 1; } }
       @keyframes boot-spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) {
         #boot-splash { transition: none; }
@@ -81,6 +135,24 @@
       <div class="boot-name">MABIROUTINE</div>
       <div class="boot-spin"></div>
     </div>
+    <script>
+      // Standalone only: the splash is for installed-PWA launches (incl.
+      // update launches) — browser tabs keep the normal loading behavior.
+      // Runs synchronously here so the splash (above) shows before first
+      // paint; anything unexpected removes it (fail invisible).
+      try {
+        var __std = window.matchMedia("(display-mode: standalone)").matches ||
+          (typeof navigator.standalone === "boolean" && navigator.standalone);
+        var __sp = document.getElementById("boot-splash");
+        if (__sp) {
+          if (__std) __sp.classList.add("boot-show");
+          else __sp.remove();
+        }
+      } catch (e) {
+        var __sp2 = document.getElementById("boot-splash");
+        if (__sp2) __sp2.remove();
+      }
+    </script>
     <div id="root"></div>
     <script>
       // Boot preload: fire the session GET before the module graph (React +
