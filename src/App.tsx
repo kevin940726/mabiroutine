@@ -61,6 +61,25 @@ export default function App() {
   const [renameDraft, setRenameDraft] = useState("");
   const isMobile = useIsMobile();
 
+  // Boot splash (index.html inline): covered the white gap while the JS
+  // bundle downloaded/parsed. Fade out on first commit — the fade masks any
+  // hex seam with the app background — then remove the node so it can never
+  // intercept input. Runs once per mount, not gated on hydration: the shell
+  // is already worth showing while sync settles.
+  useEffect(() => {
+    const el = document.getElementById("boot-splash");
+    if (!el) return;
+    let t2 = 0;
+    const raf = requestAnimationFrame(() => {
+      el.classList.add("boot-hide");
+      t2 = window.setTimeout(() => el.remove(), 260);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      if (t2) window.clearTimeout(t2);
+    };
+  }, []);
+
   // periodic reset check — always pull-first (syncAndResets): the reset's
   // tombstone decision needs fresh peer markers, or a late-waking device
   // nukes the peer's same-bucket progress. Boot included (the store no

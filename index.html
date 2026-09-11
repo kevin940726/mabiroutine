@@ -28,9 +28,59 @@
     <meta name="twitter:description" content="瑪奇 Mobile 每日任務、每週任務與以物易物進度追蹤器" />
     <meta name="twitter:image" content="https://mabiroutine.vercel.app/og-image.png" />
     <meta name="theme-color" content="#0f172a" />
+    <style>
+      /* Boot splash: paints with the HTML itself, before the JS bundle (and
+         its stylesheet) downloads — this is what covers the white gap on
+         update launches, when #root sits empty awaiting the new chunk.
+         Theme-aware via the .dark class set below; React fades it out on
+         first commit (fade masks any hex seam with the app background). */
+      html, body { margin: 0; padding: 0; }
+      body { background: #ffffff; }
+      html.dark body { background: #101012; }
+      #boot-splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+        background: #ffffff;
+        transition: opacity 0.22s ease;
+      }
+      html.dark #boot-splash { background: #101012; }
+      #boot-splash.boot-hide { opacity: 0; pointer-events: none; }
+      #boot-splash img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+      #boot-splash .boot-name {
+        font: 600 15px/1.2 -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+        letter-spacing: .14em; color: #64748b;
+      }
+      html.dark #boot-splash .boot-name { color: #94a3b8; }
+      #boot-splash .boot-spin {
+        width: 26px; height: 26px; border-radius: 50%;
+        border: 3px solid rgba(100,116,139,.25); border-top-color: #10b981;
+        animation: boot-spin 0.9s linear infinite;
+      }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash { transition: none; }
+        #boot-splash .boot-spin { animation: none; }
+      }
+    </style>
+    <script>
+      // Pre-paint theme: same logic as ThemeToggle (stored "theme", else OS
+      // preference) so splash and first React paint share one background —
+      // no white flash, no theme pop. Private-mode failures fall back to
+      // light; normal boot covers.
+      try {
+        var __t = localStorage.getItem("theme");
+        var __dark = __t ? __t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (__dark) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
     <title>MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物</title>
   </head>
   <body>
+    <div id="boot-splash" aria-hidden="true">
+      <img src="/icon-192.png" width="96" height="96" alt="" fetchpriority="high" />
+      <div class="boot-name">MABIROUTINE</div>
+      <div class="boot-spin"></div>
+    </div>
     <div id="root"></div>
     <script>
       // Boot preload: fire the session GET before the module graph (React +
