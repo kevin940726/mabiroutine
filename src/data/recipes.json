@@ -604,7 +604,7 @@
    {
     "kind": "barter",
     "npc": "貓商人",
-    "town": "地下城",
+    "town": "地下城、狩獵場",
     "limit": "每日 3 次",
     "outQty": 1,
     "components": [
@@ -1172,14 +1172,27 @@
      }
     ]
    },
+    {
+     "kind": "shop",
+     "npc": "麥爾坎",
+     "town": "提爾克那",
+     "limit": "每週 30 次",
+     "outQty": 1
+    }
+   ]
+  },
+ "白蘿蔔": {
+  "verified": "tw",
+  "routes": [
    {
     "kind": "shop",
-    "npc": "麥爾坎",
-    "town": "提爾克那",
+    "npc": "珍妮佛",
+    "town": "班克爾",
     "limit": "每週 30 次",
     "outQty": 1
    }
-  ]
+  ],
+  "note": "商店價 10000 金/個"
  },
  "白銅礦石": {
   "verified": "tw",
@@ -1336,7 +1349,7 @@
    {
     "kind": "barter",
     "npc": "貓商人",
-    "town": "地下城",
+    "town": "地下城、狩獵場",
     "limit": "每日 1 次",
     "outQty": 2,
     "components": [
@@ -1974,7 +1987,96 @@
       "name": "鹽",
       "qty": 1
      }
+     ]
+    }
+   ]
+  },
+ "辣椒粉": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "shop",
+    "npc": "珍妮佛",
+    "town": "班克爾",
+    "limit": "每週 30 次",
+    "outQty": 1
+   }
+  ],
+  "note": "商店價 3000 金/個"
+ },
+ "銀合金錠": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "金屬加工設備",
+    "level": "4",
+    "outQty": 3,
+    "components": [
+     {
+      "name": "特殊鋼錠",
+      "qty": 5
+     },
+     {
+      "name": "銀礦石",
+      "qty": 20
+     },
+     {
+      "name": "煤炭",
+      "qty": 16
+     }
     ]
+   },
+   {
+    "kind": "barter",
+    "npc": "艾頓",
+    "town": "班克爾",
+    "limit": "每週 1 次",
+    "outQty": 10,
+    "components": [
+     {
+      "name": "鱸魚辣魚湯",
+      "qty": 1
+     }
+    ]
+   },
+   {
+    "kind": "barter",
+    "npc": "阿爾米斯",
+    "town": "庫漢",
+    "limit": "每日 1 次 (伺服器)",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "特殊鋼錠",
+      "qty": 2
+     }
+    ]
+   },
+   {
+    "kind": "barter",
+    "npc": "艾琳",
+    "town": "班克爾",
+    "limit": "每日 1 次",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "特殊鋼錠",
+      "qty": 3
+     }
+    ]
+   }
+  ],
+  "note": "自行加工約需 5 小時"
+ },
+ "銀礦石": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "採礦",
+    "level": "25",
+    "outQty": 1
    }
   ]
  },
@@ -2470,7 +2572,7 @@
    {
     "kind": "barter",
     "npc": "貓商人",
-    "town": "地下城",
+    "town": "地下城、狩獵場",
     "limit": "每日 1 次",
     "outQty": 2,
     "components": [
@@ -2532,6 +2634,68 @@
      }
     ]
    }
+   ]
+  },
+ "鱸魚": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "釣魚",
+    "level": "25",
+    "outQty": 1
+   },
+   {
+    "kind": "barter",
+    "npc": "貓商人",
+    "town": "地下城、狩獵場",
+    "limit": "每週 1 次",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "喵幣",
+      "qty": 20000
+     }
+    ]
+   }
+  ]
+ },
+ "鱸魚辣魚湯": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物製作台",
+    "level": "4",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "鱸魚",
+      "qty": 6
+     },
+     {
+      "name": "白蘿蔔",
+      "qty": 4
+     },
+     {
+      "name": "洋蔥",
+      "qty": 6
+     },
+     {
+      "name": "裝水的瓶子",
+      "qty": 5
+     },
+     {
+      "name": "辣椒粉",
+      "qty": 4
+     },
+     {
+      "name": "胡椒",
+      "qty": 2
+     }
+    ],
+    "skill": "料理 Lv.20"
+   }
   ]
  },
  "鹽": {
@@ -2540,7 +2704,7 @@
    {
     "kind": "barter",
     "npc": "貓商人",
-    "town": "地下城",
+    "town": "地下城、狩獵場",
     "limit": "每日 1 次",
     "outQty": 2,
     "components": [
@@ -2641,15 +2805,26 @@
    },
    {
     "kind": "make",
-    "station": "食材加工設備",
-    "level": "2",
-    "outQty": 3,
-    "components": [
-     {
-      "name": "小麥",
-      "qty": 15
-     }
-    ]
+     "station": "食材加工設備",
+     "level": "2",
+     "outQty": 3,
+     "components": [
+      {
+       "name": "小麥",
+       "qty": 15
+      }
+     ]
+    }
+   ]
+  },
+ "黃豆": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "收割",
+    "level": "10",
+    "outQty": 1
    }
   ]
  },

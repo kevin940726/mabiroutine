@@ -14,8 +14,8 @@ import { ChevronDown, Pin, PinOff, Search } from "lucide-react";
 import type { BarterPriority } from "@/lib/types";
 
 const PRIORITY_LABEL: Record<BarterPriority, string> = {
-  must: "一定要換",
-  extra: "有多就換",
+  must: "必換",
+  extra: "推薦",
   once: "一次性",
   situational: "看情況",
   skip: "別換",

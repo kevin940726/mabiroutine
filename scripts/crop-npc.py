@@ -3,7 +3,9 @@
 Simple NPC pfp crop: 4-side exact -> 76 square -> circle (transparent)
 - Input: public/npc-raw/<npc>.png  (single bg, head not necessarily centered square)
 - For each side, sample edge mid color, scan inward until != bg (tolerance 8) -> left/right/top/bottom
-- Must be 76x76 square after trim, else error
+- Must be square after trim (1px slack autofixed like before), else error.
+  Larger squares are downscaled to 76x76 (same framing, head scale matches
+  the existing portraits); smaller squares are never upscaled, else error.
 - Then circle (transparent outside, head on transparent)
 Keep original resolution, no upscale to 256.
 """
@@ -58,10 +60,18 @@ def process_one(src: Path):
             bottom -= 1
         w_box = right - left + 1
         h_box = bottom - top + 1
-    if w_box != 76 or h_box != 76:
-        print(f"[error] not 76x76 w{w_box} h{h_box} for {src.name}")
+    if w_box != h_box:
+        print(f"[error] not square w{w_box} h{h_box} for {src.name}")
+        return False
+    if w_box < 76:
+        print(f"[error] not 76x76 w{w_box} h{h_box} for {src.name} (never upscale)")
         return False
     square = orig.crop((left, top, right+1, bottom+1))
+    if w_box > 76:
+        # BICUBIC exists in every Pillow vintage (LANCZOS does not); quality
+        # difference is invisible at these sizes.
+        print(f"  [scale] downscaling {w_box} -> 76")
+        square = square.resize((76, 76), Image.BICUBIC)
     # keep square as is (green bg + head), circle will make outside transparent only
     out = circle_crop(square)
     OUT_DIR.mkdir(parents=True, exist_ok=True)

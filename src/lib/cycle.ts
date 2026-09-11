@@ -10,7 +10,18 @@ import barterJson from "@/data/barter.json";
 
 type Builtin = { id: string; kind: string };
 const BUILTIN_KIND = new Map<string, string>((trackerJson as Builtin[]).map((t) => [t.id, t.kind]));
-const BARTER_IDS = new Set((barterJson as { id: string }[]).map((b) => b.id));
+// Barter cycle from the row's limit text: 每週 N 次 → weekly (Mon 06:00
+// bucket), everything else → daily. Single source of truth — the store's
+// barterCycleOf delegates here so the two can never drift apart.
+export function isWeeklyLimit(limit?: string): boolean {
+  return /每週\s*\d+\s*次/.test(limit ?? "");
+}
+const BARTER_KIND = new Map<string, string>(
+  (barterJson as { id: string; limit?: string }[]).map((b) => [
+    b.id,
+    isWeeklyLimit(b.limit) ? "weekly" : "daily",
+  ])
+);
 
 const WEEKLY_KINDS = new Set(["weekly", "account-weekly"]);
 
@@ -23,7 +34,8 @@ export function taskKind(tid: string, customTasks: { id: string; kind: string }[
   if (b) return b;
   const c = customTasks.find((t) => t.id === tid);
   if (c) return c.kind;
-  if (BARTER_IDS.has(tid)) return "daily";
+  const bk = BARTER_KIND.get(tid);
+  if (bk) return bk;
   return "daily";
 }
 

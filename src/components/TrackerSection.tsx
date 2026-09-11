@@ -42,23 +42,31 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   const [barterExpanded, setBarterExpanded] = useState(true);
   const [hiddenExpanded, setHiddenExpanded] = useState(false);
 
-  // daily barter subtasks: global pins, rendered as collapsable sub-category (not flat)
+  // pinned barter subtasks, split by cycle: daily-limit pins render under
+  // 每日, weekly-limit pins (每週 N 次) under 每週. Either subsection hides
+  // entirely when its cycle has no pins.
   const barterSubtasks = useMemo(() => {
-    if (tasks[0]?.section !== "daily") return [] as Task[];
     return barterPins
       .map((id) => {
         const b = (barterJson as unknown as Array<(typeof barterJson)[number]>).find((x) => x.id === id);
         return b ? barterToTask(b) : null;
       })
       .filter(Boolean) as Task[];
-  }, [tasks, barterPins]);
+  }, [barterPins]);
+
+  // account section never shows barter (cycle null → empty list)
+  const cycle = tasks[0]?.section === "weekly" ? "weekly" : tasks[0]?.section === "daily" ? "daily" : null;
+  const cycleBarter = useMemo(
+    () => (cycle === null ? [] as Task[] : barterSubtasks.filter((t) => t.section === cycle)),
+    [barterSubtasks, cycle]
+  );
 
   // barter base: manual-hide only. hideCompleted is render-only (below) —
   // progress must not move when the toggle flips.
   const barterBase = useMemo(() => {
-    if (!char) return barterSubtasks;
-    return barterSubtasks.filter((t) => !char.hiddenTaskIds.includes(t.id));
-  }, [barterSubtasks, char]);
+    if (!char) return cycleBarter;
+    return cycleBarter.filter((t) => !char.hiddenTaskIds.includes(t.id));
+  }, [cycleBarter, char]);
 
   const barterSubtasksFiltered = useMemo(() => {
     if (!char) return barterBase;
@@ -77,8 +85,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   // hidden: dimmed + moved to bottom sub-category (same primitive as 以物易物)
   const hiddenBarter = useMemo(() => {
     if (!char) return [] as Task[];
-    return barterSubtasks.filter((t) => char.hiddenTaskIds.includes(t.id));
-  }, [barterSubtasks, char]);
+    return cycleBarter.filter((t) => char.hiddenTaskIds.includes(t.id));
+  }, [cycleBarter, char]);
 
   const hiddenTasks = useMemo(() => {
     if (!char) return [] as Task[];
@@ -217,8 +225,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
           </SortableContext>
         </DndContext>
 
-        {/* 以物易物 subtasks as collapsable sub-category under 每日 (only daily section) */}
-        {tasks[0]?.section === "daily" && barterPins.length > 0 && (
+        {/* 以物易物 subtasks as collapsable sub-category (only its own cycle; hides when empty) */}
+        {cycle !== null && cycleBarter.length > 0 && (
           // bleed band: wrapper stretches past the rows (-mx-2) so rows stay
           // pixel-equal to top-level items; header is w-full in the same box
           <div className="-mx-2 rounded-xl px-2 py-2 bg-emerald-500/10 dark:bg-emerald-400/[0.12]">
@@ -228,10 +236,10 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
             >
               <span className="h-4 w-1 rounded-full shrink-0 bg-emerald-500" />
               <span className="text-base">🔄</span>
-              <span className="text-sm font-medium">以物易物 已釘選</span>
+              <span className="text-sm font-medium">{cycle === "weekly" ? "每週以物易物 已釘選" : "以物易物 已釘選"}</span>
               <Tooltip content="釘選對所有角色生效">
                 <Badge className="text-[10px] text-white bg-emerald-600">
-                  {barterSubtasksFiltered.length}/{barterPins.length}
+                  {barterSubtasksFiltered.length}/{cycleBarter.length}
                 </Badge>
               </Tooltip>
               <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
@@ -251,9 +259,9 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
                     </SortableContext>
                   </DndContext>
                 )}
-                {barterSubtasks.length !== barterSubtasksFiltered.length && (
+                {cycleBarter.length !== barterSubtasksFiltered.length && (
                   <p className="text-[11px] text-muted-foreground text-center">
-                    已隱藏 {barterSubtasks.length - barterSubtasksFiltered.length} 項（完成或手動隱藏）
+                    已隱藏 {cycleBarter.length - barterSubtasksFiltered.length} 項（完成或手動隱藏）
                   </p>
                 )}
               </div>

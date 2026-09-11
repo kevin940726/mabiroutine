@@ -5,7 +5,7 @@ import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
 import type { AppState, BarterFilters, Character, Task, BarterPriority } from "@/lib/types";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
-import { cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
+import { cycleBucketFor, isWeeklyTask, isWeeklyLimit } from "@/lib/cycle";
 import { idleStorage } from "@/lib/storage";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -113,26 +113,37 @@ type Store = AppState & {
   resetAll: () => void;
 };
 
+// Barter cycle: rows whose limit is 每週 N 次 reset weekly (Mon 06:00),
+// everything else resets daily. Delegates to cycle.ts (the sync bucketing
+// reads the same helper) — one rule, three readers.
+export function barterCycleOf(b: { limit?: string }): "daily" | "weekly" {
+  return isWeeklyLimit(b.limit) ? "weekly" : "daily";
+}
+
 // Build tasks from barter json for pinning: they become Tasks lazily
 export function barterToTask(b: BarterJsonItem): Task {
-  // 每日 N 次：N>1 → counter（每角色每天 N 次）；N=1 或 不限次數 → check
-  const dayCount = Number((b.limit ?? "").match(/每日\s*(\d+)\s*次/)?.[1] ?? 0);
-  const isCounter = dayCount > 1;
+  // 每日/每週 N 次：N>1 → counter；N=1 或 不限次數 → check
+  const limit = b.limit ?? "";
+  const dayCount = Number(limit.match(/每日\s*(\d+)\s*次/)?.[1] ?? 0);
+  const weekCount = Number(limit.match(/每週\s*(\d+)\s*次/)?.[1] ?? 0);
+  const weekly = weekCount > 0;
+  const isCounter = (weekly ? weekCount : dayCount) > 1;
+  const section = weekly ? "weekly" : "daily";
   return {
     id: b.id,
     name: b.name,
     icon: "🔄",
     desc: `${b.give} → ${b.get} · ${b.town} · ${b.gatherSkill}`,
-    section: "daily",
-    kind: "daily",
+    section,
+    kind: weekly ? "weekly" : "daily",
     type: isCounter ? "counter" : "check",
-    max: isCounter ? dayCount : undefined,
+    max: isCounter ? (weekly ? weekCount : dayCount) : undefined,
     source: "barter",
     town: b.town,
     priority: b.priority as BarterPriority,
     npc: (b as unknown as { npc?: string }).npc,
     barterMeta: { give: b.give, get: b.get, gatherSkill: b.gatherSkill, limit: b.limit },
-    order: 80, // after builtins daily but before weekly
+    order: weekly ? 150 : 80, // daily pins sit after builtin daily; weekly pins after builtin weekly
   };
 }
 
@@ -161,7 +172,7 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 14,
+  version: 16,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -464,6 +475,74 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     if (s.globalTaskOrder) s.globalTaskOrder = pruneRec(s.globalTaskOrder);
     s.version = 14;
   }
+  if (from < 15) {
+    // v14 → v15: barter dedupe — 4 `yen-` twins dropped from barter.json
+    // (exact npc+give+get dupes of col-k1/dun-st6/dun-st7, plus the
+    // dungeon-2 near-dupe). Rename-like: user state transfers to the kept
+    // twin first (pins, values, hides, provenance — moved verbatim; the
+    // twin's own state always wins), then the v6 valid-set prune drops the
+    // removed ids. Values otherwise untouched.
+    const RENAMED_BARTER: Record<string, string> = {
+      "yen-基利安毒囊3藥品加工設備-21": "col-k1",
+      "yen-史帝華強化再燃燒催化劑5-80": "dun-st6",
+      "yen-史帝華稀有鍊金術再燃燒催-81": "dun-st7",
+      "yen-貓商人擠著吃的點心愛心幣-43": "dungeon-2",
+    };
+    const moveArr = (arr?: string[]) => {
+      const out = [...(arr ?? [])];
+      for (const [oldId, newId] of Object.entries(RENAMED_BARTER)) {
+        if (out.includes(oldId) && !out.includes(newId)) out[out.indexOf(oldId)] = newId;
+      }
+      return out;
+    };
+    const moveRec = <T,>(rec?: Record<string, T>) => {
+      const out = { ...(rec ?? {}) };
+      for (const [oldId, newId] of Object.entries(RENAMED_BARTER)) {
+        if (oldId in out && !(newId in out)) out[newId] = out[oldId];
+      }
+      return out;
+    };
+    for (const c of s.characters ?? []) {
+      c.taskValues = moveRec(c.taskValues);
+      c.hiddenTaskIds = moveArr(c.hiddenTaskIds);
+    }
+    s.accountValues = moveRec(s.accountValues);
+    s.hiddenAccountTaskIds = moveArr(s.hiddenAccountTaskIds);
+    s.barterPins = moveArr(s.barterPins);
+    s.taskBuckets = moveRec(s.taskBuckets as Record<string, string>) as typeof s.taskBuckets;
+    if (s.globalTaskOrder) s.globalTaskOrder = moveRec(s.globalTaskOrder);
+    const valid = new Set<string>([
+      ...(trackerJson as Task[]).map((t) => t.id),
+      ...(barterJson as BarterJsonItem[]).map((b) => b.id),
+      ...(s.customTasks ?? []).map((t) => t.id),
+    ]);
+    const pruneArr = (arr?: string[]) => (arr ?? []).filter((id) => valid.has(id));
+    const pruneRec = <T,>(rec?: Record<string, T>) =>
+      Object.fromEntries(Object.entries(rec ?? {}).filter(([k]) => valid.has(k))) as Record<string, T>;
+    for (const c of s.characters ?? []) {
+      c.taskValues = pruneRec(c.taskValues);
+      c.hiddenTaskIds = pruneArr(c.hiddenTaskIds);
+    }
+    s.accountValues = pruneRec(s.accountValues);
+    s.hiddenAccountTaskIds = pruneArr(s.hiddenAccountTaskIds);
+    s.barterPins = pruneArr(s.barterPins);
+    s.taskBuckets = pruneRec(s.taskBuckets);
+    if (s.globalTaskOrder) s.globalTaskOrder = pruneRec(s.globalTaskOrder);
+    s.version = 15;
+  }
+  if (from < 16) {
+    // v15 → v16: seed the 9/9 default pins into existing saves. Appends only
+    // ids that never existed before (nobody could have unpinned them on
+    // purpose); stored order kept, deliberate unpins of older ids untouched.
+    // Future batches: extend this list with that release's new ids.
+    const valid = new Set((barterJson as BarterJsonItem[]).map((b) => b.id));
+    for (const id of ["edern-silver-alloy-ingot", "jennifer-lean-meat"]) {
+      if (valid.has(id) && !(s.barterPins ?? []).includes(id)) {
+        s.barterPins = [...(s.barterPins ?? []), id];
+      }
+    }
+    s.version = 16;
+  }
   return s as AppState;
 }
 
@@ -615,9 +694,13 @@ export const useAppStore = create<Store>()(
             if (t.section !== section) continue;
             idsToClear.add(t.id);
           }
-          // also barter pins considered daily
-          if (section === "daily") {
-            for (const pid of s.barterPins) idsToClear.add(pid);
+          // barter pins clear with their own cycle (daily pins with 每日,
+          // weekly pins with 每週) so 清除本區 never touches the other cycle
+          if (section === "daily" || section === "weekly") {
+            for (const pid of s.barterPins) {
+              const b = (barterJson as BarterJsonItem[]).find((x) => x.id === pid);
+              if (b && barterCycleOf(b) === section) idsToClear.add(pid);
+            }
           }
           const target = s.characters.find((c) => c.id === s.activeCharId) ?? char;
           const { values: nextVal, touched } = zeroOut(target.taskValues, idsToClear);
@@ -758,7 +841,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 14,
+      version: 16,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

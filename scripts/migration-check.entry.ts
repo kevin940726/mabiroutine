@@ -13,7 +13,8 @@ import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
 import { getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
-const { migratePersisted } = await import("@/store/useAppStore");
+import { taskKind } from "@/lib/cycle";
+const { migratePersisted, barterToTask } = await import("@/store/useAppStore");
 
 type AnyRec = Record<string, unknown>;
 function assert(cond: unknown, msg: string): void {
@@ -34,7 +35,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 // A: versionless ancient save -> full chain to v9 with seeded defaults
 {
   const out = migratePersisted({}, 0) as AnyRec;
-  assert(out.version === 14, "A: versionless reaches v14");
+  assert(out.version === 16, "A: versionless reaches v16");
   const chars = out.characters as AnyRec[];
   assert(chars.length === 1 && typeof chars[0].id === "string", "A: one default character");
   assert(sameSet(out.barterPins as string[], mustIds), "A: must pins seeded");
@@ -55,7 +56,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     4
   ) as AnyRec;
-  assert(out.version === 14, "B: reaches v14");
+  assert(out.version === 16, "B: reaches v16");
   assert(!(out.barterPins as string[]).some((id) => id.startsWith("barter-")), "B: synthetic pins gone");
   assert(sameSet(out.barterPins as string[], mustIds), "B: pins reseeded to must");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
@@ -77,7 +78,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     prefs: { hideCompleted: true },
   };
   const out = migratePersisted(structuredClone(input), 9) as AnyRec;
-  assert(out.version === 14, "C: reaches v14");
+  assert(out.version === 16, "C: reaches v16");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
   assert((c.taskValues as AnyRec).barrier === 7, "C: counter kept");
   assert((c.hiddenTaskIds as string[]).includes("custom1"), "C: custom hidden kept (custom ids are valid)");
@@ -117,7 +118,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     6
   ) as AnyRec;
-  assert(out.version === 14, "E: reaches v14");
+  assert(out.version === 16, "E: reaches v16");
   assert(sameSet(out.barterPins as string[], mustIds), "E: pins reset to must defaults");
   assert(!("barterPinsByChar" in out), "E: fork container dropped");
   assert(!("isBarterForked" in out), "E: fork flag dropped");
@@ -138,7 +139,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     7
   ) as AnyRec;
-  assert(out.version === 14, "F: reaches v14");
+  assert(out.version === 16, "F: reaches v16");
   const f = out.barterFilters as AnyRec;
   assert(f.priority === "must" && f.onlyPinned === true, "F: live filter values kept");
   assert(f.town === "all", "F: stale town reset to all");
@@ -159,7 +160,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     9
   ) as AnyRec;
-  assert(out.version === 14, "G: reaches v14");
+  assert(out.version === 16, "G: reaches v16");
   assert(sameSet(out.hiddenAccountTaskIds as string[], ["acc-silver"]), "G: account hide moved global");
   const [g1, g2] = out.characters as AnyRec[];
   assert(sameSet(g1.hiddenTaskIds as string[], ["parttime"]), "G: daily hide stays per-char");
@@ -175,7 +176,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     hiddenAccountTaskIds: ["acc-silver"],
   };
   const out = migratePersisted(structuredClone(input), 10) as AnyRec;
-  assert(out.version === 14, "G2: reaches v14");
+  assert(out.version === 16, "G2: reaches v16");
   assert(sameSet(out.hiddenAccountTaskIds as string[], ["acc-silver"]), "G2: global hide kept");
 }
 
@@ -193,7 +194,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     10
   ) as AnyRec;
-  assert(out.version === 14, "H: reaches v14");
+  assert(out.version === 16, "H: reaches v16");
   const [h1, h2, h3] = out.characters as AnyRec[];
   assert((h1.taskValues as AnyRec).tower === 20, "H: checked tower carried as 20");
   assert((h2.taskValues as AnyRec).tower === 5, "H: numeric tower untouched");
@@ -215,7 +216,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     11
   ) as AnyRec;
-  assert(out.version === 14, "I: reaches v14");
+  assert(out.version === 16, "I: reaches v16");
   const customs = out.customTasks as AnyRec[];
   assert(!("timeGated" in customs[0]), "I: timeGated stripped from custom task");
   assert(customs[0].notes === "keep", "I: other custom fields kept");
@@ -244,7 +245,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     12
   ) as AnyRec;
-  assert(out.version === 14, "J: reaches v14");
+  assert(out.version === 16, "J: reaches v16");
   const buckets = out.taskBuckets as AnyRec;
   const c = (out.characters as AnyRec[])[0] as AnyRec;
   assert(buckets.parttime !== undefined, "J: daily value assigned current day bucket");
@@ -303,7 +304,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     lastWeeklyReset: staleWeek,
   };
   const out = migratePersisted(structuredClone(v12input), 12) as AnyRec;
-  assert(out.version === 14, "K: reaches v14");
+  assert(out.version === 16, "K: reaches v16");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
   assert(!("parttime" in (c.taskValues as AnyRec)), "K: pre-rollover daily dropped, not stamped");
   assert(!("weekly-challenge" in (c.taskValues as AnyRec)), "K: pre-rollover weekly dropped, not stamped");
@@ -348,7 +349,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     13
   ) as AnyRec;
-  assert(out.version === 14, "L: reaches v14");
+  assert(out.version === 16, "L: reaches v16");
   const [l1, l2] = out.characters as AnyRec[];
   assert(!("weekly-challenge" in ((l1.taskValues ?? {}) as AnyRec)), "L: weekly cleared from c1");
   assert(!("weekly-challenge" in ((l2.taskValues ?? {}) as AnyRec)), "L: weekly cleared from c2");
@@ -361,6 +362,88 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert(!((l1.hiddenTaskIds ?? []) as string[]).includes("weekly-challenge"), "L: per-char hide moved off");
   assert(((out.hiddenAccountTaskIds ?? []) as string[]).includes("weekly-challenge"), "L: hide unioned to global");
   assert(!((out.hiddenAccountTaskIds ?? []) as string[]).includes("acc-field-last"), "L: removed id pruned from global hides");
+}
+
+// M: v14 save with removed yen-dupe barter ids -> user state transfers to
+// the kept twin (pins, values, hides, provenance; the twin's own state
+// wins), then the removed ids prune from every container
+{
+  const removed = [
+    "yen-基利安毒囊3藥品加工設備-21",
+    "yen-史帝華強化再燃燒催化劑5-80",
+    "yen-史帝華稀有鍊金術再燃燒催-81",
+    "yen-貓商人擠著吃的點心愛心幣-43",
+  ];
+  const barterIds = new Set((barterJson as { id: string }[]).map((b) => b.id));
+  for (const id of removed) assert(!barterIds.has(id), `M premise: ${id} removed from barter.json (update fixture if re-added)`);
+  assert(barterIds.has("dun-st6") && barterIds.has("dungeon-2"), "M premise: dun-st6 + dungeon-2 kept (update fixture if removed)");
+  // Current-bucket provenance: normalize keeps every value, so only the v15
+  // valid-set prune can drop the removed ids (stale buckets would prune in
+  // normalize and prove nothing about the new step).
+  const curDay = currentDailyBucket(new Date());
+  const out = migratePersisted(
+    {
+      version: 14,
+      characters: [
+        { id: "c1", name: "A", taskValues: { "dun-st6": 1, "yen-史帝華強化再燃燒催化劑5-80": 2, "yen-貓商人擠著吃的點心愛心幣-43": true }, hiddenTaskIds: ["yen-貓商人擠著吃的點心愛心幣-43", "dungeon-2"] },
+        { id: "c2", name: "B", taskValues: { "yen-史帝華強化再燃燒催化劑5-80": 5 }, hiddenTaskIds: [] },
+      ],
+      activeCharId: "c1",
+      barterPins: ["dun-st6", ...removed],
+      taskBuckets: { "dun-st6": curDay, "yen-史帝華強化再燃燒催化劑5-80": curDay, "yen-貓商人擠著吃的點心愛心幣-43": curDay },
+    },
+    14
+  ) as AnyRec;
+  assert(out.version === 16, "M: reaches v16");
+  const pins = out.barterPins as string[];
+  for (const id of removed) assert(!pins.includes(id), `M: removed pin pruned: ${id}`);
+  for (const id of ["dun-st6", "col-k1", "dungeon-2", "dun-st7"]) assert(pins.includes(id), `M: state transferred to twin pin: ${id}`);
+  const [m1, m2] = out.characters as AnyRec[];
+  const v1 = m1.taskValues as AnyRec;
+  const v2 = m2.taskValues as AnyRec;
+  assert(v1["dun-st6"] === 1, "M: twin's own value wins over the moved one");
+  assert(v2["dun-st6"] === 5, "M: value moved to twin when twin had none");
+  for (const id of removed) assert(!(id in v1) && !(id in v2), `M: removed id pruned from taskValues: ${id}`);
+  assert(sameSet((m1.hiddenTaskIds ?? []) as string[], ["dungeon-2"]), "M: removed hide pruned, live hide kept");
+  const buckets = out.taskBuckets as AnyRec;
+  assert(buckets["dun-st6"] === curDay, "M: twin provenance kept");
+  assert(buckets["dungeon-2"] === curDay, "M: provenance moved to twin");
+  for (const id of removed) assert(!(id in buckets), `M: removed id pruned from provenance: ${id}`);
+}
+
+// N: store barterCycleOf (via barterToTask section) and sync taskKind agree
+// on every barter id — a limit-format change must move both together.
+{
+  const rows = barterJson as { id: string; limit?: string }[];
+  for (const b of rows) {
+    const task = (barterToTask as (b: unknown) => { section: string; kind: string })(b);
+    const syncKind = taskKind(b.id, []);
+    const syncSection = syncKind === "weekly" ? "weekly" : "daily";
+    assert(task.section === syncSection && task.kind === syncKind, `N: cycle agrees for ${b.id} (${task.section} vs ${syncKind})`);
+  }
+  const weekly = rows.filter((b) => (barterToTask as (b: unknown) => { section: string })(b).section === "weekly").map((b) => b.id);
+  assert(weekly.length > 0, `N: at least one weekly barter row exists (found ${weekly.length})`);
+}
+
+// O: v15 save -> v16 appends only the 9/9 pins; stored order kept, a
+// deliberate unpin of an older default is NOT reseeded
+{
+  assert(((defaultPinsJson.pins ?? []) as string[]).includes("tir-c1"), "O premise: tir-c1 still a default (update fixture if removed)");
+  const out = migratePersisted(
+    {
+      version: 15,
+      characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
+      activeCharId: "c1",
+      barterPins: ["dug-t3", "tir-f3"],
+    },
+    15
+  ) as AnyRec;
+  assert(out.version === 16, "O: reaches v16");
+  const got = out.barterPins as string[];
+  assert(JSON.stringify(got.slice(0, 2)) === JSON.stringify(["dug-t3", "tir-f3"]), "O: stored order kept");
+  assert(got.includes("edern-silver-alloy-ingot") && got.includes("jennifer-lean-meat"), "O: 9/9 pins appended");
+  assert(!got.includes("tir-c1"), "O: old unpin NOT reseeded");
+  assert(got.length === new Set(got).size, "O: no duplicate pins");
 }
 
 console.log("\nAll migration fixtures passed.");

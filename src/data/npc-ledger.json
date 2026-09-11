@@ -396,5 +396,39 @@
     "out": "public/npc/馬努斯.png",
     "priority": "situational",
     "status": "done"
+  },
+  {
+    "npc": "艾頓",
+    "town": "班克爾",
+    "ids": [
+      "edern-silver-alloy-ingot"
+    ],
+    "raw": "public/npc-raw/艾頓.png",
+    "out": "public/npc/艾頓.png",
+    "priority": "must",
+    "status": "done"
+  },
+  {
+    "npc": "艾琳",
+    "town": "班克爾",
+    "ids": [
+      "erin-silver-alloy-ingot1",
+      "erin-silver-alloy-ingot2"
+    ],
+    "raw": "public/npc-raw/艾琳.png",
+    "out": "public/npc/艾琳.png",
+    "priority": "extra",
+    "status": "done"
+  },
+  {
+    "npc": "珍妮佛",
+    "town": "班克爾",
+    "ids": [
+      "jennifer-lean-meat"
+    ],
+    "raw": "public/npc-raw/珍妮佛.png",
+    "out": "public/npc/珍妮佛.png",
+    "priority": "extra",
+    "status": "done"
   }
 ]

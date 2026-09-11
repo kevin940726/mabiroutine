@@ -61,8 +61,13 @@ function snap(
   daily: string | null,
   weekly: string | null
 ): Snap {
+  // Current store version: applySnapshot feeds every pull through
+  // migratePersisted, and additive steps (v16 pin seeding) re-fire on stale
+  // versions, phantom-pushing pins and tripping the quietness assertions.
+  // Production pulls always carry the current version after first load, so
+  // the harness seeds it too — migration coverage lives in fixtures (A–O).
   return {
-    version: 13,
+    version: 16,
     characters: [{ id: "c1", name: "A", taskValues: { ...values }, hiddenTaskIds: [] }],
     activeCharId: "c1",
     accountValues: {},

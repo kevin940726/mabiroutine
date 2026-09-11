@@ -49,7 +49,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   // (desc block with 44px tile vertically centered). Right column is w-11.
   const badges = isBarter
     ? (task.priority === "must" ? (
-      <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">一定要換</span>
+      <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必換</span>
     ) : null)
     : (<>
       {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必做</span>}
@@ -327,7 +327,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cn("text-sm font-bold text-primary truncate", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
-            {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">一定要換</span>}
+            {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
             <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
               <span className="font-medium truncate">{task.npc}</span>
               <span className="text-muted-foreground truncate">· {task.town}</span>
