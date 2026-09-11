@@ -1,13 +1,37 @@
 # Changelog
 
-Reader-facing log of user-visible changes. Newest first. Each entry links its commit.
+Reader-facing log of user-visible changes. Newest first. One section per release (a push to `main` deploys to prod); the top `Unreleased` section holds work not yet pushed and gets a date + label when it ships.
 
-## 2026-09-03 — Unreleased batch (pins, data, perf, branding)
+## Unreleased — shops SSOT + 9/9 data refresh
 
 ### Features
 - Material breakdown rebuilt as an assumed-path 3-line plan (starmoon-inspired, item-led, zero planning UI): L1 direct recipe unchanged, L2 one pill per ingredient with its assumed source only (NPC faces with same-cost "or" ties, skill text for gather, counts ignored), L3 deeply flattened terminal totals (共需：黃豆×22、小麥×15…). Rank: gather > free-craft (make from gather-only chains, e.g. 麵粉→收割) > must/extra/untracked barter > shop > craft-fallback > quest/drop > once/situational barter; barter ties break by priority then barter.json order; exchange costs scale by ceil (surplus silent, over-cap unflagged). NPC/town/limit names live only in face tooltips. Data: dungeon-5 （貓商人 高麗菜） demoted 推薦→視需求 (shops win the assumed path), 檸檬 gains the 珍妮佛 shop leg (每週 30 次, user + starmoon corroborated — flag if in-game disagrees)
 - `src/data/shops.json` is the shopping DB (NPC → options grouped by town for in-game checking, 2-space prettified, 35 NPCs / 191 options, schema'd by `shops.schema.json` with `$schema` pointer): structured `cost {amount, currency: gold default}`, `get {amount}` (omit when 1), `limit {times, period}` (omit when uncapped; omitted times = uncapped (bare 1 written out; period defaults daily, rejected without times)), `scope: character|account` (omit = character). `recipes.json` is make/gather/quest-only (102 shop/barter legs stripped into shops.json, 37 emptied entries deleted); `materials.ts` synthesizes every shops.json option into a route and merges it with the make routes — single read path, no positional zip, no dual truth. `barter.json` stays ranking/display (checked-not-generated future). Wording: retention→period, unit→currency, price→cost, received-qty→`get`. `pnpm test:shops` guards shape + currency + dups + no-trade-routes-in-recipes + shop-gold-only + twin cap parity (in the `pnpm check` gate since 2026-09-12)
 - SSOT wiring in app code: the legacy squash engine is retired from `materials.ts` (`squashTree`/`flatten`/`sum`/`sortByPlanNeed`, ~6KB — the assumed-path engine was already the only reader-facing path); `giveHasBreakdown` now reads the new `hasBreakdown` (make recipe → open, gather-only or single leg → shut; verified byte-identical toggle truth table across all 94 barter gives). Explorer cap text resolves through new `twinTradeLeg` (exact npc+item+outQty shops match owns the display, 66/94 rows; barter string is fallback only) — this surfaced one real data conflict: `cat-merchant-sea-bass` barter said 每週 1 次 but its shops twin says 每週 10 次 (resolved 每週 10 次 — barter string fixed, parity now enforced by `test:shops`). Gold prices are structured in `shops.json` and rendered as a coin: face tooltips show `🪙{price}` and L3 appends a `🪙N` estimate. NPC alternatives in a pill render side by side with a slight overlap (the English `or` is gone), and tooltip segments are atomic so wrapping never orphans a name, limit, or separator (`Tooltip.content` widened to `ReactNode`)
+- Pinned barter splits by cycle: 每週 N 次 pins render under a new 每週以物易物 subsection (Monday 06:00 reset, same bucket as weekly tasks) instead of the daily list; either subsection hides when its cycle has no pins; 每週 N>1 renders a counter like daily; weekly pins count toward the 每週任務 badge and header total, and 清除本區 clears only its own cycle's pins
+- 9/9 barter refresh: silver-alloy chain added (艾頓 銀合金錠×10 每週必換; 貓商人鱸魚 feeds it; 艾琳 ×2 routes), col-a1 returns as 推薦 server-shared, all cat-merchant towns unified to 地下城、狩獵場. 艾頓 auto-pins on existing saves too (store v14→v15 appends only never-before-existing ids — old unpins untouched)
+- 珍妮佛 清淡的肉×15 (黃豆×10, 每日必換) added with its 黃豆 gather route (收割 Lv.10); auto-pins on existing saves via the same v15 step
+- 休馬斯 卓越繃帶×5 (沙威瑪×1, 每日必換, 萊爾特丘陵) added with full recipes: 沙威瑪 cooking route + 卓越繃帶 medicine route (藥品製作台 Lv.4, 藥水調製 Lv.22, ×5/batch) + supporting barter legs (高級布料+, 清淡的肉, four 結晶); portrait cropped, v15 seeds the pin on existing saves
+- 傷痕花粉末 gains its make route (藥品加工設備 Lv.4: 傷痕花×20 → ×5, ~25min in the entry note); 傷痕花 itself still sourceless
+- 傷痕花 gains its gather route (採集藥草 Lv.20) — both new chains now expand with zero unknown leaves
+- 鱸魚 gains both acquisition routes in `recipes.json`: 釣魚 Lv.25 gather (preferred pick) + 貓商人 barter leg (喵幣×20000, 每週 10 次, twin-corrected) — the pre-25 pipeline now breaks down fully
+- 銀合金錠 gains four routes: 金屬加工設備 Lv.4 make (特殊鋼錠×5 + 銀礦石×20 + 煤炭×16 → ×3, ~5h in the entry note) + all three non-situational barter legs (艾頓 每週×10, 阿爾米斯 每日 server-shared, 艾琳 每日)
+- 鱸魚辣魚湯 gains its cooking route (食物製作台 Lv.4, 料理 Lv.20: 鱸魚×6 + 白蘿蔔×4 + 洋蔥×6 + 裝水的瓶子×5 + 辣椒粉×4 + 胡椒×2) — the 艾頓 weekly chain now expands end to end
+- 銀礦石 gains its gather route (採礦 Lv.25) — clears the 找不到資料 line in both 銀合金錠 and the pre-existing 特殊鋼錠 breakdowns
+- 白蘿蔔/辣椒粉 gain their shop routes (珍妮佛/班克爾, 每週 30 次; gold prices structured as `price`) — the soup chain now expands with no missing leaves
+- New NPC portraits: 艾頓/艾琳/珍妮佛 raws cropped to 76px circles in `public/npc/` (ledger +34); `crop-npc.py` now downscales larger-than-76 trims to 76 (same framing) instead of erroring — smaller trims still error, never upscaled
+- Stale cat-merchant towns corrected in `recipes.json`: 新芽蘑菇/糖/高麗菜/鹽 barter legs move 地下城 → 地下城、狩獵場, matching the 9/9 barter.json rename
+
+### Fixes
+- Barter dedupe: 4 `yen-` twins dropped (same trade as col-k1/dun-st6/dun-st7/dungeon-2; 96→92 rows before the 5 new 9/9 rows land it at 93); saves transfer pins/values/hides to the kept twin first (twin's own state wins), then prune dangling refs (store v14→v15)
+- TaskRow must badge unified on 必換 (was 一定要換), matching the explorer's 必換/推薦 labels
+
+### Chores
+- `test:shops` joins the `pnpm check` gate (shape + currency + dup + no-trade-routes + shop-gold-only + twin cap parity); docs corrected off the retired positional-zip model, and both READMEs' barter count fixed 92→94
+
+## 2026-09-03 — pins, data, perf, branding
+
+### Features
 - Barter notes now show on the desktop explorer too (were mobile-only): quiet 12px muted-gray line with a hairline indent so it reads as an aside, barter tab only — pinned tracker rows stay note-free
 - Barter tab drops the 採集技能 filter + skill chart (gatherSkill was source-copied noise); stale saves pin back to 全部 so nobody is trapped in a filter with no control, no store bump
 - Barter tab drops the duplicate priority quick-pills (the select does the same job) and the mobile 展開篩選 collapse (two selects fit inline on all screens)
@@ -31,19 +55,6 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Long-absence reload (all four gates required): a return after 6h+ away reloads once into the new build — but only if online, no dialog is open, and an update is actually pending (armed check with a 15s settle window, always disarmed after). Mid-session updates stay silent; a reload with no deploy behind it never happens
 - Launch SEO pass: social preview card (logo + title on theme slate, `og-image.png`) with `summary_large_image`, `og:url` + canonical, keyword-tuned title/description （日課・週課・以物易物）, `robots.txt` (with `/api/` disallowed) + single-URL `sitemap.xml`; BarterExplorer and the add-task dialog load on demand instead of in the initial bundle; heading outline fixed (one `h1`, section `h2`s, dialog titles `h1`→`h2`) with a skip-to-content link and tablist roles
 - Native-style boot splash: installed-PWA launches (especially update launches, when `#root` sits empty awaiting the new JS chunk) now show the app icon on a theme-aware background instead of a white screen. Two layers: `apple-touch-startup-image` PNGs (19 iPhone/iPad sizes × light/dark, generated from `icon-512` by the committed `scripts/gen-splash.cjs`, kept out of the SW precache) cover iOS's pre-HTML gap, and the inline in-app splash covers post-paint until React commits. Browser tabs are untouched (splash node removes itself unless `display-mode: standalone` / iOS `navigator.standalone`). The in-app splash stays static like a real launch screen, with one concession to slow updates: a spinner fades in if it's still up after 1.5s. Inline in `index.html` so it paints with the HTML itself; a pre-paint script mirrors ThemeToggle (stored theme, else OS preference) so splash and first paint share one background; React fades it out on first commit. Manifest `background_color` matches `theme_color` for the Android splash (single static color vs the theme-aware splash: a brief navy→theme jump on Android launch is accepted — the in-app fade only covers the splash→app handoff)
-- Pinned barter splits by cycle: 每週 N 次 pins render under a new 每週以物易物 subsection (Monday 06:00 reset, same bucket as weekly tasks) instead of the daily list; either subsection hides when its cycle has no pins; 每週 N>1 renders a counter like daily; weekly pins count toward the 每週任務 badge and header total, and 清除本區 clears only its own cycle's pins
-- 9/9 barter refresh: silver-alloy chain added (艾頓 銀合金錠×10 每週必換; 貓商人鱸魚 feeds it; 艾琳 ×2 routes), col-a1 returns as 推薦 server-shared, all cat-merchant towns unified to 地下城、狩獵場. 艾頓 auto-pins on existing saves too (store v14→v15 appends only never-before-existing ids — old unpins untouched)
-- 珍妮佛 清淡的肉×15 (黃豆×10, 每日必換) added with its 黃豆 gather route (收割 Lv.10); auto-pins on existing saves via the same v15 step
-- 休馬斯 卓越繃帶×5 (沙威瑪×1, 每日必換, 萊爾特丘陵) added with full recipes: 沙威瑪 cooking route + 卓越繃帶 medicine route (藥品製作台 Lv.4, 藥水調製 Lv.22, ×5/batch) + supporting barter legs (高級布料+, 清淡的肉, four 結晶); portrait cropped, v15 seeds the pin on existing saves
-- 傷痕花粉末 gains its make route (藥品加工設備 Lv.4: 傷痕花×20 → ×5, ~25min in the entry note); 傷痕花 itself still sourceless
-- 傷痕花 gains its gather route (採集藥草 Lv.20) — both new chains now expand with zero unknown leaves
-- 鱸魚 gains both acquisition routes in `recipes.json`: 釣魚 Lv.25 gather (preferred pick) + 貓商人 barter leg (喵幣×20000, 每週 1 次) — the pre-25 pipeline now breaks down fully
-- 銀合金錠 gains four routes: 金屬加工設備 Lv.4 make (特殊鋼錠×5 + 銀礦石×20 + 煤炭×16 → ×3, ~5h in the entry note) + all three non-situational barter legs (艾頓 每週×10, 阿爾米斯 每日 server-shared, 艾琳 每日)
-- 鱸魚辣魚湯 gains its cooking route (食物製作台 Lv.4, 料理 Lv.20: 鱸魚×6 + 白蘿蔔×4 + 洋蔥×6 + 裝水的瓶子×5 + 辣椒粉×4 + 胡椒×2) — the 艾頓 weekly chain now expands end to end
-- 銀礦石 gains its gather route (採礦 Lv.25) — clears the 找不到資料 line in both 銀合金錠 and the pre-existing 特殊鋼錠 breakdowns
-- 白蘿蔔/辣椒粉 gain their shop routes (珍妮佛/班克爾, 每週 30 次; gold prices in entry notes) — the soup chain now expands with no missing leaves
-- New NPC portraits: 艾頓/艾琳/珍妮佛 raws cropped to 76px circles in `public/npc/` (ledger +34); `crop-npc.py` now downscales larger-than-76 trims to 76 (same framing) instead of erroring — smaller trims still error, never upscaled
-- Stale cat-merchant towns corrected in `recipes.json`: 新芽蘑菇/糖/高麗菜/鹽 barter legs move 地下城 → 地下城、狩獵場, matching the 9/9 barter.json rename
 
 ### Fixes
 - Cold boot no longer prunes before the fresh pull lands: hook-driven pulls bypass the 10s background throttle, so `checkResets` runs after a real GET instead of against a throttled no-op — on rollover boots the early prune tripped the mid-flight guard and discarded the mount pull's adopt, leaving stale state until the   next trigger (up to 60s); overlapping forced runs still serialize, and concurrent boot/focus pulls join one in-flight run instead of racing the mid-flight guard
@@ -67,8 +78,6 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - 兼職 is now a single checkbox (18:00 refresh only) instead of a 0/2 counter; saves with a count of 1–2 carry over as checked (store v11→v12)
 - 每日挑戰 max 10→8 and 每週挑戰 max 11→9 (member-only 2 split out in the text); stored counts above the new max clamp down on load, rest untouched
 - `timeGated` retired everywhere: no more amber time badge on rows, and the 新增自訂 form no longer offers 時間限制 (old custom values are stripped on load, store v11→v12)
-- Barter dedupe: 4 `yen-` twins dropped (same trade as col-k1/dun-st6/dun-st7/dungeon-2; 96→92 rows before the 5 new 9/9 rows land it at 93); saves transfer pins/values/hides to the kept twin first (twin's own state wins), then prune dangling refs (store v14→v15)
-- TaskRow must badge unified on 必換 (was 一定要換), matching the explorer's 必換/推薦 labels
 
 ### Features
 - Footer links the now-public GitHub repo (inline mark + link, no dependency — installed lucide has no brand icons)
@@ -134,7 +143,6 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Barter spelling standardized on 鍊金 (was mixed 煉金/鍊金 across sources); display-text only, no ids touched so saved progress is unaffected
 
 ### Chores
-- `test:shops` joins the `pnpm check` gate (shape + currency + dup + no-trade-routes + shop-gold-only + twin cap parity); docs corrected off the retired positional-zip model, and both READMEs' barter count fixed 92→94
 - Docs go user-story-first: new `docs/stories.md` (S1–S5 acceptance criteria for sync/launch) is the source of truth — `docs/sync.md` engine bullets now trace to story IDs, `docs/development.md` says stories-before-protocol, `docs/storage.md` cross-device bullet cites launch freshness
 - Agent rule: every commit must update this changelog in the same commit (AGENTS.md pre-commit gate)
 - Sync live suites SKIP honestly on the 10/hr/IP create budget (retry within the hour) and exit via drain instead of `process.exit` (hard-crashed Node on Windows)
@@ -144,44 +152,44 @@ Reader-facing log of user-visible changes. Newest first. Each entry links its co
 - Vercel Analytics mounted at app root (`@vercel/analytics/react`)
 - Retired the frozen-desktop rule: UI changes now consider both desktop and mobile variants (code comments updated; history entries left as-is)
 
-## 2026-09-03 (`e036f45`)
+## 2026-09-03 — mobile RWD round
 
 ### Features
-- Mobile-only layouts via `useIsMobile` (<640px); desktop UI frozen pixel-identical to the released build (`e036f45`)
-- Mobile tracker rows go two-line with zero ellipsis: badges on their own line, 44px tap tiles, ghost eye / ⋯ menu, edge-hug drag grip, full-bleed sections (`e036f45`)
-- Mobile compact pill goes single-line: progress + ‹ character › stepper + add + ⋯ menu with inline rename (`e036f45`)
-- Mobile header goes single-line (O1): wordmark only + stacked daily/weekly countdown on the right (`e036f45`)
+- Mobile-only layouts via `useIsMobile` (<640px); desktop UI frozen pixel-identical to the released build
+- Mobile tracker rows go two-line with zero ellipsis: badges on their own line, 44px tap tiles, ghost eye / ⋯ menu, edge-hug drag grip, full-bleed sections
+- Mobile compact pill goes single-line: progress + ‹ character › stepper + add + ⋯ menu with inline rename
+- Mobile header goes single-line (O1): wordmark only + stacked daily/weekly countdown on the right
 
 ### Chores
-- Pill / header throwaway prototypes (`?variant=`, DEV-only) stay wired for the next loop (`e036f45`)
+- Pill / header throwaway prototypes (`?variant=`, DEV-only) stay wired for the next loop
 
-## 2026-09-03 (`a9d8c84`)
+## 2026-09-03 — tap-tile counters + NPC portraits
 
 ### Features
-- Tap-tile counters: tap +1, full tile taps back to 0, right-click / long-press −1, progress fills inside the tile (`a9d8c84`)
-- Sub-group bleed bands: 以物易物 / 已隱藏 rows stay pixel-equal to top-level rows, band bleeds 8px past them (`a9d8c84`)
-- NPC portraits: 76×76 circle avatars on barter rows with placeholder fallback (`a9d8c84`)
-- Real Radix Select replaces native dropdowns across character tabs, filters, dialogs (`a9d8c84`)
-- Barter explorer card layout C: get-resource title + NPC·town, 你給→你拿 line with right-aligned limit (`a9d8c84`)
-- Tracker barter rows share the explorer card design at fixed 88px-min compact height (`a9d8c84`)
-- 每日 N 次 barter pins render a counter (max N); 每日 1 次 stays a checkbox (`a9d8c84`)
-- 50px emoji / NPC avatar alignment in tracker rows (`a9d8c84`)
+- Tap-tile counters: tap +1, full tile taps back to 0, right-click / long-press −1, progress fills inside the tile
+- Sub-group bleed bands: 以物易物 / 已隱藏 rows stay pixel-equal to top-level rows, band bleeds 8px past them
+- NPC portraits: 76×76 circle avatars on barter rows with placeholder fallback
+- Real Radix Select replaces native dropdowns across character tabs, filters, dialogs
+- Barter explorer card layout C: get-resource title + NPC·town, 你給→你拿 line with right-aligned limit
+- Tracker barter rows share the explorer card design at fixed 88px-min compact height
+- 每日 N 次 barter pins render a counter (max N); 每日 1 次 stays a checkbox
+- 50px emoji / NPC avatar alignment in tracker rows
 
 ### Chores
-- Crop script + ledger for NPC portraits; npc-raw excluded from git (`a9d8c84`)
+- Crop script + ledger for NPC portraits; npc-raw excluded from git
 
-## 2026-09-02 (`e4494aa`)
+## 2026-09-02 — TW70 defaults + list view
 
 ### Features
-- Barter explorer list view with collapsible sections (`e4494aa`)
-- TW70 barter seed with 10 must-pins as defaults (`e4494aa`)
+- Barter explorer list view with collapsible sections
+- TW70 barter seed with 10 must-pins as defaults
 
 ### Fixes
-- Square checkbox style on tracker rows (`e4494aa`)
+- Square checkbox style on tracker rows
 
-## 2026-09-02 (`f0635e0`)
+## 2026-09-02 — initial tracker + barter merge
 
 ### Features
-- Daily / weekly / account tracker with per-character isolation and 06:00 Asia/Taipei resets (`f0635e0`)
-- TW-only dataset: 20 builtin tasks, barter merge, hardcoded 黑色坑洞 7+7 and 召喚結界 7 (`f0635e0`)
-- Custom tasks with add / edit dialog, drag reorder, hide, JSON import/export (`f0635e0`)
+- Daily / weekly / account tracker with per-character isolation and 06:00 Asia/Taipei resets
+- TW-only dataset: 20 builtin tasks, barter merge, hardcoded 黑色坑洞 7+7 and 召喚結界 7
+- Custom tasks with add / edit dialog, drag reorder, hide, JSON import/export

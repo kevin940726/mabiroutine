@@ -26,7 +26,7 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
   update those files too — never let README/docs describe a previous version.
   Code comments for internal-only changes. Dev-only details (commands, project
   structure, verification) live in `docs/development.md`, never in the READMEs.
-- Newest first: add bullets under the top `## … — Unreleased batch` section; once the hash is known, give the batch its own dated section (`## 2026-09-03 (\`abc1234\`)`) so each entry links its commit.
+- Newest first: add bullets under the top `## Unreleased — …` section, grouped into `### Features` / `### Fixes` / `### Chores`. Every push to `main` deploys to prod, so when you push, rename that section to `## <YYYY-MM-DD> — <short label>` and start a fresh `## Unreleased`. No commit hashes in headings or bullets — they go stale when history is rewritten (amend/rebase).
 - User-facing changes → `### Features` / `### Fixes`; internal/agent-only changes → `### Chores`.
 - If you spot a past commit with no entry, backfill it in the next commit — never let the gap grow.
 
