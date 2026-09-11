@@ -121,7 +121,7 @@ export function MaterialBreakdown({ give, bare, times }: { give: string; bare?: 
         ))}
       </div>
       <div className="text-xs">
-        <span className="font-semibold">共需{(times ?? 1) > 1 ? `×${times}` : ""}：</span>
+        <span className="font-semibold">共需{(times ?? 1) > 1 ? `（${times}次）` : ""}：</span>
         <span className="text-muted-foreground">
           {plan.totals.map((t) => `${t.name}×${t.qty}`).join("、")}
           {plan.gold > 0 && `、🪙${plan.gold}`}

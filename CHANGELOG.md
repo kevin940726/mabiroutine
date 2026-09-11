@@ -5,7 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
-- Explorer breakdowns and tracker hover cards now total the whole deal: the 共需 line multiplies by the row's exchange limit (e.g. 休馬斯 沙威瑪 每日 3 次 → 共需×3), with the same ceil/no-prorate math; L1 stays the per-1 recipe and the label reads 共需×N when scaled
+- Explorer breakdowns and tracker hover cards now total the whole deal: the 共需 line multiplies by the row's exchange limit (e.g. 休馬斯 沙威瑪 每日 3 次 → 共需（3次）), with the same ceil/no-prorate math; L1 stays the per-1 recipe
 
 ## 2026-09-12 — trio faces
 
