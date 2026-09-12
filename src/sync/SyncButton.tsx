@@ -31,7 +31,6 @@ import {
   copyText,
   sessionIdFromText,
   requestImport,
-  setSessionParam,
   stripSessionParam,
   setPullHook,
   scrubBase,
@@ -291,7 +290,9 @@ export const SyncButton = memo(function SyncButton() {
       const next = { id, updatedAt };
       saveSession(next);
       setLinked(next);
-      setSessionParam(id);
+      // Share surface is the dialog field + clipboard, never the address
+      // bar — keep the URL bare so ?s= never lingers in history/analytics.
+      stripSessionParam();
       saveBase(id, flat);
       // First sync ends with the link on the clipboard, bubble confirms it.
       if (await copyText(syncUrl(id))) setCopiedTick((t) => t + 1);
@@ -353,10 +354,11 @@ export const SyncButton = memo(function SyncButton() {
       const next = { id, updatedAt };
       saveSession(next);
       setLinked(next);
-      setSessionParam(id);
+      stripSessionParam();
       setConfirming(null);
       saveBase(id, flat);
-      setCopiedTick((t) => t + 1);
+      if (await copyText(syncUrl(id))) setCopiedTick((t) => t + 1);
+      else toast("請手動複製下方連結");
     } catch (e) {
       toast(errorMessage(e));
     } finally {

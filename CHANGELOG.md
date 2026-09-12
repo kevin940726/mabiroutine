@@ -4,6 +4,14 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- Sync link no longer lives in the address bar: `?s=` is arrival-only (stashed and stripped before the app and analytics load), the binding lives in `localStorage`, and the dialog's copy field is the share surface — history, pageviews, and logs never retain a live session id. Regenerate now actually copies the new link (previously showed 已複製 without writing the clipboard). Links are bearer credentials: anyone with the link has full read/write/delete
+- Sync sessions expire after 180 days without a read/write (sliding TTL on every GET/PATCH/POST): a leaked link dies on its own; a device returning past expiry is told the link is dead and re-links from a live device
+- Server validates sync keys/values (known prefixes, length caps, no arrays, finite numbers only, `__proto__`-family rejected) and caps sessions at 5000 fields — a rogue bearer can no longer bloat a session without bound; rate limits key on the verified client IP instead of the spoofable leftmost forwarded entry
+
+### Chores
+- Legacy session upgrade serialized with an NX lock (concurrent first-writes converge instead of dropping keys); `vercel.json` + meta ship `Referrer-Policy: no-referrer`, `nosniff`, and frame-`DENY`; `@vercel/node` 12→13 (`pnpm audit` still reports 4 highs via its undici/path-to-regexp transitives — dev-server-only paths, accepted risk); live API gate asserts hash TTL and the new 400s
+
 ## 2026-09-12 — whole-deal 共需
 
 ### Features

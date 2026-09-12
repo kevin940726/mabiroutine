@@ -31,7 +31,15 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // Values carry a "j:" tag so they survive @upstash/redis response
 // deserialization as plain strings regardless of JSON-sniffing behavior.
 // Fields starting with "~" are reserved (meta); clients sending them get 400.
+// Keys outside the known prefixes, prototype-pollution names, arrays, and
+// over-long strings/objects get 400; sessions are capped at 5000 fields
+// (413 past that) so no bearer can bloat a hash without bound.
 // Tombstones are retained fields (same as the old blob — no GC).
+//
+// Sessions expire after 180 days without a read/write (sliding TTL,
+// refreshed on every GET/PATCH/POST) — a leaked link stops working instead
+// of living forever. Rate limits key on the verified client IP (x-real-ip,
+// else the last forwarded entry), never the spoofable leftmost entry.
 //
 // Records written before the hash layout (v1 whole-state blobs and v2 blobs,
 // both JSON strings under the bare `${SESSION_PREFIX}${id}` key) are still
@@ -74,6 +82,29 @@ const RL_CREATE_WINDOW_S = 3600;
 const RL_GENERAL_LIMIT = IS_TEST_NS ? 600 : 60;
 const RL_GENERAL_WINDOW_S = 60;
 
+// Session lifetime: a leaked link must not work forever. Hash (and legacy
+// string) keys expire after 180 days without a successful read/write; every
+// GET/PATCH/POST refreshes the TTL (sliding), so active sessions never die
+// from under the user. Best-effort: a failed EXPIRE never fails the request,
+// the next access retries it.
+const SESSION_TTL_S = 180 * 24 * 3600;
+
+async function touchHash(id: string): Promise<void> {
+  try {
+    await redis.expire(hashKey(id), SESSION_TTL_S);
+  } catch {
+    // best-effort renewal — the next access retries
+  }
+}
+
+async function touchBare(id: string): Promise<void> {
+  try {
+    await redis.expire(bareKey(id), SESSION_TTL_S);
+  } catch {
+    // best-effort renewal — the next access retries
+  }
+}
+
 type SessionMeta = {
   v: 2;
   updatedAt: number;
@@ -93,12 +124,23 @@ type LegacyRecord = {
 };
 
 function clientIp(req: VercelRequest): string {
-  const fwd = req.headers["x-forwarded-for"];
-  if (Array.isArray(fwd)) return fwd[0].trim();
-  if (typeof fwd === "string" && fwd) return fwd.split(",")[0].trim();
+  // Rate-limit keying must not trust the leftmost x-forwarded-for entry: the
+  // client controls it and can rotate arbitrary prefixes to dodge per-IP
+  // budgets (and poison writerId). Vercel overwrites x-real-ip with the
+  // verified connecting IP, so prefer it; otherwise take the LAST forwarded
+  // entry (closest to the edge, appended by trusted proxies).
   const real = req.headers["x-real-ip"];
-  if (Array.isArray(real)) return real[0].trim();
-  if (typeof real === "string" && real) return real.trim();
+  if (Array.isArray(real) && real[0]?.trim()) return real[0].trim();
+  if (typeof real === "string" && real.trim()) return real.trim();
+  const fwd = req.headers["x-forwarded-for"];
+  if (Array.isArray(fwd)) {
+    const last = fwd[fwd.length - 1]?.trim();
+    if (last) return last;
+  }
+  if (typeof fwd === "string" && fwd) {
+    const parts = fwd.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
   return "unknown";
 }
 
@@ -117,6 +159,52 @@ function validFlat(state: unknown): state is Record<string, unknown> {
 // client can forge session metadata through POST/PATCH.
 function hasReservedKey(map: Record<string, unknown>): boolean {
   return Object.keys(map).some((k) => k.startsWith("~"));
+}
+
+// Flat key-space allowlist (docs/sync.md rev 3): the server stays
+// schema-agnostic but refuses anything outside the known prefixes, plus
+// prototype-pollution names that would be hazardous if a future merge ever
+// used assignment instead of spread/JSON round-trips. Keeps a compromised or
+// curious bearer from turning a session hash into arbitrary junk storage and
+// bounds per-key memory. CJK barter ids are legitimate, so no charset gate.
+const KEY_PREFIXES = ["v:", "acc:", "hide:", "pin:", "custom:", "char:", "meta:", "pref:", "filter:"];
+const FORBIDDEN_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const MAX_KEY_LEN = 128;
+const MAX_STR_LEN = 500;
+const MAX_VALUE_BYTES = 8 * 1024;
+const MAX_KEYS_PER_REQUEST = 2000;
+const MAX_HASH_FIELDS = 5000;
+
+function validSyncKey(k: string): boolean {
+  if (!k || k.length > MAX_KEY_LEN) return false;
+  if (FORBIDDEN_KEYS.has(k)) return false;
+  return KEY_PREFIXES.some((p) => k.startsWith(p));
+}
+
+function validSyncValue(v: unknown): boolean {
+  if (v === null || typeof v === "boolean") return true;
+  if (typeof v === "number") return Number.isFinite(v);
+  if (typeof v === "string") return v.length <= MAX_STR_LEN;
+  if (typeof v === "object") {
+    if (Array.isArray(v)) return false;
+    try {
+      return JSON.stringify(v).length <= MAX_VALUE_BYTES;
+    } catch {
+      return false;
+    }
+  }
+  return false; // undefined, bigint, function, symbol — never valid on the wire
+}
+
+// Shape-guard for a POST/PATCH map. Returns an error string, or null when ok.
+function invalidMapReason(map: Record<string, unknown>): string | null {
+  const keys = Object.keys(map);
+  if (keys.length > MAX_KEYS_PER_REQUEST) return "too many keys";
+  for (const k of keys) {
+    if (!validSyncKey(k)) return `invalid key: ${k.slice(0, 64)}`;
+    if (!validSyncValue(map[k])) return `invalid value for key: ${k.slice(0, 64)}`;
+  }
+  return null;
 }
 
 function validId(id: unknown): id is string {
@@ -190,6 +278,14 @@ async function handlePost(req: VercelRequest, res: VercelResponse): Promise<void
     res.status(400).json({ error: "reserved key prefix" });
     return;
   }
+  const postReason = invalidMapReason(state);
+  if (postReason) {
+    res.status(400).json({ error: postReason });
+    return;
+  }
+  // Note: POST creates the hash, so its field count equals the key count —
+  // MAX_KEYS_PER_REQUEST (2000, checked above) is the effective cap, tighter
+  // than MAX_HASH_FIELDS (5000, enforced on PATCH growth).
   if (JSON.stringify(state).length > MAX_STATE_BYTES) {
     res.status(413).json({ error: "state too large" });
     return;
@@ -205,6 +301,7 @@ async function handlePost(req: VercelRequest, res: VercelResponse): Promise<void
   const updatedAt = Date.now();
   const meta: SessionMeta = { v: 2, updatedAt, writerId: clientIp(req), seq: Object.keys(state).length };
   await redis.hset(hashKey(id), { [META_FIELD]: enc(meta), ...encodeAll(state) });
+  await touchHash(id);
   res.status(200).json({ id, updatedAt });
 }
 
@@ -221,6 +318,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse): Promise<void>
   }
   const h = await readHash(id);
   if (h) {
+    await touchHash(id);
     res.status(200).json({ state: h.state, updatedAt: h.meta.updatedAt });
     return;
   }
@@ -229,6 +327,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse): Promise<void>
     res.status(404).json({ error: "unknown session" });
     return;
   }
+  await touchBare(id);
   if ((record as { v?: unknown }).v !== 2) {
     // Pre-flat session (v1 whole-state blob): the client flattens locally and
     // upgrades on its next push. Serve the blob as-is under a marker shape.
@@ -264,12 +363,26 @@ async function handlePatch(req: VercelRequest, res: VercelResponse): Promise<voi
     res.status(400).json({ error: "reserved key prefix" });
     return;
   }
+  const patchReason = invalidMapReason(changes);
+  if (patchReason) {
+    res.status(400).json({ error: patchReason });
+    return;
+  }
   if (JSON.stringify(changes).length > MAX_STATE_BYTES) {
     res.status(413).json({ error: "changes too large" });
     return;
   }
   const h = await readHash(id);
   if (h) {
+    // Bound total hash growth (no extra Redis round trip — readHash already
+    // fetched the field set). Tombstone-valued updates to existing keys are
+    // always allowed; only genuinely new fields count against the budget.
+    let fresh = 0;
+    for (const k of Object.keys(changes)) if (!(k in h.state)) fresh += 1;
+    if (Object.keys(h.state).length + fresh > MAX_HASH_FIELDS) {
+      res.status(413).json({ error: "session too large" });
+      return;
+    }
     const meta: SessionMeta = {
       v: 2,
       updatedAt: Date.now(),
@@ -277,18 +390,88 @@ async function handlePatch(req: VercelRequest, res: VercelResponse): Promise<voi
       seq: h.meta.seq + 1,
     };
     await redis.hset(hashKey(id), { [META_FIELD]: enc(meta), ...encodeAll(changes) });
+    await touchHash(id);
     res.status(200).json({ updatedAt: meta.updatedAt });
     return;
   }
   // First write since the hash layout shipped: upgrade the string record.
-  const bare = await redis.get<LegacyRecord>(bareKey(id));
+  // Guarded by an NX lock so two concurrent first-PATCHes can't both
+  // read-merge-write the same base and drop each other's keys (one-time
+  // window, but the loss would be permanent). The loser waits for the hash
+  // to appear and applies its changes onto it as an ordinary PATCH.
+  let bare = await redis.get<LegacyRecord>(bareKey(id));
   if (!bare) {
     res.status(404).json({ error: "unknown session" });
     return;
   }
+  const lockKey = `${SESSION_PREFIX}${id}:upgrading`;
+  let claimed: unknown = null;
+  try {
+    claimed = await redis.set(lockKey, "1", { nx: true, ex: 30 });
+  } catch {
+    claimed = null;
+  }
+  if (claimed !== "OK") {
+    for (let i = 0; i < 10; i += 1) {
+      await new Promise((r) => setTimeout(r, 100));
+      const raced = await readHash(id);
+      if (raced) {
+        let fresh = 0;
+        for (const k of Object.keys(changes)) if (!(k in raced.state)) fresh += 1;
+        if (Object.keys(raced.state).length + fresh > MAX_HASH_FIELDS) {
+          res.status(413).json({ error: "session too large" });
+          return;
+        }
+        const retryMeta: SessionMeta = {
+          v: 2,
+          updatedAt: Date.now(),
+          writerId: clientIp(req),
+          seq: raced.meta.seq + 1,
+        };
+        await redis.hset(hashKey(id), { [META_FIELD]: enc(retryMeta), ...encodeAll(changes) });
+        await touchHash(id);
+        res.status(200).json({ updatedAt: retryMeta.updatedAt });
+        return;
+      }
+    }
+    // Lock holder vanished without publishing (or Redis refused NX) — fall
+    // through and perform the upgrade ourselves, but re-read the bare record
+    // first: the pre-lock snapshot above may predate the holder's publish.
+    // If bare is gone, the holder published-then-deleted (or someone called
+    // DELETE): apply onto the hash if it exists, else 404 like a dead link.
+    bare = await redis.get<LegacyRecord>(bareKey(id));
+    if (!bare) {
+      const racedHash = await readHash(id);
+      if (!racedHash) {
+        res.status(404).json({ error: "unknown session" });
+        return;
+      }
+      let fresh = 0;
+      for (const k of Object.keys(changes)) if (!(k in racedHash.state)) fresh += 1;
+      if (Object.keys(racedHash.state).length + fresh > MAX_HASH_FIELDS) {
+        res.status(413).json({ error: "session too large" });
+        return;
+      }
+      const lateMeta: SessionMeta = {
+        v: 2,
+        updatedAt: Date.now(),
+        writerId: clientIp(req),
+        seq: racedHash.meta.seq + 1,
+      };
+      await redis.hset(hashKey(id), { [META_FIELD]: enc(lateMeta), ...encodeAll(changes) });
+      await touchHash(id);
+      res.status(200).json({ updatedAt: lateMeta.updatedAt });
+      return;
+    }
+  }
   const base: Record<string, unknown> = {};
   if ((bare as { v?: unknown }).v === 2) {
     for (const [k, e] of Object.entries(bare.keys ?? {})) base[k] = e.v;
+  }
+  const merged = { ...base, ...changes };
+  if (Object.keys(merged).length > MAX_HASH_FIELDS) {
+    res.status(413).json({ error: "session too large" });
+    return;
   }
   const meta: SessionMeta = {
     v: 2,
@@ -296,8 +479,14 @@ async function handlePatch(req: VercelRequest, res: VercelResponse): Promise<voi
     writerId: clientIp(req),
     seq: Object.keys(base).length + Object.keys(changes).length,
   };
-  await redis.hset(hashKey(id), { [META_FIELD]: enc(meta), ...encodeAll({ ...base, ...changes }) });
+  await redis.hset(hashKey(id), { [META_FIELD]: enc(meta), ...encodeAll(merged) });
   await redis.del(bareKey(id));
+  await touchHash(id);
+  try {
+    await redis.del(lockKey);
+  } catch {
+    // lock auto-expires — upgrade already published
+  }
   res.status(200).json({ updatedAt: meta.updatedAt });
 }
 

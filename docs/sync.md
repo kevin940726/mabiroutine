@@ -26,9 +26,16 @@ into the hash on first PATCH.
 | PATCH | `{ id, changes: {k: v} }` | One HSET of meta + fields (atomic per-field LWW). Never 409s |
 | DELETE | `{ id }` | Drop hash + legacy string (idempotent) |
 
-Rate limits: create 10/hr/IP, everything else 60/min/IP (prod). Dev
+Rate limits: create 10/hr/IP, everything else 60/min/IP (prod, keyed on the
+verified client IP — `x-real-ip`, else the last forwarded entry). Dev
 namespace (`mabiroutine:dev:`): 500/hr + 600/min — the regression gate would
-trip prod budgets, and dev keys are throwaway. Payload cap 200KB.
+trip prod budgets, and dev keys are throwaway. Payload cap 200KB per request;
+keys must use a known prefix (`v:|acc:|hide:|pin:|custom:|char:|meta:|pref:|filter:`,
+128 chars max), string values 500 chars max, objects 8KB max, arrays rejected,
+`__proto__`/`constructor`/`prototype` rejected, 2000 keys per request and 5000
+fields per session (400/413 past that). Sessions expire after 180 days without
+a read/write (sliding TTL on every GET/PATCH/POST) — a leaked link dies on its
+own.
 Namespace by Vercel scope (`SYNC_KEY_PREFIX`): Development + Preview use
 `mabiroutine:dev:`, Production uses the default — preview deployments are
 the staging environment (prod code path, isolated data). Env changes bake
@@ -89,7 +96,13 @@ v13) and rides the wire on every value key.
 - **Adopt** (`?s=` boot, paste field): pristine → silent wholesale adopt;
   other session + non-pristine → confirm dialog (consent for binding *switch*,
   not conflict resolution); same session → pull round. (→ S4)
-- Binding shown in URL (`?s=`, `replaceState`, stripped on cancel).
+- Binding lives in `localStorage` (`mabiroutine:session`); `?s=` is
+  arrival-only transport, never persisted. `index.html` stashes the arrival id
+  and strips `?s=` before the React bundle (and analytics) loads; the dialog's
+  copy field is the share surface. One binding per browser profile — two
+  synced accounts need separate storage partitions (browser vs installed PWA,
+  two browsers, normal vs private window); opening a second link in another
+  tab switches both tabs to it.
 
 ## Findings → decisions
 
@@ -198,6 +211,9 @@ v13) and rides the wire on every value key.
   never GC'd (no parseable bucket) — bounded by the one-time pre-rev-3 dump.
 - Tombstones grow on deletes that are never reused (deleted customs/chars).
   Bounded by user behavior; revisit if a record ever approaches the 200KB cap.
+- Sessions expire after 180 idle days (sliding TTL): a device returning after
+  the expiry sees a dead link (binding dropped with a notice) and must re-link
+  from a live device. Idle sessions never linger server-side.
 - 6-character cap: a merge yielding 7+ slices like load does. Two devices
   both creating at cap is the only trigger; accepted.
 - Repoll-while-visible is the quota driver, not the merge model (below).

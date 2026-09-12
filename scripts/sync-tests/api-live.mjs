@@ -74,7 +74,7 @@ const created = [];
 // 429 here is environmental (10/hr/IP create budget spent by earlier runs),
 // not a product failure — SKIP loudly, retry within the hour.
 {
-  const r = await post({ state: { t: 1 } });
+  const r = await post({ state: { "pin:t": true } });
   if (r.status === 429) {
     console.log("SKIP: api-live create budget spent (10/hr/IP) — retry later");
     process.exitCode = 0;
@@ -85,25 +85,27 @@ const created = [];
   created.push(id);
   ok("create id shape", /^[0-9a-f-]{36}$/.test(id ?? ""));
   const h = await redis.hgetall(`${DEV}${id}:h`);
-  ok("hash has meta+field", !!h && typeof h["~meta"] === "string" && h["~meta"].startsWith("j:") && h.t === "j:1", JSON.stringify(h)?.slice(0, 120));
+  ok("hash has meta+field", !!h && typeof h["~meta"] === "string" && h["~meta"].startsWith("j:") && h["pin:t"] === "j:true", JSON.stringify(h)?.slice(0, 120));
+  const ttl = await redis.ttl(`${DEV}${id}:h`);
+  ok("hash TTL set (session expiry)", typeof ttl === "number" && ttl > 0, `ttl=${ttl}`);
 }
 // 2. 25 parallel disjoint PATCHes — all must survive (atomicity)
 {
   const id = created[0];
-  const res = await Promise.all(Array.from({ length: 25 }, (_, i) => patch({ id, changes: { [`k${i}`]: i } })));
+  const res = await Promise.all(Array.from({ length: 25 }, (_, i) => patch({ id, changes: { [`pin:k${i}`]: true } })));
   ok("25 parallel patch all 200", res.every((r) => r.status === 200), JSON.stringify(res.map((r) => r.status)));
   const g = await get(id);
   const st = g.json.state ?? {};
-  ok("all 25 keys present", Array.from({ length: 25 }, (_, i) => st[`k${i}`] === i).every(Boolean));
-  ok("earlier key intact", st.t === 1);
+  ok("all 25 keys present", Array.from({ length: 25 }, (_, i) => st[`pin:k${i}`] === true).every(Boolean));
+  ok("earlier key intact", st["pin:t"] === true);
 }
 // 3. 10 parallel same-key PATCHes — exactly one wins, no error
 {
   const id = created[0];
-  const res = await Promise.all(Array.from({ length: 10 }, (_, i) => patch({ id, changes: { race: i } })));
+  const res = await Promise.all(Array.from({ length: 10 }, (_, i) => patch({ id, changes: { "pin:race": i } })));
   ok("same-key parallel all 200", res.every((r) => r.status === 200));
   const g = await get(id);
-  const v = g.json.state?.race;
+  const v = g.json.state?.["pin:race"];
   ok("same-key LWW single value", Number.isInteger(v) && v >= 0 && v < 10, `race=${v}`);
 }
 // 4. cache headers + failure paths
@@ -115,7 +117,17 @@ const created = [];
   ok("unknown id 404", bad.status === 404, bad.status);
   const rsv = await patch({ id, changes: { "~meta": 1 } });
   ok("reserved key 400", rsv.status === 400, rsv.status);
-  const big = await patch({ id, changes: { big: "x".repeat(210 * 1024) } });
+  const badPrefix = await patch({ id, changes: { "evil:1": 1 } });
+  ok("unknown prefix 400", badPrefix.status === 400, badPrefix.status);
+  const proto = await patch({ id, changes: JSON.parse('{"__proto__":1}') });
+  ok("proto key 400", proto.status === 400, proto.status);
+  const arr = await patch({ id, changes: { "pin:x": [1] } });
+  ok("array value 400", arr.status === 400, arr.status);
+  const longStr = await patch({ id, changes: { "char:c1:name": "x".repeat(501) } });
+  ok("oversize string 400", longStr.status === 400, longStr.status);
+  const huge = {};
+  for (let i = 0; i < 30; i += 1) huge[`custom:b${i}`] = { id: `b${i}`, name: "n", pad: "y".repeat(7000) };
+  const big = await patch({ id, changes: huge });
   ok("oversize 413", big.status === 413, big.status);
   const badm = await fetch(BASE, { method: "PUT" }).then((r) => r.status);
   ok("bad method 405", badm === 405, badm);
@@ -127,10 +139,10 @@ const created = [];
   created.push(id);
   const g0 = await get(id);
   ok("v2 string served", g0.status === 200 && g0.json.state?.old === 1, JSON.stringify(g0.json)?.slice(0, 120));
-  const p = await patch({ id, changes: { fresh: 2 } });
+  const p = await patch({ id, changes: { "pin:fresh": true } });
   ok("upgrade patch 200", p.status === 200, p.status);
   const g1 = await get(id);
-  ok("upgraded union", g1.json.state?.old === 1 && g1.json.state?.fresh === 2, JSON.stringify(g1.json.state));
+  ok("upgraded union", g1.json.state?.old === 1 && g1.json.state?.["pin:fresh"] === true, JSON.stringify(g1.json.state));
   const bare = await redis.get(`${DEV}${id}`);
   ok("bare string removed", bare === null, JSON.stringify(bare)?.slice(0, 80));
 }
@@ -141,10 +153,10 @@ const created = [];
   created.push(id);
   const g0 = await get(id);
   ok("v1 legacy marker", g0.status === 200 && g0.json.legacy !== undefined, JSON.stringify(g0.json)?.slice(0, 120));
-  const p = await patch({ id, changes: { full: 1 } });
+  const p = await patch({ id, changes: { "pin:full": true } });
   ok("v1 upgrade patch 200", p.status === 200, p.status);
   const g1 = await get(id);
-  ok("v1 upgraded to flat", g1.json.state?.full === 1 && g1.json.legacy === undefined, JSON.stringify(g1.json.state));
+  ok("v1 upgraded to flat", g1.json.state?.["pin:full"] === true && g1.json.legacy === undefined, JSON.stringify(g1.json.state));
 }
 // 7. delete + post-delete 404; cleanup
 {

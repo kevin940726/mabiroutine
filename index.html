@@ -55,6 +55,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MabiRoutine" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
     <link rel="canonical" href="https://mabiroutine.vercel.app/" />
     <meta name="description" content="瑪奇 Mobile 每日任務、每週任務與以物易物進度追蹤器" />
     <meta property="og:url" content="https://mabiroutine.vercel.app/" />
@@ -184,6 +185,26 @@
                 .then(function (r) { return r.ok ? r.json() : null; })
                 .catch(function () { return null; }),
             };
+          }
+          // Bearer-in-URL hygiene: ?s= is arrival transport only. Stash the
+          // arrival id where the app can consume it, then strip it BEFORE
+          // the React bundle (and <Analytics/>) loads — no pageview,
+          // history entry, or log ever retains a live session id.
+          var sm = /[?&]s=([0-9a-f-]{36})/i.exec(location.search);
+          var arrival = sm && sm[1];
+          if (
+            arrival &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(arrival)
+          ) {
+            try {
+              sessionStorage.setItem("mabiroutine:pending-session", arrival);
+            } catch (e) {
+              window.__mabiIncoming = arrival;
+            }
+            if (!window.__mabiIncoming) window.__mabiIncoming = arrival;
+            var u = new URL(location.href);
+            u.searchParams.delete("s");
+            history.replaceState(null, "", u.toString());
           }
         } catch (e) { /* private mode / blocked storage — normal boot covers */ }
       })();

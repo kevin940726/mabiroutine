@@ -106,8 +106,55 @@ export function syncUrl(id: string): string {
   return `${window.location.origin}${window.location.pathname}?s=${id}`;
 }
 
+// Arrival ids (URL or early-stripped stash) — any UUID shape; the server
+// enforces v4 and answers 404 otherwise, so the client never needs to be
+// stricter than "looks like an id".
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(v: string): boolean {
+  return UUID_RE.test(v);
+}
+
+// Stash for the ?s= arrival id stripped by index.html before React loads.
+const PENDING_KEY = "mabiroutine:pending-session";
+
 export function sessionIdFromUrl(): string | null {
-  return new URLSearchParams(window.location.search).get("s");
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get("s");
+    if (fromUrl && isUuid(fromUrl)) return fromUrl;
+    // Early-stripped arrival: index.html stashes ?s= and strips it before
+    // React/Analytics load, so pageviews never carry a live session id.
+    let pending: unknown = null;
+    try {
+      pending = sessionStorage.getItem(PENDING_KEY);
+    } catch {
+      pending = null;
+    }
+    if (typeof pending !== "string") {
+      pending =
+        typeof window !== "undefined"
+          ? (window as unknown as { __mabiIncoming?: unknown }).__mabiIncoming ?? null
+          : null;
+    }
+    if (typeof pending === "string" && isUuid(pending)) return pending;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export function clearPendingSession(): void {
+  try {
+    sessionStorage.removeItem(PENDING_KEY);
+  } catch {
+    // blocked storage — memory fallback below still clears
+  }
+  try {
+    if (typeof window !== "undefined") {
+      delete (window as unknown as { __mabiIncoming?: unknown }).__mabiIncoming;
+    }
+  } catch {
+    // ignore
+  }
 }
 
 // Parse a pasted sync link (or bare id) — the manual path for buckets a ?s=
@@ -133,14 +180,6 @@ export function sessionIdFromText(text: string): string | null {
 export function stripSessionParam(): void {
   const url = new URL(window.location.href);
   url.searchParams.delete("s");
-  window.history.replaceState(null, "", url.toString());
-}
-
-// Reflect the binding in the address bar (no history entry — replaceState).
-// The URL is then shareable as-is; arrival via ?s= was already kept.
-export function setSessionParam(id: string): void {
-  const url = new URL(window.location.href);
-  url.searchParams.set("s", id);
   window.history.replaceState(null, "", url.toString());
 }
 
@@ -246,7 +285,10 @@ export async function requestImport(
           return "failed";
         }
         saveSession({ id, updatedAt: remote.updatedAt });
-        setSessionParam(id);
+        // Bearer-in-URL hygiene: the binding lives in localStorage, the URL
+        // is only arrival transport — strip it so history/logs/analytics
+        // never retain a live session id.
+        stripSessionParam();
         toast("已同步到此裝置");
         return "adopted";
       }
@@ -263,9 +305,11 @@ export async function requestImport(
       typeof remote.state === "object" &&
       JSON.stringify(remote.state) === JSON.stringify(flattenSnapshot(buildSnapshot()))
     ) {
+      stripSessionParam();
       return "uptodate";
     }
     requestPull();
+    stripSessionParam();
     return "pulled";
   } catch (e) {
     if (e instanceof SyncNotFound) {

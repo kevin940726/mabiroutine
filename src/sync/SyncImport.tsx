@@ -12,6 +12,7 @@ import {
 import {
   saveSession,
   sessionIdFromUrl,
+  clearPendingSession,
   stripSessionParam,
   requestImport,
   adoptState,
@@ -39,7 +40,11 @@ export function SyncImport() {
     const incoming = sessionIdFromUrl();
     if (!incoming) return;
     void requestImport(incoming).then((status) => {
-      if (status === "notfound") stripSessionParam();
+      // The arrival id is consumed once — never leave it in the URL or the
+      // pending stash for analytics/history to retain. The confirm dialog
+      // already holds its own copy in state.
+      if (status !== "confirm") clearPendingSession();
+      stripSessionParam();
     });
   }, [hasHydrated]);
 
@@ -51,12 +56,20 @@ export function SyncImport() {
     }
     saveSession({ id: importing.id, updatedAt: importing.updatedAt });
     setImporting(null);
-    // keep ?s= : this device is now bound to the shared session.
+    // Binding lives in localStorage — never keep the bearer in the URL.
+    clearPendingSession();
+    stripSessionParam();
     toast("已同步到此裝置");
   }
 
+  function cancel(): void {
+    setImporting(null);
+    clearPendingSession();
+    stripSessionParam();
+  }
+
   return (
-    <Dialog open={importing !== null} onOpenChange={(v) => !v && (setImporting(null), stripSessionParam())}>
+    <Dialog open={importing !== null} onOpenChange={(v) => !v && cancel()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle asChild>
@@ -65,7 +78,7 @@ export function SyncImport() {
           <DialogDescription>此連結的進度將取代本機進度。確定要在這台裝置繼續嗎？</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={() => (setImporting(null), stripSessionParam())}>
+          <Button variant="outline" onClick={cancel}>
             取消
           </Button>
           <Button onClick={adopt}>同步到此裝置</Button>
