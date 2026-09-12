@@ -3,6 +3,13 @@ import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
+import { statsSummary } from './sync/stats.ts'
+
+// Quota telemetry reader (quota §, docs/sync.md): run
+// __mabiSyncStats() in DevTools for per-day request/command estimates.
+if (typeof window !== 'undefined') {
+  (window as unknown as { __mabiSyncStats?: () => string }).__mabiSyncStats = statsSummary;
+}
 
 // Service worker: production only (dev keeps the live shell).
 // Silent-fresh: navigations are NetworkFirst, so the running page is always

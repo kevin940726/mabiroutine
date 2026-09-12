@@ -65,6 +65,7 @@ const post = (body) =>
 const patch = (body) =>
   fetch(BASE, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})) }));
 const get = (id) => fetch(`${BASE}?id=${id}`).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})), headers: r.headers }));
+const meta = (id) => fetch(`${BASE}?id=${id}&meta=1`).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})) }));
 const del = (id) =>
   fetch(BASE, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) }).then(async (r) => r.status);
 const uuid = () => globalThis.crypto.randomUUID();
@@ -131,6 +132,10 @@ const created = [];
   ok("oversize 413", big.status === 413, big.status);
   const badm = await fetch(BASE, { method: "PUT" }).then((r) => r.status);
   ok("bad method 405", badm === 405, badm);
+  const m = await meta(id);
+  ok("meta returns updatedAt only", m.status === 200 && typeof m.json.updatedAt === "number" && m.json.state === undefined && m.json.legacy === undefined, JSON.stringify(m.json)?.slice(0, 80));
+  const tch = await fetch(`${BASE}?id=${id}&touch=1`).then((r) => r.status);
+  ok("touch param 200", tch === 200, tch);
 }
 // 5. legacy v2-string upgrade
 {
@@ -153,6 +158,8 @@ const created = [];
   created.push(id);
   const g0 = await get(id);
   ok("v1 legacy marker", g0.status === 200 && g0.json.legacy !== undefined, JSON.stringify(g0.json)?.slice(0, 120));
+  const m0 = await meta(id);
+  ok("v1 meta legacy flag", m0.status === 200 && m0.json.legacy === true && typeof m0.json.updatedAt === "number", JSON.stringify(m0.json)?.slice(0, 120));
   const p = await patch({ id, changes: { "pin:full": true } });
   ok("v1 upgrade patch 200", p.status === 200, p.status);
   const g1 = await get(id);

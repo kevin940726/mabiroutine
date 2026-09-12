@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import {
   createSession,
   getSession,
+  getSessionMeta,
   patchSession,
   deleteSession,
   SyncNotFound,
@@ -33,6 +34,10 @@ import {
   requestImport,
   stripSessionParam,
   setPullHook,
+  syncAndResets,
+  shouldTouch,
+  markActivity,
+  isIdle,
   scrubBase,
   markFullPush,
   takeFullPush,
@@ -129,7 +134,9 @@ export const SyncButton = memo(function SyncButton() {
     const changes = takeFullPush() ? { ...flat } : diffFlat(base, flat);
     if (Object.keys(changes).length === 0) return {};
     try {
-      const updatedAt = await patchSession(session.id, changes as FlatMap);
+      const updatedAt = await patchSession(session.id, changes as FlatMap, {
+        touch: shouldTouch(session.id),
+      });
       const next = { id: session.id, updatedAt };
       saveSession(next);
       setLinked(next);
@@ -171,14 +178,39 @@ export const SyncButton = memo(function SyncButton() {
     try {
       const pushed = await pushNow();
       if (pushed === null) return;
+      // Freshness probe first (quota §) — but ONLY when the flush sent
+      // nothing: our binding timestamp is a last-write mark, not an
+      // adopt high-water mark, so after pushing we must full-GET to adopt
+      // peer keys our write didn't carry (skipping here would starve
+      // adoption forever — every round would see only its own timestamp).
+      // Clean polls are the quota driver, so this keeps nearly all of the
+      // win. knownTs reads localStorage — pushNow saves synchronously while
+      // the ref lags a render. At the 6-char cap the probe is bypassed too:
+      // cap-slice base-scrubbing needs the full body, and a skipped pull
+      // followed by a push could tombstone a sliced char.
+      const pushedClean = Object.keys(pushed).length === 0;
+      const atCap = buildSnapshot().characters.length >= 6;
+      if (pushedClean && !atCap) {
+        const knownTs = loadSession()?.updatedAt ?? session.updatedAt;
+        try {
+          const meta = await getSessionMeta(session.id);
+          if (!meta.legacy && meta.updatedAt <= knownTs) return;
+        } catch (e) {
+          if (e instanceof SyncNotFound) {
+            dropDeadLink();
+            return;
+          }
+          return; // network/rate-limit noise — the next tick retries
+        }
+      }
       const before = JSON.stringify(flattenSnapshot(buildSnapshot()));
-      let remote = await getSession(session.id);
+      let remote = await getSession(session.id, { touch: shouldTouch(session.id) });
       if (remote.legacy !== undefined) {
         markFullPush();
         const full = await pushNow();
         if (full === null) return;
         Object.assign(pushed, full);
-        remote = await getSession(session.id);
+        remote = await getSession(session.id, { touch: shouldTouch(session.id) });
       }
       if (!remote.state || typeof remote.state !== "object" || Array.isArray(remote.state)) return;
       if (JSON.stringify(flattenSnapshot(buildSnapshot())) !== before) return;
@@ -240,8 +272,20 @@ export const SyncButton = memo(function SyncButton() {
       if (pushTimer.current) clearTimeout(pushTimer.current);
       pushTimer.current = setTimeout(() => void pushNow(), 3000);
     };
+    // Idle→active crossing runs the full pull-then-reset round (not just a
+    // pull) so a return across 06:00/Monday prunes after adopting — same
+    // ordering as the repoll. Throttled/serialized downstream, so a click
+    // storm degrades to one round.
+    const onActivity = () => {
+      const wasIdle = isIdle();
+      markActivity();
+      if (wasIdle && linkedRef.current && document.visibilityState === "visible") {
+        void syncAndResets();
+      }
+    };
     // Hide flushes unsynced changes; show pulls newer remote state.
     const onVis = () => {
+      markActivity();
       if (document.visibilityState === "hidden") {
         if (pushTimer.current) clearTimeout(pushTimer.current);
         void pushNow();
@@ -251,20 +295,32 @@ export const SyncButton = memo(function SyncButton() {
     };
     // Focus without a visibility flip (side-by-side windows, app switch):
     // same throttled pull.
-    const onFocus = () => void pullNow();
+    const onFocus = () => {
+      markActivity();
+      void pullNow();
+    };
     const unsub = useAppStore.subscribe(() => schedule());
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("focus", onFocus);
+    window.addEventListener("pointerdown", onActivity, { passive: true });
+    window.addEventListener("keydown", onActivity);
+    window.addEventListener("wheel", onActivity, { passive: true });
+    window.addEventListener("touchstart", onActivity, { passive: true });
     // Foreground re-pull: an app left open never flips visibility/focus, so
-    // two active sessions could diverge silently. 60s cadence ≈ 1.5K reads
-    // per user/day — noise against the ops budget. Throttle dedupes overlap
-    // with visible/focus pulls.
+    // two active sessions could diverge silently. 5min cadence while the user
+    // was recently active (idle-pause: 15min without input stops the timer —
+    // hidden/background tabs already cost nothing, this covers the visible-
+    // but-untouched second-monitor case). Runs the full pull-then-reset round
+    // so a tab open across 06:00/Monday still prunes after adopting. This is
+    // the ONLY periodic timer (App owns wake ordering, never a second
+    // interval — two timers double every poll).
     const repoll = setInterval(() => {
-      if (document.visibilityState === "visible") void pullNow();
-    }, 60_000);
+      if (document.visibilityState === "visible" && !isIdle()) void syncAndResets();
+    }, 300_000);
     // Mount pull: this device's storage may predate another device's push.
     // (The hook below joins this run when still in flight, else re-pulls
     // forced — either way boot checkResets sees fresh remote.)
+    markActivity();
     void pullNow();
     setPullHook(() => pullNow(true));
     return () => {
@@ -273,6 +329,10 @@ export const SyncButton = memo(function SyncButton() {
       setPullHook(null);
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pointerdown", onActivity);
+      window.removeEventListener("keydown", onActivity);
+      window.removeEventListener("wheel", onActivity);
+      window.removeEventListener("touchstart", onActivity);
       if (pushTimer.current) clearTimeout(pushTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

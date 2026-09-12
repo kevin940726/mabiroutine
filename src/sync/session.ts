@@ -142,8 +142,7 @@ export function sessionIdFromUrl(): string | null {
   return null;
 }
 
-export function clearPendingSession(): void {
-  try {
+export function clearPendingSession(): void {  try {
     sessionStorage.removeItem(PENDING_KEY);
   } catch {
     // blocked storage — memory fallback below still clears
@@ -181,6 +180,48 @@ export function stripSessionParam(): void {
   const url = new URL(window.location.href);
   url.searchParams.delete("s");
   window.history.replaceState(null, "", url.toString());
+}
+
+// Daily TTL-renewal beacon (quota §): the server refreshes the 180-day
+// sliding TTL only when the client sends touch=1. Returns true at most
+// once/day per session, so routine pulls/pushes stop paying an EXPIRE per
+// request while active sessions still renew with huge margin.
+const TOUCH_KEY = "mabiroutine:touch";
+
+export function shouldTouch(sessionId: string): boolean {
+  try {
+    const raw = localStorage.getItem(TOUCH_KEY);
+    if (raw) {
+      const doc = JSON.parse(raw) as { id?: unknown; at?: unknown };
+      if (doc.id === sessionId && typeof doc.at === "number" && Date.now() - doc.at < 24 * 3600 * 1000) {
+        return false;
+      }
+    }
+    localStorage.setItem(TOUCH_KEY, JSON.stringify({ id: sessionId, at: Date.now() }));
+    return true;
+  } catch {
+    return true; // blocked storage — touch every time, correctness first
+  }
+}
+
+// Attention tracking for the idle-pause (quota §): the 5min repoll only fires
+// while the user was recently active. Input, focus, and visibility all count
+// as attention; the value is a timestamp so tests can drive it with fake
+// clocks. Initialized at module load (load = attention).
+export const IDLE_MS = 15 * 60 * 1000;
+
+let lastActivityAt = Date.now();
+
+export function markActivity(at: number = Date.now()): void {
+  lastActivityAt = at;
+}
+
+export function lastActivity(): number {
+  return lastActivityAt;
+}
+
+export function isIdle(now: number = Date.now()): boolean {
+  return now - lastActivityAt >= IDLE_MS;
 }
 
 export async function copyText(text: string): Promise<boolean> {

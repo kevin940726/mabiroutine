@@ -47,6 +47,9 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 //
 // POST   /api/session  { state: flat map }       -> { id, updatedAt }
 // GET    /api/session?id=...                     -> { state: flat map, updatedAt } | 404
+//   ?meta=1  -> { updatedAt } (+ legacy:true for pre-hash records); never
+//               touches the TTL — polls use it to skip unchanged full GETs.
+//   ?touch=1 -> refresh the 180-day sliding TTL (PATCH takes { touch: 1 }).
 // PATCH  /api/session  { id, changes: {k: v} }   -> { updatedAt } | 404
 // DELETE /api/session  { id }                    -> 200 (idempotent)
 //
@@ -95,6 +98,22 @@ async function touchHash(id: string): Promise<void> {
   } catch {
     // best-effort renewal — the next access retries
   }
+}
+
+async function readMeta(id: string): Promise<SessionMeta | null> {
+  const raw = (await redis.hget(hashKey(id), META_FIELD)) as unknown;
+  if (typeof raw !== "string") return null;
+  const meta = dec(raw) as SessionMeta | undefined;
+  if (!meta || typeof meta !== "object" || meta.v !== 2) return null;
+  return meta;
+}
+
+// TTL-renewal beacon: GET/PATCH refresh the 180-day sliding TTL only
+// when the client asks (?touch=1 / {touch: 1}, sent at most once/day per
+// session) — routine polls stop paying an EXPIRE per request. POST (session
+// mint, rare) always stamps.
+function wantsTouch(value: unknown): boolean {
+  return value === 1 || value === "1" || value === true;
 }
 
 async function touchBare(id: string): Promise<void> {
@@ -214,7 +233,7 @@ function validId(id: unknown): id is string {
   );
 }
 
-function bodyOf(req: VercelRequest): { id?: unknown; state?: unknown; changes?: unknown } {
+function bodyOf(req: VercelRequest): { id?: unknown; state?: unknown; changes?: unknown; touch?: unknown } {
   // req.body parses lazily on some platforms: vercel dev throws (ApiError 400)
   // on malformed JSON instead of answering 400, and the uncaught throw kills
   // the dev server. Treat unparseable as absent — validators 400/404 below.
@@ -225,7 +244,7 @@ function bodyOf(req: VercelRequest): { id?: unknown; state?: unknown; changes?: 
     return {};
   }
   if (!b || typeof b !== "object") return {};
-  return b as { id?: unknown; state?: unknown; changes?: unknown };
+  return b as { id?: unknown; state?: unknown; changes?: unknown; touch?: unknown };
 }
 
 const enc = (v: unknown): string => `j:${JSON.stringify(v)}`;
@@ -316,9 +335,27 @@ async function handleGet(req: VercelRequest, res: VercelResponse): Promise<void>
     res.status(404).json({ error: "unknown session" });
     return;
   }
+  // Freshness probe (quota §): ?meta=1 returns only {updatedAt} (+legacy for
+  // pre-hash records) so unchanged polls skip the full HGETALL. Never touches
+  // the TTL — the full GET's daily beacon owns renewal.
+  const metaOnly = req.query.meta === "1" || req.query.meta === "true";
+  if (metaOnly) {
+    const meta = await readMeta(id);
+    if (meta) {
+      res.status(200).json({ updatedAt: meta.updatedAt });
+      return;
+    }
+    const legacyRec = await redis.get<LegacyRecord>(bareKey(id));
+    if (!legacyRec) {
+      res.status(404).json({ error: "unknown session" });
+      return;
+    }
+    res.status(200).json({ updatedAt: legacyRec.updatedAt, legacy: true });
+    return;
+  }
   const h = await readHash(id);
   if (h) {
-    await touchHash(id);
+    if (wantsTouch(req.query.touch)) await touchHash(id);
     res.status(200).json({ state: h.state, updatedAt: h.meta.updatedAt });
     return;
   }
@@ -327,7 +364,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse): Promise<void>
     res.status(404).json({ error: "unknown session" });
     return;
   }
-  await touchBare(id);
+  if (wantsTouch(req.query.touch)) await touchBare(id);
   if ((record as { v?: unknown }).v !== 2) {
     // Pre-flat session (v1 whole-state blob): the client flattens locally and
     // upgrades on its next push. Serve the blob as-is under a marker shape.
@@ -349,7 +386,7 @@ async function handlePatch(req: VercelRequest, res: VercelResponse): Promise<voi
     res.status(429).json({ error: "rate limited" });
     return;
   }
-  const { id, changes } = bodyOf(req);
+  const { id, changes, touch } = bodyOf(req);
   // Never reveal whether an id exists: malformed ids 404 like missing ones.
   if (!validId(id)) {
     res.status(404).json({ error: "unknown session" });
@@ -390,7 +427,7 @@ async function handlePatch(req: VercelRequest, res: VercelResponse): Promise<voi
       seq: h.meta.seq + 1,
     };
     await redis.hset(hashKey(id), { [META_FIELD]: enc(meta), ...encodeAll(changes) });
-    await touchHash(id);
+    if (wantsTouch(touch)) await touchHash(id);
     res.status(200).json({ updatedAt: meta.updatedAt });
     return;
   }
@@ -429,7 +466,7 @@ async function handlePatch(req: VercelRequest, res: VercelResponse): Promise<voi
           seq: raced.meta.seq + 1,
         };
         await redis.hset(hashKey(id), { [META_FIELD]: enc(retryMeta), ...encodeAll(changes) });
-        await touchHash(id);
+        if (wantsTouch(touch)) await touchHash(id);
         res.status(200).json({ updatedAt: retryMeta.updatedAt });
         return;
       }
@@ -459,7 +496,7 @@ async function handlePatch(req: VercelRequest, res: VercelResponse): Promise<voi
         seq: racedHash.meta.seq + 1,
       };
       await redis.hset(hashKey(id), { [META_FIELD]: enc(lateMeta), ...encodeAll(changes) });
-      await touchHash(id);
+      if (wantsTouch(touch)) await touchHash(id);
       res.status(200).json({ updatedAt: lateMeta.updatedAt });
       return;
     }

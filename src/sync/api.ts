@@ -3,6 +3,8 @@
 // sends absolute key-sets (PATCH) and reads flat maps (GET) — the server
 // stamps arrival order, so there are no versions, no clocks, no 409s.
 
+import { bumpStat } from "@/sync/stats";
+
 export class SyncNotFound extends Error {}
 export class SyncTooLarge extends Error {}
 export class SyncRateLimited extends Error {}
@@ -45,11 +47,14 @@ export function takePreloaded(id: string): Promise<RemoteSession | null> | null 
     if (p.id !== id) return null;
     if (typeof p.at !== "number" || Date.now() - p.at > PRELOAD_TTL_MS) return null;
     return p.res
-      .then((r) =>
-        r && typeof r === "object" && typeof (r as RemoteSession).updatedAt === "number"
-          ? (r as RemoteSession)
-          : null
-      )
+      .then((r) => {
+        const valid =
+          r && typeof r === "object" && typeof (r as RemoteSession).updatedAt === "number";
+        // The preload fired a real full GET (no touch beacon) — count it so
+        // the quota telemetry matches the dashboard.
+        if (valid) bumpStat("get");
+        return valid ? (r as RemoteSession) : null;
+      })
       .catch(() => null);
   } catch {
     return null;
@@ -58,6 +63,7 @@ export function takePreloaded(id: string): Promise<RemoteSession | null> | null 
 
 export async function createSession(state: FlatMap): Promise<{ id: string; updatedAt: number }> {
   if (offline()) throw new SyncFailed("offline");
+  bumpStat("post"); // attempt-counted: even 4xx/429s cost the rate-limit INCR
   const res = await fetch("/api/session", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -73,7 +79,7 @@ export async function createSession(state: FlatMap): Promise<{ id: string; updat
   throw new SyncFailed(body.error ?? `create failed: ${res.status}`);
 }
 
-export async function getSession(id: string): Promise<RemoteSession> {
+export async function getSession(id: string, opts?: { touch?: boolean }): Promise<RemoteSession> {
   if (offline()) throw new SyncFailed("offline");
   const pre = takePreloaded(id);
   if (pre) {
@@ -82,10 +88,14 @@ export async function getSession(id: string): Promise<RemoteSession> {
     // Preload missed (non-OK / malformed) — fall through to a live GET so
     // error semantics (404 → SyncNotFound etc.) stay exactly as before.
   }
-  const res = await fetch(`/api/session?id=${encodeURIComponent(id)}`, {
-    // See POST: a stale GET adopted by a pull wipes + tombstones live keys.
-    cache: "no-store",
-  });
+  const res = await fetch(
+    `/api/session?id=${encodeURIComponent(id)}${opts?.touch ? "&touch=1" : ""}`,
+    {
+      // See POST: a stale GET adopted by a pull wipes + tombstones live keys.
+      cache: "no-store",
+    }
+  );
+  bumpStat(opts?.touch ? "getTouch" : "get");
   if (res.ok) return (await res.json()) as RemoteSession;
   const body = await readError(res);
   if (res.status === 404) throw new SyncNotFound(body.error ?? "unknown session");
@@ -93,14 +103,39 @@ export async function getSession(id: string): Promise<RemoteSession> {
   throw new SyncFailed(body.error ?? `get failed: ${res.status}`);
 }
 
-export async function patchSession(id: string, changes: FlatMap): Promise<number> {
+// Freshness probe (quota §): returns only { updatedAt } (+ legacy:true for
+// pre-hash records) so unchanged polls skip the full GET. Never touches the
+// server TTL — renewal rides the full GET's daily beacon.
+export type RemoteMeta = { updatedAt: number; legacy?: boolean };
+
+export async function getSessionMeta(id: string): Promise<RemoteMeta> {
+  if (offline()) throw new SyncFailed("offline");
+  const res = await fetch(`/api/session?id=${encodeURIComponent(id)}&meta=1`, {
+    cache: "no-store",
+  });
+  bumpStat("meta");
+  if (res.ok) {
+    const body = (await res.json()) as { updatedAt?: unknown; legacy?: unknown };
+    if (typeof body.updatedAt === "number") {
+      return body.legacy === true ? { updatedAt: body.updatedAt, legacy: true } : { updatedAt: body.updatedAt };
+    }
+    throw new SyncFailed("bad meta response");
+  }
+  const body = await readError(res);
+  if (res.status === 404) throw new SyncNotFound(body.error ?? "unknown session");
+  if (res.status === 429) throw new SyncRateLimited(body.error ?? "rate limited");
+  throw new SyncFailed(body.error ?? `meta failed: ${res.status}`);
+}
+
+export async function patchSession(id: string, changes: FlatMap, opts?: { touch?: boolean }): Promise<number> {
   if (offline()) throw new SyncFailed("offline");
   const res = await fetch("/api/session", {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     cache: "no-store",
-    body: JSON.stringify({ id, changes }),
+    body: JSON.stringify(opts?.touch ? { id, changes, touch: 1 } : { id, changes }),
   });
+  bumpStat(opts?.touch ? "patchTouch" : "patch");
   if (res.ok) return ((await res.json()) as { updatedAt: number }).updatedAt;
   const body = await readError(res);
   if (res.status === 404) throw new SyncNotFound(body.error ?? "unknown session");
@@ -117,6 +152,7 @@ export async function deleteSession(id: string): Promise<void> {
     cache: "no-store",
     body: JSON.stringify({ id }),
   });
+  bumpStat("del");
   if (res.ok || res.status === 404) return;
   const body = await readError(res);
   if (res.status === 429) throw new SyncRateLimited(body.error ?? "rate limited");

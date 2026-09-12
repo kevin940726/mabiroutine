@@ -10,6 +10,8 @@
  *  engine     T3–T6 syncAndResets scenarios (suppression, propagation,
  *             adopt/import stamping, resetAll) — the retention-critical path
  *  prop-reset 300 randomized checkResets key-collection exactness runs
+ *  quota      Q1–Q5 telemetry counting + touch beacon + idle window
+ *             (pins the quota model in docs/sync.md)
  *  tabs       T1 stale-tab tombstones + T2 cap-overflow (vm-realm tabs,
  *             real flat.ts — fails on pre-fix code, see docs/sync.md)
  *  api-live   dev-API concurrency/upgrades/failure paths (needs dev:api)
@@ -84,6 +86,22 @@ function run(file, args = []) {
     logLevel: "error",
   });
   run("scripts/sync-tests/tabs.cjs", [flatBundle, "worktree"]);
+}
+
+// quota (Q1–Q5): bundle worktree stats/session code, run
+{
+  section("quota (telemetry + touch beacon + idle window)");
+  const out = path.join(cache, "quota.mjs");
+  buildSync({
+    entryPoints: ["scripts/sync-tests/quota.entry.ts"],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    outfile: out,
+    alias: { "@": "./src" },
+    logLevel: "error",
+  });
+  run(out);
 }
 
 // live suites (skip-loud when deps absent)

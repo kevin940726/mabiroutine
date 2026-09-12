@@ -72,22 +72,32 @@ v13) and rides the wire on every value key.
   cannot delete anything). Resolves the pushed key-set ({} when clean) or
   null when nothing was sent — callers must not treat remote state as newer
   than unsent local edits. (→ S2)
-- **Pull** (mount, tab-visible, window-focus, 60s foreground repoll, 10s
-  throttle — hook-driven pulls via `syncAndResets` bypass the throttle so
-  reset-after-pull ordering holds on boot; a throttled no-op pull would let
-  `checkResets` prune before the adopt lands and trip the mid-flight guard;
-  mount GET preloaded by an `index.html` inline fetch so the round trip
-  overlaps JS bootstrap — consume-once, id-matched, 60s TTL, live-GET
-  fallback; concurrent pulls join one in-flight run):
+- **Pull** (mount, tab-visible, window-focus, 5min foreground repoll — the
+  single periodic timer, owned here; App owns wake ordering only — two timers
+  would double every poll; 10s throttle — hook-driven pulls via `syncAndResets`
+  bypass the throttle so reset-after-pull ordering holds on boot; a throttled
+  no-op pull would let `checkResets` prune before the adopt lands and trip
+  the mid-flight guard; mount GET preloaded by an `index.html` inline fetch
+  so the round trip overlaps JS bootstrap — consume-once, id-matched, 60s
+  TTL, live-GET fallback; concurrent pulls join one in-flight run):
   flush first (arrival = order, so local edits land before adopting
-  remote), abort if still dirty, GET, abort if edited mid-flight, fold the
-  acknowledged push over the GET result (a lagged/cached read must never
-  resurrect a pre-push absence — this also covers the preloaded pre-flush
-  read), apply wholesale via `unflattenMerge`
+  remote), abort if still dirty, then a freshness probe (`GET ?meta=1`,
+  timestamp-only) when the flush sent nothing — unchanged polls skip the full
+  GET entirely (the binding timestamp is a last-write mark, not an adopt
+  high-water mark, so post-push rounds always full-GET or adoption starves;
+  6-char-cap rounds always full-GET so cap-slice scrubbing never lags a push),
+  abort if edited mid-flight, fold the acknowledged push over the GET result
+  (a lagged/cached read must never resurrect a pre-push absence — this also
+  covers the preloaded pre-flush read), apply wholesale via `unflattenMerge`
   (current-bucket values only, **local ordering**), GC expired cycle keys
-  (tombstone once past the 60-day retention), save base. Offline (boot
-  included): `offline()` throws before any fetch, the round fails silent and
-  local state stands — resume on next foreground / 60s repoll. (→ S1, S3, S5)
+  (tombstone once past the 60-day retention), save base. TTL renewal rides a
+  daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
+  routine polls skip the EXPIRE. The 5min repoll pauses after 15min without
+  input (pointer/key/wheel/touch, focus, visibility all count as attention);
+  the idle→active crossing runs the full pull-then-reset round so a return
+  across 06:00/Monday prunes after adopting. Offline (boot included):
+  `offline()` throws before any fetch, the round fails silent and local state
+  stands — resume on next foreground / activity. (→ S1, S3, S5)
 - **Reset** (`syncAndResets`: pull → `checkResets`): the pull-first order is
   UX only (a late wake adopts the peer's current-bucket values before its own
   stale ones are pruned). The prune is memory-only; there is nothing to
@@ -228,17 +238,24 @@ v13) and rides the wire on every value key.
 
 ## Quota budget (Upstash free: 500K cmds/mo)
 
-Merge model adds zero commands vs 409 era (same round trips; smaller push
-payloads). Per round ≈ INCR + HGETALL/HSET (same count as the blob's
-INCR + GET/SET).
+Per request ≈ rate-limit INCR + work (HGETALL/HSET) + TTL EXPIRE only on the
+daily touch beacon. Pushes cost 0 when clean (diff short-circuits); pulls
+cost 2 cmds when unchanged (`INCR` + `HGET ~meta` probe) and a full round
+only on change. Single 5min timer — no second interval anywhere (a duplicate
+would double every poll).
 
 | Profile | Cost | Headroom |
 |---|---|---|
-| Normal (~30 pulls + ~30 pushes/day) | ~6K/mo | ~80 such users |
-| Always-open tab (60s repoll) | ~135K/mo | ~3 such users |
+| Normal (~30 pulls + ~30 pushes/day) | ~5K/mo | ~100 such users |
+| Always-open idle tab (5min meta polls) | ~17K/mo | ~29 such users |
 
-First knobs if pinched: repoll 60s → 5min (5×), or `updatedAt`-only check
-before full GETs. Not needed now.
+Dev/test shares the same database quota as prod (namespaces differ, the
+command budget doesn't) — run live suites pre-release or on sync-touching
+branches only; hermetic suites are the everyday gate. Per-device telemetry
+(`localStorage mabiroutine:syncstats`, `__mabiSyncStats()` in DevTools,
+Q1–Q5 gate) validates the model against the dashboard. Watch the Upstash
+dashboard past 400K; next knobs if pinched: adaptive backoff (60s when
+active, 15min when idle), separate dev database (own free quota).
 
 ## Verified (rig, two isolated profiles, real clicks)
 

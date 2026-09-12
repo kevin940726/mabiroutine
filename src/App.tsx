@@ -7,7 +7,7 @@ import { CharacterTabs } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
-import { syncAndResets } from "@/sync/session";
+import { syncAndResets, markActivity } from "@/sync/session";
 import { InstallButton } from "@/components/InstallButton";
 import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
 import { PillProgress } from "@/components/PillProgress";
@@ -80,22 +80,25 @@ export default function App() {
     };
   }, []);
 
-  // periodic reset check — always pull-first (syncAndResets): the reset's
+  // Boot + focus entry points — always pull-first (syncAndResets): the reset's
   // tombstone decision needs fresh peer markers, or a late-waking device
   // nukes the peer's same-bucket progress. Boot included (the store no
   // longer self-checks on hydrate, for the same reason).
+  // The periodic cadence lives in SyncButton (single 5min loop, quota §):
+  // this effect owns ordering on wake only, never the timer — two timers
+  // would double every poll's commands.
   useEffect(() => {
     if (!hasHydrated) return;
     void syncAndResets();
-    const id = setInterval(() => void syncAndResets(), 60_000);
-    // also on focus
-    const onFocus = () => void syncAndResets();
+    // also on focus (visible wakes adopt-then-prune; hidden tabs stay quiet —
+    // SyncButton owns the hidden-tab push flush)
+    const onFocus = () => {
+      markActivity();
+      void syncAndResets();
+    };
     window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
     return () => {
-      clearInterval(id);
       window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
     };
   }, [hasHydrated]);
 
