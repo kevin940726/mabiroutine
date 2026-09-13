@@ -10,6 +10,10 @@
 //
 // Credentials: UPSTASH_REDIS_REST_URL/TOKEN (or KV_REST_API_URL/TOKEN) and
 // TURSO_DATABASE_URL/TURSO_AUTH_TOKEN, from the environment or .env.local.
+//
+// Run BEFORE cutover, while prod still writes Redis. It is one-shot: a later
+// --apply against a database that already has newer writes would revert those
+// sessions to the older Redis snapshot.
 import fs from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { Redis } from "@upstash/redis";
@@ -119,57 +123,69 @@ function expiresAtFromTtl(ttl) {
 }
 
 // --- scan -------------------------------------------------------------------
+// Collect first: a session can have BOTH a `:h` hash and an orphaned bare
+// record (a past upgrade whose `del(bareKey)` failed). Importing the bare blob
+// last would overwrite the newer hash, so bare keys whose hash exists are
+// skipped. `:upgrading` lock keys are not sessions.
+const keys = [];
 let cursor = "0";
+do {
+  const res = await redis.scan(cursor, { match: `${sessionPrefix}*`, count: 200 });
+  cursor = String(res[0]);
+  keys.push(...res[1]);
+} while (cursor !== "0");
+const hashIds = new Set(keys.filter((k) => k.endsWith(":h")).map((k) => k.slice(sessionPrefix.length, -2)));
+
 let hashes = 0;
 let legacies = 0;
 let kvRows = 0;
 const skipped = [];
-do {
-  const res = await redis.scan(cursor, { match: `${sessionPrefix}*`, count: 200 });
-  cursor = String(res[0]);
-  const keys = res[1];
-  for (const key of keys) {
-    const ttl = await redis.ttl(key);
-    if (ttl === -2) continue; // vanished between scan and read
-    if (key.endsWith(":h")) {
-      const id = key.slice(sessionPrefix.length, -2);
-      const h = await redis.hgetall(key);
-      if (!h || typeof h["~meta"] !== "string") {
-        skipped.push(key);
-        continue;
-      }
-      const meta = decodeMeta(h["~meta"]);
-      const fields = Object.entries(h).filter(([k]) => k !== "~meta");
-      hashes += 1;
-      kvRows += fields.length;
-      if (apply) {
-        await targetDb.exec(SESSION_UPSERT, [
-          id,
-          meta?.updatedAt ?? Date.now(),
-          meta?.seq ?? fields.length,
-          expiresAtFromTtl(ttl),
-          fields.length,
-          h["~meta"],
-          null,
-        ]);
-        for (const [k, v] of fields) await targetDb.exec(KV_UPSERT, [id, k, typeof v === "string" ? v : JSON.stringify(v)]);
-      }
-    } else {
-      const id = key.slice(sessionPrefix.length);
-      const rec = await redis.get(key);
-      if (rec == null) {
-        skipped.push(key);
-        continue;
-      }
-      legacies += 1;
-      if (apply) {
-        const raw = typeof rec === "string" ? rec : JSON.stringify(rec);
-        const updatedAt = typeof rec === "object" && rec !== null && "updatedAt" in rec ? Number(rec.updatedAt) : Date.now();
-        await targetDb.exec(SESSION_UPSERT, [id, updatedAt, 0, expiresAtFromTtl(ttl), 0, null, raw]);
-      }
+for (const key of keys) {
+  if (key.endsWith(":upgrading")) continue;
+  const ttl = await redis.ttl(key);
+  if (ttl === -2) continue; // vanished between scan and read
+  if (key.endsWith(":h")) {
+    const id = key.slice(sessionPrefix.length, -2);
+    const h = await redis.hgetall(key);
+    if (!h || typeof h["~meta"] !== "string") {
+      skipped.push(key);
+      continue;
+    }
+    const meta = decodeMeta(h["~meta"]);
+    const fields = Object.entries(h).filter(([k]) => k !== "~meta");
+    hashes += 1;
+    kvRows += fields.length;
+    if (apply) {
+      await targetDb.exec(SESSION_UPSERT, [
+        id,
+        meta?.updatedAt ?? Date.now(),
+        meta?.seq ?? fields.length,
+        expiresAtFromTtl(ttl),
+        fields.length,
+        h["~meta"],
+        null,
+      ]);
+      for (const [k, v] of fields) await targetDb.exec(KV_UPSERT, [id, k, typeof v === "string" ? v : JSON.stringify(v)]);
+    }
+  } else {
+    const id = key.slice(sessionPrefix.length);
+    if (hashIds.has(id)) {
+      skipped.push(key); // orphaned bare record; the hash wins
+      continue;
+    }
+    const rec = await redis.get(key);
+    if (rec == null) {
+      skipped.push(key);
+      continue;
+    }
+    legacies += 1;
+    if (apply) {
+      const raw = typeof rec === "string" ? rec : JSON.stringify(rec);
+      const updatedAt = typeof rec === "object" && rec !== null && "updatedAt" in rec ? Number(rec.updatedAt) : Date.now();
+      await targetDb.exec(SESSION_UPSERT, [id, updatedAt, 0, expiresAtFromTtl(ttl), 0, null, raw]);
     }
   }
-} while (cursor !== "0");
+}
 
 console.log(`namespace   ${prefix}`);
 console.log(`target      ${targetDb.name}`);

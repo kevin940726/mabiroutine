@@ -1,6 +1,8 @@
 # SQL migration — Upstash Redis -> SQLite (Turso) — plan & ledger
 
-Status: **planning** (no code yet). Owner: maintainer. Supersedes the Redis
+Status: **implemented on `spike/sqlite-backend-p1`**, pending production cutover
+(P4 export + 7-day fallback window, P5 preview smoke, P6 write-cap alert).
+Owner: maintainer. Supersedes the Redis
 storage layer in `api/session.ts` only; the client protocol (`docs/sync.md`) is
 unchanged.
 

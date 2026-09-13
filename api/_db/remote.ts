@@ -141,8 +141,8 @@ class RemoteDb implements Db {
     for (const k of deletes) stmts.push({ sql: "DELETE FROM kv WHERE session_id = ? AND key = ?", args: [id, k] });
     for (const k of upsertKeys) stmts.push({ sql: UPSERT, args: [id, k, upserts[k]] });
     stmts.push({
-      sql: "UPDATE sessions SET meta = ?, seq = seq + 1, updated_at = ?, field_count = ? WHERE id = ?",
-      args: [metaRaw, now, fieldCount + fresh - removed, id],
+      sql: "UPDATE sessions SET meta = ?, seq = seq + 1, updated_at = ?, field_count = field_count + ? WHERE id = ?",
+      args: [metaRaw, now, fresh - removed, id],
     });
     await this.client.batch(stmts, "write");
     return { ok: true, seq: seq + 1 };
@@ -171,20 +171,19 @@ class RemoteDb implements Db {
       for (const k of deletes) delete merged[k];
       for (const k of Object.keys(upserts)) merged[k] = upserts[k];
       if (Object.keys(merged).length > maxFields) return { ok: false, reason: "too_large" };
-      // Claim the upgrade atomically; the loser falls through to a patch.
-      const claim = await this.client.execute({
-        sql: "UPDATE sessions SET legacy = NULL, meta = ?, seq = seq + 1, updated_at = ?, field_count = ? WHERE id = ? AND legacy IS NOT NULL",
-        args: [metaRaw, now, Object.keys(merged).length, id],
-      });
-      if (claim.rowsAffected === 1) {
-        const stmts: InStatement[] = [{ sql: "DELETE FROM kv WHERE session_id = ?", args: [id] }];
-        for (const [k, v] of Object.entries(merged)) stmts.push({ sql: UPSERT, args: [id, k, v] });
-        await this.client.batch(stmts, "write");
-        return { ok: true, seq: seq + 1 };
-      }
-      const cur = await this.client.execute({ sql: "SELECT field_count FROM sessions WHERE id = ?", args: [id] });
-      const fc = cur.rows[0] ? Number((cur.rows[0] as Row).field_count) : 0;
-      return this.patchHash(id, upserts, deletes, metaRaw, now, maxFields, fc, seq);
+      // One transaction clears the legacy marker AND writes the merged fields,
+      // so a failure leaves the record exactly as it was (legacy still set,
+      // still served) rather than cleared with no data. No DELETE: if another
+      // device wins the upgrade concurrently, its kv rows must survive.
+      const stmts: InStatement[] = [
+        {
+          sql: "UPDATE sessions SET legacy = NULL, meta = ?, seq = seq + 1, updated_at = ?, field_count = ? WHERE id = ? AND legacy IS NOT NULL",
+          args: [metaRaw, now, Object.keys(merged).length, id],
+        },
+      ];
+      for (const [k, v] of Object.entries(merged)) stmts.push({ sql: UPSERT, args: [id, k, v] });
+      await this.client.batch(stmts, "write");
+      return { ok: true, seq: seq + 1 };
     }
 
     return this.patchHash(id, upserts, deletes, metaRaw, now, maxFields, Number(row.field_count), seq);
