@@ -392,8 +392,9 @@ once there are real users.
       `pnpm dev:api` uses `file:./dev.db` regardless of the Turso env. Preview
       and Production intentionally share one Turso database (solo maintainer,
       no other users); see the Environments section for the accepted trade-offs.
-- [ ] Preview deploy green: `SYNC_TEST_BASE=https://<preview>.vercel.app
-      pnpm test:sync`.
+- [x] Preview deploy green: full `pnpm test:sync` against the branch preview
+      (`SYNC_TEST_BASE` + `SYNC_TEST_BYPASS`) passed — api-live on the SQL
+      backend and `browser-e2e.mjs` E1/E2.
 
 ### P6 — observability, docs, release
 

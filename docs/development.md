@@ -128,9 +128,12 @@ Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
     always run. `pnpm test:sync --skip-live` for offline.
   - `SYNC_TEST_BASE` points the live suites at another base (default local
     `:52608`): `SYNC_TEST_BASE=https://<preview>.vercel.app pnpm test:sync`
-    verifies the deployed build. Preview and Production currently share one
-    Turso database, so a preview run touches production rows (solo-maintainer
-    trade-off; see `docs/sql-migration.md` Environments).
+    verifies the deployed build. Protected previews also need
+    `SYNC_TEST_BYPASS=<automation secret>` (Vercel Deployment Protection
+    bypass): the API suites send it as a header, the browser E2E loads the page
+    with it plus `x-vercel-set-bypass-cookie=true`. Preview and Production
+    currently share one Turso database, so a preview run touches production rows
+    (solo-maintainer trade-off; see `docs/sql-migration.md` Environments).
   - Sabotage standard: disabling suppression must fail T3 (verified — the
     sabotaged run emits the exact production wipe payload). A sync change
     whose suite still passes while broken is a suite bug; fix the suite.
