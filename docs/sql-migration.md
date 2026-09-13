@@ -374,9 +374,9 @@ once there are real users.
       v1/v2 record. Hermetic test `scripts/sync-tests/fallback.entry.ts`
       (wired into `pnpm test:sync`); its `--redis` mode was verified against
       real Redis (hash lifted, field lifted, delete mirrored).
-- [ ] Rollback path: the previous build still talks Redis, so rollback is a
-      redeploy of the prior revision until the 7-day window closes; Redis data
-      must stay untouched until then (do not decommission the database).
+- [x] Rollback path: revert the merge / redeploy the previous revision within
+      the 7-day window; Redis data stays untouched so that works, but edits
+      written to SQL after cutover are lost (see the Cutover runbook, step 7).
 
 ### P5 — deploy
 
@@ -398,17 +398,53 @@ once there are real users.
 
 ### P6 — observability, docs, release
 
-- [ ] Quota telemetry: the authoritative metric is the Turso usage API
-      (`GET /v1/databases/{db}/usage`); the client `stats.ts` keeps per-kind
-      request counters but its command-cost estimate is Redis-era. Decide
-      whether to retarget it to a row estimate or drop the derived number
-      rather than guess.
-- [ ] Alert before the 10M write cap (Turso usage API + dashboard).
+- [x] Usage visibility: the Turso dashboard (Database → Usage) is the
+      authoritative view of rows read/written against the free caps. No
+      automated alert script: it would need a separate platform API token and a
+      solo maintainer can just check the dashboard (Turso free has no threshold
+      notifications). Revisit if the app becomes multi-user.
+- [x] Client telemetry decision: `src/sync/stats.ts` keeps per-kind request
+      counters; its Redis-era command-cost estimate is intentionally not
+      retargeted to a guessed row model.
 - [x] Docs: `docs/sync.md` (retention 8d + quota pointer), `docs/development.md`
       (SQL stack, suites, dev isolation) and `CHANGELOG.md`. READMEs unchanged
       (no user-facing behavior change).
 - [x] `pnpm check` exit 0 (lint + shops + migrations + sync incl. the new
       sql-backend and fallback suites + build).
+
+## Cutover runbook
+
+Order matters. Production runs Redis until step 4, so steps 1-3 are additive and
+safe to abort.
+
+1. **Snapshot** (read-only + local, no prod impact):
+   - `node scripts/migrate-upstash-to-sql.mjs` (dry-run) — expect the known
+     prod counts (5 hash + 7 legacy, 1415 kv as of 2026-09-14).
+   - `node scripts/migrate-upstash-to-sql.mjs --apply --db file:./snapshot.db`
+     for a restorable copy.
+2. **Export into Turso**: `node scripts/migrate-upstash-to-sql.mjs --apply`
+   (writes `TURSO_DATABASE_URL` from `.env.local`). Idempotent; safe to re-run
+   while Redis is still the source of truth.
+3. **Turn on the fallback for Production**: set `SYNC_MIGRATION_FALLBACK=1`
+   (Production scope) so the next prod deployment carries it. Check that
+   Production still has `KV_REST_API_URL`/`KV_REST_API_TOKEN` (the fallback
+   reads Redis) and that `SYNC_KEY_PREFIX` is unset there (the fallback must use
+   the prod namespace `mabiroutine:`).
+4. **Merge to `main`** (the merge commit is the cutover). Prod now reads/writes
+   Turso; any session that appeared after the export is lifted on first access.
+5. **Verify**: run `SYNC_TEST_BASE=https://mabiroutine.vercel.app pnpm test:sync`
+   (prod is public, no bypass needed), then link a second device by hand and
+   confirm a tap merges both ways. Watch Turso usage and `pnpm test:sync`'s
+   `api-live` (`session persisted (sql)`).
+6. **After 7 days, decommission the fallback**: unset
+   `SYNC_MIGRATION_FALLBACK`, delete `api/_db/fallback.ts`, its `getDb()` wiring,
+   `scripts/sync-tests/fallback.entry.ts`, and the Redis branch in
+   `api-live.mjs`/`backend.mjs`; drop `@upstash/redis`. Then decommission the
+   Redis database.
+7. **Rollback** (only within the 7-day window): revert the merge / redeploy the
+   previous revision. Prod talks Redis again with data untouched, but any edits
+   written to SQL after step 4 are lost (the fallback only imports
+   Redis→SQL, never back), so a rollback after real post-cutover use is lossy.
 
 ## Verification
 

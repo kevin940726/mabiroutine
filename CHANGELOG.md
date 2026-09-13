@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Chores
+- Cutover runbook added to `docs/sql-migration.md`: ordered snapshot → export → enable fallback → merge → verify → 7-day decommission, with the caveat that rolling back after post-cutover writes is lossy
 - Live sync suites can test a protected preview: `SYNC_TEST_BYPASS` carries a Vercel Deployment Protection automation secret (header for `api-live`, header + `x-vercel-set-bypass-cookie` page load for `browser-e2e`). Verified the branch preview end to end (`api-live` on the SQL backend + Edge E1/E2)
 - Review fixes: the remote legacy→hash upgrade clears the marker and writes the merged fields in one transaction (a failed write no longer loses the session), the remote `field_count` now increments by a delta instead of overwriting an absolute value (concurrent PATCHes no longer drift the 5000-field cap), and the export script skips orphaned bare records whose hash exists plus `:upgrading` lock keys. Docs corrected (plan status, preview shares the production DB)
 - Local dev always uses the throwaway `file:` SQL database: driver selection keys on `VERCEL_ENV`, so `pnpm dev:api` stays offline even when the Turso URL is present in the environment; Preview and Production share one Turso database
