@@ -15,8 +15,19 @@ import { redisConfigured, redisSource, withFallback } from "./fallback.js";
 
 let cached: Db | null = null;
 
+// Resolution:
+//   1. DATABASE_URL (explicit override — tests, scripts)
+//   2. deployed (VERCEL_ENV production/preview) + TURSO_DATABASE_URL -> remote
+//   3. otherwise a local file DB
+// Rule 3 is why local `vercel dev` never touches a deployed database even when
+// TURSO_DATABASE_URL is present in .env.local (pulled for the --remote test
+// scripts): development is always the throwaway file.
 function resolveUrl(): string {
-  return process.env.DATABASE_URL ?? process.env.TURSO_DATABASE_URL ?? "file:./dev.db";
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  const deployed = process.env.VERCEL_ENV === "production" || process.env.VERCEL_ENV === "preview";
+  const turso = process.env.TURSO_DATABASE_URL;
+  if (deployed && turso) return turso;
+  return "file:./dev.db";
 }
 
 // Temporary cutover switch (docs/sql-migration.md P4): read sessions that only

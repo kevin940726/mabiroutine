@@ -92,10 +92,11 @@ Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
 
 ## Gotchas
 
-- `vercel dev` does not forward custom keys from `.env.local` to functions —
-  dev/prod sync isolation relies on separate Turso databases per Vercel
-  environment, not your local file (`SYNC_KEY_PREFIX` now only signals the
-  roomy test rate budget). See `docs/sync.md` and `docs/sql-migration.md`.
+- `vercel dev` does not forward custom keys from `.env.local` to functions, and
+  the SQL driver keys on `VERCEL_ENV`: local `pnpm dev:api` always uses the
+  throwaway `file:./dev.db`, while Preview/Production use Turso (which they
+  share). `SYNC_KEY_PREFIX` now only signals the roomy test rate budget. See
+  `docs/sync.md` and `docs/sql-migration.md`.
 - Workbox packages must stay explicit in `package.json` (the PWA build needs
   them resolvable, not hoisted-by-luck).
 - `suggestions/` is gitignored review scratch — never committed, never required.

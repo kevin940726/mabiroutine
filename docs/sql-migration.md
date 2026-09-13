@@ -269,19 +269,24 @@ key IN (changed)` (M rows) to count `fresh` before the batch.
 
 | Env | Database | Vercel region |
 |---|---|---|
-| local `pnpm dev:api` | `file:./dev.db` (libSQL) | dev1 |
-| Preview | separate Turso database (dev) | `hnd1` |
-| Production | Turso database, Tokyo | `hnd1` |
+| local `pnpm dev:api` | `file:./dev.db` (node:sqlite) | dev1 |
+| Preview | shared Turso database | `hnd1` |
+| Production | shared Turso database | `hnd1` |
 
-Use **one Turso database per environment** (Free includes 100), so session ids
-are stored verbatim and `SYNC_KEY_PREFIX` no longer prefixes keys. Keep an
-explicit dev/test signal (e.g. `SYNC_ENV=dev`) if the roomy regression-gate rate
-budget is still wanted. Turso branching is not assumed to be on the Free plan;
-separate DBs avoid the question.
+Driver selection keys on `VERCEL_ENV`: local/none -> file, production/preview
+-> `TURSO_DATABASE_URL`, and `DATABASE_URL` overrides both (tests/scripts). So
+local dev is a throwaway file even though `.env.local` carries the Turso
+credentials for the `--remote` suites.
 
-Note: `vercel dev` does not forward custom `.env.local` keys to functions
-(`docs/development.md` gotchas), so driver selection must default to local file
-when no Turso env is present.
+One Turso database is shared by Preview and Production on purpose: a solo
+maintainer testing the branch, with no other users yet, judged per-env
+databases as unneeded complexity. Accepted consequences: preview test rows and
+quota spend land in the production database, and a schema mistake in preview
+would hit production first. Mitigations: the export script can snapshot to a
+file (`--apply --db file:...`), Turso free has 1-day PITR, the migration is
+additive/idempotent, and the previous revision (Redis) plus untouched Redis
+data remain a rollback for the 7-day window. Revisit a separate dev database
+once there are real users.
 
 ## TODO ledger
 
@@ -381,9 +386,10 @@ when no Turso env is present.
       (Production + Preview + Development). Still one shared DB across envs —
       see the open note below. `SYNC_KEY_PREFIX` no longer prefixes keys; it is
       only the roomy-limit signal now.
-- [ ] Add Development-scoped (and optionally Preview-scoped) `TURSO_*`
-      overrides pointing at a separate Turso DB so dev/preview stop writing to
-      the prod database (needs a second Turso DB).
+- [x] Local dev isolation: driver selection keys on `VERCEL_ENV`, so
+      `pnpm dev:api` uses `file:./dev.db` regardless of the Turso env. Preview
+      and Production intentionally share one Turso database (solo maintainer,
+      no other users); see the Environments section for the accepted trade-offs.
 - [ ] Preview deploy green: `SYNC_TEST_BASE=https://<preview>.vercel.app
       pnpm test:sync`.
 
