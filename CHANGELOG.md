@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-14 — SQLite sync backend
+
 ### Chores
 - Cutover runbook added to `docs/sql-migration.md`: ordered snapshot → export → enable fallback → merge → verify → 7-day decommission, with the caveat that rolling back after post-cutover writes is lossy
 - Live sync suites can test a protected preview: `SYNC_TEST_BYPASS` carries a Vercel Deployment Protection automation secret (header for `api-live`, header + `x-vercel-set-bypass-cookie` page load for `browser-e2e`). Verified the branch preview end to end (`api-live` on the SQL backend + Edge E1/E2)
