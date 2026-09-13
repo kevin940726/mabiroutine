@@ -25,6 +25,7 @@ import {
   adoptState,
 } from "@/sync/session";
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
+import { GC_DAYS } from "@/lib/cycle";
 
 class MemStorage {
   private m = new Map<string, string>();
@@ -51,6 +52,7 @@ const ACC_WEEKLY = "guild-challenges";
 const TODAY = currentDailyBucket(new Date());
 const YESTERDAY = currentDailyBucket(new Date(Date.now() - 24 * 3600 * 1000));
 const OLD = currentDailyBucket(new Date(Date.now() - 100 * 24 * 3600 * 1000));
+const MID = currentDailyBucket(new Date(Date.now() - 10 * 24 * 3600 * 1000));
 const THIS_WEEK = getTaipeiWeekKey(new Date());
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,7 +139,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
       const ms = p[2].includes("W")
         ? Date.UTC(Number(p[2].slice(0, 4)), Number(p[2].slice(6, 8)) - 1, Number(p[2].slice(8, 10)), -8)
         : Date.UTC(Number(p[2].slice(0, 4)), Number(p[2].slice(5, 7)) - 1, Number(p[2].slice(8, 10)), -8);
-      if (ms < Date.now() - 60 * 24 * 3600 * 1000) expired.push(k);
+      if (ms < Date.now() - GC_DAYS * 24 * 3600 * 1000) expired.push(k);
     }
     if (expired.length) {
       pushes.push(Object.fromEntries(expired.map((k) => [k, null])));
@@ -299,7 +301,9 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E5 pull converges to the single fresh char (no ghosts)", e5chars.length === 1, e5chars.map((c) => c.id));
 }
 
-// E6: GC tombstones only cycle keys past the retention window (60d).
+// E6: GC tombstones only cycle keys past the retention window (GC_DAYS = 8).
+// The 10-day MID key pins the boundary: it must be collected now but would
+// have survived the old 60-day window, so reverting GC_DAYS fails this.
 {
   isolate();
   const SID = "e6-gc";
@@ -309,9 +313,10 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   seedStore(snap({}, {}, TODAY, THIS_WEEK));
   saveSession({ id: SID, updatedAt: 1 });
   // No explicit base seed: round 1 pushes the device's own persistent keys
-  // while the crafted server carries the expired key to GC.
+  // while the crafted server carries the expired keys to GC.
   server.flat = {
     [`v:c1:${DAILY_CHECK}@${OLD}`]: true, // 100d old → GC
+    [`v:c1:${DAILY_COUNT}@${MID}`]: true, // 10d old → GC (> GC_DAYS)
     [`v:c1:${DAILY_CHECK}@${TODAY}`]: true, // current → keep
     "char:c1:name": "A",
     "meta:active": "c1",
@@ -319,8 +324,10 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   await syncAndResets();
   const ns = nullsOf(pushes);
   ok("E6 GC tombstones old bucket", ns.includes(`v:c1:${DAILY_CHECK}@${OLD}`), ns);
+  ok("E6 GC tombstones mid-age bucket", ns.includes(`v:c1:${DAILY_COUNT}@${MID}`), ns);
   ok("E6 GC keeps current bucket", !ns.includes(`v:c1:${DAILY_CHECK}@${TODAY}`), ns);
   ok("E6 GC removed from server", server.flat[`v:c1:${DAILY_CHECK}@${OLD}`] === undefined);
+  ok("E6 GC removed mid-age from server", server.flat[`v:c1:${DAILY_COUNT}@${MID}`] === undefined);
   ok("E6 current value survives", useAppStore.getState().characters[0]?.taskValues?.[DAILY_CHECK] === true);
   if (process.env.DBG) console.log("DBG-E6-mid", JSON.stringify(pushes.map((p) => Object.keys(p))));
   const n = pushes.length;

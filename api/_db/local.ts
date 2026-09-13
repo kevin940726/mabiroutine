@@ -1,0 +1,213 @@
+// Local SQLite driver (node:sqlite, built into Node 24). This is the offline
+// dev backend: `pnpm dev:api` needs no cloud credentials. The remote driver
+// (@libsql/client/web for Turso) lands in P2 behind the same Db interface.
+//
+// Semantics mirror the old Redis storage exactly except for one deliberate
+// change (docs/sql-migration.md decision 3): a null value for a cycle key is a
+// physical DELETE, not a retained tombstone, so expired buckets stop counting
+// against the field budget. Nulls for non-cycle keys stay as tombstone rows.
+
+import { DatabaseSync } from "node:sqlite";
+import type { ApplyResult, Db, HashState, Probe, SessionImport } from "./types.js";
+import { MIGRATIONS, VERSION_TABLE } from "./schema.js";
+
+function ensureSchema(db: DatabaseSync): void {
+  db.exec(VERSION_TABLE);
+  const row = db.prepare("SELECT version FROM _schema_version LIMIT 1").get() as unknown as
+    | { version: number }
+    | undefined;
+  if (!row) db.prepare("INSERT INTO _schema_version (version) VALUES (0)").run();
+  const from = row ? Number(row.version) : 0;
+  for (let i = from; i < MIGRATIONS.length; i += 1) {
+    for (const sql of MIGRATIONS[i]) db.exec(sql);
+    db.prepare("UPDATE _schema_version SET version = ?").run(i + 1);
+  }
+}
+
+function toPath(url: string): string {
+  return url.startsWith("file:") ? url.slice("file:".length) : url;
+}
+
+type SessionRow = {
+  updated_at: number;
+  seq: number;
+  field_count: number;
+  meta: string | null;
+  legacy: string | null;
+  expires_at: number;
+};
+
+class LocalDb implements Db {
+  db: DatabaseSync;
+
+  constructor(db: DatabaseSync) {
+    this.db = db;
+  }
+
+  private tx<T>(fn: () => T): T {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const out = fn();
+      this.db.exec("COMMIT");
+      return out;
+    } catch (err) {
+      this.db.exec("ROLLBACK");
+      throw err;
+    }
+  }
+
+  async probe(id: string, now: number): Promise<Probe | null> {
+    const row = this.db
+      .prepare("SELECT updated_at, seq, meta, legacy, expires_at FROM sessions WHERE id = ?")
+      .get(id) as unknown as SessionRow | undefined;
+    if (!row) return null;
+    // Lazy TTL: an expired read is a 404, and the row is reclaimed here.
+    if (row.expires_at <= now) {
+      await this.delete(id);
+      return null;
+    }
+    return {
+      updatedAt: row.updated_at,
+      seq: row.seq,
+      hasHash: row.meta != null,
+      hasLegacy: row.legacy != null,
+    };
+  }
+
+  async readHash(id: string, now: number): Promise<HashState | null> {
+    const s = this.db
+      .prepare("SELECT meta FROM sessions WHERE id = ? AND expires_at > ?")
+      .get(id, now) as unknown as { meta: string | null } | undefined;
+    if (!s || s.meta == null) return null;
+    const rows = this.db
+      .prepare("SELECT key, value FROM kv WHERE session_id = ?")
+      .all(id) as unknown as { key: string; value: string }[];
+    const fields: Record<string, string> = {};
+    for (const r of rows) fields[r.key] = r.value;
+    return { meta: s.meta, fields };
+  }
+
+  async readLegacy(id: string, now: number): Promise<string | null> {
+    const s = this.db
+      .prepare("SELECT legacy FROM sessions WHERE id = ? AND expires_at > ?")
+      .get(id, now) as unknown as { legacy: string | null } | undefined;
+    return s?.legacy ?? null;
+  }
+
+  async create(
+    id: string,
+    fields: Record<string, string>,
+    metaRaw: string,
+    updatedAt: number,
+    expiresAt: number
+  ): Promise<void> {
+    this.tx(() => {
+      this.db
+        .prepare(
+          "INSERT INTO sessions (id, updated_at, seq, expires_at, field_count, meta, legacy) VALUES (?, ?, ?, ?, ?, ?, NULL)"
+        )
+        .run(id, updatedAt, Object.keys(fields).length, expiresAt, Object.keys(fields).length, metaRaw);
+      const ins = this.db.prepare("INSERT INTO kv (session_id, key, value) VALUES (?, ?, ?)");
+      for (const [k, v] of Object.entries(fields)) ins.run(id, k, v);
+    });
+  }
+
+  async apply(
+    id: string,
+    upserts: Record<string, string>,
+    deletes: string[],
+    metaRaw: string,
+    now: number,
+    maxFields: number,
+    legacyBase?: Record<string, string>
+  ): Promise<ApplyResult> {
+    return this.tx((): ApplyResult => {
+      const row = this.db
+        .prepare("SELECT seq, field_count, meta, legacy FROM sessions WHERE id = ? AND expires_at > ?")
+        .get(id, now) as unknown as SessionRow | undefined;
+      if (!row) return { ok: false, reason: "not_found" };
+
+      const upsertKeys = Object.keys(upserts);
+
+      // Legacy upgrade: merge the caller-decoded base with the incoming
+      // changes, then clear the legacy column in the same transaction.
+      if (row.meta == null && row.legacy != null) {
+        const merged: Record<string, string> = { ...(legacyBase ?? {}) };
+        for (const k of deletes) delete merged[k];
+        for (const k of upsertKeys) merged[k] = upserts[k];
+        if (Object.keys(merged).length > maxFields) return { ok: false, reason: "too_large" };
+        this.db.prepare("DELETE FROM kv WHERE session_id = ?").run(id);
+        const ins = this.db.prepare("INSERT INTO kv (session_id, key, value) VALUES (?, ?, ?)");
+        for (const [k, v] of Object.entries(merged)) ins.run(id, k, v);
+        this.db
+          .prepare("UPDATE sessions SET meta = ?, seq = seq + 1, updated_at = ?, field_count = ?, legacy = NULL WHERE id = ?")
+          .run(metaRaw, now, Object.keys(merged).length, id);
+        return { ok: true, seq: row.seq + 1 };
+      }
+
+      // Normal hash patch. One query answers both "which changes are fresh"
+      // (budget) and "which deletes exist" (count) so the field budget stays
+      // exact without scanning the whole session.
+      const touched = upsertKeys.concat(deletes);
+      let fresh = 0;
+      let removed = 0;
+      if (touched.length) {
+        const ph = touched.map(() => "?").join(",");
+        const found = this.db
+          .prepare(`SELECT key FROM kv WHERE session_id = ? AND key IN (${ph})`)
+          .all(id, ...touched) as unknown as { key: string }[];
+        const existing = new Set(found.map((r) => r.key));
+        fresh = upsertKeys.reduce((n, k) => (existing.has(k) ? n : n + 1), 0);
+        removed = deletes.reduce((n, k) => (existing.has(k) ? n + 1 : n), 0);
+      }
+      if (row.field_count + fresh > maxFields) return { ok: false, reason: "too_large" };
+
+      if (deletes.length) {
+        const ph = deletes.map(() => "?").join(",");
+        this.db.prepare(`DELETE FROM kv WHERE session_id = ? AND key IN (${ph})`).run(id, ...deletes);
+      }
+      if (upsertKeys.length) {
+        const up = this.db.prepare(
+          "INSERT INTO kv (session_id, key, value) VALUES (?, ?, ?) ON CONFLICT(session_id, key) DO UPDATE SET value = excluded.value"
+        );
+        for (const k of upsertKeys) up.run(id, k, upserts[k]);
+      }
+      const nextCount = row.field_count + fresh - removed;
+      this.db
+        .prepare("UPDATE sessions SET meta = ?, seq = seq + 1, updated_at = ?, field_count = ? WHERE id = ?")
+        .run(metaRaw, now, nextCount, id);
+      return { ok: true, seq: row.seq + 1 };
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    this.tx(() => {
+      this.db.prepare("DELETE FROM kv WHERE session_id = ?").run(id);
+      this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+    });
+  }
+
+  async importSession(rec: SessionImport): Promise<void> {
+    this.tx(() => {
+      const ins = this.db
+        .prepare(
+          "INSERT OR IGNORE INTO sessions (id, updated_at, seq, expires_at, field_count, meta, legacy) VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        .run(rec.id, rec.updatedAt, rec.seq, rec.expiresAt, Object.keys(rec.fields).length, rec.metaRaw, rec.legacyRaw);
+      if (Number(ins.changes) === 0) return; // already imported
+      const kv = this.db.prepare("INSERT OR IGNORE INTO kv (session_id, key, value) VALUES (?, ?, ?)");
+      for (const [k, v] of Object.entries(rec.fields)) kv.run(rec.id, k, v);
+    });
+  }
+
+  async touch(id: string, expiresAt: number): Promise<void> {
+    this.db.prepare("UPDATE sessions SET expires_at = ? WHERE id = ?").run(expiresAt, id);
+  }
+}
+
+export function openLocalDb(url: string): Db {
+  const db = new DatabaseSync(toPath(url));
+  db.exec("PRAGMA journal_mode = WAL");
+  ensureSchema(db);
+  return new LocalDb(db);
+}

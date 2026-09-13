@@ -90,7 +90,7 @@ v13) and rides the wire on every value key.
   (a lagged/cached read must never resurrect a pre-push absence — this also
   covers the preloaded pre-flush read), apply wholesale via `unflattenMerge`
   (current-bucket values only, **local ordering**), GC expired cycle keys
-  (tombstone once past the 60-day retention), save base. TTL renewal rides a
+  (tombstone once past the 8-day retention), save base. TTL renewal rides a
   daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
   routine polls skip the EXPIRE. The 5min repoll pauses after 15min without
   input (pointer/key/wheel/touch, focus, visibility all count as attention);
@@ -200,9 +200,11 @@ v13) and rides the wire on every value key.
     from the base (`capOverflowKeys`, account scope excluded); the keys stay
     server-side and re-adopt if a slot frees. Same-harness proof both ways.
 14. **Cycle-key GC bounds the wire.** Old buckets are inert but not free:
-    HGETALL grows ~1.2KB/day/device. Pulls tombstone cycle keys older than
-    60 days once (real deletes of values no device reads; racing GCs dedupe
-    via tombstones-once + base advance). Unformatted/legacy keys never
+    every pull carries them. Pulls tombstone cycle keys older than **8 days**
+    (one weekly cycle plus a day of grace) once. On the SQL backend
+    (`docs/sql-migration.md`) those tombstones are physical DELETE rows, so
+    dead buckets stop accumulating: a session holds roughly live keys plus 8
+    days of history, not an unbounded log. Unformatted/legacy keys never
     expire — bounded by the one-time pre-rev-3 dump.
 
 ## Trade-offs and residual risks
@@ -229,7 +231,7 @@ v13) and rides the wire on every value key.
 - Repoll-while-visible is the quota driver, not the merge model (below).
 - Explicit `false`/`0` values accumulate per cycle (every uncheck leaves a
   present value instead of an absence). Bounded: the next cycle prune drops
-  them with their bucket, 60-day GC bounds the server hash. All readers
+  them with their bucket, the 8-day GC bounds the store. All readers
   (`TaskRow`, progress, `hideCompleted`, `isPristine`, migration caps) are
   falsy-safe by audit; `isPristine` counts set values, not keys.
 - `handle_links: preferred` routes tapped links into the installed app
@@ -237,6 +239,11 @@ v13) and rides the wire on every value key.
   paste field — buckets are per-browser-partition and no manifest bridges them.
 
 ## Quota budget (Upstash free: 500K cmds/mo)
+
+> Historical: the storage backend moved from Upstash Redis to SQL
+> (`docs/sql-migration.md`), which meters rows read/written instead of
+> commands. The table below documents the Redis-era budget; the current
+> numbers and headroom live in `docs/sql-migration.md`.
 
 Per request ≈ rate-limit INCR + work (HGETALL/HSET) + TTL EXPIRE only on the
 daily touch beacon. Pushes cost 0 when clean (diff short-circuits); pulls
@@ -280,7 +287,7 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | E3 | Legacy untagged keys inert (not adopted, not tombstoned) | same |
 | E4 | Uncheck pushes false / zero pushes 0; peer adopts, pair goes quiet | same |
 | E5 | resetAll nukes persistent keys only (locked behavior) | same |
-| E6 | GC tombstones only >60-day buckets, exactly once | same |
+| E6 | GC tombstones only >8-day buckets, exactly once | same |
 | E7 | Adopt/import stamp markers; values preserved | same |
 | E8 | Production scenario: stale evening device can't wipe the 09:00 peer | same |
 | E9 | clearSection zeroes in place, propagates, never resurrects | same |

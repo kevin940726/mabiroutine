@@ -1,10 +1,12 @@
-// Sync quota telemetry (quota §, docs/sync.md). Counts outgoing /api/session
-// requests per local day so real device fleets can validate the command
-// budget instead of guessing. Approximate server commands per kind
-// (rate-limit INCR + work [+ EXPIRE on touch]):
-//   meta 2 (INCR + HGET) · get 2 / getTouch 3 · patch 3 / patchTouch 4 ·
-//   post 5 (INCR + HGETALL + GET + HSET + EXPIRE) · del 3.
-// Read it in DevTools: window.__mabiSyncStats() (wired in main.tsx).
+// Sync request telemetry (docs/sync.md quota §). Counts outgoing
+// /api/session requests per local day and kind so real device fleets can see
+// their request pattern instead of guessing. Read it in DevTools:
+// window.__mabiSyncStats() (wired in main.tsx).
+//
+// NOTE: CMD_COST below is the historical Upstash command estimate. The storage
+// backend is now SQL (docs/sql-migration.md), which meters rows read/written,
+// and the authoritative figure is the Turso usage API — not a client guess — so
+// this file keeps the per-kind request counters and a rough cost only.
 
 export type SyncStatKind = "meta" | "get" | "getTouch" | "patch" | "patchTouch" | "post" | "del";
 

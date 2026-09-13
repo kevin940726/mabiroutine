@@ -7,6 +7,7 @@
 // `pnpm check` stays green offline — the hermetic suites carry the gate.
 import fs from "node:fs";
 import { Redis } from "@upstash/redis";
+import { detectStore } from "./backend.mjs";
 
 const BASE = `${(process.env.SYNC_TEST_BASE || "http://127.0.0.1:52608").replace(/\/+$/, "")}/api/session`;
 
@@ -29,6 +30,8 @@ if (!env.UPSTASH_REDIS_REST_URL && env.KV_REST_API_URL) {
   env.UPSTASH_REDIS_REST_URL = env.KV_REST_API_URL;
   env.UPSTASH_REDIS_REST_TOKEN = env.KV_REST_API_TOKEN;
 }
+process.env.TURSO_DATABASE_URL ??= env.TURSO_DATABASE_URL;
+process.env.TURSO_AUTH_TOKEN ??= env.TURSO_AUTH_TOKEN;
 
 let reachable = false;
 try {
@@ -45,17 +48,19 @@ if (!reachable) {
   process.exitCode = 0;
   return;
 }
-if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
-  console.log("SKIP: api-live needs Upstash REST credentials (env or .env.local)");
+const hasRedis = !!(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN);
+const hasTurso = !!(env.TURSO_DATABASE_URL && env.TURSO_AUTH_TOKEN);
+if (!hasRedis && !hasTurso) {
+  console.log("SKIP: api-live needs either Upstash or Turso credentials (env or .env.local)");
   process.exitCode = 0;
   return;
 }
 process.env.UPSTASH_REDIS_REST_URL = env.UPSTASH_REDIS_REST_URL;
 process.env.UPSTASH_REDIS_REST_TOKEN = env.UPSTASH_REDIS_REST_TOKEN;
-const redis = Redis.fromEnv();
-const DEV = "mabiroutine:dev:session:";
+const redis = hasRedis ? Redis.fromEnv() : null;
 
 let failures = 0;
+let store = null;
 const ok = (name, cond, extra = "") => {
   console.log(`${cond ? "ok" : "FAIL"}: ${name}${extra && cond ? "" : ` ${extra}`}`);
   if (!cond) failures += 1;
@@ -71,7 +76,7 @@ const del = (id) =>
 const uuid = () => globalThis.crypto.randomUUID();
 const created = [];
 
-// 1. create + hash layout on disk
+// 1. create + storage layout (backend auto-detected: Redis hash or SQL)
 // 429 here is environmental (10/hr/IP create budget spent by earlier runs),
 // not a product failure — SKIP loudly, retry within the hour.
 {
@@ -85,10 +90,12 @@ const created = [];
   const id = r.json.id;
   created.push(id);
   ok("create id shape", /^[0-9a-f-]{36}$/.test(id ?? ""));
-  const h = await redis.hgetall(`${DEV}${id}:h`);
-  ok("hash has meta+field", !!h && typeof h["~meta"] === "string" && h["~meta"].startsWith("j:") && h["pin:t"] === "j:true", JSON.stringify(h)?.slice(0, 120));
-  const ttl = await redis.ttl(`${DEV}${id}:h`);
-  ok("hash TTL set (session expiry)", typeof ttl === "number" && ttl > 0, `ttl=${ttl}`);
+  store = await detectStore(redis, id);
+  const rec = await store.readMeta(id);
+  ok(`session persisted (${store.name})`, !!rec, JSON.stringify(rec)?.slice(0, 120));
+  ok("field persisted", (await store.kvValue(id, "pin:t")) === "j:true");
+  const ttl = await store.ttl(id);
+  ok("ttl set (session expiry)", typeof ttl === "number" && ttl > 0, `ttl=${ttl}`);
 }
 // 2. 25 parallel disjoint PATCHes — all must survive (atomicity)
 {
@@ -140,7 +147,7 @@ const created = [];
 // 5. legacy v2-string upgrade
 {
   const id = uuid();
-  await redis.set(`${DEV}${id}`, { v: 2, updatedAt: 1, writerId: "t", seq: 1, keys: { old: { seq: 1, v: 1 } } });
+  await store.seedLegacy(id, { v: 2, updatedAt: 1, writerId: "t", seq: 1, keys: { old: { seq: 1, v: 1 } } });
   created.push(id);
   const g0 = await get(id);
   ok("v2 string served", g0.status === 200 && g0.json.state?.old === 1, JSON.stringify(g0.json)?.slice(0, 120));
@@ -148,13 +155,13 @@ const created = [];
   ok("upgrade patch 200", p.status === 200, p.status);
   const g1 = await get(id);
   ok("upgraded union", g1.json.state?.old === 1 && g1.json.state?.["pin:fresh"] === true, JSON.stringify(g1.json.state));
-  const bare = await redis.get(`${DEV}${id}`);
-  ok("bare string removed", bare === null, JSON.stringify(bare)?.slice(0, 80));
+  const bare = await store.readLegacy(id);
+  ok("legacy record removed", bare === null, JSON.stringify(bare)?.slice(0, 80));
 }
 // 6. legacy v1 blob: served as marker, full push upgrades (blob discarded)
 {
   const id = uuid();
-  await redis.set(`${DEV}${id}`, { v: 1, updatedAt: 1, state: { characters: [] } });
+  await store.seedLegacy(id, { v: 1, updatedAt: 1, state: { characters: [] } });
   created.push(id);
   const g0 = await get(id);
   ok("v1 legacy marker", g0.status === 200 && g0.json.legacy !== undefined, JSON.stringify(g0.json)?.slice(0, 120));

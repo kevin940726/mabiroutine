@@ -10,8 +10,9 @@ mechanism second); protocol details in `docs/sync.md`; data rules in
 
 - Node 24 + `pnpm` (repo pins `pnpm@11.8.0` via `packageManager` — Corepack or
   `npm i -g pnpm` works).
-- No other services needed for UI work. Cloud sync needs Upstash credentials
-  (see Full stack below).
+- No other services needed for UI work. Cloud sync runs on SQL: a local
+  `file:` database in dev, Turso in deployed environments (`api/_db/`). Local
+  work needs no credentials (see Full stack below).
 
 ## First run (2 min)
 
@@ -50,8 +51,9 @@ case — switch to `dev:api`.
 - **Resets are Taipei wall-clock** — `src/lib/reset.ts`: daily 06:00 /
   Monday 06:00 `Asia/Taipei`, evaluated lazily + on focus/visibility + 60s tick.
 - **Sync is conflict-free flat keys** — `src/sync/` client (`api.ts`,
-  `session.ts`, `flat.ts`) + `api/session.ts` (Upstash Redis via Vercel
-  functions). Read `docs/sync.md` before touching any of it; the short version:
+  `session.ts`, `flat.ts`) + `api/session.ts` (SQL over Vercel functions;
+  `api/_db/` holds the DB-agnostic `Db` seam with Turso and local `file:`
+  drivers). Read `docs/sync.md` before touching any of it; the short version:
   every mutation is an absolute set of flat keys, server stamps arrival order,
   no conflict UI exists by design.
 - **PWA via `vite-plugin-pwa` `generateSW`** — silent-fresh: navigations are
@@ -91,8 +93,9 @@ Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
 ## Gotchas
 
 - `vercel dev` does not forward custom keys from `.env.local` to functions —
-  dev/prod sync isolation relies on project env vars (`SYNC_KEY_PREFIX`), not
-  your local file. See `docs/sync.md`.
+  dev/prod sync isolation relies on separate Turso databases per Vercel
+  environment, not your local file (`SYNC_KEY_PREFIX` now only signals the
+  roomy test rate budget). See `docs/sync.md` and `docs/sql-migration.md`.
 - Workbox packages must stay explicit in `package.json` (the PWA build needs
   them resolvable, not hoisted-by-luck).
 - `suggestions/` is gitignored review scratch — never committed, never required.
@@ -108,16 +111,24 @@ Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
     removed, current kept, idempotent, non-value fields untouched.
   - `tabs.cjs` — poisoned-base stale tab + cap-overflow in vm-realm tabs
     running the real bundled `flat.ts` (fails on pre-fix code).
+  - `sql-smoke.mjs` — the real `api/session.ts` handler against a local file
+    SQL database: protocol parity plus the SQL-specific rules (cycle-key
+    nulls delete, persistent tombstones retained, cap 413, legacy v1/v2
+    upgrade, lazy TTL). A `--remote` mode runs the same against Turso.
+  - `fallback.entry.ts` — migration read-through: a session only in the old
+    store is lifted into SQL on first read, deletes mirror back, expired
+    records do not resurrect. `--redis` mode checks the real Redis source.
   - `api-live.mjs` — dev-API concurrency (25 parallel PATCHes),
-    same-key LWW, legacy upgrades, failure paths, no-store headers.
+    same-key LWW, legacy upgrades, failure paths, no-store headers. Backend-
+    agnostic via `backend.mjs` (auto-detects Redis vs SQL).
   - `browser-e2e.mjs` — real Edge over CDP: tap→server→second-device
     render, wake-pull convergence. Needs `pnpm dev:api` + Edge.
   - Live suites SKIP loudly (exit 0) without their deps; hermetic suites
     always run. `pnpm test:sync --skip-live` for offline.
   - `SYNC_TEST_BASE` points the live suites at another base (default local
     `:52608`): `SYNC_TEST_BASE=https://<preview>.vercel.app pnpm test:sync`
-    verifies the deployed build. Previews run the dev key prefix (Vercel
-    Preview scope), so test sessions never touch prod data.
+    verifies the deployed build. Previews point at their own Turso database
+    (once the Preview env override exists), so test sessions never touch prod.
   - Sabotage standard: disabling suppression must fail T3 (verified — the
     sabotaged run emits the exact production wipe payload). A sync change
     whose suite still passes while broken is a suite bug; fix the suite.
