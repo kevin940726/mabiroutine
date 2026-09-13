@@ -26,6 +26,9 @@ scripts/suggest-tracker.mjs
 scripts/update-barter.mjs
 scripts/suggest-recipes.mjs
 
+# local sync database (SQLite driver, docs/sql-migration.md)
+/dev.db*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

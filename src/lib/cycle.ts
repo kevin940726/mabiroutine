@@ -58,7 +58,11 @@ export function isCycleKey(key: string): boolean {
   return parseCycleKey(key) !== null;
 }
 
-export const GC_DAYS = 60;
+// Cycle values are only ever read in their current bucket, so anything past
+// one full cycle is dead weight. 8 days = a weekly cycle (7d) plus one day of
+// grace. The client tombstones buckets older than this once; the SQL backend
+// turns those tombstones into physical deletes (docs/sql-migration.md).
+export const GC_DAYS = 8;
 
 function bucketStartMs(bucket: string): number {
   // Day buckets: "YYYY-MM-DD" (Taipei date). Week buckets: "YYYY-Wmmdd"

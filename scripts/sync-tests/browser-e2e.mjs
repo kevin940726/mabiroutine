@@ -9,9 +9,11 @@
 //     tab shows checked (no phantom tombstone on wake-pull).
 //
 // Needs an app + API base: local `pnpm dev:api` by default, or a preview
-// deployment via SYNC_TEST_BASE (previews run the dev key prefix, so test
-// sessions stay off prod data — but the build must postdate the Preview
-// SYNC_KEY_PREFIX variable). Needs Edge. SKIP (exit 0, loud) otherwise.
+// deployment via SYNC_TEST_BASE. Protected previews need a Vercel automation
+// bypass in SYNC_TEST_BYPASS: API calls carry it as a header, and the page is
+// loaded with the bypass query + `x-vercel-set-bypass-cookie=true` so the app's
+// own in-page fetches are authorized too. Preview shares the production Turso
+// database (docs/sql-migration.md). Needs Edge. SKIP (exit 0, loud) otherwise.
 // Throwaway session, deleted afterwards. Budget ~2 min.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -21,6 +23,11 @@ import path from "node:path";
 const BASE = (process.env.SYNC_TEST_BASE || "http://127.0.0.1:52608").replace(/\/+$/, "");
 const APP = `${BASE}/`;
 const API = `${BASE}/api/session`;
+const BYPASS = process.env.SYNC_TEST_BYPASS;
+const AUTH = BYPASS ? { "x-vercel-protection-bypass": BYPASS } : {};
+const APP_URL = BYPASS
+  ? `${APP}?x-vercel-protection-bypass=${encodeURIComponent(BYPASS)}&x-vercel-set-bypass-cookie=true`
+  : APP;
 const DEBUG_PORT = 9333;
 const EDGE_CANDIDATES = [
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
@@ -47,7 +54,7 @@ try {
 const edge = EDGE_CANDIDATES.find((p) => fs.existsSync(p));
 if (!edge) skip("(Edge not found)");
 try {
-  const code = await fetch(APP, { method: "HEAD" }).then((r) => r.status);
+  const code = await fetch(APP, { method: "HEAD", headers: AUTH }).then((r) => r.status);
   if (code !== 200) skip(`(test base ${BASE} answered ${code})`);
 } catch {
   skip(`(needs the app reachable at ${BASE} — local: \`pnpm dev:api\`)`);
@@ -56,7 +63,7 @@ try {
 // --- throwaway session ---
 const created = await fetch(API, {
   method: "POST",
-  headers: { "content-type": "application/json" },
+  headers: { "content-type": "application/json", ...AUTH },
   body: JSON.stringify({ state: {} }),
 }).then((r) => r.json());
 const SID = created.id;
@@ -70,7 +77,7 @@ if (!SID) {
   process.exitCode = 1;
   return;
 }
-const apiGet = () => fetch(`${API}?id=${SID}`).then((r) => r.json());
+const apiGet = () => fetch(`${API}?id=${SID}`, { headers: AUTH }).then((r) => r.json());
 
 // --- Edge + CDP ---
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), "mabiroutine-e2e-"));
@@ -86,7 +93,7 @@ const proc = spawn(edge, [
 ], { stdio: "ignore" });
 
 const cleanup = async () => {
-  try { await fetch(API, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: SID }) }); } catch { /* gone */ }
+  try { await fetch(API, { method: "DELETE", headers: { "content-type": "application/json", ...AUTH }, body: JSON.stringify({ id: SID }) }); } catch { /* gone */ }
   try { proc.kill(); } catch { /* gone */ }
   try { fs.rmSync(profile, { recursive: true, force: true }); } catch { /* locked */ }
 };
@@ -159,7 +166,7 @@ try {
   };
   const gotoApp = async (sessionId) => {
     const w = waitLoad(sessionId);
-    await send("Page.navigate", { url: APP }, sessionId);
+    await send("Page.navigate", { url: APP_URL }, sessionId);
     await w;
   };
   const linkSession = (sid) =>

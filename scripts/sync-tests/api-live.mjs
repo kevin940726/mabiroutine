@@ -7,8 +7,12 @@
 // `pnpm check` stays green offline — the hermetic suites carry the gate.
 import fs from "node:fs";
 import { Redis } from "@upstash/redis";
+import { detectStore } from "./backend.mjs";
 
 const BASE = `${(process.env.SYNC_TEST_BASE || "http://127.0.0.1:52608").replace(/\/+$/, "")}/api/session`;
+// Protected previews need a Vercel automation bypass secret (SYNC_TEST_BYPASS).
+const BYPASS = process.env.SYNC_TEST_BYPASS;
+const AUTH = BYPASS ? { "x-vercel-protection-bypass": BYPASS } : {};
 
 function loadEnv() {
   const out = { ...process.env };
@@ -29,10 +33,12 @@ if (!env.UPSTASH_REDIS_REST_URL && env.KV_REST_API_URL) {
   env.UPSTASH_REDIS_REST_URL = env.KV_REST_API_URL;
   env.UPSTASH_REDIS_REST_TOKEN = env.KV_REST_API_TOKEN;
 }
+process.env.TURSO_DATABASE_URL ??= env.TURSO_DATABASE_URL;
+process.env.TURSO_AUTH_TOKEN ??= env.TURSO_AUTH_TOKEN;
 
 let reachable = false;
 try {
-  const r = await fetch(BASE, { method: "PUT" });
+  const r = await fetch(BASE, { method: "PUT", headers: AUTH });
   reachable = r.status === 405; // server alive (405 = routed, wrong method)
 } catch {
   reachable = false;
@@ -45,33 +51,35 @@ if (!reachable) {
   process.exitCode = 0;
   return;
 }
-if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
-  console.log("SKIP: api-live needs Upstash REST credentials (env or .env.local)");
+const hasRedis = !!(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN);
+const hasTurso = !!(env.TURSO_DATABASE_URL && env.TURSO_AUTH_TOKEN);
+if (!hasRedis && !hasTurso) {
+  console.log("SKIP: api-live needs either Upstash or Turso credentials (env or .env.local)");
   process.exitCode = 0;
   return;
 }
 process.env.UPSTASH_REDIS_REST_URL = env.UPSTASH_REDIS_REST_URL;
 process.env.UPSTASH_REDIS_REST_TOKEN = env.UPSTASH_REDIS_REST_TOKEN;
-const redis = Redis.fromEnv();
-const DEV = "mabiroutine:dev:session:";
+const redis = hasRedis ? Redis.fromEnv() : null;
 
 let failures = 0;
+let store = null;
 const ok = (name, cond, extra = "") => {
   console.log(`${cond ? "ok" : "FAIL"}: ${name}${extra && cond ? "" : ` ${extra}`}`);
   if (!cond) failures += 1;
 };
 const post = (body) =>
-  fetch(BASE, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})) }));
+  fetch(BASE, { method: "POST", headers: { "content-type": "application/json", ...AUTH }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})) }));
 const patch = (body) =>
-  fetch(BASE, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})) }));
-const get = (id) => fetch(`${BASE}?id=${id}`).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})), headers: r.headers }));
-const meta = (id) => fetch(`${BASE}?id=${id}&meta=1`).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})) }));
+  fetch(BASE, { method: "PATCH", headers: { "content-type": "application/json", ...AUTH }, body: JSON.stringify(body) }).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})) }));
+const get = (id) => fetch(`${BASE}?id=${id}`, { headers: AUTH }).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})), headers: r.headers }));
+const meta = (id) => fetch(`${BASE}?id=${id}&meta=1`, { headers: AUTH }).then(async (r) => ({ status: r.status, json: await r.json().catch(() => ({})) }));
 const del = (id) =>
-  fetch(BASE, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) }).then(async (r) => r.status);
+  fetch(BASE, { method: "DELETE", headers: { "content-type": "application/json", ...AUTH }, body: JSON.stringify({ id }) }).then(async (r) => r.status);
 const uuid = () => globalThis.crypto.randomUUID();
 const created = [];
 
-// 1. create + hash layout on disk
+// 1. create + storage layout (backend auto-detected: Redis hash or SQL)
 // 429 here is environmental (10/hr/IP create budget spent by earlier runs),
 // not a product failure — SKIP loudly, retry within the hour.
 {
@@ -85,10 +93,12 @@ const created = [];
   const id = r.json.id;
   created.push(id);
   ok("create id shape", /^[0-9a-f-]{36}$/.test(id ?? ""));
-  const h = await redis.hgetall(`${DEV}${id}:h`);
-  ok("hash has meta+field", !!h && typeof h["~meta"] === "string" && h["~meta"].startsWith("j:") && h["pin:t"] === "j:true", JSON.stringify(h)?.slice(0, 120));
-  const ttl = await redis.ttl(`${DEV}${id}:h`);
-  ok("hash TTL set (session expiry)", typeof ttl === "number" && ttl > 0, `ttl=${ttl}`);
+  store = await detectStore(redis, id);
+  const rec = await store.readMeta(id);
+  ok(`session persisted (${store.name})`, !!rec, JSON.stringify(rec)?.slice(0, 120));
+  ok("field persisted", (await store.kvValue(id, "pin:t")) === "j:true");
+  const ttl = await store.ttl(id);
+  ok("ttl set (session expiry)", typeof ttl === "number" && ttl > 0, `ttl=${ttl}`);
 }
 // 2. 25 parallel disjoint PATCHes — all must survive (atomicity)
 {
@@ -130,17 +140,17 @@ const created = [];
   for (let i = 0; i < 30; i += 1) huge[`custom:b${i}`] = { id: `b${i}`, name: "n", pad: "y".repeat(7000) };
   const big = await patch({ id, changes: huge });
   ok("oversize 413", big.status === 413, big.status);
-  const badm = await fetch(BASE, { method: "PUT" }).then((r) => r.status);
+  const badm = await fetch(BASE, { method: "PUT", headers: AUTH }).then((r) => r.status);
   ok("bad method 405", badm === 405, badm);
   const m = await meta(id);
   ok("meta returns updatedAt only", m.status === 200 && typeof m.json.updatedAt === "number" && m.json.state === undefined && m.json.legacy === undefined, JSON.stringify(m.json)?.slice(0, 80));
-  const tch = await fetch(`${BASE}?id=${id}&touch=1`).then((r) => r.status);
+  const tch = await fetch(`${BASE}?id=${id}&touch=1`, { headers: AUTH }).then((r) => r.status);
   ok("touch param 200", tch === 200, tch);
 }
 // 5. legacy v2-string upgrade
 {
   const id = uuid();
-  await redis.set(`${DEV}${id}`, { v: 2, updatedAt: 1, writerId: "t", seq: 1, keys: { old: { seq: 1, v: 1 } } });
+  await store.seedLegacy(id, { v: 2, updatedAt: 1, writerId: "t", seq: 1, keys: { old: { seq: 1, v: 1 } } });
   created.push(id);
   const g0 = await get(id);
   ok("v2 string served", g0.status === 200 && g0.json.state?.old === 1, JSON.stringify(g0.json)?.slice(0, 120));
@@ -148,13 +158,13 @@ const created = [];
   ok("upgrade patch 200", p.status === 200, p.status);
   const g1 = await get(id);
   ok("upgraded union", g1.json.state?.old === 1 && g1.json.state?.["pin:fresh"] === true, JSON.stringify(g1.json.state));
-  const bare = await redis.get(`${DEV}${id}`);
-  ok("bare string removed", bare === null, JSON.stringify(bare)?.slice(0, 80));
+  const bare = await store.readLegacy(id);
+  ok("legacy record removed", bare === null, JSON.stringify(bare)?.slice(0, 80));
 }
 // 6. legacy v1 blob: served as marker, full push upgrades (blob discarded)
 {
   const id = uuid();
-  await redis.set(`${DEV}${id}`, { v: 1, updatedAt: 1, state: { characters: [] } });
+  await store.seedLegacy(id, { v: 1, updatedAt: 1, state: { characters: [] } });
   created.push(id);
   const g0 = await get(id);
   ok("v1 legacy marker", g0.status === 200 && g0.json.legacy !== undefined, JSON.stringify(g0.json)?.slice(0, 120));
