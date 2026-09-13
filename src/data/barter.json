@@ -315,36 +315,6 @@
     "note": "價值普通，有餘裕再換。"
   },
   {
-    "id": "dungeon-2",
-    "name": "貓商人 愛心幣 ×1 ← 擠著吃的點心 ×1",
-    "give": "擠著吃的點心 ×1",
-    "get": "愛心幣 ×1",
-    "town": "地下城、狩獵場",
-    "priority": "extra",
-    "gatherSkill": "地下城、狩獵場",
-    "perChar": true,
-    "limit": "每日 3 次",
-    "rec": "推薦",
-    "verified": "tw",
-    "npc": "貓商人",
-    "note": "點心換愛心幣，偶爾敗家很健康喵。"
-  },
-  {
-    "id": "dungeon-4",
-    "name": "貓商人 糖 ×2 ← 繃帶 ×100",
-    "give": "繃帶 ×100",
-    "get": "糖 ×2",
-    "town": "地下城、狩獵場",
-    "priority": "extra",
-    "gatherSkill": "地下城、狩獵場",
-    "perChar": true,
-    "limit": "每日 1 次",
-    "rec": "推薦",
-    "verified": "tw",
-    "npc": "貓商人",
-    "note": "繃帶幾乎無痛製作，建議兌換。"
-  },
-  {
     "id": "col-k3",
     "name": "基利安 健康飲料 ×1 ← 淨淨蘑菇孢子 ×5",
     "give": "淨淨蘑菇孢子 ×5",
@@ -778,6 +748,36 @@
     "verified": "tw",
     "npc": "格莉娜",
     "note": "學會後可取消釘選。"
+  },
+  {
+    "id": "dungeon-2",
+    "name": "貓商人 愛心幣 ×1 ← 擠著吃的點心 ×1",
+    "give": "擠著吃的點心 ×1",
+    "get": "愛心幣 ×1",
+    "town": "地下城、狩獵場",
+    "priority": "situational",
+    "gatherSkill": "地下城、狩獵場",
+    "perChar": true,
+    "limit": "每日 3 次",
+    "rec": "視需求",
+    "verified": "tw",
+    "npc": "貓商人",
+    "note": "點心換愛心幣，偶爾敗家很健康喵。"
+  },
+  {
+    "id": "dungeon-4",
+    "name": "貓商人 糖 ×2 ← 繃帶 ×100",
+    "give": "繃帶 ×100",
+    "get": "糖 ×2",
+    "town": "地下城、狩獵場",
+    "priority": "situational",
+    "gatherSkill": "地下城、狩獵場",
+    "perChar": true,
+    "limit": "每日 1 次",
+    "rec": "視需求",
+    "verified": "tw",
+    "npc": "貓商人",
+    "note": "繃帶幾乎無痛製作，有多的可以換。"
   },
   {
     "id": "dungeon-1",

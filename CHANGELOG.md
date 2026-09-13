@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-13 — barter priority cleanup
+
+### Fixes
+- Barter priority cleanup (ordered by priority): `dungeon-4` 貓商人 糖 and `dungeon-2` 貓商人 愛心幣 demoted 推薦→視需求 — sugar's assumed leg flips to the 格莉娜 + 凱琳 shop ties (1200金, 每週 30 次 each), love coin's to the 康納 fishing leg
+
 ## 2026-09-12 — sync security + quota
 
 ### Fixes
