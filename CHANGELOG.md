@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Chores
+- `docs/sync.md` Protocol section updated to the SQL storage (sessions probe row + kv rows, single-transaction PATCH, cycle-key nulls as deletes, env-based storage separation instead of a key prefix); the Redis quota table is kept only as a marked historical note
 - SQL cutover completed 2026-09-14: Redis sessions exported into Turso (5 hash + 7 legacy, 1427 kv), `SYNC_MIGRATION_FALLBACK=1` set on Production, PR #1 squash-merged (`339290e`), and prod verified (`api-live` on SQL + Edge E1/E2). The fallback window closes 2026-09-21, then the fallback code and `@upstash/redis` are removed and Redis decommissioned
 
 ## 2026-09-14 — SQLite sync backend

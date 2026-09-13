@@ -7,42 +7,46 @@ tapped what.
 
 ## Protocol
 
-One Upstash **hash** per session (key `` `${SESSION_PREFIX}${id}:h` ``):
-field `~meta` holds `{ v: 2, updatedAt, writerId, seq }`, every other field is
-one flat sync key with a tagged-JSON value (`j:` + JSON — the tag keeps values
-plain strings through client deserialization; `~`-prefixed keys are rejected
-with 400 so no client can forge meta). The server is schema-agnostic: it
-versions JSON paths, never tracker semantics. A PATCH is a **single HSET** of
-meta + changed fields, so concurrent PATCHes from two devices are per-field
+One `sessions` probe row per session plus one `kv` row per flat key
+(`api/_db/`, see `docs/sql-migration.md`): the `meta` column holds
+`{ v: 2, updatedAt, writerId, seq }`, every other row is one flat sync key with
+a tagged-JSON value (`j:` + JSON — the tag keeps values plain strings through
+client serialization; `~`-prefixed keys are rejected with 400 so no client can
+forge meta). The server is schema-agnostic: it versions JSON paths, never
+tracker semantics. A PATCH is a **single atomic transaction** covering the kv
+rows and the probe row, so concurrent PATCHes from two devices are per-field
 last-writer-wins and can never interleave a read-modify-write and drop each
-other's keys (the pre-hash single-blob layout did exactly that — see 10).
-Pre-hash string records (v1 blobs, v2 blobs) are still served and upgrade
-into the hash on first PATCH.
+other's keys (the pre-row single-blob layout did exactly that — see 10).
+Cycle-key `null`s are physical deletes; every other `null` is a retained
+tombstone. Pre-SQL records (v1 blobs, v2 blobs) are still served and upgrade on
+first PATCH.
 
 | Method | Body | Effect |
 |---|---|---|
 | POST | `{ state: flat map }` | Mint id, all keys at seq 1..n |
 | GET | `?id=` | `{ state: flat map (nulls incl.), updatedAt }`, or `{ legacy, updatedAt }` for v1 blobs |
-| PATCH | `{ id, changes: {k: v} }` | One HSET of meta + fields (atomic per-field LWW). Never 409s |
-| DELETE | `{ id }` | Drop hash + legacy string (idempotent) |
+| PATCH | `{ id, changes: {k: v} }` | One transaction of meta + fields (atomic per-field LWW). Never 409s |
+| DELETE | `{ id }` | Drop the session + its kv rows (idempotent) |
 
 Rate limits: create 10/hr/IP, everything else 60/min/IP (prod, keyed on the
-verified client IP — `x-real-ip`, else the last forwarded entry). Dev
-namespace (`mabiroutine:dev:`): 500/hr + 600/min — the regression gate would
-trip prod budgets, and dev keys are throwaway. Payload cap 200KB per request;
+verified client IP — `x-real-ip`, else the last forwarded entry). The limiter is
+per-instance in memory (`docs/sql-migration.md`), not shared; non-prod setups
+get 500/hr + 600/min via the `SYNC_KEY_PREFIX` dev signal so the regression gate
+never trips prod budgets. Payload cap 200KB per request;
 keys must use a known prefix (`v:|acc:|hide:|pin:|custom:|char:|meta:|pref:|filter:`,
 128 chars max), string values 500 chars max, objects 8KB max, arrays rejected,
 `__proto__`/`constructor`/`prototype` rejected, 2000 keys per request and 5000
 fields per session (400/413 past that). Sessions expire after 180 days without
-a read/write (sliding TTL on every GET/PATCH/POST) — a leaked link dies on its
+a read/write (sliding TTL, refreshed by the daily touch beacon and on POST;
+expired reads act as 404) — a leaked link dies on its
 own.
-Namespace by Vercel scope (`SYNC_KEY_PREFIX`): Development + Preview use
-`mabiroutine:dev:`, Production uses the default — preview deployments are
-the staging environment (prod code path, isolated data). Env changes bake
-in at deploy time: a new preview deployment is needed to pick them up.
-Code: `api/session.ts`. Namespace `mabiroutine:` prod / `mabiroutine:dev:` local
-(the latter is a Development-scoped project env var — `vercel dev` does NOT
-forward `.env.local` custom keys to functions).
+Storage is separated by Vercel environment, not by key prefix: Preview and
+Production point at Turso (`TURSO_DATABASE_URL`), local `vercel dev` uses a
+throwaway `file:` database even when the Turso URL is present
+(`docs/sql-migration.md` Environments). `SYNC_KEY_PREFIX` no longer prefixes
+keys; non-prod values only signal the roomy test rate budget. Env changes bake
+in at deploy time: a new deployment is needed to pick them up.
+Code: `api/session.ts` + `api/_db/`.
 
 ## Key space (`src/sync/flat.ts`, rev 3)
 
@@ -179,8 +183,8 @@ v13) and rides the wire on every value key.
     to last-*record*-wins, silently dropping the loser's keys. Clients then
     adopted the loss on next pull and tombstoned it everywhere — a permanent,
     ping-ponging wipe that looked like "focus makes the other device truth".
-    The hash layout fixes the class: concurrent PATCHes only ever race on the
-    *same field*, which is true per-key LWW. Client shields stay as defense in
+    The row-per-key layout fixes the class: concurrent PATCHes only ever race on
+    the *same field*, which is true per-key LWW. Client shields stay as defense in
     depth (no-store fetches + `Cache-Control: no-store` + acknowledged-push
     overlay), but they cannot fix a server that drops writes — only atomicity
     can.
@@ -270,9 +274,10 @@ Disjoint edits converge · same-counter race converges, no dialog · unpin
 tombstone propagates, no resurrection · legacy blob adopts (values + toast)
 and upgrades to flat · cancel strips `?s=` · offline shell renders ·
 rebuild-under-open-page auto-updates with toast · zero page errors throughout.
-Server, live against prod Redis (`mabiroutine:dev:`): `j:`-tag round-trips as
-plain strings through client deserialization · 20 concurrent disjoint HSETs
-all survive · immediate HGETALL-after-HSET reads fresh on this database.
+Server (SQL): `j:`-tag round-trips as plain strings · 25 concurrent disjoint
+PATCHes all survive · cycle-key nulls delete while persistent tombstones
+persist · legacy v1/v2 upgrade — `scripts/sync-tests/sql-smoke.mjs` (local file,
+and live Turso via `--remote`).
 
 ## Regression gate (`pnpm test:sync`, in `pnpm check`)
 
