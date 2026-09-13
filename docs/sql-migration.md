@@ -1,8 +1,9 @@
 # SQL migration — Upstash Redis -> SQLite (Turso) — plan & ledger
 
-Status: **implemented on `spike/sqlite-backend-p1`**, pending production cutover
-(P4 export + 7-day fallback window, P5 preview smoke, P6 write-cap alert).
-Owner: maintainer. Supersedes the Redis
+Status: **live in production since 2026-09-14** (squash-merged as PR #1). The
+7-day migration fallback window closes **2026-09-21**, after which
+`api/_db/fallback.ts` and `@upstash/redis` are removed and Redis is
+decommissioned. Owner: maintainer. Supersedes the Redis
 storage layer in `api/session.ts` only; the client protocol (`docs/sync.md`) is
 unchanged.
 
@@ -413,6 +414,10 @@ once there are real users.
       sql-backend and fallback suites + build).
 
 ## Cutover runbook
+
+Executed 2026-09-14 through step 5: snapshot + export applied, fallback flag set
+on Production, merged, prod verified (`api-live` on SQL + Edge E1/E2). Step 6 is
+due 2026-09-21.
 
 Order matters. Production runs Redis until step 4, so steps 1-3 are additive and
 safe to abort.
