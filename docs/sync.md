@@ -95,8 +95,8 @@ v13) and rides the wire on every value key.
   covers the preloaded pre-flush read), apply wholesale via `unflattenMerge`
   (current-bucket values only, **local ordering**), GC expired cycle keys
   (tombstone once past the 8-day retention), save base. TTL renewal rides a
-  daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
-  routine polls skip the EXPIRE. The 5min repoll pauses after 15min without
+daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
+routine polls skip the touch. The 5min repoll pauses after 15min without
   input (pointer/key/wheel/touch, focus, visibility all count as attention);
   the idle→active crossing runs the full pull-then-reset round so a return
   across 06:00/Monday prunes after adopting. Offline (boot included):
@@ -177,7 +177,7 @@ v13) and rides the wire on every value key.
    badge, takeTheirs/keepMine). The 409 era's lesson is preserved as a
    negative: detection was automatic but announcement was manual — silent
    limbo. The new design has no limbo state to announce.
-10. **PATCH must be single-command atomic — the blob RMW lost updates.**
+10. **PATCH must be single-transaction atomic — the blob RMW lost updates.**
     The v2 blob PATCHed via get → merge → set; two devices pushing inside the
     same window (each PATCH is several sequential REST round trips) resolved
     to last-*record*-wins, silently dropping the loser's keys. Clients then
@@ -242,31 +242,35 @@ v13) and rides the wire on every value key.
   (Chrome 122+); iOS web apps and mismatched Android browsers still need the
   paste field — buckets are per-browser-partition and no manifest bridges them.
 
-## Quota budget (Upstash free: 500K cmds/mo)
+## Quota budget (Turso free: 500M rows read / 10M rows written / mo)
 
-> Historical: the storage backend moved from Upstash Redis to SQL
-> (`docs/sql-migration.md`), which meters rows read/written instead of
-> commands. The table below documents the Redis-era budget; the current
-> numbers and headroom live in `docs/sql-migration.md`.
+Metered on rows, not commands: 500M rows read/mo, 10M rows written/mo, 5GB
+storage — blocked (no overage) on exceed. Rows written is the binding metric,
+protected deliberately (in-memory rate limiter, no SQL counter, cap check via
+`sessions.field_count` instead of a row scan). Per pull: 1 probe-row read, plus
+a full GET of ~230 rows only when changed; per push: the changed keys only, 0
+when clean (diff short-circuits). Single 5min timer — no second interval
+anywhere (a duplicate would double every poll). Headroom
+(`docs/sql-migration.md` Quota estimate): 1000 heavy 2-device users reach ~48%
+of reads (~2x headroom, not an order of magnitude); writes are the ceiling —
+free holds ~1000 users at light-to-moderate activity, very heavy multi-device
+writers press the 10M cap first.
 
-Per request ≈ rate-limit INCR + work (HGETALL/HSET) + TTL EXPIRE only on the
-daily touch beacon. Pushes cost 0 when clean (diff short-circuits); pulls
-cost 2 cmds when unchanged (`INCR` + `HGET ~meta` probe) and a full round
-only on change. Single 5min timer — no second interval anywhere (a duplicate
-would double every poll).
+Local dev (`file:` database) costs nothing. Preview shares the production Turso
+DB (solo-maintainer decision), so run live suites pre-release or on
+sync-touching branches only; hermetic suites are the everyday gate. Per-device
+telemetry (`localStorage mabiroutine:syncstats`, `__mabiSyncStats()` in DevTools,
+Q1–Q5 gate) validates the model against the Turso dashboard.
 
-| Profile | Cost | Headroom |
-|---|---|---|
-| Normal (~30 pulls + ~30 pushes/day) | ~5K/mo | ~100 such users |
-| Always-open idle tab (5min meta polls) | ~17K/mo | ~29 such users |
-
-Dev/test shares the same database quota as prod (namespaces differ, the
-command budget doesn't) — run live suites pre-release or on sync-touching
-branches only; hermetic suites are the everyday gate. Per-device telemetry
-(`localStorage mabiroutine:syncstats`, `__mabiSyncStats()` in DevTools,
-Q1–Q5 gate) validates the model against the dashboard. Watch the Upstash
-dashboard past 400K; next knobs if pinched: adaptive backoff (60s when
-active, 15min when idle), separate dev database (own free quota).
+> Historical (Redis era: Upstash free 500K cmds/mo). Per request ≈ rate-limit
+> INCR + work (HGETALL/HSET) + TTL EXPIRE only on the daily touch beacon.
+> Pushes cost 0 when clean; pulls cost 2 cmds when unchanged (`INCR` + `HGET
+> ~meta` probe) and a full round only on change.
+>
+> | Profile | Cost | Headroom |
+> |---|---|---|
+> | Normal (~30 pulls + ~30 pushes/day) | ~5K/mo | ~100 such users |
+> | Always-open idle tab (5min meta polls) | ~17K/mo | ~29 such users |
 
 ## Verified (rig, two isolated profiles, real clicks)
 
