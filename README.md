@@ -4,7 +4,8 @@
 
 Log in, stare at twenty things to do, forget half of them. MabiRoutine fixes
 that: a fast, private checklist for 瑪奇 Mobile (TW server) covering dailies,
-weeklies and 以物易物 (barter) trades — per character, with Taipei-time resets
+weeklies and 以物易物 (barter) trades — per character (server-capped trades
+are shared across characters), with Taipei-time resets
 handled for you.
 
 👉 **Try it: https://mabiroutine.vercel.app/** — no account needed.

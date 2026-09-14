@@ -145,7 +145,7 @@ export default function App() {
       .filter((t): t is Task => !!t && !hidden.has(t.id));
     const all = [...BUILTIN_TASKS, ...customTasks, ...pinnedBarter].filter((t) => !hidden.has(t.id));
     const { done, total, percent } = summarizeProgress(all, (t) =>
-      t.section === "account" ? accountValues[t.id] : active.taskValues[t.id]
+      t.section === "account" || t.serverShared === true ? accountValues[t.id] : active.taskValues[t.id]
     );
     return { pct: percent, done, total };
   })();

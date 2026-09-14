@@ -62,31 +62,36 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   );
 
   // barter base: manual-hide only. hideCompleted is render-only (below) —
-  // progress must not move when the toggle flips.
+  // progress must not move when the toggle flips. Server-shared rows hide
+  // globally (hiddenAccountTaskIds), per-char rows hide per character.
   const barterBase = useMemo(() => {
     if (!char) return cycleBarter;
-    return cycleBarter.filter((t) => !char.hiddenTaskIds.includes(t.id));
-  }, [cycleBarter, char]);
+    return cycleBarter.filter((t) =>
+      t.serverShared === true ? !hiddenAccountTaskIds.includes(t.id) : !char.hiddenTaskIds.includes(t.id)
+    );
+  }, [cycleBarter, char, hiddenAccountTaskIds]);
 
   const barterSubtasksFiltered = useMemo(() => {
     if (!char) return barterBase;
     let list = barterBase;
     if (hideCompleted) {
       list = list.filter((t) => {
-        const v = char.taskValues[t.id];
+        const v = t.serverShared === true ? accountValues[t.id] : char.taskValues[t.id];
         if (t.type === "check") return !v;
         const n = typeof v === "number" ? v : 0;
         return n < (t.max ?? 0);
       });
     }
     return list;
-  }, [barterBase, char, hideCompleted]);
+  }, [barterBase, char, accountValues, hideCompleted]);
 
   // hidden: dimmed + moved to bottom sub-category (same primitive as 以物易物)
   const hiddenBarter = useMemo(() => {
     if (!char) return [] as Task[];
-    return cycleBarter.filter((t) => char.hiddenTaskIds.includes(t.id));
-  }, [cycleBarter, char]);
+    return cycleBarter.filter((t) =>
+      t.serverShared === true ? hiddenAccountTaskIds.includes(t.id) : char.hiddenTaskIds.includes(t.id)
+    );
+  }, [cycleBarter, char, hiddenAccountTaskIds]);
 
   const hiddenTasks = useMemo(() => {
     if (!char) return [] as Task[];
@@ -136,8 +141,11 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     // progress over the unfiltered-by-completion lists: flipping 隱藏已完成
     // only hides rows, never moves done/total. (Manual hides still exclude,
     // per the hidden-subcategory rule.) Shared ruler with the header overall.
+    // Server-shared barter reads the shared pool, everything else the active char.
     const combined = [...baseTasks, ...barterBase];
-    return summarizeProgress(combined, (t) => (isAccount ? accountValues[t.id] : char?.taskValues[t.id]));
+    return summarizeProgress(combined, (t) =>
+      t.serverShared === true ? accountValues[t.id] : (isAccount ? accountValues[t.id] : char?.taskValues[t.id])
+    );
   }, [baseTasks, barterBase, char, accountValues, isAccount]);
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -254,7 +262,12 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleBarterDragEnd}>
                     <SortableContext items={barterSubtasksFiltered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
                       {barterSubtasksFiltered.map((bt) => (
-                        <TaskRow key={bt.id} task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
+                        <TaskRow
+                          key={bt.id}
+                          task={bt}
+                          value={bt.serverShared === true ? accountValues[bt.id] : char?.taskValues[bt.id]}
+                          isAccount={bt.serverShared === true}
+                        />
                       ))}
                     </SortableContext>
                   </DndContext>
@@ -296,7 +309,11 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
                 ))}
                 {hiddenBarter.map((bt) => (
                   <div key={bt.id} className="opacity-60">
-                    <TaskRow task={bt} value={char?.taskValues[bt.id]} isAccount={false} />
+                    <TaskRow
+                      task={bt}
+                      value={bt.serverShared === true ? accountValues[bt.id] : char?.taskValues[bt.id]}
+                      isAccount={bt.serverShared === true}
+                    />
                   </div>
                 ))}
               </div>

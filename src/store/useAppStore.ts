@@ -120,6 +120,20 @@ export function barterCycleOf(b: { limit?: string }): "daily" | "weekly" {
   return isWeeklyLimit(b.limit) ? "weekly" : "daily";
 }
 
+// Server-shared barter: barter.json rows with perChar === false (today the 7
+// 每日 N 次 (伺服器) rows) share one value across every character — checking
+// on any character checks all of them, like 帳號共通. They keep rendering in
+// the daily/weekly pinned subsections (NOT moved to the account section, so
+// no cycle grouping is introduced there); only their value + hide scope is
+// account-wide. Single source of truth: barter.json perChar.
+const SERVER_SHARED_BARTER_IDS = new Set<string>(
+  (barterJson as BarterJsonItem[]).filter((b) => b.perChar === false).map((b) => b.id)
+);
+
+export function isServerSharedBarterId(id: string): boolean {
+  return SERVER_SHARED_BARTER_IDS.has(id);
+}
+
 // Build tasks from barter json for pinning: they become Tasks lazily
 export function barterToTask(b: BarterJsonItem): Task {
   // 每日/每週 N 次：N>1 → counter；N=1 或 不限次數 → check
@@ -142,6 +156,7 @@ export function barterToTask(b: BarterJsonItem): Task {
     town: b.town,
     priority: b.priority as BarterPriority,
     npc: (b as unknown as { npc?: string }).npc,
+    serverShared: b.perChar === false,
     barterMeta: { give: b.give, get: b.get, gatherSkill: b.gatherSkill, limit: b.limit },
     order: weekly ? 150 : 80, // daily pins sit after builtin daily; weekly pins after builtin weekly
   };
@@ -172,7 +187,7 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 15,
+  version: 16,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -276,6 +291,43 @@ function normalizePersisted(input: unknown): AppState {
     barterFilters: sanitizeBarterFilters(d.barterFilters),
     taskBuckets,
   };
+}
+
+// Server-shared barter (perChar === false) lives in accountValues (one
+// shared pool: checks OR, counters max across chars capped at the live max).
+// Per-char hides union to the global list. Provenance is per-tid (shared
+// across chars), so buckets follow untouched. Old per-char wire keys age out
+// server-side via GC, never read again (same pattern as the v13→v14
+// weekly-challenge move). Values otherwise untouched.
+function absorbSharedBarter(s: AppState): void {
+  const shared = (barterJson as BarterJsonItem[]).filter((b) => b.perChar === false);
+  const taskOf = new Map(shared.map((b) => [b.id, barterToTask(b)]));
+  const numOf = (v: unknown): number => (typeof v === "number" ? v : v === true ? 1 : 0);
+  const acc = { ...(s.accountValues ?? {}) } as Record<string, number | boolean>;
+  for (const b of shared) {
+    let best = numOf(acc[b.id]);
+    for (const c of s.characters ?? []) {
+      best = Math.max(best, numOf(c.taskValues?.[b.id]));
+      if (c.taskValues) delete c.taskValues[b.id];
+    }
+    if (best > 0) {
+      const t = taskOf.get(b.id)!;
+      acc[b.id] = t.type === "check" ? true : Math.min(best, t.max ?? best);
+    } else {
+      delete acc[b.id];
+    }
+  }
+  s.accountValues = acc;
+  const global = new Set(s.hiddenAccountTaskIds ?? []);
+  for (const c of s.characters ?? []) {
+    const keep: string[] = [];
+    for (const id of c.hiddenTaskIds ?? []) {
+      if (SERVER_SHARED_BARTER_IDS.has(id)) global.add(id);
+      else keep.push(id);
+    }
+    c.hiddenTaskIds = keep;
+  }
+  s.hiddenAccountTaskIds = [...global];
 }
 
 // Shared migration runner: normalize shape first (covers versionless ancient
@@ -538,6 +590,13 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     }
     s.version = 15;
   }
+  if (from < 16) {
+    // v15 → v16: server-shared barter (perChar === false, today 7 rows:
+    // 麗莎×3, 阿爾米斯 銀合金錠, 康納 魔力石×2, 安黛莉 聖水) moves from
+    // per-char taskValues to accountValues. See absorbSharedBarter.
+    absorbSharedBarter(s);
+    s.version = 16;
+  }
   return s as AppState;
 }
 
@@ -700,7 +759,22 @@ export const useAppStore = create<Store>()(
           const target = s.characters.find((c) => c.id === s.activeCharId) ?? char;
           const { values: nextVal, touched } = zeroOut(target.taskValues, idsToClear);
           const nextChars = s.characters.map((c) => (c.id === s.activeCharId ? { ...c, taskValues: nextVal } : c));
-          return { characters: nextChars, taskBuckets: stamp(s.taskBuckets, touched) };
+          // server-shared pins render in this cycle's subsection but live in
+          // accountValues — 清除本區 clears them too (they belong to this
+          // cycle's UI, and the pool is shared so one clear clears for all).
+          const sharedIds = new Set(
+            s.barterPins.filter((pid) => {
+              if (!isServerSharedBarterId(pid)) return false;
+              const b = (barterJson as BarterJsonItem[]).find((x) => x.id === pid);
+              return b ? barterCycleOf(b) === section : false;
+            })
+          );
+          const { values: nextAcc, touched: touchedAcc } = zeroOut(s.accountValues, sharedIds);
+          return {
+            characters: nextChars,
+            accountValues: nextAcc,
+            taskBuckets: stamp(stamp(s.taskBuckets, touched), touchedAcc),
+          };
         }),
 
       // single global list: one tap toggles for every character
@@ -752,8 +826,9 @@ export const useAppStore = create<Store>()(
         }),
       toggleHidden: (taskId) =>
         set((s) => {
-          // account-section tasks hide globally (shared state, like accountValues)
-          if (isAccountTaskId(taskId, s.customTasks)) {
+          // account-section tasks AND server-shared barter hide globally
+          // (shared state, like accountValues)
+          if (isAccountTaskId(taskId, s.customTasks) || isServerSharedBarterId(taskId)) {
             const isHidden = (s.hiddenAccountTaskIds ?? []).includes(taskId);
             return {
               hiddenAccountTaskIds: isHidden
@@ -774,7 +849,8 @@ export const useAppStore = create<Store>()(
         }),
       isTaskHidden: (taskId) => {
         const s = get();
-        if (isAccountTaskId(taskId, s.customTasks)) return (s.hiddenAccountTaskIds ?? []).includes(taskId);
+        if (isAccountTaskId(taskId, s.customTasks) || isServerSharedBarterId(taskId))
+          return (s.hiddenAccountTaskIds ?? []).includes(taskId);
         return s.getActiveChar()?.hiddenTaskIds.includes(taskId) ?? false;
       },
       reorderTasks: (orderedIds) =>
@@ -836,7 +912,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 15,
+      version: 16,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

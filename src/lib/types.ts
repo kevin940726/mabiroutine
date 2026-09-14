@@ -27,6 +27,10 @@ export type Task = {
   town?: string;
   priority?: BarterPriority;
   npc?: string;
+  // true when the barter row is server-shared (barter.json perChar === false):
+  // value + hide live in the account scope even though the row renders in
+  // the daily/weekly pinned subsections.
+  serverShared?: boolean;
   barterMeta?: { give: string; get: string; gatherSkill?: string; limit?: string };
   // custom extras
   notes?: string;

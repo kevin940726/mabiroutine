@@ -119,6 +119,11 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
           <Badge variant={b.priority === "must" ? "default" : b.priority === "skip" ? "outline" : "secondary"} className={cn("text-[10px] shrink-0", b.priority === "must" && "bg-red-600 hover:bg-red-700")}>
             {PRIORITY_LABEL[b.priority as BarterPriority]}
           </Badge>
+          {b.perChar === false && (
+            <Badge variant="secondary" className="text-[10px] shrink-0 bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 hover:bg-sky-100">
+              伺服器
+            </Badge>
+          )}
           <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
             <span className="font-medium truncate">{b.npc}</span>
             <span className="text-muted-foreground truncate">· {b.town}</span>
@@ -205,6 +210,11 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
             >
               {PRIORITY_LABEL[b.priority as BarterPriority]}
             </span>
+            {b.perChar === false && (
+              <span className="rounded px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0 bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                伺服器
+              </span>
+            )}
           </div>
           <div className="mt-1 text-xs text-muted-foreground break-words">
             <span className="font-semibold text-foreground">{b.npc}</span> · {b.town}{cap ? ` · ${cap}` : ""}
@@ -317,6 +327,7 @@ export function BarterExplorer() {
   const filterLegend = (
     <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
       <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600" /> 已釘選（綠）會出現在追蹤頁每日區</span>
+      <span className="inline-flex items-center gap-1"><span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1 py-px text-[10px]">伺服器</span> 全角色共用同一進度，任一角色勾選即完成</span>
     </div>
   );
 

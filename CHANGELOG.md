@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-14 — 伺服器共用以物易物
+
+### Features
+- 伺服器共用以物易物：7 個 `perChar=false` 品項（麗莎 高級鍊金術再燃燒催化劑×2、稀有催化劑、阿爾米斯 銀合金錠、康納 魔力石×2、安黛莉 聖水×10）在追蹤頁改為全角色共用進度——任一角色勾選即全角色完成，計數為共用池——並掛上 伺服器 badge（追蹤頁 + 以物易物頁都有）；隱藏亦為全域，清除本區會連同清除。安黛莉聖水是後來補確認的，shops twin 同步補上 `scope:account`。舊的各角色進度以 OR / max 合併遷移（store v15→v16）
+
 ### Chores
 - `docs/sync.md` quota section rewritten for the Turso budget (rows read/written, writes binding, headroom, Turso dashboard); Redis-era table kept only as a marked historical quote, plus two leftover Redis phrasings fixed ("skip the touch", "single-transaction atomic")
 - `docs/sync.md` Protocol section updated to the SQL storage (sessions probe row + kv rows, single-transaction PATCH, cycle-key nulls as deletes, env-based storage separation instead of a key prefix); the Redis quota table is kept only as a marked historical note

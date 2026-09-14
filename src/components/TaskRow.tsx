@@ -37,7 +37,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
-  const hideScope = task.section === "account" ? "（所有角色共用）" : "";
+  const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
 
   const isCheck = task.type === "check";
   const checked = isCheck ? Boolean(value) : false;
@@ -56,9 +56,14 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   // badge line (always its own line so long names never orphan) + body line
   // (desc block with 44px tile vertically centered). Right column is w-11.
   const badges = isBarter
-    ? (task.priority === "must" ? (
-      <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必換</span>
-    ) : null)
+    ? (<>
+      {task.priority === "must" && (
+        <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必換</span>
+      )}
+      {task.serverShared === true && (
+        <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">伺服器</span>
+      )}
+    </>)
     : (<>
       {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必做</span>}
       {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">自訂</span>}
@@ -82,7 +87,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         )}
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
       </div>
-      {task.priority === "must" && <div className="mt-1 flex flex-wrap gap-1">{badges}</div>}
+      {(task.priority === "must" || task.serverShared === true) && <div className="mt-1 flex flex-wrap gap-1">{badges}</div>}
     </div>
   ) : (
     <div>
@@ -287,7 +292,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
-  const hideScope = task.section === "account" ? "（所有角色共用）" : "";
+  const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
 
@@ -337,6 +342,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           <div className="flex items-center gap-2">
             <span className={cn("text-sm font-bold text-primary truncate", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
             {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
+            {task.serverShared === true && <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] shrink-0">伺服器</span>}
             <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
               <span className="font-medium truncate">{task.npc}</span>
               <span className="text-muted-foreground truncate">· {task.town}</span>
