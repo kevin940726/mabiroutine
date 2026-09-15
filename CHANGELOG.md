@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-15 — town-first barter order
+
+### Features
+- Tracker barter lists town-first (town → npc → shops); priority stays visible as badges only. Same-priority assumed plans unchanged by the re-sort (probe-verified, zero flips)
+
 ## 2026-09-15 — canonical barter order
 
 ### Features
