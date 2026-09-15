@@ -1,5 +1,5 @@
-// Canonical town order for barter display + data-file order (priority →
-// town → npc). Hand-owned per user (game-region order, not collation):
+// Canonical town order for barter display + data-file order (town → npc →
+// shops). Hand-owned per user (game-region order, not collation):
 // barter.json rows and the explorer sort both follow this list. Unknown
 // towns (future data) sort after known ones, zh-Hant between themselves.
 export const TOWN_ORDER = [
