@@ -13,6 +13,35 @@ import {
 const BUILTIN_TASKS = trackerJson as Task[];
 type BarterJsonItem = (typeof barterJson)[number];
 
+// Subscribed + still-undone + unhidden task names, read live from the
+// store. Shared by the scheduler below and the __mabiHourlyFire DevTools
+// handle (main.tsx) — one source of truth for "what would fire now".
+export function getUndoneReminderNames(): string[] {
+  const s = useAppStore.getState();
+  const subs = s.hourlyReminders ?? [];
+  if (subs.length === 0) return [];
+  const char = s.getActiveChar();
+  const pinned = new Set(s.barterPins);
+  const byId = new Map<string, Task>();
+  for (const t of BUILTIN_TASKS) byId.set(t.id, t);
+  for (const t of s.customTasks) byId.set(t.id, t);
+  for (const b of barterJson as BarterJsonItem[]) {
+    if (pinned.has(b.id)) byId.set(b.id, barterToTask(b));
+  }
+  const names: string[] = [];
+  for (const id of subs) {
+    const task = byId.get(id);
+    if (!task) continue; // removed row: v18 prune clears it on next load
+    if (s.isTaskHidden(id)) continue; // hidden = never do: don't nag
+    const v =
+      task.section === "account" || task.serverShared === true
+        ? s.accountValues[id]
+        : char?.taskValues[id];
+    if (!isTaskDone(task, v)) names.push(task.name);
+  }
+  return names;
+}
+
 // Page-timer scheduler for local hourly reminders (MVP). Fires at :58
 // Taipei while the app is open: collects subscribed + still-undone +
 // unhidden tasks, shows one collapsed card, then arms the next hour.
@@ -26,39 +55,13 @@ export function useHourlyReminders(enabled: boolean) {
     let timer = 0;
     let cancelled = false;
 
-    const collectUndoneNames = (): string[] => {
-      const s = useAppStore.getState();
-      const subs = s.hourlyReminders ?? [];
-      if (subs.length === 0) return [];
-      const char = s.getActiveChar();
-      const pinned = new Set(s.barterPins);
-      const byId = new Map<string, Task>();
-      for (const t of BUILTIN_TASKS) byId.set(t.id, t);
-      for (const t of s.customTasks) byId.set(t.id, t);
-      for (const b of barterJson as BarterJsonItem[]) {
-        if (pinned.has(b.id)) byId.set(b.id, barterToTask(b));
-      }
-      const names: string[] = [];
-      for (const id of subs) {
-        const task = byId.get(id);
-        if (!task) continue; // removed row: v18 prune clears it on next load
-        if (s.isTaskHidden(id)) continue; // hidden = never do: don't nag
-        const v =
-          task.section === "account" || task.serverShared === true
-            ? s.accountValues[id]
-            : char?.taskValues[id];
-        if (!isTaskDone(task, v)) names.push(task.name);
-      }
-      return names;
-    };
-
     const arm = () => {
       if (cancelled) return;
       const wait = msUntilNextHourlyTick(Date.now());
       timer = window.setTimeout(() => {
         void (async () => {
           if (cancelled) return;
-          const names = collectUndoneNames();
+          const names = getUndoneReminderNames();
           if (names.length > 0 && Notification.permission === "granted") {
             await fireHourlyReminder(names, upcomingHourLabel(Date.now()));
           }

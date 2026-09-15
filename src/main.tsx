@@ -4,11 +4,44 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
 import { statsSummary } from './sync/stats.ts'
+import { getUndoneReminderNames } from './hooks/useHourlyReminders.ts'
+import {
+  fireHourlyReminder,
+  msUntilNextHourlyTick,
+  reminderPermission,
+  upcomingHourLabel,
+} from './lib/hourlyReminders.ts'
 
 // Quota telemetry reader (quota §, docs/sync.md): run
 // __mabiSyncStats() in DevTools for per-day request/command estimates.
 if (typeof window !== 'undefined') {
   (window as unknown as { __mabiSyncStats?: () => string }).__mabiSyncStats = statsSummary;
+}
+
+// Hourly-reminder debug handles (same pattern, always on): run
+// __mabiHourlyTick() in DevTools for the live :58 countdown readout, or
+// __mabiHourlyFire() to force one card now with the current undone subs
+// (no waiting for :58; still needs permission + at least one sub).
+if (typeof window !== 'undefined') {
+  const w = window as unknown as {
+    __mabiHourlyTick?: () => string;
+    __mabiHourlyFire?: () => Promise<string>;
+  };
+  w.__mabiHourlyTick = () => {
+    const ms = msUntilNextHourlyTick();
+    const names = getUndoneReminderNames();
+    return (
+      `next :58 tick in ${Math.round(ms / 1000)}s ` +
+      `(for ${upcomingHourLabel(Date.now())} Taipei) · ` +
+      `permission=${reminderPermission()} · ` +
+      `undone subs (${names.length}): ${names.join('、') || '—'}`
+    );
+  };
+  w.__mabiHourlyFire = async () => {
+    const names = getUndoneReminderNames();
+    const res = await fireHourlyReminder(names, upcomingHourLabel(Date.now()));
+    return `${res} (names: ${names.join('、') || '—'})`;
+  };
 }
 
 // Service worker: production only (dev keeps the live shell).
