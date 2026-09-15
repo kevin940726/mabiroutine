@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- Tracker wording: weekly-goals `每周`→`每週`, raid-gris desc simplified
+
 ## 2026-09-15 — manual sync + rename select
 
 ### Fixes
