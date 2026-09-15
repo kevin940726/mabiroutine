@@ -112,10 +112,16 @@ export async function fireHourlyReminder(names: string[], hourLabel: string): Pr
     data: { url: "/" },
   };
   try {
+    // getRegistration — never .ready: .ready pends FOREVER when no worker
+    // is registered (exactly the dev setup, where the SW is disabled), so
+    // awaiting it hangs the fire and the page fallback below never runs.
+    // getRegistration resolves immediately with undefined instead.
     if ("serviceWorker" in navigator) {
-      const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification(title, options);
-      return "shown";
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.showNotification(title, options);
+        return "shown";
+      }
     }
   } catch {
     // fall through to the page constructor
