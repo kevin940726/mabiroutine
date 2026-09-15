@@ -130,13 +130,21 @@ export type HourlyFireResult = "shown" | "skipped-permission" | "skipped-unsuppo
  * the page constructor. Resolves — never rejects — so the scheduler loop
  * cannot die on a notification error.
  */
-export async function fireHourlyReminder(names: string[], eventLabel: string): Promise<HourlyFireResult> {
+export async function fireHourlyReminder(
+  names: string[],
+  eventLabel: string,
+  titleTask = ""
+): Promise<HourlyFireResult> {
   if (names.length === 0) return "shown"; // nothing undone: silence is correct
   if (typeof window === "undefined" || !("Notification" in window)) return "skipped-unsupported";
   if (Notification.permission !== "granted") return "skipped-permission";
+  // Character names (per-char tasks) count 隻, task names count 項.
+  const unit = titleTask ? "隻" : "項";
   const shown = names.slice(0, 3).join("、");
-  const more = names.length > 3 ? ` 等 ${names.length} 項` : "";
-  const title = `${eventLabel} 將至 — ${names.length} 項未完成`;
+  const more = names.length > 3 ? ` 等 ${names.length} ${unit}` : "";
+  const title = titleTask
+    ? `${eventLabel} 將至 — ${titleTask}`
+    : `${eventLabel} 將至 — ${names.length} 項未完成`;
   // True lead at fire time, not the nominal 90s: a throttled or catch-up
   // fire states exactly how long is left.
   const leadText = eventLeadText(remainingSecToEvent(Date.now()));

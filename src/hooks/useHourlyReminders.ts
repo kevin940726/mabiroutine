@@ -16,14 +16,17 @@ import {
 const BUILTIN_TASKS = trackerJson as Task[];
 type BarterJsonItem = (typeof barterJson)[number];
 
-// Subscribed + still-undone + unhidden task names, read live from the
-// store. Shared by the scheduler below and the __mabiHourlyFire DevTools
-// handle (main.tsx) — one source of truth for "what would fire now".
-export function getUndoneReminderNames(): string[] {
+// What would fire now, read live from the store. Shared by the scheduler
+// below and the __mabiHourlyFire DevTools handle (main.tsx) — one source
+// of truth. Per-character tasks contribute UNDONE CHARACTER names (the
+// remaining count carries little signal — any remainder means "go play
+// that char"); account/server-shared tasks fall back to task names.
+// Null = nothing due (silence is correct).
+export type UndoneReminder = { taskName: string; names: string[] };
+export function getUndoneReminder(): UndoneReminder | null {
   const s = useAppStore.getState();
-  const subs = s.hourlyReminders ?? [];
-  if (subs.length === 0) return [];
-  const char = s.getActiveChar();
+  const subs = (s.hourlyReminders ?? []).filter(isEligibleReminderId);
+  if (subs.length === 0) return null;
   const pinned = new Set(s.barterPins);
   const byId = new Map<string, Task>();
   for (const t of BUILTIN_TASKS) byId.set(t.id, t);
@@ -31,19 +34,26 @@ export function getUndoneReminderNames(): string[] {
   for (const b of barterJson as BarterJsonItem[]) {
     if (pinned.has(b.id)) byId.set(b.id, barterToTask(b));
   }
+  // Single-task scope today (barrier), so one taskName covers the card; a
+  // future multi-task scope would need per-group cards instead of mixing.
+  let taskName = "";
   const names: string[] = [];
   for (const id of subs) {
-    if (!isEligibleReminderId(id)) continue; // timer scoped to eligible tasks only
     const task = byId.get(id);
     if (!task) continue; // removed row: v18 prune clears it on next load
-    if (s.isTaskHidden(id)) continue; // hidden = never do: don't nag
-    const v =
-      task.section === "account" || task.serverShared === true
-        ? s.accountValues[id]
-        : char?.taskValues[id];
-    if (!isTaskDone(task, v)) names.push(task.name);
+    if (task.section === "account" || task.serverShared === true) {
+      if (s.isTaskHidden(id)) continue; // hidden = never do: don't nag
+      if (!isTaskDone(task, s.accountValues[id])) names.push(task.name);
+    } else {
+      if (!taskName) taskName = task.name;
+      for (const c of s.characters) {
+        if (c.hiddenTaskIds.includes(id)) continue;
+        if (!isTaskDone(task, c.taskValues[id])) names.push(c.name);
+      }
+    }
   }
-  return names;
+  if (names.length === 0) return null;
+  return { taskName, names };
 }
 
 // Page-timer scheduler for local event reminders (MVP). Fires at :00
@@ -71,9 +81,9 @@ export function useHourlyReminders(enabled: boolean) {
             arm(); // this hour is gone: move on silently
             return;
           }
-          const names = getUndoneReminderNames();
-          if (names.length > 0 && Notification.permission === "granted") {
-            await fireHourlyReminder(names, upcomingEventLabel(Date.now()));
+          const r = getUndoneReminder();
+          if (r && Notification.permission === "granted") {
+            await fireHourlyReminder(r.names, upcomingEventLabel(Date.now()), r.taskName);
           }
           arm(); // next hour, forever
         })();

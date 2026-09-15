@@ -4,7 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
 import { statsSummary } from './sync/stats.ts'
-import { getUndoneReminderNames } from './hooks/useHourlyReminders.ts'
+import { getUndoneReminder } from './hooks/useHourlyReminders.ts'
 import {
   fireHourlyReminder,
   msUntilNextEventFire,
@@ -29,18 +29,20 @@ if (typeof window !== 'undefined') {
   };
   w.__mabiHourlyTick = () => {
     const ms = msUntilNextEventFire();
-    const names = getUndoneReminderNames();
+    const r = getUndoneReminder();
+    const names = r?.names ?? [];
     return (
       `next fire in ${Math.round(ms / 1000)}s ` +
       `(event ${upcomingEventLabel(Date.now())} Taipei) · ` +
       `permission=${reminderPermission()} · ` +
-      `undone subs (${names.length}): ${names.join('、') || '—'}`
+      `undone (${names.length})${r?.taskName ? ` ${r.taskName}: ` : ': '}${names.join('、') || '—'}`
     );
   };
   w.__mabiHourlyFire = async () => {
-    const names = getUndoneReminderNames();
-    const res = await fireHourlyReminder(names, upcomingEventLabel(Date.now()));
-    return `${res} (names: ${names.join('、') || '—'})`;
+    const r = getUndoneReminder();
+    if (!r) return 'shown (nothing due)';
+    const res = await fireHourlyReminder(r.names, upcomingEventLabel(Date.now()), r.taskName);
+    return `${res} (names: ${r.names.join('、')})`;
   };
 }
 
