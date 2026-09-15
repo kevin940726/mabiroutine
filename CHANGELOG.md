@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- Hourly task reminders (MVP, local-only): tap the 🔔 on any task to get one collapsed system notification at :58 Taipei (~2 minutes before each 整點) listing subscribed tasks still undone — auto-dismissing, never stacked, silent when nothing is due. Subscriptions stay on this device (never synced, never sent anywhere, store v17→v18) and only fire while the app is open; closed-app push is a follow-up
+
 ## 2026-09-15 — town-first barter order
 
 ### Features

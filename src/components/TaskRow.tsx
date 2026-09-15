@@ -7,7 +7,8 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { confirmRemoveTask } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical } from "lucide-react";
+import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
+import { reminderPermission, requestReminderPermission } from "@/lib/hourlyReminders";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { dealTimes, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
@@ -23,6 +24,49 @@ type Props = {
 export function TaskRow(props: Props) {
   const isMobile = useIsMobile();
   return isMobile ? <TaskRowMobile {...props} /> : <TaskRowDesktop {...props} />;
+}
+
+/**
+ * Hourly (:58 Taipei) reminder toggle. Permission is requested from this
+ * tap — the only user gesture browsers accept — and the subscription stays
+ * local-only (never synced, never sent anywhere).
+ */
+function useReminderToggle(taskId: string, taskName: string) {
+  const on = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
+  const toggle = useAppStore((s) => s.toggleHourlyReminder);
+  const onToggle = async () => {
+    if (on) {
+      toggle(taskId);
+      return;
+    }
+    if (reminderPermission() === "unsupported") {
+      alert("此瀏覽器不支援系統通知，無法使用整點提醒。");
+      return;
+    }
+    const p = await requestReminderPermission();
+    if (p === "granted") {
+      toggle(taskId);
+    } else if (p === "denied") {
+      alert(`「${taskName}」無法訂閱：瀏覽器已封鎖通知，請到網址列旁的圖示重新允許。`);
+    }
+    // dismissed prompt (stays "default"): do nothing, stay unsubscribed
+  };
+  return { on, onToggle };
+}
+
+function ReminderBell({ taskId, taskName, className }: { taskId: string; taskName: string; className?: string }) {
+  const { on, onToggle } = useReminderToggle(taskId, taskName);
+  return (
+    <button
+      onClick={() => void onToggle()}
+      className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"}
+      aria-label={`${on ? "取消" : "訂閱"}整點提醒：${taskName}`}
+      aria-pressed={on}
+      title="整點前 2 分鐘提醒（此裝置、本頁開啟時）"
+    >
+      {on ? <BellRing className="h-3.5 w-3.5 text-amber-500" /> : <Bell className="h-3.5 w-3.5" />}
+    </button>
+  );
 }
 
 /** Whole-deal multiplier for a tracker barter row's hover card (twin leg's
@@ -142,7 +186,8 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       <div className="min-w-0 pl-5">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">{title}</div>
-        <div className="w-11 shrink-0 flex justify-end">
+        <div className="flex w-[68px] shrink-0 items-center justify-end gap-0.5">
+          <ReminderBell taskId={task.id} taskName={task.name} />
           {isCustom ? (
             <RowMenu
               isHidden={isHidden}
@@ -292,6 +337,9 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
+  // Subscribed bells pin the gutter visible — an armed reminder must not
+  // hide at 20% opacity where the user can't tell it's on.
+  const { on: remindOn } = useReminderToggle(task.id, task.name);
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
@@ -414,7 +462,8 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           />
         </div>
       ) : (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-card/95 backdrop-blur shadow-sm p-0.5 opacity-20 pointer-events-auto group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+        <div className={cn("absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-card/95 backdrop-blur shadow-sm p-0.5 pointer-events-auto transition-opacity flex items-center", remindOn ? "opacity-100" : "opacity-20 group-hover:opacity-100 group-focus-within:opacity-100")}>
+          <ReminderBell taskId={task.id} taskName={task.name} />
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleHidden(task.id)} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
             {isHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
           </Button>
