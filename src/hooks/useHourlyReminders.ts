@@ -4,10 +4,13 @@ import barterJson from "@/data/barter.json";
 import { barterToTask, useAppStore } from "@/store/useAppStore";
 import type { Task } from "@/lib/types";
 import {
+  CATCHUP_MIN_SEC,
   fireHourlyReminder,
+  isEligibleReminderId,
   isTaskDone,
-  msUntilNextHourlyTick,
-  upcomingHourLabel,
+  msUntilNextEventFire,
+  remainingSecToEvent,
+  upcomingEventLabel,
 } from "@/lib/hourlyReminders";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -30,6 +33,7 @@ export function getUndoneReminderNames(): string[] {
   }
   const names: string[] = [];
   for (const id of subs) {
+    if (!isEligibleReminderId(id)) continue; // timer scoped to eligible tasks only
     const task = byId.get(id);
     if (!task) continue; // removed row: v18 prune clears it on next load
     if (s.isTaskHidden(id)) continue; // hidden = never do: don't nag
@@ -42,12 +46,12 @@ export function getUndoneReminderNames(): string[] {
   return names;
 }
 
-// Page-timer scheduler for local hourly reminders (MVP). Fires at :58
+// Page-timer scheduler for local event reminders (MVP). Fires at :01:00
 // Taipei while the app is open: collects subscribed + still-undone +
 // unhidden tasks, shows one collapsed card, then arms the next hour.
-// Throttled background tabs still fire within ~1 minute — inside the
-// accepted ~2-minute window. Closed app/page = no fire (documented
-// limitation; server push is the follow-up, not this hook).
+// Opens after :01:00 get an immediate catch-up card (still useful); past
+// the 30s cutoff the hour is skipped silently. Closed app/page = no fire
+// (documented limitation; server push is the follow-up, not this hook).
 export function useHourlyReminders(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
@@ -57,13 +61,19 @@ export function useHourlyReminders(enabled: boolean) {
 
     const arm = () => {
       if (cancelled) return;
-      const wait = msUntilNextHourlyTick(Date.now());
+      const wait = msUntilNextEventFire(Date.now());
       timer = window.setTimeout(() => {
         void (async () => {
           if (cancelled) return;
+          // Re-check the cutoff at fire time: a throttled background timer
+          // can slip past it between arming and firing.
+          if (remainingSecToEvent(Date.now()) < CATCHUP_MIN_SEC) {
+            arm(); // this hour is gone: move on silently
+            return;
+          }
           const names = getUndoneReminderNames();
           if (names.length > 0 && Notification.permission === "granted") {
-            await fireHourlyReminder(names, upcomingHourLabel(Date.now()));
+            await fireHourlyReminder(names, upcomingEventLabel(Date.now()));
           }
           arm(); // next hour, forever
         })();
@@ -71,8 +81,8 @@ export function useHourlyReminders(enabled: boolean) {
     };
 
     arm();
-    // Foreground return re-arms: a laptop that slept past :58 would otherwise
-    // sit on a stale 50-minute timer instead of the next tick.
+    // Foreground return re-arms: a laptop that slept past :01 would otherwise
+    // sit on a stale 50-minute timer instead of the next fire.
     const onVisible = () => {
       if (document.visibilityState === "visible" && !cancelled) {
         window.clearTimeout(timer);

@@ -1,20 +1,37 @@
 import type { Task } from "@/lib/types";
 
-// Local-only hourly reminders (MVP): while the app is open, a page timer
-// fires at :58 Taipei — ~2 minutes before each 整點 — and raises one
-// collapsed system notification listing subscribed tasks that are still
+// Local-only event reminders (MVP): while the app is open, a page timer
+// fires once per hour ahead of the verified in-game event at XX:02:30 and
+// raises one collapsed system notification for subscribed tasks still
 // undone. No server, no push subscription, nothing leaves the device.
+//
+// Timing (verified in-game): the game pings soft at :00 (ignorable), the
+// real event starts :02:30, walking there takes ~1 minute — so the
+// scheduled fire is :01:00 (60s prep + 30s buffer), with immediate
+// catch-up for opens after :01:00 and silence inside 30s of the start
+// (a card that close is pure startle, zero actionability).
 //
 // Least-intrusive recipe: a single notification per hour (tag-collapsed),
 // auto-dismissing (requireInteraction: false), no re-buzz on replace
 // (renotify: false), and silence when there is nothing undone.
 
-// How early before the hour the reminder fires (minutes). Taipei is UTC+8
-// with no DST, so wall-clock math is a fixed offset.
-export const HOURLY_LEAD_MINUTES = 2;
+// In-game event: XX:02:30 Taipei (verified). Taipei is UTC+8 with no DST,
+// so wall-clock math is a fixed offset.
+export const EVENT_SEC_PAST_HOUR = 150;
+// Scheduled fire = event − lead: ~60s to stop and move + 30s buffer.
+export const FIRE_LEAD_SEC = 90;
+// Inside this many seconds of the event, a card can't help: skip.
+export const CATCHUP_MIN_SEC = 30;
+// The timer is scoped to these task ids only (today: 不祥的召喚結界).
+// Bells render and the scheduler collects exclusively for this list.
+export const HOURLY_ELIGIBLE_IDS = ["barrier"] as const;
 
 // Collapse key: one card per hour-slot, replaced — never stacked.
 export const HOURLY_TAG = "mabi-hourly";
+
+export function isEligibleReminderId(id: string): boolean {
+  return (HOURLY_ELIGIBLE_IDS as readonly string[]).includes(id);
+}
 
 /** Taipei wall-clock parts for a timestamp (hour/minute/second only). */
 function taipeiHMS(ms: number): { hour: number; minute: number; second: number } {
@@ -30,35 +47,47 @@ function taipeiHMS(ms: number): { hour: number; minute: number; second: number }
   return { hour: get("hour") % 24, minute: get("minute"), second: get("second") };
 }
 
+/** Seconds into the current Taipei hour (0–3599). */
+function secIntoHour(ms: number): number {
+  const { minute, second } = taipeiHMS(ms);
+  return minute * 60 + second;
+}
+
+/** Scheduled fire offset within the hour (seconds): :01:00. */
+export const FIRE_SEC_PAST_HOUR = EVENT_SEC_PAST_HOUR - FIRE_LEAD_SEC; // 60
+
 /**
- * Milliseconds until the next fire time for the upcoming 整點 (Taipei).
- * The delivery window is [:58, :00): opening mid-window (e.g. :59) fires
- * ~immediately — the hour hasn't started, so the reminder is still useful.
- * Only past :00 do we arm next hour's :58.
+ * Milliseconds until the next fire. Before :01:00 we wait for it; inside
+ * (:01:00, event − 30s] the caller fires ~immediately — late openers still
+ * get a useful card; past the cutoff we arm next hour, since the event is
+ * effectively now and a card can't help.
  */
-export function msUntilNextHourlyTick(nowMs: number = Date.now(), lead = HOURLY_LEAD_MINUTES): number {
-  const { minute, second } = taipeiHMS(nowMs);
-  const tickMinute = 60 - lead; // :58
-  if (minute >= tickMinute) return 1_000; // inside the window: fire now
-  // Minutes (fractional) remaining until the :58 wall mark.
-  const deltaMin = tickMinute - minute - second / 60;
-  return Math.max(1_000, Math.round(deltaMin * 60 * 1000));
+export function msUntilNextEventFire(nowMs: number = Date.now()): number {
+  const t = secIntoHour(nowMs);
+  if (t < FIRE_SEC_PAST_HOUR) return Math.max(1_000, (FIRE_SEC_PAST_HOUR - t) * 1000);
+  if (t <= EVENT_SEC_PAST_HOUR - CATCHUP_MIN_SEC) return 1_000;
+  return Math.max(1_000, (3600 - t + FIRE_SEC_PAST_HOUR) * 1000);
 }
 
-/** Whole minutes left until the 整點 (0 = under a minute away). */
-export function wholeMinutesUntilHour(nowMs: number = Date.now()): number {
-  const { minute, second } = taipeiHMS(nowMs);
-  if (minute >= 60 - HOURLY_LEAD_MINUTES) return 60 - minute - (second > 0 ? 1 : 0);
-  return 60 - minute;
+/** Seconds from now until the coming event (always the next :02:30). */
+export function remainingSecToEvent(nowMs: number = Date.now()): number {
+  const t = secIntoHour(nowMs);
+  return t <= EVENT_SEC_PAST_HOUR ? EVENT_SEC_PAST_HOUR - t : 3600 - t + EVENT_SEC_PAST_HOUR;
 }
 
-/** "HH:00" label of the 整點 this tick is warming up for (Taipei). */
-export function upcomingHourLabel(fireAtMs: number = Date.now(), lead = HOURLY_LEAD_MINUTES): string {
-  const { hour, minute } = taipeiHMS(fireAtMs);
-  // A tick at :58 belongs to the coming hour; anything else (clock skew,
-  // throttled timer firing late) labels the current hour.
-  const h = minute >= 60 - lead ? (hour + 1) % 24 : hour;
-  return `${String(h).padStart(2, "0")}:00`;
+/** "HH:02" label of the event a fire belongs to (Taipei). */
+export function upcomingEventLabel(nowMs: number = Date.now()): string {
+  const { hour } = taipeiHMS(nowMs);
+  // A fire belongs to this hour's event unless we're already past it.
+  const h = secIntoHour(nowMs) <= EVENT_SEC_PAST_HOUR ? hour : (hour + 1) % 24;
+  return `${String(h).padStart(2, "0")}:02`;
+}
+
+/** Event-relative lead copy: 剩3分半 / 剩1分鐘 / 馬上開始. */
+export function eventLeadText(remainSec: number): string {
+  if (remainSec < 60) return "馬上開始";
+  const mins = Math.floor(remainSec / 60);
+  return remainSec % 60 >= 30 ? `剩 ${mins} 分半` : `剩 ${mins} 分鐘`;
 }
 
 export function isTaskDone(task: Task, value: number | boolean | undefined): boolean {
@@ -99,16 +128,16 @@ export type HourlyFireResult = "shown" | "skipped-permission" | "skipped-unsuppo
  * the page constructor. Resolves — never rejects — so the scheduler loop
  * cannot die on a notification error.
  */
-export async function fireHourlyReminder(names: string[], hourLabel: string): Promise<HourlyFireResult> {
+export async function fireHourlyReminder(names: string[], eventLabel: string): Promise<HourlyFireResult> {
   if (names.length === 0) return "shown"; // nothing undone: silence is correct
   if (typeof window === "undefined" || !("Notification" in window)) return "skipped-unsupported";
   if (Notification.permission !== "granted") return "skipped-permission";
   const shown = names.slice(0, 3).join("、");
   const more = names.length > 3 ? ` 等 ${names.length} 項` : "";
-  const title = `${hourLabel} 將至 — ${names.length} 項未完成`;
-  // Actual lead, not the nominal 2: a mid-window fire (e.g. :59) says 1 分鐘.
-  const minsLeft = wholeMinutesUntilHour(Date.now());
-  const leadText = minsLeft > 0 ? `再 ${minsLeft} 分鐘就整點` : "整點馬上就到";
+  const title = `${eventLabel} 將至 — ${names.length} 項未完成`;
+  // True lead at fire time, not the nominal 90s: a throttled or catch-up
+  // fire states exactly how long is left.
+  const leadText = eventLeadText(remainingSecToEvent(Date.now()));
   // renotify/vibrate predate the TS DOM lib: typed locally, passed through
   // to showNotification which honors them at runtime.
   const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
