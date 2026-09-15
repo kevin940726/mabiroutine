@@ -9,6 +9,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ### Fixes
 - Hourly-reminder fire no longer hangs in dev: it awaited `serviceWorker.ready`, which pends forever with no worker registered (SW is dev-disabled), so neither the card nor the page fallback ever ran — now resolves via `getRegistration()` with the same fallback
+- Hourly reminders fire mid-window instead of skipping the hour: opening the app at :59 used to arm next hour's :58 and silently drop the coming 整點 — now anything inside [:58, :00) fires ~immediately, and the card states the actual lead (再 1 分鐘 / 整點馬上就到) instead of a hardcoded 再 2 分鐘
 
 ## 2026-09-15 — town-first barter order
 

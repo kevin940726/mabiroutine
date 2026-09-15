@@ -31,18 +31,25 @@ function taipeiHMS(ms: number): { hour: number; minute: number; second: number }
 }
 
 /**
- * Milliseconds until the next :58 Taipei tick (the fire time for the
- * upcoming 整點). If we are already past :58 — e.g. the page just opened at
- * :59 — the next tick is next hour's :58, never "right now": firing late
- * would nag after the hour already started.
+ * Milliseconds until the next fire time for the upcoming 整點 (Taipei).
+ * The delivery window is [:58, :00): opening mid-window (e.g. :59) fires
+ * ~immediately — the hour hasn't started, so the reminder is still useful.
+ * Only past :00 do we arm next hour's :58.
  */
 export function msUntilNextHourlyTick(nowMs: number = Date.now(), lead = HOURLY_LEAD_MINUTES): number {
   const { minute, second } = taipeiHMS(nowMs);
   const tickMinute = 60 - lead; // :58
-  // Minutes (fractional) remaining until the next :58 wall mark.
-  let deltaMin = tickMinute - minute - second / 60;
-  if (deltaMin <= 0) deltaMin += 60;
+  if (minute >= tickMinute) return 1_000; // inside the window: fire now
+  // Minutes (fractional) remaining until the :58 wall mark.
+  const deltaMin = tickMinute - minute - second / 60;
   return Math.max(1_000, Math.round(deltaMin * 60 * 1000));
+}
+
+/** Whole minutes left until the 整點 (0 = under a minute away). */
+export function wholeMinutesUntilHour(nowMs: number = Date.now()): number {
+  const { minute, second } = taipeiHMS(nowMs);
+  if (minute >= 60 - HOURLY_LEAD_MINUTES) return 60 - minute - (second > 0 ? 1 : 0);
+  return 60 - minute;
 }
 
 /** "HH:00" label of the 整點 this tick is warming up for (Taipei). */
@@ -99,10 +106,13 @@ export async function fireHourlyReminder(names: string[], hourLabel: string): Pr
   const shown = names.slice(0, 3).join("、");
   const more = names.length > 3 ? ` 等 ${names.length} 項` : "";
   const title = `${hourLabel} 將至 — ${names.length} 項未完成`;
+  // Actual lead, not the nominal 2: a mid-window fire (e.g. :59) says 1 分鐘.
+  const minsLeft = wholeMinutesUntilHour(Date.now());
+  const leadText = minsLeft > 0 ? `再 ${minsLeft} 分鐘就整點` : "整點馬上就到";
   // renotify/vibrate predate the TS DOM lib: typed locally, passed through
   // to showNotification which honors them at runtime.
   const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
-    body: `再 2 分鐘就整點：${shown}${more}`,
+    body: `${leadText}：${shown}${more}`,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: HOURLY_TAG,
