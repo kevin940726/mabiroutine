@@ -4,10 +4,13 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- Character rename selects all text once on entering edit mode, then leaves the cursor alone — mobile keyboard show/hide and re-taps no longer eat the cursor and replace the whole name; both desktop rename entries now select on entry too
+
 ## 2026-09-14 — 伺服器共用以物易物
 
 ### Features
-- 伺服器共用以物易物：7 個 `perChar=false` 品項（麗莎 高級鍊金術再燃燒催化劑×2、稀有催化劑、阿爾米斯 銀合金錠、康納 魔力石×2、安黛莉 聖水×10）在追蹤頁改為全角色共用進度——任一角色勾選即全角色完成，計數為共用池——並掛上 伺服器 badge（追蹤頁 + 以物易物頁都有）；隱藏亦為全域，清除本區會連同清除。安黛莉聖水是後來補確認的，shops twin 同步補上 `scope:account`。舊的各角色進度以 OR / max 合併遷移（store v15→v16）
+- Server-shared barter: 7 `perChar=false` rows (麗莎 高級鍊金術再燃燒催化劑×2, 稀有催化劑, 阿爾米斯 銀合金錠, 康納 魔力石×2, 安黛莉 聖水×10) now share one progress pool across every character in the tracker — checking on any character completes it everywhere, counters accumulate into a shared pool — with a 伺服器 badge (tracker + explorer); hiding is global too, and clearing the section clears them. 安黛莉 聖水 was confirmed late, so its shops twin gained `scope:account` in the same pass. Old per-character progress merges via OR / max (store v15→v16)
 
 ### Chores
 - `docs/sync.md` quota section rewritten for the Turso budget (rows read/written, writes binding, headroom, Turso dashboard); Redis-era table kept only as a marked historical quote, plus two leftover Redis phrasings fixed ("skip the touch", "single-transaction atomic")

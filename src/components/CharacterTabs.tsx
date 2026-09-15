@@ -3,7 +3,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { confirmRemoveCharacter } from "@/components/ConfirmDialog";
-import { cn } from "@/lib/utils";
+import { cn, focusSelectOnMount } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
 import { Pencil, Trash2, Plus, ChevronDown } from "lucide-react";
@@ -96,7 +96,7 @@ function CharacterTabsMobile() {
           }}
           className="flex items-center gap-2 mt-2"
         >
-          <Input autoFocus ref={(el) => el?.select()} value={draft} onChange={(e) => setDraft(e.target.value)} className="h-9 flex-1" placeholder="名稱" />
+          <Input ref={focusSelectOnMount} value={draft} onChange={(e) => setDraft(e.target.value)} className="h-9 flex-1" placeholder="名稱" />
           <Button type="submit" size="sm">
             儲存
           </Button>
@@ -140,7 +140,7 @@ function CharacterTabsDesktop() {
                 }}
                 className="flex items-center gap-1.5 pl-1"
               >
-                <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} className="h-7 w-28 px-2 text-sm bg-background" placeholder="名稱" />
+                <Input ref={focusSelectOnMount} value={draft} onChange={(e) => setDraft(e.target.value)} className="h-7 w-28 px-2 text-sm bg-background" placeholder="名稱" />
                 <Button type="submit" size="sm" className="h-7 px-2.5 text-xs">
                   儲存
                 </Button>

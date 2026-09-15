@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { focusSelectOnMount } from "@/lib/utils";
 import type { Task } from "@/lib/types";
 import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
@@ -248,10 +249,9 @@ export default function App() {
               className="flex items-center gap-1"
             >
               <input
-                autoFocus
+                ref={focusSelectOnMount}
                 value={pillDraft}
                 onChange={(e) => setPillDraft(e.target.value)}
-                onFocus={(e) => e.target.select()}
                 className="h-7 w-24 rounded-full text-xs px-2.5 bg-background border border-input"
                 placeholder="名稱"
               />
@@ -356,7 +356,7 @@ export default function App() {
               }}
               className="flex items-center gap-1"
             >
-              <Input autoFocus value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)} className="h-7 w-24 rounded-full text-xs px-2.5" placeholder="名稱" />
+              <Input ref={focusSelectOnMount} value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)} className="h-7 w-24 rounded-full text-xs px-2.5" placeholder="名稱" />
               <button type="submit" className="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-primary text-primary-foreground" aria-label="save rename">
                 <Check className="h-3.5 w-3.5" />
               </button>
