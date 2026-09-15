@@ -76,6 +76,7 @@ export const SyncButton = memo(function SyncButton() {
   const [confirming, setConfirming] = useState<Confirming>(null);
   const [pasteValue, setPasteValue] = useState("");
   const [pasteBusy, setPasteBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [ensureError, setEnsureError] = useState(false);
   const [copiedTick, setCopiedTick] = useState(0);
   // Mobile header is space-tight: circular icon button. Desktop: pill + text.
@@ -248,6 +249,27 @@ export const SyncButton = memo(function SyncButton() {
       if (e instanceof SyncNotFound) dropDeadLink();
       // Network errors stay silent — the next visible/change retries.
     }
+  }
+
+  // Manual refresh: the background loop only pulls on mount / focus /
+  // visibility / 5min-repoll (paused after 15min idle, throttled to 10s), so
+  // a stale screen had no recourse except reopening via link (reported
+  // 2026-09-15: desktop rename never arrived on the phone). Forced pull
+  // bypasses the throttle — the user explicitly asked. last-synced readout
+  // below rides the linked binding (every push/pull ack advances updatedAt).
+  async function syncNow(): Promise<void> {
+    if (!linkedRef.current || busyRef.current || syncing) return;
+    setSyncing(true);
+    try {
+      await pullNow(true);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function formatSyncTime(ts: number): string {
+    if (!ts) return "尚未同步";
+    return `上次同步 ${new Date(ts).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}`;
   }
 
   // Join concurrent runs: boot and focus fire a background pull and a forced
@@ -595,20 +617,41 @@ export const SyncButton = memo(function SyncButton() {
                 </div>
               ) : (
                 linked && (
-                  <div className="flex items-center justify-between">
-                    <Button variant="ghost" size="sm" onClick={() => setConfirming("regen")} disabled={busy}>
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      重新產生連結
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setConfirming("cancel")}
-                      disabled={busy}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      取消同步
-                    </Button>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void syncNow()}
+                        disabled={busy || syncing}
+                        className="shrink-0"
+                      >
+                        {syncing ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        )}
+                        立即同步
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                        {formatSyncTime(linked.updatedAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center shrink-0">
+                      <Button variant="ghost" size="sm" onClick={() => setConfirming("regen")} disabled={busy}>
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        重新產生連結
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirming("cancel")}
+                        disabled={busy}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        取消同步
+                      </Button>
+                    </div>
                   </div>
                 )
               )}
