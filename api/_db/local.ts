@@ -208,6 +208,12 @@ class LocalDb implements Db {
 export function openLocalDb(url: string): Db {
   const db = new DatabaseSync(toPath(url));
   db.exec("PRAGMA journal_mode = WAL");
+  // vercel dev serves concurrent invocations on separate connections: a
+  // second writer between probe and apply fails BEGIN IMMEDIATE instantly at
+  // the default busy timeout of 0 (SQLITE_BUSY, errcode 5 — killed dev:api
+  // under api-live's 25-parallel-PATCH step on 2026-09-15). Retry in SQLite
+  // instead of failing.
+  db.exec("PRAGMA busy_timeout = 5000");
   ensureSchema(db);
   return new LocalDb(db);
 }

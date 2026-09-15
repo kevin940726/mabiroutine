@@ -20,7 +20,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const BASE = (process.env.SYNC_TEST_BASE || "http://127.0.0.1:52608").replace(/\/+$/, "");
+const BASE = (process.env.SYNC_TEST_BASE || "http://localhost:52608").replace(/\/+$/, "");
 const APP = `${BASE}/`;
 const API = `${BASE}/api/session`;
 const BYPASS = process.env.SYNC_TEST_BYPASS;

@@ -4,7 +4,10 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-15 — manual sync + rename select
+
 ### Fixes
+- Local sync backend hardening: `busy_timeout` on the file DB (parallel PATCHes no longer take dev:api down with SQLITE_BUSY), the API handler answers 500 instead of throwing, and api-live inspects the local file DB with a localhost default base — the live gate now passes against `pnpm dev:api` for real
 - Manual sync: the sync dialog gains a 立即同步 button plus a last-synced timestamp — a stale screen (e.g. a character rename made on another device) can now be refreshed on demand instead of reopening via link
 - Character rename selects all text once on entering edit mode, then leaves the cursor alone — mobile keyboard show/hide and re-taps no longer eat the cursor and replace the whole name; both desktop rename entries now select on entry too
 

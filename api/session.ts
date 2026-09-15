@@ -447,16 +447,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   // Sync state must never be cached anywhere: a stale GET adopted wholesale
   // by a client pull wipes newer local keys (then tombstones them server-side).
   res.setHeader("Cache-Control", "no-store");
-  switch (req.method) {
-    case "POST":
-      return handlePost(req, res);
-    case "GET":
-      return handleGet(req, res);
-    case "PATCH":
-      return handlePatch(req, res);
-    case "DELETE":
-      return handleDelete(req, res);
-    default:
-      res.status(405).json({ error: "method not allowed" });
+  // A DB error (e.g. SQLITE_BUSY under concurrent writers) must answer 500,
+  // never escape: an uncaught throw kills the whole dev server (proven
+  // 2026-09-15 by LocalDb.tx's BEGIN IMMEDIATE under parallel PATCH).
+  try {
+    switch (req.method) {
+      case "POST":
+        return handlePost(req, res);
+      case "GET":
+        return handleGet(req, res);
+      case "PATCH":
+        return handlePatch(req, res);
+      case "DELETE":
+        return handleDelete(req, res);
+      default:
+        res.status(405).json({ error: "method not allowed" });
+    }
+  } catch {
+    if (!res.headersSent) res.status(500).json({ error: "internal" });
   }
 }

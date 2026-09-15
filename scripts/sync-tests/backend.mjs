@@ -80,6 +80,51 @@ function sqlStore() {
   };
 }
 
+// Local file store: local `pnpm dev:api` always writes the throwaway
+// file: DB (api/_db/index.ts rule 3 — never Turso, even with creds present),
+// so inspecting through TURSO_DATABASE_URL would read a different database
+// entirely (proven 2026-09-15: every persistence assertion failed with null).
+// Reads ./dev.db directly with node:sqlite. WAL readers never block writers.
+function fileStore(dbPath = "./dev.db") {
+  let dbP = null;
+  async function db() {
+    if (!dbP) {
+      dbP = (async () => {
+        const { DatabaseSync } = await import("node:sqlite");
+        const d = new DatabaseSync(dbPath);
+        d.exec("PRAGMA busy_timeout = 5000");
+        return d;
+      })();
+    }
+    return dbP;
+  }
+  return {
+    name: "file",
+    async readMeta(id) {
+      const r = (await db()).prepare("SELECT meta, legacy FROM sessions WHERE id = ?").get(id);
+      if (!r || r.meta == null) return null;
+      return { "~meta": String(r.meta), legacy: r.legacy != null };
+    },
+    async kvValue(id, key) {
+      const r = (await db()).prepare("SELECT value FROM kv WHERE session_id = ? AND key = ?").get(id, key);
+      return r ? String(r.value) : null;
+    },
+    async readLegacy(id) {
+      const r = (await db()).prepare("SELECT legacy FROM sessions WHERE id = ?").get(id);
+      return r && r.legacy != null ? String(r.legacy) : null;
+    },
+    async ttl(id) {
+      const r = (await db()).prepare("SELECT expires_at FROM sessions WHERE id = ?").get(id);
+      return r ? Math.round((Number(r.expires_at) - Date.now()) / 1000) : -1;
+    },
+    async seedLegacy(id, rec) {
+      (await db()).prepare(
+        "INSERT INTO sessions (id, updated_at, seq, expires_at, field_count, meta, legacy) VALUES (?, ?, 0, ?, 0, NULL, ?)"
+      ).run(id, 1, Date.now() + 1e12, JSON.stringify(rec));
+    },
+  };
+}
+
 // Returns the store matching the running server. `redis` may be null when no
 // Upstash credentials are configured (SQL-only setup).
 export async function detectStore(redis, id) {
@@ -88,4 +133,12 @@ export async function detectStore(redis, id) {
     if (h && typeof h["~meta"] === "string") return redisStore(redis);
   }
   return sqlStore();
+}
+
+// Store matching the suite base: local dev servers (localhost/127.0.0.1)
+// write the throwaway file DB, so inspect it directly; previews/prod share
+// one Turso database with the inspector, so probe as before.
+export async function storeForBase(redis, id, base) {
+  if (/^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?\//.test(base)) return fileStore();
+  return detectStore(redis, id);
 }

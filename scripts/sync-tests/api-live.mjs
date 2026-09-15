@@ -7,9 +7,9 @@
 // `pnpm check` stays green offline — the hermetic suites carry the gate.
 import fs from "node:fs";
 import { Redis } from "@upstash/redis";
-import { detectStore } from "./backend.mjs";
+import { storeForBase } from "./backend.mjs";
 
-const BASE = `${(process.env.SYNC_TEST_BASE || "http://127.0.0.1:52608").replace(/\/+$/, "")}/api/session`;
+const BASE = `${(process.env.SYNC_TEST_BASE || "http://localhost:52608").replace(/\/+$/, "")}/api/session`;
 // Protected previews need a Vercel automation bypass secret (SYNC_TEST_BYPASS).
 const BYPASS = process.env.SYNC_TEST_BYPASS;
 const AUTH = BYPASS ? { "x-vercel-protection-bypass": BYPASS } : {};
@@ -93,7 +93,7 @@ const created = [];
   const id = r.json.id;
   created.push(id);
   ok("create id shape", /^[0-9a-f-]{36}$/.test(id ?? ""));
-  store = await detectStore(redis, id);
+  store = await storeForBase(redis, id, BASE);
   const rec = await store.readMeta(id);
   ok(`session persisted (${store.name})`, !!rec, JSON.stringify(rec)?.slice(0, 120));
   ok("field persisted", (await store.kvValue(id, "pin:t")) === "j:true");
