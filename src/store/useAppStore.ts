@@ -93,7 +93,7 @@ type Store = AppState & {
   setCounter: (taskId: string, value: number, isAccount: boolean) => void;
   incCounter: (taskId: string, delta: number, isAccount: boolean) => void;
 
-  clearSection: (section: "daily" | "weekly" | "account", kind?: string) => void;
+  clearSection: (section: "daily" | "weekly" | "account") => void;
 
   // barter pins: single global list, one tap toggles for every character
   toggleBarterPin: (barterId: string) => void;
@@ -703,7 +703,7 @@ export const useAppStore = create<Store>()(
         get().setCounter(taskId, next, isAcc);
       },
 
-      clearSection: (section, kind) =>
+      clearSection: (section) =>
         set((s) => {
           // User-initiated clear zeroes in place (false/0 by stored type)
           // instead of deleting — same propagation-bit rule as toggleCheck:
@@ -731,12 +731,14 @@ export const useAppStore = create<Store>()(
             }
             return nextBuckets;
           };
-          // daily/weekly -> per char active; account -> accountValues
+          // daily/weekly -> per char active; account -> accountValues.
+          // The whole account section clears together (both account-daily
+          // and account-weekly): the old kind filter always resolved to the
+          // first row's kind and silently skipped the weekly half.
           if (section === "account") {
             const match = (id: string): boolean => {
               const t = [...BUILTIN_TASKS, ...s.customTasks].find((x) => x.id === id);
-              if (!t || t.section !== "account") return false;
-              return !kind || t.kind === kind;
+              return !!t && t.section === "account";
             };
             const { values: nextAcc, touched } = zeroOut(s.accountValues, match);
             return { accountValues: nextAcc, taskBuckets: stamp(s.taskBuckets, touched) };

@@ -5,6 +5,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Fixes
+- Custom task dialog placeholders use concrete examples (name/desc/notes)
+- Custom task dialog: 區段 + 重置 merge into one select (每日 / 每週 / 帳號每日 / 帳號每週, reset times inline) — the old free selects admitted unrenderable combos like a daily-section task with a weekly reset; legacy mismatches heal to their visible home on next save
+- 帳號共通 clear now clears the whole section: it used to match the first row's kind and silently skip every account-weekly task (每週挑戰, 公會/好友挑戰)
 - Tracker wording: weekly-goals `每周`→`每週`, raid-gris desc simplified
 
 ## 2026-09-15 — manual sync + rename select

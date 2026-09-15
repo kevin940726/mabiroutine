@@ -174,7 +174,6 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
 
   // section key for clear
   const sectionKey = tasks[0]?.section ?? "daily";
-  const kind = tasks[0]?.kind;
 
   return (
     <Card className="overflow-hidden -mx-4 rounded-none border-x-0 sm:mx-0 sm:rounded-xl sm:border">
@@ -204,7 +203,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
             onClick={(e) => {
               e.stopPropagation();
               void confirmClearSection(title).then((ok) => {
-                if (ok) clearSection(sectionKey, kind);
+                if (ok) clearSection(sectionKey);
               });
             }}
           >
