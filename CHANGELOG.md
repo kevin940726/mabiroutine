@@ -5,11 +5,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
-- Event reminder for 不祥的召喚結界 (MVP, local-only): tap the 🔔 on the task to get one collapsed system notification at :01 Taipei, ~90 seconds before the verified XX:02:30 start (the game's own :00 ping is soft and easy to miss) — only while still undone, auto-dismissing, never stacked, silent when done or inside 30s of the start. Late openers get an immediate catch-up card stating the true lead (剩1分半 / 馬上開始). Bell and scheduler are scoped to an eligibility list (today just `barrier`). Subscriptions stay on this device (never synced, never sent anywhere, store v17→v18) and only fire while the app is open; closed-app push is a follow-up. DevTools handles `__mabiHourlyTick()` (countdown readout) and `__mabiHourlyFire()` (force one card now)
+- Event reminder for 不祥的召喚結界 (MVP, local-only): tap the 🔔 on the task to get one collapsed system notification at :00 Taipei sharp, landing with the game's soft ping ~2.5 minutes before the verified XX:02:30 start — only while still undone, auto-dismissing, never stacked, silent when done or inside 30s of the start. Late openers get an immediate catch-up card stating the true lead (剩2分半 / 馬上開始). Bell and scheduler are scoped to an eligibility list (today just `barrier`). Subscriptions stay on this device (never synced, never sent anywhere, store v17→v18) and only fire while the app is open; closed-app push is a follow-up. DevTools handles `__mabiHourlyTick()` (countdown readout) and `__mabiHourlyFire()` (force one card now)
 
 ### Fixes
 - Hourly-reminder fire no longer hangs in dev: it awaited `serviceWorker.ready`, which pends forever with no worker registered (SW is dev-disabled), so neither the card nor the page fallback ever ran — now resolves via `getRegistration()` with the same fallback
-- Reminder retargeted from the wall hour to the real event: the old :58 fire (2 min before 整點) ignored the verified XX:02:30 start and the ~1-minute walk there — now anchored on `EVENT_SEC_PAST_HOUR = 150` with a 90s lead (:01:00 fire), catch-up for late opens, and a 30s no-card cutoff at the tail
+- Reminder retargeted from the wall hour to the real event: the old :58 fire (2 min before 整點) ignored the verified XX:02:30 start and the ~1-minute walk there — now anchored on `EVENT_SEC_PAST_HOUR = 150` with a 150s lead (:00:00 fire, paired with the soft in-game ping), catch-up for late opens, and a 30s no-card cutoff at the tail
 
 ## 2026-09-15 — town-first barter order
 

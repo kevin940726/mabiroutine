@@ -19,9 +19,9 @@ if (typeof window !== 'undefined') {
 }
 
 // Event-reminder debug handles (same pattern, always on): run
-// __mabiHourlyTick() in DevTools for the live :01 countdown readout, or
+// __mabiHourlyTick() in DevTools for the live :00 countdown readout, or
 // __mabiHourlyFire() to force one card now with the current undone subs
-// (no waiting for :01; still needs permission + at least one sub).
+// (no waiting for :00; still needs permission + at least one sub).
 if (typeof window !== 'undefined') {
   const w = window as unknown as {
     __mabiHourlyTick?: () => string;

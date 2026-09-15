@@ -46,10 +46,10 @@ export function getUndoneReminderNames(): string[] {
   return names;
 }
 
-// Page-timer scheduler for local event reminders (MVP). Fires at :01:00
+// Page-timer scheduler for local event reminders (MVP). Fires at :00
 // Taipei while the app is open: collects subscribed + still-undone +
 // unhidden tasks, shows one collapsed card, then arms the next hour.
-// Opens after :01:00 get an immediate catch-up card (still useful); past
+// Opens after :00 get an immediate catch-up card (still useful); past
 // the 30s cutoff the hour is skipped silently. Closed app/page = no fire
 // (documented limitation; server push is the follow-up, not this hook).
 export function useHourlyReminders(enabled: boolean) {
@@ -81,7 +81,7 @@ export function useHourlyReminders(enabled: boolean) {
     };
 
     arm();
-    // Foreground return re-arms: a laptop that slept past :01 would otherwise
+    // Foreground return re-arms: a laptop that slept past :00 would otherwise
     // sit on a stale 50-minute timer instead of the next fire.
     const onVisible = () => {
       if (document.visibilityState === "visible" && !cancelled) {

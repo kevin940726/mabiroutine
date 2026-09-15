@@ -5,11 +5,12 @@ import type { Task } from "@/lib/types";
 // raises one collapsed system notification for subscribed tasks still
 // undone. No server, no push subscription, nothing leaves the device.
 //
-// Timing (verified in-game): the game pings soft at :00 (ignorable), the
-// real event starts :02:30, walking there takes ~1 minute — so the
-// scheduled fire is :01:00 (60s prep + 30s buffer), with immediate
-// catch-up for opens after :01:00 and silence inside 30s of the start
-// (a card that close is pure startle, zero actionability).
+// Timing (verified in-game): the game pings soft at :00, the real event
+// starts :02:30, walking there takes ~1 minute — so the scheduled fire is
+// :00:00 sharp, landing together with the soft ping (150s before the
+// event: plenty of prep, paired salience). Immediate catch-up for opens
+// after :00, silence inside 30s of the start (a card that close is pure
+// startle, zero actionability).
 //
 // Least-intrusive recipe: a single notification per hour (tag-collapsed),
 // auto-dismissing (requireInteraction: false), no re-buzz on replace
@@ -18,8 +19,9 @@ import type { Task } from "@/lib/types";
 // In-game event: XX:02:30 Taipei (verified). Taipei is UTC+8 with no DST,
 // so wall-clock math is a fixed offset.
 export const EVENT_SEC_PAST_HOUR = 150;
-// Scheduled fire = event − lead: ~60s to stop and move + 30s buffer.
-export const FIRE_LEAD_SEC = 90;
+// Scheduled fire = event − lead: fires with the :00 soft ping, 150s ahead
+// of the event (~60s to stop and move, rest is paired-salience slack).
+export const FIRE_LEAD_SEC = 150;
 // Inside this many seconds of the event, a card can't help: skip.
 export const CATCHUP_MIN_SEC = 30;
 // The timer is scoped to these task ids only (today: 不祥的召喚結界).
@@ -53,12 +55,12 @@ function secIntoHour(ms: number): number {
   return minute * 60 + second;
 }
 
-/** Scheduled fire offset within the hour (seconds): :01:00. */
-export const FIRE_SEC_PAST_HOUR = EVENT_SEC_PAST_HOUR - FIRE_LEAD_SEC; // 60
+/** Scheduled fire offset within the hour (seconds): :00:00. */
+export const FIRE_SEC_PAST_HOUR = EVENT_SEC_PAST_HOUR - FIRE_LEAD_SEC; // 0
 
 /**
- * Milliseconds until the next fire. Before :01:00 we wait for it; inside
- * (:01:00, event − 30s] the caller fires ~immediately — late openers still
+ * Milliseconds until the next fire. Before :00 we wait for it; inside
+ * (:00, event − 30s] the caller fires ~immediately — late openers still
  * get a useful card; past the cutoff we arm next hour, since the event is
  * effectively now and a card can't help.
  */

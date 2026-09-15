@@ -62,7 +62,7 @@ function ReminderBell({ taskId, taskName, className }: { taskId: string; taskNam
       className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"}
       aria-label={`${on ? "取消" : "訂閱"}開場提醒：${taskName}`}
       aria-pressed={on}
-      title="開場前約 1 分半提醒（此裝置、本頁開啟時）"
+      title="開場前約 2 分半提醒（此裝置、本頁開啟時）"
     >
       {on ? <BellRing className="h-3.5 w-3.5 text-amber-500" /> : <Bell className="h-3.5 w-3.5" />}
     </button>
