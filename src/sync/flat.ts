@@ -419,6 +419,13 @@ export function unflattenMerge(
     accountValues,
     hiddenAccountTaskIds: pickTrue(flat, "hide:acc:"),
     barterPins: pins,
+    // Per-device layout, never flattened: carry local through the merge
+    // (same as globalTaskOrder below), pruned to surviving pins so
+    // remotely-unpinned ids don't linger. Untouched stays null.
+    barterCustomOrder:
+      local.barterCustomOrder == null
+        ? null
+        : local.barterCustomOrder.filter((id) => pins.includes(id)),
     customTasks: merged,
     taskBuckets,
     lastDailyReset: local.lastDailyReset ?? null,

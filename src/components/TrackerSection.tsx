@@ -6,7 +6,7 @@ import { TaskRow } from "@/components/TaskRow";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Task } from "@/lib/types";
 import { summarizeProgress } from "@/lib/progress";
-import { useAppStore, barterToTask } from "@/store/useAppStore";
+import { useAppStore, barterToTask, canonicalBarterOrder } from "@/store/useAppStore";
 import { confirmClearSection } from "@/components/ConfirmDialog";
 import barterJson from "@/data/barter.json";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
@@ -25,6 +25,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   const char = useAppStore((s) => s.getActiveChar());
   const accountValues = useAppStore((s) => s.accountValues);
   const barterPins = useAppStore((s) => s.barterPins);
+  const barterCustomOrder = useAppStore((s) => s.barterCustomOrder);
   const clearSection = useAppStore((s) => s.clearSection);
   const reorder = useAppStore((s) => s.reorderTasks);
   const reorderBarter = useAppStore((s) => s.reorderBarterPins);
@@ -44,15 +45,19 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
 
   // pinned barter subtasks, split by cycle: daily-limit pins render under
   // 每日, weekly-limit pins (每週 N 次) under 每週. Either subsection hides
-  // entirely when its cycle has no pins.
+  // entirely when its cycle has no pins. Order is the user's drag order when
+  // set, else the canonical barter.json order (new pins slot in).
   const barterSubtasks = useMemo(() => {
-    return barterPins
+    const pinned = new Set(barterPins);
+    const base = (barterCustomOrder ?? canonicalBarterOrder(barterPins)).filter((id) => pinned.has(id));
+    const missing = canonicalBarterOrder(barterPins.filter((id) => !base.includes(id)));
+    return [...base, ...missing]
       .map((id) => {
         const b = (barterJson as unknown as Array<(typeof barterJson)[number]>).find((x) => x.id === id);
         return b ? barterToTask(b) : null;
       })
       .filter(Boolean) as Task[];
-  }, [barterPins]);
+  }, [barterPins, barterCustomOrder]);
 
   // account section never shows barter (cycle null → empty list)
   const cycle = tasks[0]?.section === "weekly" ? "weekly" : tasks[0]?.section === "daily" ? "daily" : null;
@@ -163,10 +168,13 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   const handleBarterDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const oldIndex = barterSubtasksFiltered.findIndex((t) => t.id === active.id);
-    const newIndex = barterSubtasksFiltered.findIndex((t) => t.id === over.id);
+    // Reorder within the FULL cycle list: the visible list may hide
+    // completed/manually-hidden rows, and splicing the filtered view would
+    // silently reshuffle those too (now permanent, as the custom order).
+    const oldIndex = cycleBarter.findIndex((t) => t.id === active.id);
+    const newIndex = cycleBarter.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const newOrder = [...barterSubtasksFiltered];
+    const newOrder = [...cycleBarter];
     const [moved] = newOrder.splice(oldIndex, 1);
     newOrder.splice(newIndex, 0, moved);
     reorderBarter(newOrder.map((t) => t.id));

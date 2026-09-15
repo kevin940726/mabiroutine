@@ -4,6 +4,10 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- Pinned barter follows the canonical file order (priority → town → npc → shops) unless rearranged by drag — first drag snapshots a personal order, new pins slot in otherwise; existing arrangements reset once on upgrade (store v16→v17), progress untouched
+- Town name fix: 提爾克那 → 堤爾克那 across barter/shops data; town order is now an explicit game-region list shared by the data file and the explorer
+
 ## 2026-09-15 — custom dialog cleanup
 
 ### Fixes

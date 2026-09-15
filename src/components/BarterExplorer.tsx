@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import barterJson from "@/data/barter.json";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, barterFileIndex } from "@/store/useAppStore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { MenuSelect } from "@/components/MenuSelect";
 import { MaterialBreakdown, giveHasBreakdown } from "@/components/MaterialBreakdown";
 import { parseItemQty, twinTradeLeg, dealTimes } from "@/lib/materials";
+import { compareTowns } from "@/lib/towns";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -294,7 +295,9 @@ export function BarterExplorer() {
       const pa = PRIORITY_ORDER.indexOf(a.priority as BarterPriority);
       const pb = PRIORITY_ORDER.indexOf(b.priority as BarterPriority);
       if (pa !== pb) return pa - pb;
-      return a.town.localeCompare(b.town);
+      const pt = compareTowns(a.town, b.town);
+      if (pt !== 0) return pt;
+      return barterFileIndex(a.id) - barterFileIndex(b.id);
     });
   }, [deferredQ, effPriority, effTown, onlyPinned, barterPins]);
 

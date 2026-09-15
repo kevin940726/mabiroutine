@@ -60,6 +60,10 @@ export type AppState = {
   hiddenAccountTaskIds: string[];
   // barter pins: single global list, applies to every character
   barterPins: string[];
+  // barter display order override: null follows the canonical barter.json
+  // order (priority → town → npc → shops). Set on first drag-reorder; new
+  // pins append. Local-only, never synced (like globalTaskOrder).
+  barterCustomOrder: string[] | null;
   customTasks: Task[];
   lastDailyReset: string | null; // ISO
   lastWeeklyReset: string | null;

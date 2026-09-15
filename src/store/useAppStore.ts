@@ -134,6 +134,25 @@ export function isServerSharedBarterId(id: string): boolean {
   return SERVER_SHARED_BARTER_IDS.has(id);
 }
 
+// Canonical barter order = barter.json file order (priority → town → npc →
+// shops). Unknown ids (stale customs) sink to the end, stable.
+const BARTER_FILE_INDEX = new Map<string, number>(
+  (barterJson as BarterJsonItem[]).map((b, i) => [b.id, i])
+);
+
+export function canonicalBarterOrder(ids: string[]): string[] {
+  return [...ids].sort(
+    (a, b) => (BARTER_FILE_INDEX.get(a) ?? Number.MAX_SAFE_INTEGER) - (BARTER_FILE_INDEX.get(b) ?? Number.MAX_SAFE_INTEGER)
+  );
+}
+
+// File position of a barter row (unknown ids sink last). Explorer tiebreak:
+// priority → town → file index reproduces the canonical order exactly, so
+// the two views cannot diverge no matter how the input is ordered.
+export function barterFileIndex(id: string): number {
+  return BARTER_FILE_INDEX.get(id) ?? Number.MAX_SAFE_INTEGER;
+}
+
 // Build tasks from barter json for pinning: they become Tasks lazily
 export function barterToTask(b: BarterJsonItem): Task {
   // 每日/每週 N 次：N>1 → counter；N=1 或 不限次數 → check
@@ -187,12 +206,13 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 16,
+  version: 17,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
   hiddenAccountTaskIds: [],
   barterPins: [...DEFAULT_MUST_PINS],
+  barterCustomOrder: null,
   customTasks: [],
   lastDailyReset: null,
   lastWeeklyReset: null,
@@ -273,6 +293,13 @@ function normalizePersisted(input: unknown): AppState {
   const activeOk = chars.some((c) => c.id === d.activeCharId);
   const customTasks: Task[] = Array.isArray(d.customTasks) ? d.customTasks : [];
   const accountValues = d.accountValues && typeof d.accountValues === "object" ? d.accountValues : {};
+  const validBarterIds = new Set((barterJson as BarterJsonItem[]).map((b) => b.id));
+  // Custom order holds only pinned, live ids: unpins (toggle or sync-merge)
+  // and removed rows fall out here on next load instead of lingering.
+  const pinnedIds = new Set(Array.isArray(d.barterPins) ? d.barterPins : []);
+  const barterCustomOrder = Array.isArray(d.barterCustomOrder)
+    ? (d.barterCustomOrder as string[]).filter((id) => validBarterIds.has(id) && pinnedIds.has(id))
+    : null;
   const taskBuckets = normalizeTaskBuckets(chars, accountValues, customTasks, d.taskBuckets, d.lastDailyReset ?? null, d.lastWeeklyReset ?? null);
   pruneStaleValues(chars, accountValues, taskBuckets);
   return {
@@ -284,6 +311,7 @@ function normalizePersisted(input: unknown): AppState {
     accountValues,
     hiddenAccountTaskIds: Array.isArray(d.hiddenAccountTaskIds) ? d.hiddenAccountTaskIds : [],
     barterPins: Array.isArray(d.barterPins) ? d.barterPins : [...DEFAULT_MUST_PINS],
+    barterCustomOrder,
     customTasks,
     lastDailyReset: d.lastDailyReset ?? null,
     lastWeeklyReset: d.lastWeeklyReset ?? null,
@@ -597,6 +625,14 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     absorbSharedBarter(s);
     s.version = 16;
   }
+  if (from < 17) {
+    // v16 → v17: barter display order goes canonical (barter.json file order)
+    // unless the user drags. No record of past drags exists, so every save
+    // resets to canonical (null) — progress values untouched, only the
+    // arrangement. normalizePersisted already pruned dangling ids above.
+    s.barterCustomOrder = null;
+    s.version = 17;
+  }
   return s as AppState;
 }
 
@@ -779,11 +815,21 @@ export const useAppStore = create<Store>()(
           };
         }),
 
-      // single global list: one tap toggles for every character
+      // single global list: one tap toggles for every character. A custom
+      // display order (if any) drops unpins and appends new pins at the end.
       toggleBarterPin: (barterId) =>
-        set((s) => ({
-          barterPins: s.barterPins.includes(barterId) ? s.barterPins.filter((x) => x !== barterId) : [...s.barterPins, barterId],
-        })),
+        set((s) => {
+          const pinned = s.barterPins.includes(barterId);
+          return {
+            barterPins: pinned ? s.barterPins.filter((x) => x !== barterId) : [...s.barterPins, barterId],
+            barterCustomOrder:
+              s.barterCustomOrder == null
+                ? null
+                : pinned
+                  ? s.barterCustomOrder.filter((x) => x !== barterId)
+                  : [...s.barterCustomOrder, barterId],
+          };
+        }),
 
       isBarterPinned: (barterId) => get().barterPins.includes(barterId),
 
@@ -868,9 +914,12 @@ export const useAppStore = create<Store>()(
 
       reorderBarterPins: (orderedIds) =>
         set((s) => {
-          const ordered = orderedIds.filter((id) => s.barterPins.includes(id));
-          const missing = s.barterPins.filter((id) => !ordered.includes(id));
-          return { barterPins: [...ordered, ...missing] };
+          // First drag snapshots the current display (canonical unless
+          // already custom) as the custom order going forward.
+          const base = s.barterCustomOrder ?? canonicalBarterOrder(s.barterPins);
+          const ordered = orderedIds.filter((id) => base.includes(id));
+          const missing = base.filter((id) => !ordered.includes(id));
+          return { barterCustomOrder: [...ordered, ...missing] };
         }),
 
       setBarterFilters: (patch) =>
@@ -914,7 +963,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 16,
+      version: 17,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
@@ -935,6 +984,7 @@ export const useAppStore = create<Store>()(
         accountValues: s.accountValues,
         hiddenAccountTaskIds: s.hiddenAccountTaskIds,
         barterPins: s.barterPins,
+        barterCustomOrder: s.barterCustomOrder,
         customTasks: s.customTasks,
         lastDailyReset: s.lastDailyReset,
         lastWeeklyReset: s.lastWeeklyReset,

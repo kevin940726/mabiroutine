@@ -43,6 +43,7 @@ export type SyncSnapshot = Pick<
   | "accountValues"
   | "hiddenAccountTaskIds"
   | "barterPins"
+  | "barterCustomOrder"
   | "customTasks"
   | "lastDailyReset"
   | "lastWeeklyReset"
@@ -61,6 +62,9 @@ export function buildSnapshot(): SyncSnapshot {
     accountValues: s.accountValues,
     hiddenAccountTaskIds: s.hiddenAccountTaskIds,
     barterPins: s.barterPins,
+    // Read for merge-carry only — flattenSnapshot never emits it, so the
+    // order stays per-device local (like globalTaskOrder).
+    barterCustomOrder: s.barterCustomOrder,
     customTasks: s.customTasks,
     lastDailyReset: s.lastDailyReset,
     lastWeeklyReset: s.lastWeeklyReset,
