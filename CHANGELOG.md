@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-15 — custom dialog cleanup
+
 ### Fixes
 - Custom task dialog placeholders use concrete examples (name/desc/notes)
 - Custom task dialog: 區段 + 重置 merge into one select (每日 / 每週 / 帳號每日 / 帳號每週, reset times inline) — the old free selects admitted unrenderable combos like a daily-section task with a weekly reset; legacy mismatches heal to their visible home on next save
