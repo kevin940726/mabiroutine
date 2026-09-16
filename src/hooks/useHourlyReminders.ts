@@ -9,6 +9,7 @@ import {
   isEligibleReminderId,
   isTaskDone,
   msUntilNextEventFire,
+  msUntilNextHourFire,
   remainingSecToEvent,
   upcomingEventLabel,
 } from "@/lib/hourlyReminders";
@@ -77,42 +78,63 @@ export function useHourlyReminders(enabled: boolean) {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     let timer = 0;
     let cancelled = false;
+    // Dedup: epoch-hour of the event already fired for. Without this, the
+    // post-fire re-arm lands back inside the catch-up window and the card
+    // re-fires every second until the cutoff.
+    let firedEventHour: number | null = null;
+    const eventHourOf = (nowMs: number): number =>
+      Math.floor((nowMs + remainingSecToEvent(nowMs) * 1000) / 3600000);
 
-    const arm = () => {
+    // Re-arm strictly for NEXT hour's fire (after firing or skipping).
+    const armNextHour = () => {
       if (cancelled) return;
-      const wait = msUntilNextEventFire(Date.now());
-      timer = window.setTimeout(() => {
-        void (async () => {
-          if (cancelled) return;
-          // Re-check the cutoff at fire time: a throttled background timer
-          // can slip past it between arming and firing.
-          if (remainingSecToEvent(Date.now()) < CATCHUP_MIN_SEC) {
-            arm(); // this hour is gone: move on silently
-            return;
-          }
-          const r = getUndoneReminder();
-          if (r && Notification.permission === "granted") {
-            await fireHourlyReminder({
-              names: r.names,
-              eventLabel: upcomingEventLabel(Date.now()),
-              titleTask: r.taskName,
-              taskId: r.taskId,
-              charIds: r.charIds,
-              onClick: () => resolveReminderDeepLink(r.taskId, r.charIds),
-            });
-          }
-          arm(); // next hour, forever
-        })();
-      }, wait);
+      timer = window.setTimeout(fireStep, msUntilNextHourFire(Date.now()));
     };
 
-    arm();
+    const fireStep = () => {
+      void (async () => {
+        if (cancelled) return;
+        // Already fired for this hour's event (e.g. foreground bounce right
+        // after a fire): skip, don't double-card.
+        if (firedEventHour === eventHourOf(Date.now())) {
+          armNextHour();
+          return;
+        }
+        // Re-check the cutoff at fire time: a throttled background timer
+        // can slip past it between arming and firing.
+        if (remainingSecToEvent(Date.now()) < CATCHUP_MIN_SEC) {
+          armNextHour(); // this hour is gone: move on silently
+          return;
+        }
+        const r = getUndoneReminder();
+        if (r && Notification.permission === "granted") {
+          await fireHourlyReminder({
+            names: r.names,
+            eventLabel: upcomingEventLabel(Date.now()),
+            titleTask: r.taskName,
+            taskId: r.taskId,
+            charIds: r.charIds,
+            onClick: () => resolveReminderDeepLink(r.taskId, r.charIds),
+          });
+          firedEventHour = eventHourOf(Date.now());
+        }
+        armNextHour();
+      })();
+    };
+
+    // Fresh arm (mount / foreground return): catch-up fire allowed.
+    const armCatchUp = () => {
+      if (cancelled) return;
+      timer = window.setTimeout(fireStep, msUntilNextEventFire(Date.now()));
+    };
+
+    armCatchUp();
     // Foreground return re-arms: a laptop that slept past :00 would otherwise
     // sit on a stale 50-minute timer instead of the next fire.
     const onVisible = () => {
       if (document.visibilityState === "visible" && !cancelled) {
         window.clearTimeout(timer);
-        arm();
+        armCatchUp();
       }
     };
     document.addEventListener("visibilitychange", onVisible);

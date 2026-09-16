@@ -79,6 +79,17 @@ export function remainingSecToEvent(nowMs: number = Date.now()): number {
   return t <= EVENT_SEC_PAST_HOUR ? EVENT_SEC_PAST_HOUR - t : 3600 - t + EVENT_SEC_PAST_HOUR;
 }
 
+/**
+ * Milliseconds until NEXT hour's scheduled fire, strictly skipping the
+ * current window. Re-arm here after firing: re-using msUntilNextEventFire
+ * would land back inside the catch-up window and re-fire every second
+ * until the cutoff.
+ */
+export function msUntilNextHourFire(nowMs: number = Date.now()): number {
+  const t = secIntoHour(nowMs);
+  return Math.max(1_000, (3600 - t + FIRE_SEC_PAST_HOUR) * 1000);
+}
+
 /** "HH:02" label of the event a fire belongs to (Taipei). */
 export function upcomingEventLabel(nowMs: number = Date.now()): string {
   const { hour } = taipeiHMS(nowMs);

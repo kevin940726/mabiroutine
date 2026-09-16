@@ -11,6 +11,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - Hourly-reminder fire no longer hangs in dev: it awaited `serviceWorker.ready`, which pends forever with no worker registered (SW is dev-disabled), so neither the card nor the page fallback ever ran — now resolves via `getRegistration()` with the same fallback
 - Reminder retargeted from the wall hour to the real event: the old :58 fire (2 min before 整點) ignored the verified XX:02:30 start and the ~1-minute walk there — now anchored on `EVENT_SEC_PAST_HOUR = 150` with a 150s lead (:00:00 fire, paired with the soft in-game ping), catch-up for late opens, and a 30s no-card cutoff at the tail
 - Reminder card re-banners every hour (`renotify: true`): with a stable collapse tag, `false` silently overwrote the previous card with no banner — so any hour after an uncleared test card arrived invisibly in the notification center
+- Reminder no longer re-fires every second inside the catch-up window: the post-fire re-arm reused the catch-up scheduler and looped until the cutoff — now it arms strictly next hour, plus an epoch-hour dedup so a foreground bounce right after a fire can't double-card
 
 ## 2026-09-15 — town-first barter order
 
