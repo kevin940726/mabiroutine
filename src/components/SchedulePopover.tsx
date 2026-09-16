@@ -4,7 +4,7 @@
 // popover dep. Content is frozen at open time (a ticking clock adds nothing;
 // reopening refreshes).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { List } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTaipei, occurrencesAround } from "@/lib/purpleHole";
 
@@ -114,7 +114,7 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
         aria-expanded={open}
         title="出沒時刻錶"
       >
-        <List className="h-3.5 w-3.5" />
+        <CalendarDays className="h-3.5 w-3.5" />
       </button>
       {open && pos && (
         <div
