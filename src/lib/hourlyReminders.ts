@@ -197,9 +197,11 @@ export function waitForReminderGrant(timeoutMs = 120_000, signal?: AbortSignal):
             if (done) return;
             check(); // race: flipped before the listener attached
             if (done) return;
-            status.onchange = check;
+            // addEventListener, not `onchange =`: concurrent watchers share
+            // one PermissionStatus object and assignments would clobber.
+            status.addEventListener("change", check);
             stopWatch = () => {
-              status.onchange = null;
+              status.removeEventListener("change", check);
             };
           })
           .catch(() => {

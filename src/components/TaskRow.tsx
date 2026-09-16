@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { useGrabCounter } from "@/hooks/useGrabCounter";
 import type { Task } from "@/lib/types";
@@ -37,6 +37,9 @@ function useReminderToggle(taskId: string) {
   const toggle = useAppStore((s) => s.toggleHourlyReminder);
   const [coach, setCoach] = useState<CoachMarkKind | null>(null);
   const waiterRef = useRef<AbortController | null>(null);
+  // Row unmount (filter/hide/reorder) mid-wait must not leave the 120s poll
+  // + permission listener running until timeout.
+  useEffect(() => () => waiterRef.current?.abort(), []);
   // Idempotent: the permission watcher and the direct path can both land.
   const subscribe = () => {
     const s = useAppStore.getState();
@@ -50,6 +53,8 @@ function useReminderToggle(taskId: string) {
   };
   // Denied with no prompt to show: point at the settings path. Returns after
   // the grant either lands (subscribed) or the user walks away (aborted).
+  // Shows the waiting pill during the watch: without it the bell looks dead
+  // for up to 120s when "我已開啟" is tapped before flipping the switch.
   const guideReenable = async (waiter: AbortController, watch: Promise<void>) => {
     if (await confirmReenableReminder()) {
       if (reminderPermission() === "granted") {
@@ -57,7 +62,9 @@ function useReminderToggle(taskId: string) {
         waiter.abort();
         return;
       }
-      await watch; // flipping the switch in settings auto-completes
+      setCoach("waiting"); // flipping the switch in settings auto-completes
+      await watch;
+      setCoach(null);
     } else {
       waiter.abort(); // explicit "later": don't subscribe behind their back
     }
@@ -80,6 +87,9 @@ function useReminderToggle(taskId: string) {
     // Arm BEFORE prompting: if the grant lands via browser UI (the Chrome
     // address-bar chip, site settings) instead of our prompt, subscribing
     // completes on its own — no reload, no second bell tap, no re-confirm.
+    // Abort any previous watcher first: a rapid re-tap must not orphan one
+    // whose grant-subscribe would fire after the user asked to be left alone.
+    waiterRef.current?.abort();
     const waiter = new AbortController();
     waiterRef.current = waiter;
     const watch = waitForReminderGrant(120_000, waiter.signal).then((granted) => {
