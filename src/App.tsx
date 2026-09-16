@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
+import { isPushEnabled } from "@/lib/hourlyReminders";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task } from "@/lib/types";
 import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
@@ -108,7 +109,7 @@ export default function App() {
   // app is open, one collapsed card for subscribed-but-undone tasks. Runs
   // only when at least one task is subscribed — zero timers otherwise.
   const hasReminders = useAppStore((s) => (s.hourlyReminders ?? []).length > 0);
-  useHourlyReminders(hasHydrated && hasReminders);
+  useHourlyReminders(hasHydrated && hasReminders && isPushEnabled());
   // Reminder-tap landing (?task=&chars=): resolve the character, scroll to
   // the row, flash it once. Runs for every load — cheap no-op without params.
   useReminderDeepLink(hasHydrated);

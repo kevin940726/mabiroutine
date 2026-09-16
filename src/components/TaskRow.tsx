@@ -8,7 +8,7 @@ import { confirmRemoveTask, confirmSubscribeReminder } from "@/components/Confir
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
-import { isEligibleReminderId, reminderPermission, requestReminderPermission } from "@/lib/hourlyReminders";
+import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission } from "@/lib/hourlyReminders";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { dealTimes, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
@@ -93,8 +93,9 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
 
   const isCustom = task.source === "custom";
   const isBarter = task.source === "barter";
-  // Event-reminder bell: only eligible tasks (today just 不祥的召喚結界).
-  const reminderEligible = isEligibleReminderId(task.id);
+  // Event-reminder bell: only eligible tasks (today just 不祥的召喚結界),
+  // and only with the ?push=1 flag on — prod default is no bell at all.
+  const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
   const [npcImgError, setNpcImgError] = useState(false);
@@ -343,7 +344,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
-  const reminderEligible = isEligibleReminderId(task.id);
+  const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };

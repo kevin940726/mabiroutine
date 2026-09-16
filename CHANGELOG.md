@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- Reminder MVP now gated behind the `?push=1` feature flag (persisted per browser, `?push=0` clears): with the flag off — the prod default — the bell is hidden and the scheduler mounts nothing, so the shipped release has zero user-visible reminder surface until explicitly enabled
+
 ## 2026-09-16 — 召喚結界開場提醒
 
 ### Chores

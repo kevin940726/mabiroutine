@@ -33,6 +33,23 @@ export const HOURLY_ELIGIBLE_IDS = ["barrier"] as const;
 // Collapse key: one card per hour-slot, replaced — never stacked.
 export const HOURLY_TAG = "mabi-hourly";
 
+// Feature flag: `?push=1` enables reminders and persists the choice,
+// `?push=0` clears it. Everything reminder-shaped (bell, scheduler) hides
+// when off. Read-once, no reactivity — enabling/disabling needs a reload,
+// which is fine for a dev/test gate.
+const PUSH_FLAG_KEY = "mabiroutine:push-flag";
+export function isPushEnabled(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const q = new URLSearchParams(window.location.search).get("push");
+    if (q === "1") window.localStorage.setItem(PUSH_FLAG_KEY, "1");
+    else if (q === "0") window.localStorage.removeItem(PUSH_FLAG_KEY);
+    return window.localStorage.getItem(PUSH_FLAG_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function isEligibleReminderId(id: string): boolean {
   return (HOURLY_ELIGIBLE_IDS as readonly string[]).includes(id);
 }
