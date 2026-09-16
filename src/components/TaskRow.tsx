@@ -32,7 +32,7 @@ export function TaskRow(props: Props) {
  * tap — the only user gesture browsers accept — and the subscription stays
  * local-only (never synced, never sent anywhere).
  */
-function useReminderToggle(taskId: string) {
+function useReminderToggle(taskId: string, taskName: string) {
   const on = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
   const toggle = useAppStore((s) => s.toggleHourlyReminder);
   const [coach, setCoach] = useState<CoachMarkKind | null>(null);
@@ -64,23 +64,21 @@ function useReminderToggle(taskId: string) {
     });
     return { waiter, watch };
   };
-  // Denied with no prompt to show: point at the settings path. Returns after
-  // the grant either lands (subscribed) or the user walks away (aborted).
-  // Shows the waiting pill during the watch: without it the bell looks dead
-  // for up to 120s when "我已開啟" is tapped before flipping the switch.
+  // Denied with no prompt to show: point at the settings path, then keep
+  // retrying silently. The dialog is single-button (關閉 = "got it"), so
+  // there is no explicit "later" to honor — the waiting pill (dismissible
+  // via X, which aborts) is the only opt-out, and flipping the switch in
+  // settings auto-completes.
   const guideReenable = async (waiter: AbortController, watch: Promise<boolean>) => {
-    if (await confirmReenableReminder()) {
-      if (reminderPermission() === "granted") {
-        subscribe();
-        waiter.abort();
-        return;
-      }
-      setCoach("waiting"); // flipping the switch in settings auto-completes
-      await watch;
-      setCoach(null);
-    } else {
-      waiter.abort(); // explicit "later": don't subscribe behind their back
+    await confirmReenableReminder();
+    if (reminderPermission() === "granted") {
+      subscribe();
+      waiter.abort();
+      return;
     }
+    setCoach("waiting");
+    await watch;
+    setCoach(null);
   };
   const onToggle = async () => {
     if (on) {
@@ -108,7 +106,7 @@ function useReminderToggle(taskId: string) {
     }
     // Soft-ask before the browser prompt: cold prompts get reflex-denied.
     // The dialog tap keeps the user gesture alive for requestPermission.
-    if (!(await confirmSubscribeReminder())) {
+    if (!(await confirmSubscribeReminder(taskName))) {
       waiter.abort();
       await watch;
       return;
@@ -144,7 +142,7 @@ function useReminderToggle(taskId: string) {
 }
 
 function ReminderBell({ taskId, taskName, className }: { taskId: string; taskName: string; className?: string }) {
-  const { on, onToggle, coach, dismissCoach } = useReminderToggle(taskId);
+  const { on, onToggle, coach, dismissCoach } = useReminderToggle(taskId, taskName);
   return (
     <>
       <button
@@ -152,7 +150,7 @@ function ReminderBell({ taskId, taskName, className }: { taskId: string; taskNam
         className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"}
         aria-label={`${on ? "取消" : "訂閱"}開場提醒：${taskName}`}
         aria-pressed={on}
-        title="開場前約 2 分半提醒（此裝置、本頁開啟時）"
+        title={on ? "取消訂閱通知" : "訂閱通知"}
       >
         {on ? <BellRing className="h-3.5 w-3.5 text-amber-500" /> : <Bell className="h-3.5 w-3.5" />}
       </button>
