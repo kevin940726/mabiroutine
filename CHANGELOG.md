@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-16 — 召喚結界開場提醒
+
 ### Chores
 - Push plan recorded in `docs/push-notifications.md`: constraints (2-minute useful window, Hobby/Turso/CF free tiers, browser matrix, first-server-data privacy, gesture-chain permission), decisions (unfiltered bell-only fanout, CF cron over Actions, staleness guard, Turso sub storage, local/push mode separation, desktop-only Phase 1), query-string + localStorage feature flag, and phased rollout (desktop → Android → iOS → optional hardening)
 
