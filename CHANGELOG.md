@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- Push plan recorded in `docs/push-notifications.md`: constraints (2-minute useful window, Hobby/Turso/CF free tiers, browser matrix, first-server-data privacy, gesture-chain permission), decisions (unfiltered bell-only fanout, CF cron over Actions, staleness guard, Turso sub storage, local/push mode separation, desktop-only Phase 1), query-string + localStorage feature flag, and phased rollout (desktop → Android → iOS → optional hardening)
+
 ### Features
 - Event reminder for 不祥的召喚結界 (MVP, local-only): tap the 🔔 on the task to get one collapsed system notification at :00 Taipei sharp, landing with the game's soft ping ~2.5 minutes before the verified XX:02:30 start — only while still undone, auto-dismissing, never stacked, silent when done or inside 30s of the start. Tapping the card deep-links to the task row: the active character is kept when it's undone, otherwise the first undone character is selected, then the row smooth-scrolls into view with one subtle amber flash (SW `notificationclick` in prod via `sw-push.js`, page `onclick` in dev). The bell soft-asks first (訂閱開場提醒？ — what it does, device-only, one-tap cancel, browser asks next) so the system permission prompt never fires cold; the confirm dialog gains neutral styling for non-destructive use The card names the characters, not the counts (`不祥的召喚結界出現了` / `A、B、C`, capped at 3 + 等N隻; hidden and finished characters omitted — no clock time, no lead text anywhere). Late openers get an immediate catch-up card stating the true lead (剩2分半 / 馬上開始). Bell and scheduler are scoped to an eligibility list (today just `barrier`). Subscriptions stay on this device (never synced, never sent anywhere, store v17→v18) and only fire while the app is open; closed-app push is a follow-up. DevTools handles `__mabiHourlyTick()` (countdown readout) and `__mabiHourlyFire()` (force one card now)
 
