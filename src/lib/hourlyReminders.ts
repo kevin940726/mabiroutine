@@ -145,6 +145,73 @@ export async function requestReminderPermission(): Promise<ReminderPermission> {
   }
 }
 
+/**
+ * Wait for the notification grant to land outside our gesture (the Chrome
+ * address-bar chip, site settings). Browsers never re-prompt once the user
+ * leaves our dialog, so without this the user must reload and re-tap. Arm
+ * BEFORE prompting so there is no race. Resolves true on grant, false on
+ * denial, timeout, or abort. Never rejects.
+ */
+export function waitForReminderGrant(timeoutMs = 120_000, signal?: AbortSignal): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      resolve(false);
+      return;
+    }
+    if (Notification.permission !== "default") {
+      resolve(Notification.permission === "granted");
+      return;
+    }
+    let done = false;
+    let stopWatch: (() => void) | null = null;
+    const finish = (v: boolean) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      clearInterval(poll);
+      stopWatch?.();
+      signal?.removeEventListener("abort", onAbort);
+      resolve(v);
+    };
+    const onAbort = () => finish(false);
+    const check = () => {
+      const p = Notification.permission;
+      if (p === "granted") finish(true);
+      else if (p === "denied") finish(false);
+    };
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    // Poll backstop: universal, cheap (2s), covers browsers where the
+    // Permissions API lacks the notifications descriptor.
+    const poll = setInterval(check, 2000);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) {
+      finish(false);
+      return;
+    }
+    try {
+      const perms = navigator.permissions;
+      if (perms?.query) {
+        perms
+          .query({ name: "notifications" as PermissionName })
+          .then((status) => {
+            if (done) return;
+            check(); // race: flipped before the listener attached
+            if (done) return;
+            status.onchange = check;
+            stopWatch = () => {
+              status.onchange = null;
+            };
+          })
+          .catch(() => {
+            /* poll backstop already running */
+          });
+      }
+    } catch {
+      /* poll backstop already running */
+    }
+  });
+}
+
 export type HourlyFireResult = "shown" | "skipped-permission" | "skipped-unsupported" | "failed";
 
 export type ReminderFire = {

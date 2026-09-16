@@ -6,6 +6,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ### Fixes
 - Reminder MVP now gated behind the `?push=1` feature flag (persisted per browser, `?push=0` clears): with the flag off — the prod default — the bell is hidden and the scheduler mounts nothing, so the shipped release has zero user-visible reminder surface until explicitly enabled
+- Reminder subscribe flow stops demanding reload + re-tap + re-confirm: already-granted subscribes in one tap with no dialogs, the soft-ask names where the browser prompt hides (Chrome address-bar chip), and a 2-minute permission watcher auto-completes when the grant lands via browser UI; denied state gets a dialog with the exact settings path instead of a dead end
 
 ## 2026-09-16 — 召喚結界開場提醒
 

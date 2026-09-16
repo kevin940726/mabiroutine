@@ -20,8 +20,12 @@ Local-only page timer (`src/lib/hourlyReminders.ts`,
 dialog → browser permission → one collapsed card at **:00:00 Taipei**
 (`EVENT_SEC_PAST_HOUR = 150`, `FIRE_LEAD_SEC = 150`), catch-up for late
 opens, silence inside 30s of the start (`CATCHUP_MIN_SEC`), tap deep-links to
-the row with a flash. Subscriptions never leave the device (store v18,
-absent from the sync key space). Proven limitation: closed tab = no timer.
+the row with a flash. Subscribe UX: already-granted skips all dialogs (one
+tap); otherwise a 2-minute permission watcher (`waitForReminderGrant`) is
+armed before prompting, so a grant landing via browser UI (Chrome
+address-bar chip, site settings) auto-completes with no reload, re-tap, or
+re-confirm. Subscriptions never leave the device (store v18, absent from the
+sync key space). Proven limitation: closed tab = no timer.
 
 ## 3. Hard constraints
 
@@ -77,8 +81,10 @@ local; endpoints disclosed).
 
 Bell tap → soft-ask dialog → browser prompt must stay one unbroken gesture
 chain (Safari especially). Denials can only be undone in browser settings —
-hence the soft-ask exists. Any Phase 1 subscribe flow must preserve this
-ordering; never call `subscribe()` cold.
+hence the soft-ask exists, plus a denied-state dialog naming the exact
+settings path and a permission watcher that auto-completes when the switch
+flips. Any Phase 1 subscribe flow must preserve this ordering; never call
+`subscribe()` cold.
 
 ## 4. Architecture (Phase 1+)
 

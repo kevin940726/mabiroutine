@@ -4,11 +4,11 @@ import { useGrabCounter } from "@/hooks/useGrabCounter";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { confirmRemoveTask, confirmSubscribeReminder } from "@/components/ConfirmDialog";
+import { confirmRemoveTask, confirmReenableReminder, confirmSubscribeReminder } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
-import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission } from "@/lib/hourlyReminders";
+import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { dealTimes, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
@@ -34,25 +34,66 @@ export function TaskRow(props: Props) {
 function useReminderToggle(taskId: string, taskName: string) {
   const on = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
   const toggle = useAppStore((s) => s.toggleHourlyReminder);
+  // Idempotent: the permission watcher and the direct path can both land.
+  const subscribe = () => {
+    const s = useAppStore.getState();
+    if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+  };
   const onToggle = async () => {
     if (on) {
       toggle(taskId);
       return;
     }
-    if (reminderPermission() === "unsupported") {
+    const perm = reminderPermission();
+    if (perm === "unsupported") {
       alert("此瀏覽器不支援系統通知，無法使用開場提醒。");
+      return;
+    }
+    if (perm === "granted") {
+      // Already allowed: one tap subscribes, no dialogs at all.
+      subscribe();
+      return;
+    }
+    // Arm BEFORE prompting: if the grant lands via browser UI (the Chrome
+    // address-bar chip, site settings) instead of our prompt, subscribing
+    // completes on its own — no reload, no second bell tap, no re-confirm.
+    const waiter = new AbortController();
+    const watch = waitForReminderGrant(120_000, waiter.signal).then((granted) => {
+      if (granted) subscribe();
+    });
+    if (perm === "denied") {
+      // No prompt will ever show again: say exactly where the switch is.
+      // Flipping it in settings auto-completes via the watcher above.
+      if (await confirmReenableReminder()) {
+        if (reminderPermission() === "granted") {
+          subscribe();
+          waiter.abort();
+        }
+      } else {
+        waiter.abort(); // explicit "later": don't subscribe behind their back
+      }
+      await watch;
       return;
     }
     // Soft-ask before the browser prompt: cold prompts get reflex-denied.
     // The dialog tap keeps the user gesture alive for requestPermission.
-    if (!(await confirmSubscribeReminder())) return;
+    if (!(await confirmSubscribeReminder())) {
+      waiter.abort();
+      await watch;
+      return;
+    }
     const p = await requestReminderPermission();
     if (p === "granted") {
-      toggle(taskId);
+      subscribe();
+      waiter.abort();
     } else if (p === "denied") {
-      alert(`「${taskName}」無法訂閱：瀏覽器已封鎖通知，請到網址列旁的圖示重新允許。`);
+      alert(`「${taskName}」還沒訂閱：剛剛被擋下了。到網址列旁的圖示重新允許後會自動完成訂閱，不用重整或重按鈴鐺。`);
+      await watch;
+    } else {
+      // dismissed prompt (stays "default"): the chip is the likely story.
+      alert("好像沒跳出詢問？它可能縮在網址列旁邊（Chrome 在左上角）。點允許後會自動完成訂閱，不用重整或重按鈴鐺。");
+      await watch;
     }
-    // dismissed prompt (stays "default"): do nothing, stay unsubscribed
   };
   return { on, onToggle };
 }

@@ -73,9 +73,22 @@ export function confirmClearSection(title: string): Promise<boolean> {
 export function confirmSubscribeReminder(): Promise<boolean> {
   return confirmAction({
     title: "訂閱開場提醒？",
-    body: "每小時整點跳一則通知，只在 App 開著時響。提醒只記在這台裝置，點鈴鐺隨時可取消。按確定後，瀏覽器會再問一次是否允許通知。",
+    body: "每小時整點跳一則通知，只在 App 開著時響。提醒只記在這台裝置，點鈴鐺隨時可取消。按訂閱後瀏覽器會在網址列附近再問一次（Chrome 在左上角），看到請點允許。",
     confirmText: "訂閱",
     cancelText: "先不要",
+    danger: false,
+  });
+}
+
+// Shown when permission is already denied: no prompt will ever appear again,
+// so say exactly where the switch is. Confirming re-checks; flipping the
+// switch in settings auto-completes even without tapping anything.
+export function confirmReenableReminder(): Promise<boolean> {
+  return confirmAction({
+    title: "通知被瀏覽器擋下了",
+    body: "之前選過封鎖，所以詢問不會再跳出來。請點網址列左側的圖示 → 網站設定 → 通知 → 改成允許，改完回到這頁會自動完成訂閱，不用重整。改好了就按我已開啟。",
+    confirmText: "我已開啟",
+    cancelText: "稍後再說",
     danger: false,
   });
 }
