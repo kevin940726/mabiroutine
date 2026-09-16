@@ -34,6 +34,10 @@ handled for you.
   offline-first in your browser either way.
 - 📲 **Installs like an app.** Android/desktop install button, iOS home-screen
   ready, works offline.
+- 🔔 **A nudge before 召喚結界, if you want it.** Tap the bell on 不祥的召喚結界
+  and get one quiet notification at :00 Taipei sharp (~2.5 min before the XX:02:30
+  start, with the in-game ping) when it's still undone — local-only, off by default,
+  works while the app is open.
 - 🔒 **Private by default.** Your progress lives in your browser
   (localStorage), not in our database. No tracking, no ads.
 

@@ -20,6 +20,10 @@ export default defineConfig({
       manifest: false, // hand-owned public/manifest.webmanifest
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,ico}'],
+        // Reminder tap deep-link (public/sw-push.js): notificationclick
+        // focuses/opens the app at ?task=&chars=. Precached like any hashed
+        // asset, so tap handling versions with the shell.
+        importScripts: ['/sw-push.js'],
         // index.html excluded on purpose (with npc-raw source art), and the
         // fallback disabled below: TWO generateSW defaults would otherwise
         // shadow the NetworkFirst navigate route and pin every load to the

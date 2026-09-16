@@ -79,6 +79,10 @@ export type AppState = {
   // one global map is enough). Values whose bucket != current read as unset
   // and are pruned locally — resets never delete from the sync layer.
   taskBuckets: Record<string, string>;
+  // Event (:00 Taipei fire) reminder subscriptions, per task id. LOCAL-ONLY by
+  // design: never synced (like ordering), never sent to any server — the MVP
+  // fires from a page timer while the app is open.
+  hourlyReminders: string[];
 };
 
 export type BarterItem = {

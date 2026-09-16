@@ -117,3 +117,16 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+/* Reminder tap deep-link: one subtle amber ring pulse on the target task
+   row. scroll-margin-top clears the sticky header + compact pill for
+   scrollIntoView. */
+@keyframes reminder-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(245 158 11 / 0); }
+  35%, 65% { box-shadow: 0 0 0 3px rgb(245 158 11 / 0.45); }
+}
+.reminder-flash {
+  animation: reminder-flash 0.9s ease-in-out 2;
+  border-radius: 0.75rem;
+  scroll-margin-top: 140px;
+}

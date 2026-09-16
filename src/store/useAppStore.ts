@@ -107,6 +107,9 @@ type Store = AppState & {
   reorderTasks: (orderedIds: string[]) => void;
   reorderBarterPins: (orderedIds: string[]) => void;
   setBarterFilters: (patch: Partial<BarterFilters>) => void;
+  // Event (:00 Taipei fire) reminder subscription toggle. Local-only, never synced.
+  toggleHourlyReminder: (taskId: string) => void;
+  isHourlyReminded: (taskId: string) => boolean;
 
   exportJson: () => string;
   importJson: (json: string) => void;
@@ -206,7 +209,7 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 17,
+  version: 18,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -219,6 +222,7 @@ const initial: AppState = {
   prefs: { hideCompleted: false },
   barterFilters: { ...DEFAULT_BARTER_FILTERS },
   taskBuckets: {},
+  hourlyReminders: [],
 };
 
 // Cycle provenance normalize: every existing value gets a bucket entry,
@@ -318,6 +322,9 @@ function normalizePersisted(input: unknown): AppState {
     prefs: { hideCompleted: d.prefs?.hideCompleted ?? false },
     barterFilters: sanitizeBarterFilters(d.barterFilters),
     taskBuckets,
+    hourlyReminders: Array.isArray(d.hourlyReminders)
+      ? [...new Set((d.hourlyReminders as unknown[]).filter((x): x is string => typeof x === "string"))]
+      : [],
   };
 }
 
@@ -633,6 +640,19 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.barterCustomOrder = null;
     s.version = 17;
   }
+  if (from < 18) {
+    // v17 → v18: event (:00 fire) reminder subscriptions introduced, default off.
+    // normalizePersisted already shaped the array — here only prune ids that
+    // no longer exist (removed tracker/barter rows, deleted customs), same
+    // v6 valid-set rule. Progress untouched. Reminders stay local-only.
+    const valid = new Set<string>([
+      ...(trackerJson as Task[]).map((t) => t.id),
+      ...(barterJson as BarterJsonItem[]).map((b) => b.id),
+      ...(s.customTasks ?? []).map((t) => t.id),
+    ]);
+    s.hourlyReminders = (s.hourlyReminders ?? []).filter((id) => valid.has(id));
+    s.version = 18;
+  }
   return s as AppState;
 }
 
@@ -925,6 +945,17 @@ export const useAppStore = create<Store>()(
       setBarterFilters: (patch) =>
         set((s) => ({ barterFilters: sanitizeBarterFilters({ ...s.barterFilters, ...patch }) })),
 
+      // Local-only: toggling never touches the sync layer (the field is
+      // absent from the sync key space, like ordering).
+      toggleHourlyReminder: (taskId) =>
+        set((s) => ({
+          hourlyReminders: (s.hourlyReminders ?? []).includes(taskId)
+            ? (s.hourlyReminders ?? []).filter((x) => x !== taskId)
+            : [...(s.hourlyReminders ?? []), taskId],
+        })),
+
+      isHourlyReminded: (taskId) => (get().hourlyReminders ?? []).includes(taskId),
+
       exportJson: () => JSON.stringify(get(), null, 2),
       importJson: (json) => {
         try {
@@ -963,7 +994,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 17,
+      version: 18,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
@@ -992,6 +1023,7 @@ export const useAppStore = create<Store>()(
         globalTaskOrder: s.globalTaskOrder,
         barterFilters: s.barterFilters,
         taskBuckets: s.taskBuckets,
+        hourlyReminders: s.hourlyReminders,
       }),
     }
   )

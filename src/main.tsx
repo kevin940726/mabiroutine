@@ -4,11 +4,53 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
 import { statsSummary } from './sync/stats.ts'
+import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
+import {
+  fireHourlyReminder,
+  msUntilNextEventFire,
+  reminderPermission,
+  upcomingEventLabel,
+} from './lib/hourlyReminders.ts'
 
 // Quota telemetry reader (quota §, docs/sync.md): run
 // __mabiSyncStats() in DevTools for per-day request/command estimates.
 if (typeof window !== 'undefined') {
   (window as unknown as { __mabiSyncStats?: () => string }).__mabiSyncStats = statsSummary;
+}
+
+// Event-reminder debug handles (same pattern, always on): run
+// __mabiHourlyTick() in DevTools for the live :00 countdown readout, or
+// __mabiHourlyFire() to force one card now with the current undone subs
+// (no waiting for :00; still needs permission + at least one sub).
+if (typeof window !== 'undefined') {
+  const w = window as unknown as {
+    __mabiHourlyTick?: () => string;
+    __mabiHourlyFire?: () => Promise<string>;
+  };
+  w.__mabiHourlyTick = () => {
+    const ms = msUntilNextEventFire();
+    const r = getUndoneReminder();
+    const names = r?.names ?? [];
+    return (
+      `next fire in ${Math.round(ms / 1000)}s ` +
+      `(event ${upcomingEventLabel(Date.now())} Taipei) · ` +
+      `permission=${reminderPermission()} · ` +
+      `undone (${names.length})${r?.taskName ? ` ${r.taskName}: ` : ': '}${names.join('、') || '—'}`
+    );
+  };
+  w.__mabiHourlyFire = async () => {
+    const r = getUndoneReminder();
+    if (!r) return 'shown (nothing due)';
+    const res = await fireHourlyReminder({
+      names: r.names,
+      eventLabel: upcomingEventLabel(Date.now()),
+      titleTask: r.taskName,
+      taskId: r.taskId,
+      charIds: r.charIds,
+      onClick: () => resolveReminderDeepLink(r.taskId, r.charIds),
+    });
+    return `${res} (names: ${r.names.join('、')})`;
+  };
 }
 
 // Service worker: production only (dev keeps the live shell).

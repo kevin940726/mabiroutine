@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task } from "@/lib/types";
 import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
@@ -102,6 +103,15 @@ export default function App() {
       window.removeEventListener("focus", onFocus);
     };
   }, [hasHydrated]);
+
+  // Local event reminders (MVP): page timer fires at :00 Taipei while the
+  // app is open, one collapsed card for subscribed-but-undone tasks. Runs
+  // only when at least one task is subscribed — zero timers otherwise.
+  const hasReminders = useAppStore((s) => (s.hourlyReminders ?? []).length > 0);
+  useHourlyReminders(hasHydrated && hasReminders);
+  // Reminder-tap landing (?task=&chars=): resolve the character, scroll to
+  // the row, flash it once. Runs for every load — cheap no-op without params.
+  useReminderDeepLink(hasHydrated);
 
   // compact pill toggles at a simple scroll threshold
   useEffect(() => {

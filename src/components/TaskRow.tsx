@@ -4,10 +4,11 @@ import { useGrabCounter } from "@/hooks/useGrabCounter";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { confirmRemoveTask } from "@/components/ConfirmDialog";
+import { confirmRemoveTask, confirmSubscribeReminder } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical } from "lucide-react";
+import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
+import { isEligibleReminderId, reminderPermission, requestReminderPermission } from "@/lib/hourlyReminders";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { dealTimes, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
@@ -23,6 +24,52 @@ type Props = {
 export function TaskRow(props: Props) {
   const isMobile = useIsMobile();
   return isMobile ? <TaskRowMobile {...props} /> : <TaskRowDesktop {...props} />;
+}
+
+/**
+ * Event (:00 Taipei fire) reminder toggle. Permission is requested from this
+ * tap — the only user gesture browsers accept — and the subscription stays
+ * local-only (never synced, never sent anywhere).
+ */
+function useReminderToggle(taskId: string, taskName: string) {
+  const on = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
+  const toggle = useAppStore((s) => s.toggleHourlyReminder);
+  const onToggle = async () => {
+    if (on) {
+      toggle(taskId);
+      return;
+    }
+    if (reminderPermission() === "unsupported") {
+      alert("此瀏覽器不支援系統通知，無法使用開場提醒。");
+      return;
+    }
+    // Soft-ask before the browser prompt: cold prompts get reflex-denied.
+    // The dialog tap keeps the user gesture alive for requestPermission.
+    if (!(await confirmSubscribeReminder())) return;
+    const p = await requestReminderPermission();
+    if (p === "granted") {
+      toggle(taskId);
+    } else if (p === "denied") {
+      alert(`「${taskName}」無法訂閱：瀏覽器已封鎖通知，請到網址列旁的圖示重新允許。`);
+    }
+    // dismissed prompt (stays "default"): do nothing, stay unsubscribed
+  };
+  return { on, onToggle };
+}
+
+function ReminderBell({ taskId, taskName, className }: { taskId: string; taskName: string; className?: string }) {
+  const { on, onToggle } = useReminderToggle(taskId, taskName);
+  return (
+    <button
+      onClick={() => void onToggle()}
+      className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"}
+      aria-label={`${on ? "取消" : "訂閱"}開場提醒：${taskName}`}
+      aria-pressed={on}
+      title="開場前約 2 分半提醒（此裝置、本頁開啟時）"
+    >
+      {on ? <BellRing className="h-3.5 w-3.5 text-amber-500" /> : <Bell className="h-3.5 w-3.5" />}
+    </button>
+  );
 }
 
 /** Whole-deal multiplier for a tracker barter row's hover card (twin leg's
@@ -46,6 +93,8 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
 
   const isCustom = task.source === "custom";
   const isBarter = task.source === "barter";
+  // Event-reminder bell: only eligible tasks (today just 不祥的召喚結界).
+  const reminderEligible = isEligibleReminderId(task.id);
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
   const [npcImgError, setNpcImgError] = useState(false);
@@ -86,6 +135,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
           <span className="shrink-0" aria-hidden>{task.icon}</span>
         )}
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
+        {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
       </div>
       {(task.priority === "must" || task.serverShared === true) && <div className="mt-1 flex flex-wrap gap-1">{badges}</div>}
     </div>
@@ -94,6 +144,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       <div className="flex items-center gap-1.5 text-sm font-medium">
         <span className="shrink-0" aria-hidden>{task.icon}</span>
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
+        {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
       </div>
       {(task.priority === "must" || task.source === "custom" || isBarter) && (
         <div className="mt-1 flex flex-wrap gap-1">{badges}</div>
@@ -292,6 +343,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
+  const reminderEligible = isEligibleReminderId(task.id);
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
@@ -341,6 +393,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cn("text-sm font-bold text-primary truncate", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
+            {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
             {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
             {task.serverShared === true && <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] shrink-0">伺服器</span>}
             <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
@@ -365,6 +418,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn("text-sm font-medium truncate", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
+          {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
           {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px]">{task.town}</span>}

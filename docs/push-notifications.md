@@ -1,0 +1,202 @@
+# Push notifications — plan
+
+Status: planning. Phase 0 (local timer) in review on `feat/hourly-reminders-mvp`;
+Phases 1+ unstarted. This doc records constraints, decisions, and phase scope —
+the *why*; code maps live with the code.
+
+## 1. Goal / non-goals
+
+Goal: remind the user about 不祥的召喚結界 (`barrier`) ahead of the verified
+in-game start at **XX:02:30 Taipei**, even when the app is closed.
+
+Non-goals: done-state personalization (the game itself pings everyone — we do
+the same), multi-task timers (eligibility list stays length 1 until proven
+otherwise), quiet hours, rich media cards.
+
+## 2. Where we are (Phase 0, this branch)
+
+Local-only page timer (`src/lib/hourlyReminders.ts`,
+`src/hooks/useHourlyReminders.ts`): bell on the `barrier` row → soft-ask
+dialog → browser permission → one collapsed card at **:00:00 Taipei**
+(`EVENT_SEC_PAST_HOUR = 150`, `FIRE_LEAD_SEC = 150`), catch-up for late
+opens, silence inside 30s of the start (`CATCHUP_MIN_SEC`), tap deep-links to
+the row with a flash. Subscriptions never leave the device (store v18,
+absent from the sync key space). Proven limitation: closed tab = no timer.
+
+## 3. Hard constraints
+
+### 3a. Timing — the useful window is 2 minutes
+
+- Event XX:02:30, soft in-game ping :00, walk time ~1 min (all verified).
+- Fire at :00:00 sharp to pair with the soft ping. A card landing after
+  :02:00 is not "late" — it is *misleading* (sends the user to a finished
+  event). Hence every server design carries a **staleness guard**: the fanout
+  checks Taipei wall time and sends nothing past :02:00 (clean miss > wrong
+  ping). Server clocks are UTC; Taipei is UTC+8, no DST, whole-hour offset —
+  so UTC minute 0 == Taipei minute 0 and cron alignment is trivial.
+- Correction (2026-09-16): an earlier draft claimed a "2.5-hour window".
+  Wrong — :00 → :02:30 is 150 seconds. This single correction is why the
+  trigger decision (§5 D3) favors punctuality over convenience.
+
+### 3b. Platform — free tiers only, Hobby limits verified 2026-09
+
+- **Vercel Hobby**: 1M fn invocations/mo, 4 CPU-hrs active CPU, 360 GB-hrs
+  provisioned memory, 300s max duration, 100 GB bandwidth. Hourly cron
+  expressions are **rejected on Hobby** (daily only, ±59 min jitter) — an
+  external trigger is mandatory, not a preference.
+- **Turso free** (per `docs/sync.md` quota §): 500M rows read / 10M rows
+  written / mo. Push fanout at 1000 subs costs ~720K reads/mo (0.14%).
+- **Cloudflare Workers free**: cron triggers available, 1-min granularity,
+  100K req/day (we need 24). Dashboard keeps last 100 cron events;
+  schedule edits take up to 15 min to propagate.
+- Cost at 100–1000 subs, hourly: $0 everywhere with 100–1000× headroom on
+  every meter (Vercel active CPU <0.3% — I/O wait isn't billed; bandwidth
+  <1%). Cost never enters any decision below.
+
+### 3c. Browser matrix (2026)
+
+- Desktop Chrome/Edge: full push, SW click handling works.
+- Desktop Firefox/Safari: push works; tap-through fine.
+- Android Chrome/Edge/Samsung: works; battery-saver may delay while the
+  browser is inactive (system setting, not fixable).
+- iOS/iPadOS 16.4+: **only via Home-Screen-installed PWA**, permission from
+  an in-app gesture; `clients.openWindow`/`navigate` on tap is best-effort
+  (may only foreground). No private-mode, no in-app webviews, anywhere.
+- WebKit forbids silent push (`userVisibleOnly: true`) — every push shows.
+
+### 3d. Privacy — first server-side user data
+
+Today "progress lives in your browser" is absolute. A push endpoint (+keys)
+stored server-side ends that era for one narrow table. Consequences: opt-in
+only (technically enforced — `pushManager.subscribe()` throws without a
+grant), toggle-off deletes the row, dead endpoints pruned on 404/410, and
+the README privacy bullet gets revised when Phase 1 ships (progress stays
+local; endpoints disclosed).
+
+### 3e. Permission — the grant chain is fragile
+
+Bell tap → soft-ask dialog → browser prompt must stay one unbroken gesture
+chain (Safari especially). Denials can only be undone in browser settings —
+hence the soft-ask exists. Any Phase 1 subscribe flow must preserve this
+ordering; never call `subscribe()` cold.
+
+## 4. Architecture (Phase 1+)
+
+```
+CF Worker cron (0 * * * * UTC == Taipei :00)
+  → POST /api/push/fanout, Authorization: Bearer CRON_SECRET
+    → Vercel Node fn: staleness guard → read subs from Turso
+      → web-push send, batched allSettled @ concurrency 20–50,
+        VAPID JWT signed once per run, tag/data payload ported from Phase 0
+```
+
+Crypto lives in Node on purpose: the `web-push` VAPID + aes128gcm path
+needs Node crypto semantics — hand-rolling SubtleCrypto in the Worker is
+risk for zero gain. The Worker is a dumb scheduler (10 lines).
+
+## 5. Decisions
+
+- **D1 — Unfiltered bell-only fanout (2026-09-16).** No done-state lookup.
+  The game pings everyone; our card reads fine done or not. Rejected: session
+  linkage (2–3 extra days + joins endpoints to progress data, breaking §3d
+  harder). Revisit only on real noise complaints (Phase 4).
+- **D2 — Single-task scope (2026-09-16).** `HOURLY_ELIGIBLE_IDS = ["barrier"]`.
+  Expansion is a one-line allowlist change, not a refactor.
+- **D3 — CF Worker cron over GitHub Actions (2026-09-16).** Actions' signature
+  failure (documented top-of-hour delays of minutes, rare queue drops) lands
+  directly inside our 2-minute window and produces misleading cards; its
+  60-day auto-disable on quiet public repos fails silently. CF holds :00
+  within ~a minute with no disable mode. Actions' wins (in-repo YAML,
+  one-click `workflow_dispatch` test fires, familiar logs) are real but don't
+  survive contact with §3a. Mitigation if ever reconsidered: schedule `:55`
+  (dodge the herd, surrender the pairing) + staleness guard. The trigger is a
+  swappable 10-line adapter over `/api/push/fanout` either way.
+- **D4 — Staleness guard in fanout, not in trigger (2026-09-16).** Any delay
+  source (trigger, cold start, retry) degrades to a clean miss. Never send
+  past :02:00 Taipei.
+- **D5 — Reuse Turso for subscription storage (2026-09-16).** New
+  `push_subscriptions` table next to sync sessions (same region, same driver,
+  `@libsql/client` already vendored). No second database. Schema sketch:
+  `endpoint PK, p256dh, auth, platform, created_at, last_sent_at`.
+- **D6 — Local and push are separate modes, never stacked (2026-09-16).**
+  Both cards share one tag with `renotify: true` — running both would
+  double-banner every hour. The feature flag (§6) selects exactly one backend
+  per bell.
+- **D7 — Phase 1 is desktop only (2026-09-16).** Bounds the test matrix
+  (below) while the infra proves itself. Mobile follows with zero server
+  changes (Phases 2–3 are client gates + device testing).
+
+## 6. Feature flag (Phase 1 gate)
+
+Recommended: **query string + localStorage**, i.e. `?push=1` persists
+`mabiroutine:push-flag = "1"` on first sight; `?push=0` clears it. Helper
+`isPushEnabled()` in client code.
+
+Behavior matrix:
+
+| Flag | Platform | Bell does |
+|---|---|---|
+| off (default) | any | Local timer (status quo, zero behavior change) |
+| on | desktop | Server push subscribe (VAPID); no local entry (D6) |
+| on | mobile (Phase 1) | Local timer + "桌機測試中" note (push path closed until Phases 2–3) |
+
+Desktop gate (Phase 1, temporary): non-mobile UA heuristics, documented as
+scaffolding to remove in Phase 2 — not a security boundary, just matrix
+honesty. Rejected alternatives: env/build flag (redeploy per tester, no
+prod A/B), settings-screen toggle (premature UI + permission-confusion risk
+before the flow is proven), remote config (no infra for it).
+Store note: push subscriptions per task imply a new persisted field (likely
+store v19) with the usual migrate + fixture discipline from AGENTS.md.
+
+## 7. Phases
+
+### Phase 0 — Local timer (this branch, in review)
+Done except review. Gate: existing `pnpm check` + ?task=?chars= tap tests.
+
+### Phase 1 — Server push, desktop, flagged (next)
+1. VAPID pair: `npx web-push generate-vapid-keys`, private key to Vercel env
+   only (never committed); public key inlined client-side.
+2. Turso `push_subscriptions` table + migration (follow `api/_db` patterns).
+3. `POST /api/push/subscribe` (VAPID sub + platform; rate-limit like session
+   POST), `DELETE` on bell-off; 404/410 prune inside fanout.
+4. `POST /api/push/fanout`: CRON_SECRET bearer check → staleness guard
+   (§4, skip past :02:00) → batched send, concurrency 20–50, JWT-per-run,
+   Phase-0 tag/data payload verbatim.
+5. `workers/push-cron` (same repo, wrangler, `0 * * * *`) deployed from CI
+   (versioned deploys; never dashboard-edit per CF's own warning).
+6. Client: flag gate (§6) + desktop gate + subscribe/unsubscribe wiring that
+   preserves the §3e gesture chain; bell copy unchanged until proven.
+7. Copy: README privacy bullets (EN + zh_TW) revised per §3d; CHANGELOG.
+8. Test matrix: desktop Chrome/Win, Edge/Win, Chrome/macOS — subscribe →
+   wait for :00 (or trigger fanout manually with the secret) → card →
+   tap → char priority + flash (§2 behavior, now via SW path). Firefox/Safari
+   desktop best-effort.
+- Success: 3 consecutive :00 hours, card + tap-through, zero double-fires,
+  dead sub pruned on next run. Gate: manual matrix above (no harness yet).
+
+### Phase 2 — Android push
+Server untouched. Remove/adjust the desktop gate, test Chrome Android
+(including a battery-saver-delayed case so the copy expectation is honest),
+keep local timer as the unsupported-browser fallback.
+
+### Phase 3 — iOS PWA push
+Server untouched. Add-to-Home-Screen onboarding copy, permission from an
+in-app gesture inside the installed app, tap-through accepted best-effort
+(§3c). Test on a real iPhone 16.4+ — simulator proves nothing here.
+
+### Phase 4 — Optional hardening (only on evidence)
+Done-state filtering (session linkage + consent copy per §3d), quiet hours,
+GH Actions backup trigger, eligibility-list expansion, fanout batching past
+10K subs (sharding by endpoint hash, `maxDuration` bump).
+
+## 8. Open risks (not questions — tracked, decided or deferred)
+
+- **CRON_SECRET leak/rotation**: env-only, rotate by redeploy; fanout 401s
+  loudly (Vercel logs) rather than failing open.
+- **Hobby fair-use**: personal-use project, traffic trivial — no action.
+- **Endpoint table growth**: bounded by opt-in count; prune on 404/410 +
+  180-day touch (mirror the session TTL philosophy).
+- **Manual fanout double-send**: tag collapse makes redelivery idempotent-ish
+  (one card, re-buzzed). Accepted.
+- **Clock skew**: guard uses server clock → Taipei conversion, fixed +8.
+  Vercel clock discipline is NTP-grade; non-issue, noted for completeness.

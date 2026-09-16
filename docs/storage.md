@@ -9,10 +9,12 @@ MabiRoutine's design principle: static game data ships with the app;
   never cached by your browser: renames, new descriptions, new `max` values
   take effect on the next deploy.
 - Your progress (checks, counters, pins, custom tasks, hidden rows, order,
-  preferences, barter filters) lives only in your browser: `localStorage` key
-  `mabiroutine:v2`, keyed by row `id` against the static rows. Writes are
-  idle-deferred (rapid taps never stutter) and force-flushed when you switch
-  tabs or close; in the worst case you lose ~1.5 seconds of input.
+  preferences, barter filters, hourly-reminder subscriptions) lives only in
+  your browser: `localStorage` key `mabiroutine:v2`, keyed by row `id`
+  against the static rows. Writes are idle-deferred (rapid taps never
+  stutter) and force-flushed when you switch tabs or close; in the worst
+  case you lose ~1.5 seconds of input. Reminder subscriptions are
+  per-device local-only — never synced, never sent anywhere.
 
 ## When the app updates (auto-migrate, nothing to do)
 
