@@ -153,7 +153,7 @@ export function purpleBadge(
 ): PurpleBadge | null {
   const t = bucketOccurrence(nowMs, windows);
   if (t === null) return null;
-  // Absolute "MM-DD HH:mm": relative words (昨日/明日) lie to late-night
+  // Absolute "MM/DD HH:mm": relative words (昨日/明日) lie to late-night
   // players sitting on the wrong side of midnight from the 06:00 bucket.
   if (t > nowMs) return { past: null, next: formatTaipei(t) };
   if (t > nowMs - SPAWN_FRESH_MS) return { past: formatTaipei(t), next: null };
@@ -168,7 +168,7 @@ export function nextBadgeLabel(
   return formatTaipei(nextOccurrence(nowMs, windows));
 }
 
-/** "MM-DD HH:mm" in Taipei. */
+/** "MM/DD HH:mm" in Taipei. */
 export function formatTaipei(ms: number): string {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Taipei",
@@ -180,7 +180,7 @@ export function formatTaipei(ms: number): string {
   });
   const parts = fmt.formatToParts(new Date(ms));
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  return `${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+  return `${get("month")}/${get("day")} ${get("hour")}:${get("minute")}`;
 }
 
 // Feature flag: `?purple_hole=1` enables and persists,
