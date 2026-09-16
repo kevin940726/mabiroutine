@@ -18,6 +18,9 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
+  // Geometry for scroll-follow: which side + rendered height, refreshed on
+  // every fit. Scroll/resize repositions from these instead of dismissing.
+  const geomRef = useRef<{ above: boolean; h: number }>({ above: false, h: 0 });
 
   const placeInitial = useCallback(() => {
     const el = triggerRef.current;
@@ -40,10 +43,35 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
     setOpen(true);
   }, [placeInitial]);
 
-  // dismiss on scroll / resize / Escape / outside-tap
+  // Follow the trigger on scroll/resize (rAF-throttled) instead of
+  // dismissing: a timetable you can't scroll the page behind is hostile.
+  // Escape / outside-tap still dismiss; trigger scrolled out of view does
+  // too (nothing left to anchor to).
+  const reposition = useCallback(() => {
+    const trigger = triggerRef.current;
+    const outer = cardRef.current;
+    if (!trigger || !outer) return;
+    const r = trigger.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    if (r.bottom < 0 || r.top > vh) {
+      setOpen(false);
+      return;
+    }
+    const w = outer.offsetWidth;
+    const left = Math.max(8, Math.min(r.left, vw - w - 8));
+    const arrowX = Math.max(14, Math.min(r.left + r.width / 2 - left, w - 14));
+    const { above, h } = geomRef.current;
+    setPos({ top: above ? r.top - 8 - h : r.bottom, left, arrowX, above });
+  }, []);
+
   useEffect(() => {
     if (!open) return;
-    const dismiss = () => setOpen(false);
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(reposition);
+    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
@@ -51,17 +79,18 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
       const t = e.target as Node;
       if (!triggerRef.current?.contains(t) && !cardRef.current?.contains(t)) setOpen(false);
     };
-    window.addEventListener("scroll", dismiss, true);
-    window.addEventListener("resize", dismiss);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
     window.addEventListener("keydown", onKey);
     window.addEventListener("pointerdown", onDown);
     return () => {
-      window.removeEventListener("scroll", dismiss, true);
-      window.removeEventListener("resize", dismiss);
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("pointerdown", onDown);
     };
-  }, [open ]);
+  }, [open, reposition]);
 
   // Pass 2: measure, then flip above / clamp only when forced.
   useEffect(() => {
@@ -97,6 +126,7 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
       }
       setPos({ top, left, arrowX, above });
       setMaxH(h);
+      geomRef.current = { above, h: h ?? natural };
       setFitted(true);
     });
     return () => cancelAnimationFrame(raf);
@@ -110,9 +140,9 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
         ref={triggerRef}
         onClick={() => (open ? setOpen(false) : openCard())}
         className="h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-        aria-label={`出沒時刻錶：${taskName}`}
+        aria-label={`出沒時刻表：${taskName}`}
         aria-expanded={open}
-        title="出沒時刻錶"
+        title="出沒時刻表"
       >
         <CalendarDays className="h-3.5 w-3.5" />
       </button>
@@ -120,7 +150,7 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
         <div
           ref={cardRef}
           role="dialog"
-          aria-label={`出沒時刻錶：${taskName}`}
+          aria-label={`出沒時刻表：${taskName}`}
           style={{ top: pos.top, left: pos.left, visibility: fitted ? "visible" : "hidden" }}
           className={cn(
             "fixed z-50 w-[min(248px,78vw)] break-words whitespace-normal",
