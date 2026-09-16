@@ -119,17 +119,29 @@ export async function requestReminderPermission(): Promise<ReminderPermission> {
 
 export type HourlyFireResult = "shown" | "skipped-permission" | "skipped-unsupported" | "failed";
 
+export type ReminderFire = {
+  names: string[];
+  eventLabel: string;
+  /** Task display name for the title (omitted → generic count title). */
+  titleTask?: string;
+  /** Deep-link payload: task row id + undone character ids for tap-through. */
+  taskId?: string;
+  charIds?: string[];
+  /** Page-side tap handler (dev `new Notification()` path; the SW path
+   * carries task/chars in notification.data instead). */
+  onClick?: () => void;
+};
+
 /**
  * Show one collapsed hourly card. Prefers the service worker registration
  * (works on mobile, where `new Notification()` throws) and falls back to
- * the page constructor. Resolves — never rejects — so the scheduler loop
+ * the page constructor. Taps deep-link to the task row (see sw-push.js +
+ * useReminderDeepLink). Resolves — never rejects — so the scheduler loop
  * cannot die on a notification error.
  */
-export async function fireHourlyReminder(
-  names: string[],
-  eventLabel: string,
-  titleTask = ""
-): Promise<HourlyFireResult> {
+export async function fireHourlyReminder(f: ReminderFire): Promise<HourlyFireResult> {
+  const { names, eventLabel } = f;
+  const titleTask = f.titleTask ?? "";
   if (names.length === 0) return "shown"; // nothing undone: silence is correct
   if (typeof window === "undefined" || !("Notification" in window)) return "skipped-unsupported";
   if (Notification.permission !== "granted") return "skipped-permission";
@@ -140,6 +152,9 @@ export async function fireHourlyReminder(
   const title = titleTask
     ? `${titleTask}出現了`
     : `${eventLabel} 將至 — ${names.length} 項未完成`;
+  const data: Record<string, string> = { url: "/" };
+  if (f.taskId) data.task = f.taskId;
+  if (f.charIds?.length) data.chars = f.charIds.join(",");
   // renotify/vibrate predate the TS DOM lib: typed locally, passed through
   // to showNotification which honors them at runtime.
   const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
@@ -150,7 +165,7 @@ export async function fireHourlyReminder(
     renotify: true,
     requireInteraction: false,
     silent: false,
-    data: { url: "/" },
+    data,
   };
   try {
     // getRegistration — never .ready: .ready pends FOREVER when no worker
@@ -168,7 +183,8 @@ export async function fireHourlyReminder(
     // fall through to the page constructor
   }
   try {
-    new Notification(title, options);
+    const n = new Notification(title, options);
+    if (f.onClick) n.onclick = () => f.onClick!();
     return "shown";
   } catch {
     return "failed";

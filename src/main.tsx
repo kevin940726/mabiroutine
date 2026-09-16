@@ -4,7 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
 import { statsSummary } from './sync/stats.ts'
-import { getUndoneReminder } from './hooks/useHourlyReminders.ts'
+import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
 import {
   fireHourlyReminder,
   msUntilNextEventFire,
@@ -41,7 +41,14 @@ if (typeof window !== 'undefined') {
   w.__mabiHourlyFire = async () => {
     const r = getUndoneReminder();
     if (!r) return 'shown (nothing due)';
-    const res = await fireHourlyReminder(r.names, upcomingEventLabel(Date.now()), r.taskName);
+    const res = await fireHourlyReminder({
+      names: r.names,
+      eventLabel: upcomingEventLabel(Date.now()),
+      titleTask: r.taskName,
+      taskId: r.taskId,
+      charIds: r.charIds,
+      onClick: () => resolveReminderDeepLink(r.taskId, r.charIds),
+    });
     return `${res} (names: ${r.names.join('、')})`;
   };
 }

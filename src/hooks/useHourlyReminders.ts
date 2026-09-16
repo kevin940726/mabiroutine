@@ -22,7 +22,7 @@ type BarterJsonItem = (typeof barterJson)[number];
 // remaining count carries little signal — any remainder means "go play
 // that char"); account/server-shared tasks fall back to task names.
 // Null = nothing due (silence is correct).
-export type UndoneReminder = { taskName: string; names: string[] };
+export type UndoneReminder = { taskId: string; taskName: string; names: string[]; charIds: string[] };
 export function getUndoneReminder(): UndoneReminder | null {
   const s = useAppStore.getState();
   const subs = (s.hourlyReminders ?? []).filter(isEligibleReminderId);
@@ -34,10 +34,13 @@ export function getUndoneReminder(): UndoneReminder | null {
   for (const b of barterJson as BarterJsonItem[]) {
     if (pinned.has(b.id)) byId.set(b.id, barterToTask(b));
   }
-  // Single-task scope today (barrier), so one taskName covers the card; a
-  // future multi-task scope would need per-group cards instead of mixing.
+  // Single-task scope today (barrier), so one taskId/taskName covers the
+  // card; a future multi-task scope would need per-group cards instead of
+  // mixing. charIds ride along for the tap deep-link (roster order).
+  let taskId = "";
   let taskName = "";
   const names: string[] = [];
+  const charIds: string[] = [];
   for (const id of subs) {
     const task = byId.get(id);
     if (!task) continue; // removed row: v18 prune clears it on next load
@@ -45,15 +48,21 @@ export function getUndoneReminder(): UndoneReminder | null {
       if (s.isTaskHidden(id)) continue; // hidden = never do: don't nag
       if (!isTaskDone(task, s.accountValues[id])) names.push(task.name);
     } else {
-      if (!taskName) taskName = task.name;
+      if (!taskId) {
+        taskId = task.id;
+        taskName = task.name;
+      }
       for (const c of s.characters) {
         if (c.hiddenTaskIds.includes(id)) continue;
-        if (!isTaskDone(task, c.taskValues[id])) names.push(c.name);
+        if (!isTaskDone(task, c.taskValues[id])) {
+          names.push(c.name);
+          charIds.push(c.id);
+        }
       }
     }
   }
   if (names.length === 0) return null;
-  return { taskName, names };
+  return { taskId, taskName, names, charIds };
 }
 
 // Page-timer scheduler for local event reminders (MVP). Fires at :00
@@ -83,7 +92,14 @@ export function useHourlyReminders(enabled: boolean) {
           }
           const r = getUndoneReminder();
           if (r && Notification.permission === "granted") {
-            await fireHourlyReminder(r.names, upcomingEventLabel(Date.now()), r.taskName);
+            await fireHourlyReminder({
+              names: r.names,
+              eventLabel: upcomingEventLabel(Date.now()),
+              titleTask: r.taskName,
+              taskId: r.taskId,
+              charIds: r.charIds,
+              onClick: () => resolveReminderDeepLink(r.taskId, r.charIds),
+            });
           }
           arm(); // next hour, forever
         })();
@@ -105,5 +121,62 @@ export function useHourlyReminders(enabled: boolean) {
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
+  }, [enabled]);
+}
+
+/**
+ * Deep-link resolution for a reminder tap, with the requested priority:
+ * 1. keep the active character if it's in the undone list;
+ * 2. else switch to the first undone character (collector = roster order).
+ * Then smooth-scrolls the task row into view and gives it one subtle flash.
+ */
+export function resolveReminderDeepLink(taskId: string, charIds: string[]): void {
+  if (typeof window === "undefined" || !taskId) return;
+  const s = useAppStore.getState();
+  if (charIds.length > 0 && !charIds.includes(s.activeCharId)) {
+    const first = charIds.find((id) => s.characters.some((c) => c.id === id));
+    if (first) s.setActiveChar(first);
+  }
+  flashTaskRow(taskId);
+}
+
+function flashTaskRow(taskId: string, attempt = 0): void {
+  let el: Element | null = null;
+  try {
+    el = document.querySelector(`[data-task-id="${CSS.escape(taskId)}"]`);
+  } catch {
+    el = document.querySelector(`[data-task-id="${taskId}"]`);
+  }
+  // The character switch above re-renders async — retry briefly, then give
+  // up quietly (e.g. the row lives in a collapsed hidden bucket).
+  if (!(el instanceof HTMLElement)) {
+    if (attempt < 12) window.setTimeout(() => flashTaskRow(taskId, attempt + 1), 150);
+    return;
+  }
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("reminder-flash");
+  el.addEventListener("animationend", () => el.classList.remove("reminder-flash"), { once: true });
+  window.setTimeout(() => el.classList.remove("reminder-flash"), 5000);
+}
+
+/**
+ * Consumes ?task= & ?chars= once after hydration (reminder-tap landing):
+ * resolves the character, flashes the row, then strips our params — leaving
+ * anything else in the URL untouched.
+ */
+export function useReminderDeepLink(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled || typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    const task = q.get("task");
+    if (!task) return;
+    const chars = (q.get("chars") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("task");
+    url.searchParams.delete("chars");
+    window.history.replaceState(null, "", url.toString());
+    // Let the character switch commit before querying the DOM — the
+    // flasher retries on its own if the row isn't there yet.
+    requestAnimationFrame(() => window.setTimeout(() => resolveReminderDeepLink(task, chars), 80));
   }, [enabled]);
 }
