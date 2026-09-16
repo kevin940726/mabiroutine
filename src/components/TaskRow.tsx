@@ -78,7 +78,11 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   // Idempotent: the permission watcher and the direct path can both land.
   const subscribe = () => {
     const s = useAppStore.getState();
-    if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+    if (lane === "purple") {
+      if (!(s.purpleHoleReminders ?? []).includes(taskId)) s.togglePurpleReminder(taskId);
+    } else {
+      if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+    }
   };
   // Dismissing the coach mark means "leave me alone": stop the watcher so
   // nothing subscribes behind the user's back.
