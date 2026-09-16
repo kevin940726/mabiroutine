@@ -27,7 +27,7 @@ export function TaskRow(props: Props) {
 }
 
 /**
- * Hourly (:58 Taipei) reminder toggle. Permission is requested from this
+ * Event (:00 Taipei fire) reminder toggle. Permission is requested from this
  * tap — the only user gesture browsers accept — and the subscription stays
  * local-only (never synced, never sent anywhere).
  */

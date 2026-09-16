@@ -107,7 +107,7 @@ type Store = AppState & {
   reorderTasks: (orderedIds: string[]) => void;
   reorderBarterPins: (orderedIds: string[]) => void;
   setBarterFilters: (patch: Partial<BarterFilters>) => void;
-  // Hourly (:58 Taipei) reminder subscription toggle. Local-only, never synced.
+  // Event (:00 Taipei fire) reminder subscription toggle. Local-only, never synced.
   toggleHourlyReminder: (taskId: string) => void;
   isHourlyReminded: (taskId: string) => boolean;
 
@@ -641,7 +641,7 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.version = 17;
   }
   if (from < 18) {
-    // v17 → v18: hourly (:58) reminder subscriptions introduced, default off.
+    // v17 → v18: event (:00 fire) reminder subscriptions introduced, default off.
     // normalizePersisted already shaped the array — here only prune ids that
     // no longer exist (removed tracker/barter rows, deleted customs), same
     // v6 valid-set rule. Progress untouched. Reminders stay local-only.

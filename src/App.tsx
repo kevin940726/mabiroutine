@@ -104,7 +104,7 @@ export default function App() {
     };
   }, [hasHydrated]);
 
-  // Local hourly reminders (MVP): page timer fires at :58 Taipei while the
+  // Local event reminders (MVP): page timer fires at :00 Taipei while the
   // app is open, one collapsed card for subscribed-but-undone tasks. Runs
   // only when at least one task is subscribed — zero timers otherwise.
   const hasReminders = useAppStore((s) => (s.hourlyReminders ?? []).length > 0);

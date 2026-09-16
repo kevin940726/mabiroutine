@@ -72,6 +72,13 @@ export function getUndoneReminder(): UndoneReminder | null {
 // Opens after :00 get an immediate catch-up card (still useful); past
 // the 30s cutoff the hour is skipped silently. Closed app/page = no fire
 // (documented limitation; server push is the follow-up, not this hook).
+// Module-scope so a remount (StrictMode/HMR, bell toggle off→on) can't
+// re-card an hour already fired for: the effect closure alone resets on
+// every mount. Single page lifetime, never persisted — a reload re-arms
+// fresh, which is correct (no card could have fired before load... except
+// a pre-reload fire, in which case one repeat card is the safe direction).
+let firedEventHour: number | null = null;
+
 export function useHourlyReminders(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
@@ -81,7 +88,6 @@ export function useHourlyReminders(enabled: boolean) {
     // Dedup: epoch-hour of the event already fired for. Without this, the
     // post-fire re-arm lands back inside the catch-up window and the card
     // re-fires every second until the cutoff.
-    let firedEventHour: number | null = null;
     const eventHourOf = (nowMs: number): number =>
       Math.floor((nowMs + remainingSecToEvent(nowMs) * 1000) / 3600000);
 

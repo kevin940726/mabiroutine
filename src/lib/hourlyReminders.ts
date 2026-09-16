@@ -160,6 +160,9 @@ export async function fireHourlyReminder(f: ReminderFire): Promise<HourlyFireRes
   const unit = titleTask ? "隻" : "項";
   const shown = names.slice(0, 3).join("、");
   const more = names.length > 3 ? ` 等 ${names.length} ${unit}` : "";
+  // Dormant branch: single-task scope always passes titleTask today; the
+  // generic title survives for a future multi-task scope. The live path
+  // carries no clock time, counts, or lead text.
   const title = titleTask
     ? `${titleTask}出現了`
     : `${eventLabel} 將至 — ${names.length} 項未完成`;
