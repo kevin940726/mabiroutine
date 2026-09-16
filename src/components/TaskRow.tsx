@@ -262,10 +262,14 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       <div className="flex items-center gap-1.5 text-sm font-medium">
         <span className="shrink-0" aria-hidden>{task.icon}</span>
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
-        {schedule && <ScheduleBadges badge={schedule} />}
         {scheduleEligible && <SchedulePopover taskName={task.name} />}
         {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
       </div>
+      {schedule && (
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
+          <ScheduleBadges badge={schedule} />
+        </div>
+      )}
       {(task.priority === "must" || task.source === "custom" || isBarter) && (
         <div className="mt-1 flex flex-wrap gap-1">{badges}</div>
       )}
@@ -540,13 +544,17 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn("text-sm font-medium truncate", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
-          {schedule && <ScheduleBadges badge={schedule} />}
           {scheduleEligible && <SchedulePopover taskName={task.name} />}
           {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
           {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px]">{task.town}</span>}
         </div>
+        {schedule && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
+            <ScheduleBadges badge={schedule} />
+          </div>
+        )}
         <p className="text-xs text-muted-foreground leading-snug break-words whitespace-pre-wrap mt-0.5 line-clamp-2 min-h-[32px] md:min-h-[32px] md:line-clamp-2">
           {task.desc || "\u00A0"}
         </p>
