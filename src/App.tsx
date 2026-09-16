@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
 import { isPushEnabled } from "@/lib/hourlyReminders";
+import { PURPLE_HOLE_ID, isPurpleHoleEnabled, isScheduledToday } from "@/lib/purpleHole";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task } from "@/lib/types";
 import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
@@ -144,6 +145,13 @@ export default function App() {
     input.click();
   };
 
+  // purple-hole row lives behind its own flag (?purple_hole=1); off-day
+  // parking happens render-side in TrackerSection. The header overall also
+  // excludes it when the flag is off or today is not a spawn day.
+  const purpleHoleOn = isPurpleHoleEnabled();
+  const purpleToday = isScheduledToday();
+  const excludePurple = (t: Task) => t.id === PURPLE_HOLE_ID && !(purpleHoleOn && purpleToday);
+
   // overall progress for active char + account (hidden tasks excluded):
   // builtins + custom + pinned barter, same ruler as the section badges.
   const overall = (() => {
@@ -155,14 +163,18 @@ export default function App() {
         return b ? barterToTask(b) : null;
       })
       .filter((t): t is Task => !!t && !hidden.has(t.id));
-    const all = [...BUILTIN_TASKS, ...customTasks, ...pinnedBarter].filter((t) => !hidden.has(t.id));
+    const all = [...BUILTIN_TASKS, ...customTasks, ...pinnedBarter].filter((t) => !hidden.has(t.id) && !excludePurple(t));
     const { done, total, percent } = summarizeProgress(all, (t) =>
       t.section === "account" || t.serverShared === true ? accountValues[t.id] : active.taskValues[t.id]
     );
     return { pct: percent, done, total };
   })();
 
-  const dailyTasks = BUILTIN_TASKS.filter((t) => t.section === "daily");
+  // Daily list keeps the row whenever the flag is on — TrackerSection parks
+  // it into 已隱藏項目 on off-days (render-only, stays out of progress).
+  const dailyTasks = BUILTIN_TASKS.filter(
+    (t) => t.section === "daily" && (t.id !== PURPLE_HOLE_ID || purpleHoleOn)
+  );
   const weeklyTasks = BUILTIN_TASKS.filter((t) => t.section === "weekly");
   const accountTasks = BUILTIN_TASKS.filter((t) => t.section === "account");
   const dailyWithCustom = [...dailyTasks, ...customTasks.filter((t) => t.section === "daily")];

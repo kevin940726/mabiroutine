@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- 深淵的黑色坑洞 tracker row (behind `?purple_hole=1`, branch-only): daily per-char counter ×3 on a 36h15m predicted cycle (anchor 2026-09-16 14:08 Taipei); shows only on spawn days per the 06:00 daily bucket, otherwise parks itself in 已隱藏項目 with a 非出沒日 note (render-only, manual hide untouched, out of progress). The list icon opens a read-only timetable popover (past 2 + next 3, 下次 highlight, 預測值 disclaimer). Maintenance pause math is in place but fed empty in phase 1; the reminder bell + 15-min-early notification lane is still to come
+
 ### Fixes
 - 梅文 聖水←凱琳特製全麥麵包 is account-shared (shops `scope: account`; barter twin `perChar: false`, 每日 1 次 (伺服器)): the tracker row now shares one value across characters with the 伺服器 badge, matching the in-game limit
 - Reminder toggle flushes storage synchronously (an instant reload can no longer lose the tap to the idle-write window); flipping to denied while the waiting pill shows now routes to the settings-path dialog instead of vanishing silently

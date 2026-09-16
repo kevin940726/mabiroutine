@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
 import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
+import { PURPLE_HOLE_ID, isPurpleHoleEnabled } from "@/lib/purpleHole";
+import { SchedulePopover } from "@/components/SchedulePopover";
 import { PermissionCoachMark, type CoachMarkKind } from "@/components/PermissionCoachMark";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { dealTimes, parseItemQty } from "@/lib/materials";
@@ -183,6 +185,9 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   // Event-reminder bell: only eligible tasks (today just 不祥的召喚結界),
   // and only with the ?push=1 flag on — prod default is no bell at all.
   const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
+  // Timetable popover: purple-hole only, behind its own ?purple_hole=1 flag.
+  // (Its reminder bell arrives with the notification lane; popover first.)
+  const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
   const [npcImgError, setNpcImgError] = useState(false);
@@ -232,6 +237,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       <div className="flex items-center gap-1.5 text-sm font-medium">
         <span className="shrink-0" aria-hidden>{task.icon}</span>
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
+        {scheduleEligible && <SchedulePopover taskName={task.name} />}
         {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
       </div>
       {(task.priority === "must" || task.source === "custom" || isBarter) && (
@@ -432,6 +438,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
   const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
+  const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
@@ -506,6 +513,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn("text-sm font-medium truncate", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
+          {scheduleEligible && <SchedulePopover taskName={task.name} />}
           {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
