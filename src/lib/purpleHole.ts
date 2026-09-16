@@ -183,6 +183,33 @@ export function formatTaipei(ms: number): string {
   return `${get("month")}/${get("day")} ${get("hour")}:${get("minute")}`;
 }
 
+// Notification lane: fire 15 minutes before the predicted spawn, one
+// collapsed card per spawn. Catch-up is automatic (opened after the fire
+// time but while the spawn is still future fires ~immediately); no silence
+// cutoff is needed — the card stays truthful until the spawn passes, and
+// nextOccurrence is always strictly future so every fire re-arms forward.
+
+/** Lead time before the predicted spawn. */
+export const PURPLE_LEAD_MS = 15 * 60 * 1000;
+
+/** Collapse key: separate tag from the hourly lane — one card per spawn, replaced, never stacked with barrier cards. */
+export const PURPLE_TAG = "mabi-purple";
+
+/** Ms until this spawn's fire (catch-up: ~immediately when already due). */
+export function msUntilPurpleFire(nowMs: number = Date.now()): number {
+  const fireAt = nextOccurrence(nowMs) - PURPLE_LEAD_MS;
+  return Math.max(1_000, fireAt - nowMs);
+}
+
+/**
+ * Ms until the NEXT spawn's fire, strictly skipping the current one. Re-arm
+ * here after firing: msUntilPurpleFire would catch-up refire every second
+ * until the spawn passes.
+ */
+export function msUntilNextPurpleFire(nowMs: number = Date.now()): number {
+  return Math.max(1_000, nthOccurrence(firstIndexAfter(nowMs) + 1) - PURPLE_LEAD_MS - nowMs);
+}
+
 // Feature flag: `?purple_hole=1` enables and persists,
 // `?purple_hole=0` clears. Mirrors the ?push=1 gate, separate slot.
 const PURPLE_FLAG_KEY = "mabiroutine:purple-hole-flag";

@@ -83,6 +83,10 @@ export type AppState = {
   // design: never synced (like ordering), never sent to any server — the MVP
   // fires from a page timer while the app is open.
   hourlyReminders: string[];
+  // Purple-hole (36h15m cycle, 15-min-early fire) subscriptions, per task id.
+  // Separate lane from hourlyReminders: different cadence, different card tag.
+  // Same local-only rule — absent from the sync key space.
+  purpleHoleReminders: string[];
 };
 
 export type BarterItem = {

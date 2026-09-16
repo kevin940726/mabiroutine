@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
 import { isPushEnabled } from "@/lib/hourlyReminders";
+import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isPurpleHoleEnabled, isScheduledToday } from "@/lib/purpleHole";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task } from "@/lib/types";
@@ -111,6 +112,9 @@ export default function App() {
   // only when at least one task is subscribed — zero timers otherwise.
   const hasReminders = useAppStore((s) => (s.hourlyReminders ?? []).length > 0);
   useHourlyReminders(hasHydrated && hasReminders && isPushEnabled());
+  // Purple-hole lane (15-min-early fire): separate flag, separate list.
+  const hasPurpleReminders = useAppStore((s) => (s.purpleHoleReminders ?? []).length > 0);
+  usePurpleHoleReminders(hasHydrated && hasPurpleReminders && isPurpleHoleEnabled());
   // Reminder-tap landing (?task=&chars=): resolve the character, scroll to
   // the row, flash it once. Runs for every load — cheap no-op without params.
   useReminderDeepLink(hasHydrated);

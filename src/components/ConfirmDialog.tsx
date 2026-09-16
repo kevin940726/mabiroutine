@@ -73,10 +73,12 @@ export function confirmClearSection(title: string): Promise<boolean> {
 // Soft-ask before the browser notification permission prompt: cold prompts
 // get reflex-denied, and a denial can only be undone in browser settings.
 // Non-destructive styling (danger: false) — subscribing takes nothing away.
-export function confirmSubscribeReminder(taskName: string): Promise<boolean> {
+export function confirmSubscribeReminder(taskName: string, body?: string): Promise<boolean> {
   return confirmAction({
     title: `訂閱通知：${taskName}`,
-    body: "每小時整點提醒一次，App 沒開就不會響。設定只留在這台裝置，隨時點鈴鐺就能取消。按下訂閱後，瀏覽器會再確認一次（Chrome 的提示在左上角），請選允許。",
+    body:
+      body ??
+      "每小時整點提醒一次，App 沒開就不會響。設定只留在這台裝置，隨時點鈴鐺就能取消。按下訂閱後，瀏覽器會再確認一次（Chrome 的提示在左上角），請選允許。",
     confirmText: "訂閱",
     cancelText: "取消",
     danger: false,

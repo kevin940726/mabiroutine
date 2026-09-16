@@ -221,6 +221,10 @@ export type ReminderFire = {
   eventLabel: string;
   /** Task display name for the title (omitted → generic count title). */
   titleTask?: string;
+  /** Full title override (e.g. early-fire lanes where 出現了 would lie). */
+  title?: string;
+  /** Collapse key override (default HOURLY_TAG — separate lanes need tags). */
+  tag?: string;
   /** Deep-link payload: task row id + undone character ids for tap-through. */
   taskId?: string;
   charIds?: string[];
@@ -249,9 +253,9 @@ export async function fireHourlyReminder(f: ReminderFire): Promise<HourlyFireRes
   // Dormant branch: single-task scope always passes titleTask today; the
   // generic title survives for a future multi-task scope. The live path
   // carries no clock time, counts, or lead text.
-  const title = titleTask
-    ? `${titleTask}出現了`
-    : `${eventLabel} 將至 — ${names.length} 項未完成`;
+  const title =
+    f.title ??
+    (titleTask ? `${titleTask}出現了` : `${eventLabel} 將至 — ${names.length} 項未完成`);
   const data: Record<string, string> = { url: "/" };
   if (f.taskId) data.task = f.taskId;
   if (f.charIds?.length) data.chars = f.charIds.join(",");
@@ -261,7 +265,7 @@ export async function fireHourlyReminder(f: ReminderFire): Promise<HourlyFireRes
     body: `${shown}${more}`,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    tag: HOURLY_TAG,
+    tag: f.tag ?? HOURLY_TAG,
     renotify: true,
     requireInteraction: false,
     silent: false,

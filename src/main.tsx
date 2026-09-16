@@ -5,12 +5,14 @@ import './index.css'
 import App from './App.tsx'
 import { statsSummary } from './sync/stats.ts'
 import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
+import { getUndonePurpleReminder } from './hooks/usePurpleHoleReminders.ts'
 import {
   fireHourlyReminder,
   msUntilNextEventFire,
   reminderPermission,
   upcomingEventLabel,
 } from './lib/hourlyReminders.ts'
+import { PURPLE_HOLE_ID, PURPLE_TAG, formatTaipei, msUntilPurpleFire, nextOccurrence } from './lib/purpleHole.ts'
 
 // Quota telemetry reader (quota §, docs/sync.md): run
 // __mabiSyncStats() in DevTools for per-day request/command estimates.
@@ -22,6 +24,8 @@ if (typeof window !== 'undefined') {
 // __mabiHourlyTick() in DevTools for the live :00 countdown readout, or
 // __mabiHourlyFire() to force one card now with the current undone subs
 // (no waiting for :00; still needs permission + at least one sub).
+// __mabiPurpleTick/__mabiPurpleFire are the purple-hole equivalents (next
+// spawn countdown, force one 15-min-early card now).
 if (typeof window !== 'undefined') {
   const w = window as unknown as {
     __mabiHourlyTick?: () => string;
@@ -48,6 +52,36 @@ if (typeof window !== 'undefined') {
       taskId: r.taskId,
       charIds: r.charIds,
       onClick: () => resolveReminderDeepLink(r.taskId, r.charIds),
+    });
+    return `${res} (names: ${r.names.join('、')})`;
+  };
+  const w2 = window as unknown as {
+    __mabiPurpleTick?: () => string;
+    __mabiPurpleFire?: () => Promise<string>;
+  };
+  w2.__mabiPurpleTick = () => {
+    const spawn = nextOccurrence(Date.now());
+    const r = getUndonePurpleReminder();
+    const names = r?.names ?? [];
+    return (
+      `next fire in ${Math.round(msUntilPurpleFire() / 1000)}s ` +
+      `(spawn ${formatTaipei(spawn)} Taipei) · ` +
+      `permission=${reminderPermission()} · ` +
+      `undone (${names.length}): ${names.join('、') || '—'}`
+    );
+  };
+  w2.__mabiPurpleFire = async () => {
+    const r = getUndonePurpleReminder();
+    if (!r) return 'shown (nothing due)';
+    const res = await fireHourlyReminder({
+      names: r.names,
+      eventLabel: formatTaipei(nextOccurrence(Date.now())),
+      titleTask: r.taskName,
+      title: `${r.taskName}即將出現`,
+      tag: PURPLE_TAG,
+      taskId: PURPLE_HOLE_ID,
+      charIds: r.charIds,
+      onClick: () => resolveReminderDeepLink(PURPLE_HOLE_ID, r.charIds),
     });
     return `${res} (names: ${r.names.join('、')})`;
   };

@@ -52,13 +52,24 @@ export function TaskRow(props: Props) {
 }
 
 /**
- * Event (:00 Taipei fire) reminder toggle. Permission is requested from this
- * tap — the only user gesture browsers accept — and the subscription stays
- * local-only (never synced, never sent anywhere).
+ * Event reminder toggle. Permission is requested from this tap — the only
+ * user gesture browsers accept — and the subscription stays local-only
+ * (never synced, never sent anywhere). Lane selects the subscription list:
+ * hourly (:00 fire) or purple (15-min-early fire). The permission machinery
+ * is identical; only the store slice and the soft-ask copy differ.
  */
-function useReminderToggle(taskId: string, taskName: string) {
-  const on = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
-  const toggle = useAppStore((s) => s.toggleHourlyReminder);
+export type ReminderLane = "hourly" | "purple";
+
+const PURPLE_SOFT_ASK =
+  "出沒前 15 分鐘提醒一次，App 沒開就不會響。時間是預測值，僅供參考。設定只留在這台裝置，隨時點鈴鐺就能取消。按下訂閱後，瀏覽器會再確認一次（Chrome 的提示在左上角），請選允許。";
+
+function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane) {
+  const hourlyOn = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
+  const purpleOn = useAppStore((s) => (s.purpleHoleReminders ?? []).includes(taskId));
+  const toggleHourly = useAppStore((s) => s.toggleHourlyReminder);
+  const togglePurple = useAppStore((s) => s.togglePurpleReminder);
+  const on = lane === "purple" ? purpleOn : hourlyOn;
+  const toggle = lane === "purple" ? togglePurple : toggleHourly;
   const [coach, setCoach] = useState<CoachMarkKind | null>(null);
   const waiterRef = useRef<AbortController | null>(null);
   // Row unmount (filter/hide/reorder) mid-wait must not leave the 120s poll
@@ -130,7 +141,7 @@ function useReminderToggle(taskId: string, taskName: string) {
     }
     // Soft-ask before the browser prompt: cold prompts get reflex-denied.
     // The dialog tap keeps the user gesture alive for requestPermission.
-    if (!(await confirmSubscribeReminder(taskName))) {
+    if (!(await confirmSubscribeReminder(taskName, lane === "purple" ? PURPLE_SOFT_ASK : undefined))) {
       waiter.abort();
       await watch;
       return;
@@ -165,14 +176,15 @@ function useReminderToggle(taskId: string, taskName: string) {
   return { on, onToggle, coach, dismissCoach };
 }
 
-function ReminderBell({ taskId, taskName, className }: { taskId: string; taskName: string; className?: string }) {
-  const { on, onToggle, coach, dismissCoach } = useReminderToggle(taskId, taskName);
+function ReminderBell({ taskId, taskName, lane, className }: { taskId: string; taskName: string; lane: ReminderLane; className?: string }) {
+  const { on, onToggle, coach, dismissCoach } = useReminderToggle(taskId, taskName, lane);
+  const noun = lane === "purple" ? "出沒提醒" : "開場提醒";
   return (
     <>
       <button
         onClick={() => void onToggle()}
         className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"}
-        aria-label={`${on ? "取消" : "訂閱"}開場提醒：${taskName}`}
+        aria-label={`${on ? "取消" : "訂閱"}${noun}：${taskName}`}
         aria-pressed={on}
         title={on ? "取消訂閱通知" : "訂閱通知"}
       >
@@ -207,9 +219,10 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   // Event-reminder bell: only eligible tasks (today just 不祥的召喚結界),
   // and only with the ?push=1 flag on — prod default is no bell at all.
   const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
-  // Timetable popover: purple-hole only, behind its own ?purple_hole=1 flag.
-  // (Its reminder bell arrives with the notification lane; popover first.)
+  // Purple lane (timetable + 15-min-early bell): purple-hole only, behind
+  // its own ?purple_hole=1 flag. Same flag, separate subscription list.
   const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
+  const purpleReminderEligible = scheduleEligible;
   // Spawn-day badges: the exact times this bucket is about (昨日 14:08 at
   // 00:54 reads odd until you see it — that disambiguation is the point).
   const schedule = scheduleEligible ? purpleBadge() : null;
@@ -253,7 +266,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
           <span className="shrink-0" aria-hidden>{task.icon}</span>
         )}
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
-        {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
+        {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
       </div>
       {(task.priority === "must" || task.serverShared === true) && <div className="mt-1 flex flex-wrap gap-1">{badges}</div>}
     </div>
@@ -262,7 +275,8 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       <div className="flex items-center gap-1.5 text-sm font-medium">
         <span className="shrink-0" aria-hidden>{task.icon}</span>
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
-        {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
+        {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
+        {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
       </div>
       {schedule && (
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
@@ -469,6 +483,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
   const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
   const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
+  const purpleReminderEligible = scheduleEligible;
   const schedule = scheduleEligible ? purpleBadge() : null;
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
@@ -519,7 +534,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cn("text-sm font-bold text-primary truncate", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
-            {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
+            {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
             {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
             {task.serverShared === true && <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] shrink-0">伺服器</span>}
             <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
@@ -544,7 +559,8 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn("text-sm font-medium truncate", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
-          {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
+          {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
+          {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
           {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px]">{task.town}</span>}

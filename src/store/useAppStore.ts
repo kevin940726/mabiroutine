@@ -110,6 +110,10 @@ type Store = AppState & {
   // Event (:00 Taipei fire) reminder subscription toggle. Local-only, never synced.
   toggleHourlyReminder: (taskId: string) => void;
   isHourlyReminded: (taskId: string) => boolean;
+  // Purple-hole (15-min-early fire) subscription toggle. Separate lane,
+  // same local-only rule.
+  togglePurpleReminder: (taskId: string) => void;
+  isPurpleReminded: (taskId: string) => boolean;
 
   exportJson: () => string;
   importJson: (json: string) => void;
@@ -209,7 +213,7 @@ function sanitizeBarterFilters(f: unknown): BarterFilters {
 }
 
 const initial: AppState = {
-  version: 18,
+  version: 19,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -223,6 +227,7 @@ const initial: AppState = {
   barterFilters: { ...DEFAULT_BARTER_FILTERS },
   taskBuckets: {},
   hourlyReminders: [],
+  purpleHoleReminders: [],
 };
 
 // Cycle provenance normalize: every existing value gets a bucket entry,
@@ -324,6 +329,9 @@ function normalizePersisted(input: unknown): AppState {
     taskBuckets,
     hourlyReminders: Array.isArray(d.hourlyReminders)
       ? [...new Set((d.hourlyReminders as unknown[]).filter((x): x is string => typeof x === "string"))]
+      : [],
+    purpleHoleReminders: Array.isArray(d.purpleHoleReminders)
+      ? [...new Set((d.purpleHoleReminders as unknown[]).filter((x): x is string => typeof x === "string"))]
       : [],
   };
 }
@@ -653,6 +661,18 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.hourlyReminders = (s.hourlyReminders ?? []).filter((id) => valid.has(id));
     s.version = 18;
   }
+  if (from < 19) {
+    // v18 → v19: purple-hole (15-min-early fire) subscriptions introduced,
+    // default off. Same valid-set prune as v18 — only dangling ids go.
+    // Progress untouched. Reminders stay local-only.
+    const valid = new Set<string>([
+      ...(trackerJson as Task[]).map((t) => t.id),
+      ...(barterJson as BarterJsonItem[]).map((b) => b.id),
+      ...(s.customTasks ?? []).map((t) => t.id),
+    ]);
+    s.purpleHoleReminders = (s.purpleHoleReminders ?? []).filter((id) => valid.has(id));
+    s.version = 19;
+  }
   return s as AppState;
 }
 
@@ -961,6 +981,18 @@ export const useAppStore = create<Store>()(
 
       isHourlyReminded: (taskId) => (get().hourlyReminders ?? []).includes(taskId),
 
+      // Local-only: same rule as the hourly toggle (absent from sync keys).
+      togglePurpleReminder: (taskId) => {
+        set((s) => ({
+          purpleHoleReminders: (s.purpleHoleReminders ?? []).includes(taskId)
+            ? (s.purpleHoleReminders ?? []).filter((x) => x !== taskId)
+            : [...(s.purpleHoleReminders ?? []), taskId],
+        }));
+        flushStorage();
+      },
+
+      isPurpleReminded: (taskId) => (get().purpleHoleReminders ?? []).includes(taskId),
+
       exportJson: () => JSON.stringify(get(), null, 2),
       importJson: (json) => {
         try {
@@ -999,7 +1031,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 18,
+      version: 19,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
@@ -1029,6 +1061,7 @@ export const useAppStore = create<Store>()(
         barterFilters: s.barterFilters,
         taskBuckets: s.taskBuckets,
         hourlyReminders: s.hourlyReminders,
+        purpleHoleReminders: s.purpleHoleReminders,
       }),
     }
   )
