@@ -132,42 +132,7 @@ export function nextOccurrence(
   return nthOccurrence(firstIndexAfter(nowMs, windows), windows);
 }
 
-/** Taipei calendar-day key (YYYY-MM-DD) for relative-day labels. */
-function taipeiDayKey(ms: number): string {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  return fmt.format(new Date(ms));
-}
 
-/**
- * Relative-day label for a spawn time: 今日 / 明日 / 昨日, else MM-DD.
- * Calendar-day based (not bucket) — at 00:54 a 14:08 spawn reads 昨日,
- * which is exactly the disambiguation the row badge is for.
- */
-export function relativeDayLabel(ms: number, nowMs: number = Date.now()): string {
-  const dayMs = 24 * 60 * 60 * 1000;
-  const d = (key: string) => Date.UTC(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10)));
-  const diff = Math.round((d(taipeiDayKey(ms)) - d(taipeiDayKey(nowMs))) / dayMs);
-  if (diff === 0) return "今日";
-  if (diff === 1) return "明日";
-  if (diff === -1) return "昨日";
-  return formatTaipei(ms).slice(0, 5);
-}
-
-/** "HH:mm" in Taipei. */
-export function formatTimeTaipei(ms: number): string {
-  const fmt = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Taipei",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  return fmt.format(new Date(ms));
-}
 
 /**
  * How long after a spawn the badge still shows it alone ("happening now").
@@ -188,19 +153,19 @@ export function purpleBadge(
 ): PurpleBadge | null {
   const t = bucketOccurrence(nowMs, windows);
   if (t === null) return null;
-  const label = (ms: number) => `${relativeDayLabel(ms, nowMs)} ${formatTimeTaipei(ms)}`;
-  if (t > nowMs) return { past: null, next: label(t) };
-  if (t > nowMs - SPAWN_FRESH_MS) return { past: label(t), next: null };
-  return { past: label(t), next: label(nextOccurrence(nowMs, windows)) };
+  // Absolute "MM-DD HH:mm": relative words (昨日/明日) lie to late-night
+  // players sitting on the wrong side of midnight from the 06:00 bucket.
+  if (t > nowMs) return { past: null, next: formatTaipei(t) };
+  if (t > nowMs - SPAWN_FRESH_MS) return { past: formatTaipei(t), next: null };
+  return { past: formatTaipei(t), next: formatTaipei(nextOccurrence(nowMs, windows)) };
 }
 
-/** "明日 02:23"-style label for the next upcoming spawn (off-day note). */
+/** "09-18 02:23"-style label for the next upcoming spawn (off-day note). */
 export function nextBadgeLabel(
   nowMs: number = Date.now(),
   windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
 ): string {
-  const t = nextOccurrence(nowMs, windows);
-  return `${relativeDayLabel(t, nowMs)} ${formatTimeTaipei(t)}`;
+  return formatTaipei(nextOccurrence(nowMs, windows));
 }
 
 /** "MM-DD HH:mm" in Taipei. */
