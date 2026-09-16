@@ -103,14 +103,91 @@ export function isScheduledToday(
   nowMs: number = Date.now(),
   windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
 ): boolean {
+  return bucketOccurrence(nowMs, windows) !== null;
+}
+
+/**
+ * The occurrence inside the current daily bucket, if any. At most one: the
+ * 36h15m period exceeds the 24h bucket, so two can never share it.
+ */
+export function bucketOccurrence(
+  nowMs: number = Date.now(),
+  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+): number | null {
   const start = dailyBucketStartMs(nowMs);
   const end = start + 24 * 60 * 60 * 1000;
   const first = firstIndexAfter(start - PURPLE_PERIOD_MS * 2, windows);
   for (let k = first; ; k++) {
     const t = nthOccurrence(k, windows);
-    if (t >= end) return false;
-    if (t >= start) return true;
+    if (t >= end) return null;
+    if (t >= start) return t;
   }
+}
+
+/** First occurrence strictly after now. */
+export function nextOccurrence(
+  nowMs: number = Date.now(),
+  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+): number {
+  return nthOccurrence(firstIndexAfter(nowMs, windows), windows);
+}
+
+/** Taipei calendar-day key (YYYY-MM-DD) for relative-day labels. */
+function taipeiDayKey(ms: number): string {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fmt.format(new Date(ms));
+}
+
+/**
+ * Relative-day label for a spawn time: 今日 / 明日 / 昨日, else MM-DD.
+ * Calendar-day based (not bucket) — at 00:54 a 14:08 spawn reads 昨日,
+ * which is exactly the disambiguation the row badge is for.
+ */
+export function relativeDayLabel(ms: number, nowMs: number = Date.now()): string {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const d = (key: string) => Date.UTC(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10)));
+  const diff = Math.round((d(taipeiDayKey(ms)) - d(taipeiDayKey(nowMs))) / dayMs);
+  if (diff === 0) return "今日";
+  if (diff === 1) return "明日";
+  if (diff === -1) return "昨日";
+  return formatTaipei(ms).slice(0, 5);
+}
+
+/** "HH:mm" in Taipei. */
+export function formatTimeTaipei(ms: number): string {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Taipei",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return fmt.format(new Date(ms));
+}
+
+/**
+ * Row-badge text for the bucket's occurrence ("昨日 14:08", "明日 02:23"),
+ * or null off-days. One call for render sites (keeps Date.now out of JSX).
+ */
+export function bucketBadgeLabel(
+  nowMs: number = Date.now(),
+  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+): string | null {
+  const t = bucketOccurrence(nowMs, windows);
+  return t === null ? null : `${relativeDayLabel(t, nowMs)} ${formatTimeTaipei(t)}`;
+}
+
+/** "明日 02:23"-style label for the next upcoming spawn (off-day note). */
+export function nextBadgeLabel(
+  nowMs: number = Date.now(),
+  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+): string {
+  const t = nextOccurrence(nowMs, windows);
+  return `${relativeDayLabel(t, nowMs)} ${formatTimeTaipei(t)}`;
 }
 
 /** "MM-DD HH:mm" in Taipei. */

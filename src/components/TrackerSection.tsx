@@ -8,7 +8,7 @@ import type { Task } from "@/lib/types";
 import { summarizeProgress } from "@/lib/progress";
 import { useAppStore, barterToTask, canonicalBarterOrder } from "@/store/useAppStore";
 import { confirmClearSection } from "@/components/ConfirmDialog";
-import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
+import { PURPLE_HOLE_ID, isScheduledToday, nextBadgeLabel } from "@/lib/purpleHole";
 import barterJson from "@/data/barter.json";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -107,6 +107,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     () => tasks.some((t) => t.id === PURPLE_HOLE_ID) && !isScheduledToday(),
     [tasks]
   );
+  // Next spawn for the off-day note (stable per render; refreshes on reload).
+  const purpleNext = useMemo(() => (purpleOffDay ? nextBadgeLabel() : null), [purpleOffDay]);
 
   const hiddenTasks = useMemo(() => {
     if (!char) return [] as Task[];
@@ -324,7 +326,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
                 {hiddenTasks.map((t) => (
                   <div key={t.id} className="opacity-60">
                     {purpleOffDay && t.id === PURPLE_HOLE_ID && !isHiddenFor(t) && (
-                      <p className="text-[11px] text-muted-foreground mb-1 px-1">非出沒日 — 出沒時會自動移回上方</p>
+                      <p className="text-[11px] text-muted-foreground mb-1 px-1">非出沒日{purpleNext ? ` — 下次${purpleNext}` : ""}，出沒時會自動移回上方</p>
                     )}
                     <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} />
                   </div>
