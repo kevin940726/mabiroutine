@@ -6,6 +6,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ### Fixes
 - 梅文 聖水←凱琳特製全麥麵包 is account-shared (shops `scope: account`; barter twin `perChar: false`, 每日 1 次 (伺服器)): the tracker row now shares one value across characters with the 伺服器 badge, matching the in-game limit
+- Reminder toggle flushes storage synchronously (an instant reload can no longer lose the tap to the idle-write window); flipping to denied while the waiting pill shows now routes to the settings-path dialog instead of vanishing silently
 
 ### Fixes
 - Reminder MVP now gated behind the `?push=1` feature flag (persisted per browser, `?push=0` clears): with the flag off — the prod default — the bell is hidden and the scheduler mounts nothing, so the shipped release has zero user-visible reminder surface until explicitly enabled

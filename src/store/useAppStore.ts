@@ -6,7 +6,7 @@ import defaultPinsJson from "@/data/defaultPins.json";
 import type { AppState, BarterFilters, Character, Task, BarterPriority } from "@/lib/types";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 import { cycleBucketFor, isWeeklyTask, isWeeklyLimit } from "@/lib/cycle";
-import { idleStorage } from "@/lib/storage";
+import { flushStorage, idleStorage } from "@/lib/storage";
 
 const BUILTIN_TASKS = trackerJson as Task[];
 
@@ -947,12 +947,17 @@ export const useAppStore = create<Store>()(
 
       // Local-only: toggling never touches the sync layer (the field is
       // absent from the sync key space, like ordering).
-      toggleHourlyReminder: (taskId) =>
+      toggleHourlyReminder: (taskId) => {
         set((s) => ({
           hourlyReminders: (s.hourlyReminders ?? []).includes(taskId)
             ? (s.hourlyReminders ?? []).filter((x) => x !== taskId)
             : [...(s.hourlyReminders ?? []), taskId],
-        })),
+        }));
+        // Subscriptions flip rarely (unlike rapid counter taps), so flush
+        // synchronously: an instant reload must not lose the tap to the
+        // ~1.5s idle-write window.
+        flushStorage();
+      },
 
       isHourlyReminded: (taskId) => (get().hourlyReminders ?? []).includes(taskId),
 

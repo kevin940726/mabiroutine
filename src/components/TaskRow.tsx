@@ -51,11 +51,24 @@ function useReminderToggle(taskId: string) {
     waiterRef.current?.abort();
     setCoach(null);
   };
+  // Arm a fresh watcher (aborting any orphan first: a rapid re-tap must not
+  // leave one whose grant-subscribe fires after the user asked to be alone).
+  // Resolves true when the grant lands (already subscribed by then).
+  const armWatcher = () => {
+    waiterRef.current?.abort();
+    const waiter = new AbortController();
+    waiterRef.current = waiter;
+    const watch = waitForReminderGrant(120_000, waiter.signal).then((granted) => {
+      if (granted) subscribe();
+      return granted;
+    });
+    return { waiter, watch };
+  };
   // Denied with no prompt to show: point at the settings path. Returns after
   // the grant either lands (subscribed) or the user walks away (aborted).
   // Shows the waiting pill during the watch: without it the bell looks dead
   // for up to 120s when "我已開啟" is tapped before flipping the switch.
-  const guideReenable = async (waiter: AbortController, watch: Promise<void>) => {
+  const guideReenable = async (waiter: AbortController, watch: Promise<boolean>) => {
     if (await confirmReenableReminder()) {
       if (reminderPermission() === "granted") {
         subscribe();
@@ -87,14 +100,7 @@ function useReminderToggle(taskId: string) {
     // Arm BEFORE prompting: if the grant lands via browser UI (the Chrome
     // address-bar chip, site settings) instead of our prompt, subscribing
     // completes on its own — no reload, no second bell tap, no re-confirm.
-    // Abort any previous watcher first: a rapid re-tap must not orphan one
-    // whose grant-subscribe would fire after the user asked to be left alone.
-    waiterRef.current?.abort();
-    const waiter = new AbortController();
-    waiterRef.current = waiter;
-    const watch = waitForReminderGrant(120_000, waiter.signal).then((granted) => {
-      if (granted) subscribe();
-    });
+    const { waiter, watch } = armWatcher();
     if (perm === "denied") {
       // No prompt will ever show again: say exactly where the switch is.
       await guideReenable(waiter, watch);
@@ -122,8 +128,16 @@ function useReminderToggle(taskId: string) {
       // A quiet pill replaces the old blocking alert; the watcher finishes
       // the job if they allow from browser UI.
       setCoach("waiting");
-      await watch;
+      const granted = await watch;
       setCoach(null);
+      if (!granted && reminderPermission() === "denied") {
+        // Flipped to denied while waiting (chip Block / settings): the pill
+        // vanishing with no word is the dead end — route to guidance with a
+        // fresh watcher instead.
+        const re = armWatcher();
+        await guideReenable(re.waiter, re.watch);
+      }
+      // timeout (still "default"): nothing to say, stay unsubscribed
     }
   };
   return { on, onToggle, coach, dismissCoach };
