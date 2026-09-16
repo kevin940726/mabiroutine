@@ -4,7 +4,7 @@ import { useGrabCounter } from "@/hooks/useGrabCounter";
 import type { Task } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { confirmRemoveTask } from "@/components/ConfirmDialog";
+import { confirmRemoveTask, confirmSubscribeReminder } from "@/components/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
@@ -40,9 +40,12 @@ function useReminderToggle(taskId: string, taskName: string) {
       return;
     }
     if (reminderPermission() === "unsupported") {
-      alert("此瀏覽器不支援系統通知，無法使用整點提醒。");
+      alert("此瀏覽器不支援系統通知，無法使用開場提醒。");
       return;
     }
+    // Soft-ask before the browser prompt: cold prompts get reflex-denied.
+    // The dialog tap keeps the user gesture alive for requestPermission.
+    if (!(await confirmSubscribeReminder())) return;
     const p = await requestReminderPermission();
     if (p === "granted") {
       toggle(taskId);
