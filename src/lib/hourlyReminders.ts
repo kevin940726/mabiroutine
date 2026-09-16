@@ -87,13 +87,6 @@ export function upcomingEventLabel(nowMs: number = Date.now()): string {
   return `${String(h).padStart(2, "0")}:02`;
 }
 
-/** Event-relative lead copy: 剩3分半 / 剩1分鐘 / 馬上開始. */
-export function eventLeadText(remainSec: number): string {
-  if (remainSec < 60) return "馬上開始";
-  const mins = Math.floor(remainSec / 60);
-  return remainSec % 60 >= 30 ? `剩 ${mins} 分半` : `剩 ${mins} 分鐘`;
-}
-
 export function isTaskDone(task: Task, value: number | boolean | undefined): boolean {
   if (task.type === "check") return Boolean(value);
   const max = task.max ?? 0;
@@ -147,13 +140,10 @@ export async function fireHourlyReminder(
   const title = titleTask
     ? `${titleTask}出現了`
     : `${eventLabel} 將至 — ${names.length} 項未完成`;
-  // True lead at fire time, not the nominal 90s: a throttled or catch-up
-  // fire states exactly how long is left.
-  const leadText = eventLeadText(remainingSecToEvent(Date.now()));
   // renotify/vibrate predate the TS DOM lib: typed locally, passed through
   // to showNotification which honors them at runtime.
   const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
-    body: `${leadText}：${shown}${more}`,
+    body: `${shown}${more}`,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: HOURLY_TAG,
