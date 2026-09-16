@@ -145,7 +145,7 @@ export async function fireHourlyReminder(
   const shown = names.slice(0, 3).join("、");
   const more = names.length > 3 ? ` 等 ${names.length} ${unit}` : "";
   const title = titleTask
-    ? `${eventLabel} 將至 — ${titleTask}`
+    ? `${titleTask}出現了`
     : `${eventLabel} 將至 — ${names.length} 項未完成`;
   // True lead at fire time, not the nominal 90s: a throttled or catch-up
   // fire states exactly how long is left.
