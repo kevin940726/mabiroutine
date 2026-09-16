@@ -132,6 +132,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
           <span className="shrink-0" aria-hidden>{task.icon}</span>
         )}
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
+        {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
       </div>
       {(task.priority === "must" || task.serverShared === true) && <div className="mt-1 flex flex-wrap gap-1">{badges}</div>}
     </div>
@@ -140,6 +141,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       <div className="flex items-center gap-1.5 text-sm font-medium">
         <span className="shrink-0" aria-hidden>{task.icon}</span>
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
+        {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
       </div>
       {(task.priority === "must" || task.source === "custom" || isBarter) && (
         <div className="mt-1 flex flex-wrap gap-1">{badges}</div>
@@ -188,8 +190,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       <div className="min-w-0 pl-5">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">{title}</div>
-        <div className={cn("flex shrink-0 items-center justify-end gap-0.5", reminderEligible ? "w-[68px]" : "w-11")}>
-          {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
+        <div className="w-11 shrink-0 flex justify-end">
           {isCustom ? (
             <RowMenu
               isHidden={isHidden}
@@ -339,11 +340,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
-  // Subscribed bells pin the gutter visible — an armed reminder must not
-  // hide at 20% opacity where the user can't tell it's on.
-  const { on: remindOn } = useReminderToggle(task.id, task.name);
   const reminderEligible = isEligibleReminderId(task.id);
-  const gutterPinned = reminderEligible && remindOn;
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
@@ -393,6 +390,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cn("text-sm font-bold text-primary truncate", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
+            {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
             {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
             {task.serverShared === true && <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] shrink-0">伺服器</span>}
             <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
@@ -417,6 +415,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn("text-sm font-medium truncate", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
+          {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
           {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px]">{task.town}</span>}
@@ -466,8 +465,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           />
         </div>
       ) : (
-        <div className={cn("absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-card/95 backdrop-blur shadow-sm p-0.5 pointer-events-auto transition-opacity flex items-center", gutterPinned ? "opacity-100" : "opacity-20 group-hover:opacity-100 group-focus-within:opacity-100")}>
-          {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-card/95 backdrop-blur shadow-sm p-0.5 opacity-20 pointer-events-auto group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleHidden(task.id)} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
             {isHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
           </Button>
