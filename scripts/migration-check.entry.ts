@@ -456,10 +456,10 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 {
   const shared = (barterJson as { id: string; perChar: boolean }[]).filter((b) => b.perChar === false);
   const sharedIds = shared.map((b) => b.id);
-  for (const id of ["tir-l1", "tir-l2", "col-a1", "col-c2", "col-c3", "tir-l3", "yen-安黛莉凱琳特製全麥麵包1-12"]) {
+  for (const id of ["tir-l1", "tir-l2", "col-a1", "col-c2", "col-c3", "tir-l3", "yen-安黛莉凱琳特製全麥麵包1-12", "yen-梅文凱琳特製全麥麵包聖水-44"]) {
     assert(sharedIds.includes(id), `P premise: ${id} is perChar=false (update fixture if data changed)`);
   }
-  assert(sharedIds.length === 7, `P premise: exactly 7 shared rows (found ${sharedIds.length}, update fixture if data changed)`);
+  assert(sharedIds.length === 8, `P premise: exactly 8 shared rows (found ${sharedIds.length}, update fixture if data changed)`);
   const taskOf = new Map(
     shared.map((b) => [b.id, (barterToTask as (b: unknown) => { type: string; max?: number })(b)])
   );
