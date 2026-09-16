@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { useGrabCounter } from "@/hooks/useGrabCounter";
 import type { Task } from "@/lib/types";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
 import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
+import { PermissionCoachMark, type CoachMarkKind } from "@/components/PermissionCoachMark";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { dealTimes, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
@@ -31,13 +32,35 @@ export function TaskRow(props: Props) {
  * tap — the only user gesture browsers accept — and the subscription stays
  * local-only (never synced, never sent anywhere).
  */
-function useReminderToggle(taskId: string, taskName: string) {
+function useReminderToggle(taskId: string) {
   const on = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
   const toggle = useAppStore((s) => s.toggleHourlyReminder);
+  const [coach, setCoach] = useState<CoachMarkKind | null>(null);
+  const waiterRef = useRef<AbortController | null>(null);
   // Idempotent: the permission watcher and the direct path can both land.
   const subscribe = () => {
     const s = useAppStore.getState();
     if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+  };
+  // Dismissing the coach mark means "leave me alone": stop the watcher so
+  // nothing subscribes behind the user's back.
+  const dismissCoach = () => {
+    waiterRef.current?.abort();
+    setCoach(null);
+  };
+  // Denied with no prompt to show: point at the settings path. Returns after
+  // the grant either lands (subscribed) or the user walks away (aborted).
+  const guideReenable = async (waiter: AbortController, watch: Promise<void>) => {
+    if (await confirmReenableReminder()) {
+      if (reminderPermission() === "granted") {
+        subscribe();
+        waiter.abort();
+        return;
+      }
+      await watch; // flipping the switch in settings auto-completes
+    } else {
+      waiter.abort(); // explicit "later": don't subscribe behind their back
+    }
   };
   const onToggle = async () => {
     if (on) {
@@ -58,21 +81,13 @@ function useReminderToggle(taskId: string, taskName: string) {
     // address-bar chip, site settings) instead of our prompt, subscribing
     // completes on its own — no reload, no second bell tap, no re-confirm.
     const waiter = new AbortController();
+    waiterRef.current = waiter;
     const watch = waitForReminderGrant(120_000, waiter.signal).then((granted) => {
       if (granted) subscribe();
     });
     if (perm === "denied") {
       // No prompt will ever show again: say exactly where the switch is.
-      // Flipping it in settings auto-completes via the watcher above.
-      if (await confirmReenableReminder()) {
-        if (reminderPermission() === "granted") {
-          subscribe();
-          waiter.abort();
-        }
-      } else {
-        waiter.abort(); // explicit "later": don't subscribe behind their back
-      }
-      await watch;
+      await guideReenable(waiter, watch);
       return;
     }
     // Soft-ask before the browser prompt: cold prompts get reflex-denied.
@@ -82,34 +97,43 @@ function useReminderToggle(taskId: string, taskName: string) {
       await watch;
       return;
     }
+    // Coach mark while the native prompt is live: dimmed page + "look up"
+    // card, both pointer-transparent so the Allow tap always lands.
+    setCoach("prompt");
     const p = await requestReminderPermission();
+    setCoach(null);
     if (p === "granted") {
       subscribe();
       waiter.abort();
     } else if (p === "denied") {
-      alert(`「${taskName}」還沒訂閱：剛剛被擋下了。到網址列旁的圖示重新允許後會自動完成訂閱，不用重整或重按鈴鐺。`);
-      await watch;
+      await guideReenable(waiter, watch);
     } else {
       // dismissed prompt (stays "default"): the chip is the likely story.
-      alert("好像沒跳出詢問？它可能縮在網址列旁邊（Chrome 在左上角）。點允許後會自動完成訂閱，不用重整或重按鈴鐺。");
+      // A quiet pill replaces the old blocking alert; the watcher finishes
+      // the job if they allow from browser UI.
+      setCoach("waiting");
       await watch;
+      setCoach(null);
     }
   };
-  return { on, onToggle };
+  return { on, onToggle, coach, dismissCoach };
 }
 
 function ReminderBell({ taskId, taskName, className }: { taskId: string; taskName: string; className?: string }) {
-  const { on, onToggle } = useReminderToggle(taskId, taskName);
+  const { on, onToggle, coach, dismissCoach } = useReminderToggle(taskId);
   return (
-    <button
-      onClick={() => void onToggle()}
-      className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"}
-      aria-label={`${on ? "取消" : "訂閱"}開場提醒：${taskName}`}
-      aria-pressed={on}
-      title="開場前約 2 分半提醒（此裝置、本頁開啟時）"
-    >
-      {on ? <BellRing className="h-3.5 w-3.5 text-amber-500" /> : <Bell className="h-3.5 w-3.5" />}
-    </button>
+    <>
+      <button
+        onClick={() => void onToggle()}
+        className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"}
+        aria-label={`${on ? "取消" : "訂閱"}開場提醒：${taskName}`}
+        aria-pressed={on}
+        title="開場前約 2 分半提醒（此裝置、本頁開啟時）"
+      >
+        {on ? <BellRing className="h-3.5 w-3.5 text-amber-500" /> : <Bell className="h-3.5 w-3.5" />}
+      </button>
+      {coach && <PermissionCoachMark kind={coach} taskName={taskName} onClose={dismissCoach} />}
+    </>
   );
 }
 

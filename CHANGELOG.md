@@ -7,6 +7,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ### Fixes
 - Reminder MVP now gated behind the `?push=1` feature flag (persisted per browser, `?push=0` clears): with the flag off — the prod default — the bell is hidden and the scheduler mounts nothing, so the shipped release has zero user-visible reminder surface until explicitly enabled
 - Reminder subscribe flow stops demanding reload + re-tap + re-confirm: already-granted subscribes in one tap with no dialogs, the soft-ask names where the browser prompt hides (Chrome address-bar chip), and a 2-minute permission watcher auto-completes when the grant lands via browser UI; denied state gets a dialog with the exact settings path instead of a dead end
+- Native permission moment gets a "look up" coach mark (dimmed page + top-center card with up-arrow on desktop, plain card on mobile where the prompt is a bottom sheet): pointer-transparent so the Allow tap always lands, auto-dismissed when the prompt settles; a dismissed prompt now leaves a quiet dismissible pill instead of a blocking alert, and a prompt-deny routes to the settings-path dialog
 
 ## 2026-09-16 — 召喚結界開場提醒
 

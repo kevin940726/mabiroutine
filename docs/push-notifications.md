@@ -17,7 +17,7 @@ otherwise), quiet hours, rich media cards.
 
 Local-only page timer (`src/lib/hourlyReminders.ts`,
 `src/hooks/useHourlyReminders.ts`): bell on the `barrier` row → soft-ask
-dialog → browser permission → one collapsed card at **:00:00 Taipei**
+dialog → browser permission (with a dimmed-page "look up" coach mark, `PermissionCoachMark`, while the native prompt is live) → one collapsed card at **:00:00 Taipei**
 (`EVENT_SEC_PAST_HOUR = 150`, `FIRE_LEAD_SEC = 150`), catch-up for late
 opens, silence inside 30s of the start (`CATCHUP_MIN_SEC`), tap deep-links to
 the row with a flash. Subscribe UX: already-granted skips all dialogs (one
