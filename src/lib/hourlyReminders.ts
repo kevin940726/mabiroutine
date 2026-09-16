@@ -13,8 +13,10 @@ import type { Task } from "@/lib/types";
 // startle, zero actionability).
 //
 // Least-intrusive recipe: a single notification per hour (tag-collapsed),
-// auto-dismissing (requireInteraction: false), no re-buzz on replace
-// (renotify: false), and silence when there is nothing undone.
+// auto-dismissing (requireInteraction: false), re-buzz on replace
+// (renotify: true — each hour is new information; false would silently
+// overwrite the previous card with no banner), and silence when there is
+// nothing undone.
 
 // In-game event: XX:02:30 Taipei (verified). Taipei is UTC+8 with no DST,
 // so wall-clock math is a fixed offset.
@@ -155,7 +157,7 @@ export async function fireHourlyReminder(
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: HOURLY_TAG,
-    renotify: false,
+    renotify: true,
     requireInteraction: false,
     silent: false,
     data: { url: "/" },
