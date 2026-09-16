@@ -176,20 +176,22 @@ export function formatTimeTaipei(ms: number): string {
 export const SPAWN_FRESH_MS = 15 * 60 * 1000;
 
 /**
- * Row-badge text, or null off-days. Fresh spawn (upcoming or within
- * SPAWN_FRESH_MS): just it ("明日 02:23"). Stale: past → next
- * ("昨日 14:08 → 明日 02:23"). One call for render sites (keeps Date.now
+ * Row badges, or null off-days. Fresh spawn (upcoming or within
+ * SPAWN_FRESH_MS): a single badge for it. Stale: both past and next, so
+ * the row renders two badges. One call for render sites (keeps Date.now
  * out of JSX).
  */
-export function bucketBadgeLabel(
+export type PurpleBadge = { past: string | null; next: string | null };
+export function purpleBadge(
   nowMs: number = Date.now(),
   windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
-): string | null {
+): PurpleBadge | null {
   const t = bucketOccurrence(nowMs, windows);
   if (t === null) return null;
   const label = (ms: number) => `${relativeDayLabel(ms, nowMs)} ${formatTimeTaipei(ms)}`;
-  if (t > nowMs - SPAWN_FRESH_MS) return label(t);
-  return `${label(t)} → ${label(nextOccurrence(nowMs, windows))}`;
+  if (t > nowMs) return { past: null, next: label(t) };
+  if (t > nowMs - SPAWN_FRESH_MS) return { past: label(t), next: null };
+  return { past: label(t), next: label(nextOccurrence(nowMs, windows)) };
 }
 
 /** "明日 02:23"-style label for the next upcoming spawn (off-day note). */

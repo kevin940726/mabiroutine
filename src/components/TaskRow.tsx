@@ -9,8 +9,29 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
 import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
-import { PURPLE_HOLE_ID, bucketBadgeLabel, isPurpleHoleEnabled } from "@/lib/purpleHole";
+import { PURPLE_HOLE_ID, isPurpleHoleEnabled, purpleBadge, type PurpleBadge } from "@/lib/purpleHole";
 import { SchedulePopover } from "@/components/SchedulePopover";
+
+/**
+ * Purple-hole spawn badges: dimmed struck-through 已過 for the bucket's
+ * (past) spawn, violet 下次 for what's coming. Fresh spawns render one.
+ */
+function ScheduleBadges({ badge }: { badge: PurpleBadge }) {
+  return (
+    <>
+      {badge.past && (
+        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0 text-muted-foreground line-through decoration-muted-foreground/50">
+          已過 {badge.past}
+        </span>
+      )}
+      {badge.next && (
+        <span className="rounded bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">
+          下次 {badge.next}
+        </span>
+      )}
+    </>
+  );
+}
 import { PermissionCoachMark, type CoachMarkKind } from "@/components/PermissionCoachMark";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { dealTimes, parseItemQty } from "@/lib/materials";
@@ -188,9 +209,9 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   // Timetable popover: purple-hole only, behind its own ?purple_hole=1 flag.
   // (Its reminder bell arrives with the notification lane; popover first.)
   const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
-  // Spawn-day badge: the exact time this bucket is about (昨日 14:08 at
+  // Spawn-day badges: the exact times this bucket is about (昨日 14:08 at
   // 00:54 reads odd until you see it — that disambiguation is the point).
-  const scheduleBadge = scheduleEligible ? bucketBadgeLabel() : null;
+  const schedule = scheduleEligible ? purpleBadge() : null;
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
   const [npcImgError, setNpcImgError] = useState(false);
@@ -240,7 +261,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       <div className="flex items-center gap-1.5 text-sm font-medium">
         <span className="shrink-0" aria-hidden>{task.icon}</span>
         <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
-        {scheduleBadge && <span className="rounded bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">{scheduleBadge}</span>}
+        {schedule && <ScheduleBadges badge={schedule} />}
         {scheduleEligible && <SchedulePopover taskName={task.name} />}
         {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
       </div>
@@ -443,7 +464,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
   const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
   const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
-  const scheduleBadge = scheduleEligible ? bucketBadgeLabel() : null;
+  const schedule = scheduleEligible ? purpleBadge() : null;
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
@@ -518,7 +539,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn("text-sm font-medium truncate", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
-          {scheduleBadge && <span className="rounded bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 px-1.5 py-0.5 text-[10px] shrink-0">{scheduleBadge}</span>}
+          {schedule && <ScheduleBadges badge={schedule} />}
           {scheduleEligible && <SchedulePopover taskName={task.name} />}
           {reminderEligible && <ReminderBell taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
