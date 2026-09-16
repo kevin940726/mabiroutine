@@ -13,19 +13,20 @@ import { PURPLE_HOLE_ID, isPurpleHoleEnabled, purpleBadge, type PurpleBadge } fr
 import { SchedulePopover } from "@/components/SchedulePopover";
 
 /**
- * Purple-hole spawn badges: dimmed struck-through 已過 for the bucket's
- * (past) spawn, violet 下次 for what's coming. Fresh spawns render one.
+ * Purple-hole spawn times: plain text (no pill boxes), dimmed
+ * struck-through 已過 for the bucket's (past) spawn, violet 下次 for
+ * what's coming. Fresh spawns render one.
  */
 function ScheduleBadges({ badge }: { badge: PurpleBadge }) {
   return (
     <>
       {badge.past && (
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0 text-muted-foreground line-through decoration-muted-foreground/50">
+        <span className="text-xs whitespace-nowrap shrink-0 text-muted-foreground line-through decoration-muted-foreground/50">
           已過 {badge.past}
         </span>
       )}
       {badge.next && (
-        <span className="rounded bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">
+        <span className="text-xs whitespace-nowrap shrink-0 font-medium text-violet-600 dark:text-violet-400">
           下次 {badge.next}
         </span>
       )}
