@@ -22,14 +22,18 @@ phase 2 is only about **feeding the window list**.
 
 The official API wall stands — but it turns out we never needed that door:
 
-1. **Bahamut board list is statically fetchable.** `forum.gamer.com.tw/B.php?bsn=32564`
-   (瑪奇Mobile 哈啦板) returns full thread titles + categories + timestamps to
-   a bare server-side GET — no cookies, no JS, no stealth. A dumb keyword poll
-   (維修/維護/更新日誌/臨時) works from anywhere, including a Vercel Hobby
-   daily cron (daily is plenty: routine maintenance is announced day-before).
-   Thread pages (`C.php`) render statically too, for when the times live in
-   the first post rather than the title. Posture: public fan forum, facts
-   only — consistent with the repo's existing source rules.
+1. **Bahamut search is statically fetchable — and it's the poll endpoint.**
+   `forum.gamer.com.tw/search.php?bsn=32564&q=維護公告&field=title&firstFloorOnly=1&advancedSearch=1&subbsn=5&sortType=mtime`
+   (user-supplied, verified live 2026-09-17) returns the 8 maintenance posts
+   pre-filtered and time-sorted to a bare server-side GET — no cookies, no
+   JS, no stealth — with **full first-post bodies inline**, including the
+   exact ranges (9/16 例行 6:00–8:30, 9/10 臨時 6:00–8:00, 9/9 例行
+   6:00–11:30, 8/26 & 8/19 & 8/12 例行 6:00–9:00, 7/29 例行 6:00–8:30).
+   Bodies follow a fixed format (`◼ 維護時間 - 2026年9月16日(三) 上午6時 ～
+   上午8時30分`) that a regex can extract reliably. One fetch, no N+1.
+   The plain board list (`B.php?bsn=32564`) works too as a backup. Posture:
+   public fan forum, facts only — consistent with the repo's existing
+   source rules.
 2. **GNN news pages are fully readable.** `gnn.gamer.com.tw/detail.php?sn=…`
    returns complete article text server-side (verified). GNN covers TW
    maintenance as news — second source, same dumb-fetch profile.
