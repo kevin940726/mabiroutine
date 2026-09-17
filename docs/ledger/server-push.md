@@ -31,6 +31,8 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 - 2026-09-17: built on `feat/exp-settings` — 實驗性功能 dialog in the footer next to 重置所有資料 (`ExpSettingsDialog.tsx`, Radix dialog like the sync dialogs): two tracker-style checkbox rows (開場提醒 / 紫洞追蹤) with an experimental-only warning line, toggling writes the same flag slots via new `setPushFlag` / `setPurpleHoleFlag` setters then reloads (flags are read-once gates — reload is the honest apply). Build green.
 - 2026-09-17: query-string entry removed entirely (dialog replaces it): `is*Enabled()` drop the URLSearchParams sync (also removes a render-time storage write), alert + comments repointed at the dialog, §6 rewritten around the dialog gate, purple-hole/tracker-data/ledger-guide references updated. History (CHANGELOG past entries, ledger log lines) left alone. Existing opt-ins carry over — same slots. — user left prod + dev tabs open: names card (local lane, same title+icon as suspected for 16:00) AND `結界開場了` card (server fanout, first true server send). Server path fully proven: cron → Turso read → guard → send → display. Bonus: D6 stacking observed live (double banner) — exactly what the client heal prevents once it ships. Phase-1 gate: 1 of 3 consecutive :00s; tap-through on the server card still untested.
 
+- 2026-09-17: 18:00 named proof CONFIRMED — server card body carried the 3 undone chars' names, full with no truncation (5-char roster, 2 done). D1a linkage proven end-to-end: subscribe snapshot → live session read → resolveNamedCard → named body on device. Phase-1 gate: 2 of 3 consecutive :00s; tap-through still untested.
+
 ## 0. What you need (checklist)
 
 Cloudflare side (all free tier, $0):

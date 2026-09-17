@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- Server-push Phase-1 gate: 18:00 named card confirmed (3 undone names in body, D1a linkage proven) — 2 of 3 consecutive :00s; tap-through still untested
+
 ## 2026-09-17 — 實驗性功能開關
 
 ### Features
