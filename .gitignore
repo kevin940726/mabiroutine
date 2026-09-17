@@ -41,3 +41,5 @@ scripts/suggest-recipes.mjs
 *.sw?
 .vercel
 .env*
+# wrangler local/dev state (never committed; secrets live in worker env)
+.wrangler/
