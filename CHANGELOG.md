@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-17 — 手機推播開門
+
 ### Features
 - Server push opens to mobile: the desktop-only UA gate is removed (the path stays triple opt-in — experimental flag → bell tap with linkage disclosure → OS permission — so the gate added no consent, only delay). iPhone PWA can now subscribe from the bell; server already accepts `ios`/`android` rows and the fanout sends to every hourly row with no platform filter
 
