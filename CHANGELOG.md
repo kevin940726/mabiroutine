@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-17 — 紫洞維護窗
+
+### Features
+- Purple-hole maintenance windows: dated hand-owned entries, seeded with the predicted 9/23 Wednesday routine window (06:00–08:30, errs short; verify against the announcement 9/22). Overlapping legs shift later automatically; 20:00 server-card tap retest confirmed (deep-link + flash on the flattened payload)
+
 ### Chores
 - Night-noise decision recorded (no in-app scheduler; OS-level per-app guidance deferred to release): `docs/push-notifications.md` §8
 - Purple cadence locked at 15-min tick + 15-min lead (despawn bounds lateness, not lead): phase-2 ledger

@@ -2,7 +2,7 @@
 
 Branch: `feat/push-fanout` (cut 2026-09-17 from main post-release; `feat/server-push` merged + deleted). Status: real fanout build, unstarted.
 Companion docs: `docs/push-notifications.md` (why), `docs/purple-hole.md` + `docs/ledger/` (purple phases).
-Conventions: log newest-first, one line per fact, no commit hashes (history gets rewritten).
+Conventions: log oldest-first (append at the end), one line per fact, no commit hashes (history gets rewritten).
 
 ## Log
 
@@ -42,6 +42,8 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 - 2026-09-17: night-noise decided — no in-app quiet-hours scheduler (per-user gaming schedules; night owls need night alerts). OS-level per-app control verified (iOS PWA own entry + Focus, Android per-site, PWA auto-revoke exempt); user-facing copy deferred to official release, not README yet. Recorded in `docs/push-notifications.md` §8.
 
 - 2026-09-17: purple 15-min cadence challenged and kept — tick teaches nothing (deterministic math), frequency buys only lead precision in (L, L+I]; 13-min despawn bounds lateness, not lead; 96 ticks/day is free-tier dust. Locked 15/15 in the phase-2 doc; revisit on evidence only.
+
+- 2026-09-17: purple 2A built (taipeiWall + predicted 9/23 06:00–08:30 entry, errs short); 2D override designed then dropped per user correction — announcement read is canonical, emergencies go code-edit + push. Recorded in the phase-2 ledger.
 
 ## 0. What you need (checklist)
 

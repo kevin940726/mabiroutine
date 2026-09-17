@@ -1,6 +1,8 @@
 # Purple-hole phase 2 — maintenance-aware predictions
 
-Status: planned, unstarted. Phase 1 ships with `MAINTENANCE_WINDOWS = []`.
+Status: A built 2026-09-17 (helper + first dated entry); D dropped same day
+(correction below); watcher + feed unstarted. Phase 1 shipped with
+`MAINTENANCE_WINDOWS = []`.
 
 ## Goal
 
@@ -147,6 +149,14 @@ Mitigations, in order of reliability:
    person watching the extension happen corrects it on the spot.
 4. The official detail page remains the only source of actuals — still
    behind the session wall (see Established facts). No change there.
+
+## Correction 2026-09-17: D dropped
+
+No in-app override — the maintainer's announcement read is the canonical
+source, and same-day emergencies go through a code edit + push like every
+other TW-data fix. Phase 2 = Wednesday rule (A) + worker watcher, nothing
+on-device. The D UI/storage spec below (§Technical touch points D parts,
+option D) is retained as rejected context, not a build plan.
 
 ## Decision (recommended, revised with worker + verified doors)
 

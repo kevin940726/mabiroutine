@@ -20,8 +20,32 @@ export const PURPLE_PERIOD_MS = (36 * 60 + 15) * 60 * 1000;
 
 export type MaintenanceWindow = { startMs: number; endMs: number };
 
-/** Phase 1: empty — maintenance is not predictable. */
-export const MAINTENANCE_WINDOWS: MaintenanceWindow[] = [];
+/**
+ * Taipei wall-clock → UTC ms. Month is 1-based; Taipei is UTC+8 with no DST,
+ * so the shift is a constant (hardcoded UTC ms is error-prone — always build
+ * entries through this).
+ */
+export function taipeiWall(y: number, mo: number, d: number, h: number, mi: number): number {
+  return Date.UTC(y, mo - 1, d, h - 8, mi, 0);
+}
+
+/**
+ * Hand-owned maintenance list (phase 2A — same discipline as all TW data):
+ * dated entries, verified against the 維護公告 (~1 day before routine),
+ * spent entries pruned in the same commit that adds new ones. Same-day
+ * emergencies go through a code edit + push like everything else — no
+ * in-app override by design (the maintainer's announcement read is the
+ * canonical source).
+ */
+export const MAINTENANCE_WINDOWS: MaintenanceWindow[] = [
+  // 2026-09-23 (Wed) routine, PREDICTED — last routine ran 06:00–08:30
+  // announced (actually 09:00; extend by editing this entry, not by
+  // appending an overlapping one — normalizeWindows merges overlaps, but
+  // one truthful entry beats two). VERIFY against the announcement on 9/22;
+  // delete after passing. Errs short on purpose: an overstated window skews
+  // predictions LATE (miss), an understated one skews EARLY (wait).
+  { startMs: taipeiWall(2026, 9, 23, 6, 0), endMs: taipeiWall(2026, 9, 23, 8, 30) },
+];
 
 /**
  * Sort + merge overlapping/adjacent windows. Extension reposts overlap the
