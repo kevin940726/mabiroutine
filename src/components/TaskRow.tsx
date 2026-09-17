@@ -274,15 +274,20 @@ function ReminderBell({ taskId, taskName, lane, className }: { taskId: string; t
   const noun = lane === "purple" ? "出沒提醒" : "開場提醒";
   return (
     <>
-      <button
-        onClick={() => void onToggle()}
-        className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"}
-        aria-label={`${on ? "取消" : "訂閱"}${noun}：${taskName}`}
-        aria-pressed={on}
-        title={on ? "取消訂閱通知" : "訂閱通知"}
-      >
-        {on ? <BellRing className="h-3.5 w-3.5 text-amber-500" /> : <Bell className="h-3.5 w-3.5" />}
-      </button>
+      <Tooltip content={on ? "取消訂閱通知" : "訂閱通知"}>
+        <button
+          onClick={() => void onToggle()}
+          // Ring, not just bg: the row itself hovers to bg-accent, so a
+          // bg-only hover would be invisible against it. Solid ring + text
+          // shift read on both card and hovered-row backgrounds (and stay
+          // stable under Chrome forced-dark: no blur, translucency, or fade).
+          className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground hover:ring-1 hover:ring-ring"}
+          aria-label={`${on ? "取消" : "訂閱"}${noun}：${taskName}`}
+          aria-pressed={on}
+        >
+          {on ? <BellRing className="h-3.5 w-3.5 text-amber-500" /> : <Bell className="h-3.5 w-3.5" />}
+        </button>
+      </Tooltip>
       {coach && <PermissionCoachMark kind={coach} taskName={taskName} onClose={dismissCoach} />}
     </>
   );
