@@ -10,6 +10,12 @@ Flag: `?purple_hole=1` persists `mabiroutine:purple-hole-flag`. Prod default: ze
 - Anchor (observed in-game): 2026-09-16 14:08 Taipei → predicts 2026-09-18 02:23.
 - Correct drift by moving `PURPLE_ANCHOR_MS` in `src/lib/purpleHole.ts` + commit.
 
+## Phases (from the original brief, 2026-09-17)
+
+- **Phase 1 (this branch):** local page-timer notification on desktop (same architecture as the barrier MVP), 36h15m hardcoded cycle, maintenance ignored (not predictable), `purple_hole` flag, daily tracker row (max 3/char, spawn-day only), timetable popover, anchor updates via commits.
+- **Phase 2 (future):** maintenance-aware predictions — explore fetching maintenance info from the official TW announcements and feeding it into `MAINTENANCE_WINDOWS`, so a 06:00–08:00 maintenance shifts the prediction (e.g. 02:23 → 04:23) automatically.
+- **Phase 3 (future):** timetable updates without commits — mechanism TBD (user has no fixed idea yet; candidates: recalibrate button, published JSON feed, crowd reporting).
+
 ## Decisions
 
 - Daily per-char counter ×3 (`tracker.json` `purple-hole`, order 55), 06:00 reset with everything else. No store change for progress.
@@ -17,7 +23,7 @@ Flag: `?purple_hole=1` persists `mabiroutine:purple-hole-flag`. Prod default: ze
 - Row times: absolute `MM/DD HH:mm` plain text under the title (no 昨日/明日 — lies across midnight); stale spawn shows `已過` + `下次` pair.
 - Timetable: click-toggle calendar popover, past 2 + next 3, frozen at open, follows page scroll. No dialog.
 - Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), fires 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 XX 分鐘後出現。` (live minutes: 15 on schedule, fewer on catch-up; no character names — deliberate, decided 09-17, tested end-to-end).
-- Maintenance feed + no-commit timetable updates: deferred to future exploration.
+- Maintenance feed (phase 2) + no-commit timetable updates (phase 3): deferred — see Phases.
 - Same local-only rules as the hourly lane: never synced, never sent anywhere, page-open-only.
 
 ## Done
