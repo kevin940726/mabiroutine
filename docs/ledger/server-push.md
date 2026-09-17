@@ -10,6 +10,7 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 - 2026-09-18: wrote the setup guide + six-alternative review (see §§0–3 below).
 - 2026-09-18: branch cut from `main` (post purple-hole merge); account probed — zero Workers, greenfield.
 - Pending user verdicts: (A) worker-side fanout spike before building Vercel fanout; (C) GH Actions backup promoted to Phase 1.5 after primary proves itself.
+- 2026-09-18: worker named `mabiroutine-worker` (general, extensible; `-cron`/`-push` both go stale as routes grow).
 - Next: spike A verdict → lock fanout location → scaffold `workers/push-cron`.
 
 ## 0. What you need (checklist)
@@ -19,7 +20,7 @@ Cloudflare side (all free tier, $0):
 - [ ] Cloudflare account (email signup, no card for free plan).
 - [ ] A `*.workers.dev` subdomain (claimed at first deploy; our only public surface besides API routes — no custom domain needed).
 - [ ] `wrangler` (CLI; `pnpm add -D wrangler`, or npx — repo has no wrangler yet).
-- [ ] One Worker: `mabiroutine-push` (name TBD) — cron + `/purple-schedule` + `/admin` + watcher, all in one worker per the combined architecture.
+- [ ] One Worker: `mabiroutine-worker` (decided 2026-09-18 — `-cron` would lie once it serves `/purple-schedule` + `/admin`; bare `mabiroutine` collides with the app itself) — cron + `/purple-schedule` + `/admin` + watcher, all in one worker per the combined architecture.
 - [ ] One KV namespace: `PURPLE` (keys `purple:schedule`, `purple:candidates`). Day-one editing happens in the dashboard, no code.
 - [ ] Three secrets, set via `wrangler secret put` (never committed, never in Vercel):
   `CRON_SECRET` (worker→Vercel bearer), `ADMIN_SECRET` (admin page bearer), VAPID private key only if fanout moves into the worker (alt A below decides this).
@@ -40,7 +41,7 @@ Local machine: Node + pnpm (already have), `wrangler login` (browser OAuth once)
 3. **Scaffold.** `workers/push-cron/` in-repo: `src/index.ts` (`export default { fetch, scheduled }`), `wrangler.jsonc`:
    ```jsonc
    {
-     "name": "mabiroutine-push",
+     "name": "mabiroutine-worker",
      "main": "src/index.ts",
      "compatibility_date": "2026-09-01",
      "observability": { "enabled": true },
