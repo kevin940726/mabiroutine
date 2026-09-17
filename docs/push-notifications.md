@@ -223,8 +223,9 @@ Done except review. Gate: existing `pnpm check` + ?task=?chars= tap tests.
 5. `workers/mabiroutine-worker` (same repo, wrangler, `0 * * * *` + purple
    + watcher crons) deployed from CI (versioned deploys; never
    dashboard-edit per CF's own warning).
-6. Client: flag gate (§6) + desktop gate + subscribe/unsubscribe wiring that
+6. Client: flag gate (§6) + subscribe/unsubscribe wiring that
    preserves the §3e gesture chain; bell copy unchanged until proven.
+   (Desktop UA gate removed 2026-09-17 — mobile joins the same flow.)
 7. Copy: README privacy bullets (EN + zh_TW) revised per §3d; CHANGELOG.
 8. Test matrix: desktop Brave/Win (primary — daily browser), Chrome/Win, Edge/Win, Chrome/macOS — subscribe →
    wait for :00 (or trigger fanout manually with the secret) → card →
@@ -234,9 +235,9 @@ Done except review. Gate: existing `pnpm check` + ?task=?chars= tap tests.
   dead sub pruned on next run. Gate: manual matrix above (no harness yet).
 
 ### Phase 2 — Android push
-Server untouched. Remove/adjust the desktop gate, test Chrome Android
-(including a battery-saver-delayed case so the copy expectation is honest),
-keep local timer as the unsupported-browser fallback.
+Server untouched (desktop gate already removed 2026-09-17). Test Chrome
+Android (including a battery-saver-delayed case so the copy expectation is
+honest), keep local timer as the unsupported-browser fallback.
 
 ### Phase 3 — iOS PWA push
 Server untouched. Add-to-Home-Screen onboarding copy, permission from an
