@@ -42,4 +42,16 @@ export const MIGRATIONS: string[][] = [
       last_sent_at INTEGER
     )`,
   ],
+  // v3 — session linkage for named cards (D1a). `link_session` is the
+  // device's sync session id (nullable — unlinked subs get the generic
+  // copy); `roster_json` is a [{cid, name}] snapshot for ordering + fallback
+  // names, refreshed by the client on boot while subscribed.
+  // Idempotency note: ALTER has no IF NOT EXISTS (verified) — a crash
+  // between these two statements would break retry. The remote driver
+  // batches each version atomically (safe); local dev is a throwaway file
+  // (recover with rm dev.db). Accepted, not abstracted.
+  [
+    `ALTER TABLE push_subscriptions ADD COLUMN link_session TEXT`,
+    `ALTER TABLE push_subscriptions ADD COLUMN roster_json TEXT`,
+  ],
 ];

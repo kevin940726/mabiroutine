@@ -124,6 +124,19 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   The game pings everyone; our card reads fine done or not. Rejected: session
   linkage (2–3 extra days + joins endpoints to progress data, breaking §3d
   harder). Revisit only on real noise complaints (Phase 4).
+- **D1a — Names via opt-in session linkage (2026-09-17, user directive).**
+  D1's generic copy (`結界開場了，02:30 開始。`) was rejected as content-free:
+  the card names undone characters like the local one. How without breaking
+  §3d open: subscribe attaches the device's sync session id (only if the
+  device has one — knowledge = capability, same as sync links) plus a roster
+  snapshot (order + fallback names, refreshed on boot while subscribed);
+  the fanout reads that session's current-bucket barrier values live and
+  prints undone names, capped 3 + 等N隻 exactly like the local card.
+  All-done → silence (same as local); missing/expired session → generic
+  copy. Unlinking (sync off) or bell-off ends it; no new sync keys, no
+  session writes from the worker (read-only — it never deletes sessions).
+  Privacy delta (README bullets at ship): endpoints + linked session id +
+  roster snapshot server-side, done-state read live at fire time.
 - **D2 — Single-task scope (2026-09-16).** `HOURLY_ELIGIBLE_IDS = ["barrier"]`.
   Expansion is a one-line allowlist change, not a refactor.
 - **D3 — CF Worker cron over GitHub Actions (2026-09-16).** Actions' signature

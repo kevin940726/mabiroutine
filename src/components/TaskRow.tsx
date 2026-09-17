@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
 import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
-import { isDesktop, isServerPushMode, reconcileServerPush, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
+import { isDesktop, isServerPushMode, reconcileServerPush, refreshServerRoster, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
 import { PURPLE_HOLE_ID, isPurpleHoleEnabled, purpleBadge, type PurpleBadge } from "@/lib/purpleHole";
 import { SchedulePopover } from "@/components/SchedulePopover";
 
@@ -70,6 +70,13 @@ const PURPLE_SOFT_ASK =
 // says so — the local timer it falls back to behaves exactly as before.
 const HOURLY_MOBILE_NOTE = "（桌機測試中：手機目前仍用本機提醒，行為不變。）";
 
+// Server-mode soft-ask: App-closed delivery + the linkage disclosure (the
+// opt-in moment for D1a — tapping 訂閱 after reading this is the consent)
+// + deletion assurance. Replaces the default copy, whose "App 沒開就不會響"
+// would lie here.
+const SERVER_SOFT_ASK =
+  "整點推播到這台裝置，App 沒開也會響。若有同步連結，卡片會顯示未完成角色的名字（提醒時只讀取當日結界狀態）；沒有連結就是通用提醒。取消訂閱會同時刪除伺服器上的資料。按下訂閱後，瀏覽器會再確認一次，請選允許。";
+
 function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane) {
   const hourlyOn = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
   const purpleOn = useAppStore((s) => (s.purpleHoleReminders ?? []).includes(taskId));
@@ -96,6 +103,10 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
     if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
     void reconcileServerPush(taskId).then((changed) => {
       if (changed) bump();
+      // Healthy claims refresh the roster snapshot (renames / new chars)
+      // and pick up a session linked after subscribing — silent by design,
+      // the soft-ask already disclosed both.
+      else if (serverPushOn(taskId)) void refreshServerRoster(taskId);
     });
   }, [serverMode, taskId]);
   // Idempotent: the permission watcher and the direct path can both land.
@@ -197,7 +208,13 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
     // Soft-ask before the browser prompt: cold prompts get reflex-denied.
     // The dialog tap keeps the user gesture alive for requestPermission.
     const softAsk =
-      lane === "purple" ? PURPLE_SOFT_ASK : isPushEnabled() && !isDesktop() ? HOURLY_MOBILE_NOTE : undefined;
+      lane === "purple"
+        ? PURPLE_SOFT_ASK
+        : serverMode
+          ? SERVER_SOFT_ASK
+          : isPushEnabled() && !isDesktop()
+            ? HOURLY_MOBILE_NOTE
+            : undefined;
     if (!(await confirmSubscribeReminder(taskName, softAsk))) {
       waiter.abort();
       await watch;

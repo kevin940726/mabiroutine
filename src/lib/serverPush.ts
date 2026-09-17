@@ -1,4 +1,6 @@
 import { isPushEnabled } from "@/lib/hourlyReminders";
+import { loadSession } from "@/sync/session";
+import { useAppStore } from "@/store/useAppStore";
 
 // Server-push door (Phase 1, barrier lane only). The bell ↔
 // /api/push/subscribe round trip; the worker fanout reads the same table.
@@ -112,9 +114,26 @@ async function getLiveSub(): Promise<PushSubscription | null> {
 export type ServerSubscribeResult = "ok" | "need-sw" | "failed";
 
 /**
- * Full server subscribe: device subscription first, then the registry POST.
- * A POST failure rolls the device subscription back so no orphan sub lingers
- * that the fanout would 404-prune later anyway. Resolves — never rejects.
+ * Roster snapshot for linked cards (D1a): ordering + fallback names, cut
+ * from the live store at subscribe time.
+ */
+export function snapshotRoster(): { cid: string; name: string }[] {
+  try {
+    return useAppStore
+      .getState()
+      .characters.slice(0, 32)
+      .map((c) => ({ cid: c.id, name: c.name.slice(0, 32) }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Full server subscribe: device subscription first, then the registry POST
+ * (linkage + roster attached when the device holds them — absent stays
+ * absent, never half-linked). A POST failure rolls the device subscription
+ * back so no orphan sub lingers that the fanout would 404-prune later
+ * anyway. Resolves — never rejects.
  */
 export async function subscribeServerPush(taskId: string): Promise<ServerSubscribeResult> {
   try {
@@ -139,6 +158,8 @@ export async function subscribeServerPush(taskId: string): Promise<ServerSubscri
           subscription: sub.toJSON(),
           platform: detectPlatform(),
           lane: "hourly",
+          linkSessionId: loadSession()?.id ?? null,
+          roster: snapshotRoster(),
         }),
       });
     } catch {
@@ -188,9 +209,35 @@ export async function unsubscribeServerPush(taskId: string): Promise<void> {
 }
 
 /**
+ * Silent roster refresh (D1a): renames and new characters would otherwise
+ * stale the snapshot until the next bell toggle. Runs on bell mount while
+ * the live sub is healthy — one cheap upsert per page load, no UI.
+ */
+export async function refreshServerRoster(taskId: string): Promise<void> {
+  try {
+    if (!serverPushOn(taskId)) return;
+    const live = await getLiveSub();
+    if (!live) return;
+    await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subscription: live.toJSON(),
+        platform: detectPlatform(),
+        lane: "hourly",
+        linkSessionId: loadSession()?.id ?? null,
+        roster: snapshotRoster(),
+      }),
+    });
+  } catch {
+    // best-effort: the snapshot just stays a load older.
+  }
+}
+
+/**
  * Mount reconciliation for server mode: the map entry is a claim, the live
  * subscription is the truth. A dead/missing live sub clears the claim so
- * the bell never shows on for a device the fanout can't reach. Returns true
+ * the bell never shows on for a device the fanout couldn't reach. Returns true
  * when it changed something (caller re-renders).
  */
 export async function reconcileServerPush(taskId: string): Promise<boolean> {

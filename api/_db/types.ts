@@ -35,6 +35,10 @@ export type HashState = {
 
 // One push subscription row. `lane` scopes a row to a cadence ("hourly"
 // today; the purple lane reuses this table when its fanout lands).
+// `linkSession` (nullable) is the device's sync session id for named cards
+// (D1a); `roster` (nullable) is a [{cid, name}] snapshot for ordering +
+// fallback names. Either null → the generic copy.
+export type RosterEntry = { cid: string; name: string };
 export type PushSubscription = {
   endpoint: string;
   p256dh: string;
@@ -43,6 +47,8 @@ export type PushSubscription = {
   lane: string;
   createdAt: number;
   lastSentAt: number | null;
+  linkSession: string | null;
+  roster: RosterEntry[] | null;
 };
 
 // One session lifted out of the pre-SQL store, ready to insert verbatim. Used

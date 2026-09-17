@@ -285,7 +285,149 @@ export type FanoutReport = {
   subs: number;
   sent: number;
   pruned: number;
+  named: number;
+  generic: number;
+  silenced: number;
 };
+
+// Barrier task shape for the done mirror (src/data/tracker.json `barrier`:
+// type countdown, max 7 — hardcoded like the EVENT constants, same file the
+// local predicate reads). Mirror isTaskDone exactly: whatever it means
+// locally, the server means too.
+const BARRIER_MAX = 7;
+const BARRIER_TITLE = "不祥的召喚結界出現了";
+
+function barrierDone(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value) && value >= BARRIER_MAX;
+  return false;
+}
+
+// Tagged session value → raw (`j:` + JSON, the sync codec). Garbage reads as
+// missing (undone), never as done — a corrupt row must nag, not silence.
+function decTagged(raw: string): unknown {
+  if (!raw.startsWith("j:")) return undefined;
+  try {
+    return JSON.parse(raw.slice(2)) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+type RosterEntry = { cid: string; name: string };
+
+function parseRoster(raw: string | null): RosterEntry[] | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw) as unknown;
+    if (!Array.isArray(v) || v.length === 0) return null;
+    const out: RosterEntry[] = [];
+    for (const e of v.slice(0, 32)) {
+      if (e && typeof e === "object") {
+        const { cid, name } = e as { cid?: unknown; name?: unknown };
+        if (typeof cid === "string" && cid && !cid.includes(":")) {
+          out.push({ cid, name: typeof name === "string" ? name.slice(0, 32) : "" });
+        }
+      }
+    }
+    return out.length ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+type NamedCard = { body: string; chars: string } | null;
+
+/**
+ * Named card for a linked sub (D1a): read the session's current-bucket
+ * barrier values live and print undone names exactly like the local card
+ * (capped 3 + 等N隻). Returns null when the generic copy applies (no link,
+ * bad roster, missing/expired session) — and "all-done" silences the send
+ * entirely, same as local. The worker only READS sessions (never writes or
+ * deletes them); an expired read is just a generic card.
+ *
+ * Bucket without the reset math: keys carry `@bucket`, cycle-key GC keeps
+ * ≤8d of history, so the lexically largest weekly bucket IS the current
+ * week. LIKE overmatches on exotic cids (`_` is a wildcard) — the regexes
+ * below re-filter precisely, so overmatches die in code, not in cards.
+ */
+async function resolveNamedCard(
+  env: Env,
+  sessionId: string | null,
+  roster: RosterEntry[] | null,
+  now: number,
+): Promise<{ kind: "named" | "generic" | "silenced"; body?: string; chars?: string }> {
+  if (!sessionId || !roster) return { kind: "generic" };
+  try {
+    const [probe, kvs] = await tursoPipeline(env, [
+      { sql: "SELECT updated_at FROM sessions WHERE id = ? AND expires_at > ?", args: [sessionId, now] },
+      {
+        sql: "SELECT key, value FROM kv WHERE session_id = ? AND (key LIKE 'v:%:barrier@%' OR key LIKE 'hide:%:barrier' OR key LIKE 'char:%:name')",
+        args: [sessionId],
+      },
+    ]);
+    if (!probe.rows.length) return { kind: "generic" };
+    const byBucket = new Map<string, Map<string, unknown>>();
+    const hidden = new Set<string>();
+    const namesByCid = new Map<string, string>();
+    for (const r of kvs.rows) {
+      const k = textOf(r[0]);
+      let m = /^v:([^:]+):barrier@(\d{4}-W\d{4})$/.exec(k);
+      if (m) {
+        let b = byBucket.get(m[2]);
+        if (!b) byBucket.set(m[2], (b = new Map()));
+        b.set(m[1], decTagged(textOf(r[1])));
+        continue;
+      }
+      m = /^hide:([^:]+):barrier$/.exec(k);
+      if (m) {
+        if (decTagged(textOf(r[1])) === true) hidden.add(m[1]);
+        continue;
+      }
+      m = /^char:([^:]+):name$/.exec(k);
+      if (m) {
+        const n = decTagged(textOf(r[1]));
+        if (typeof n === "string" && n) namesByCid.set(m[1], n);
+      }
+    }
+    // Order: roster snapshot first, then session-only cids lexical (a char
+    // created after subscribing still gets named once the boot refresh
+    // picks the snapshot up).
+    const sessionCids = new Set<string>();
+    for (const b of byBucket.values()) for (const cid of b.keys()) sessionCids.add(cid);
+    for (const cid of namesByCid.keys()) sessionCids.add(cid);
+    const rosterCids = new Set(roster.map((e) => e.cid));
+    const ordered = [...roster.map((e) => e.cid), ...[...sessionCids].filter((c) => !rosterCids.has(c)).sort()];
+    const bucket = [...byBucket.keys()].sort().pop() ?? null;
+    const vals = (bucket && byBucket.get(bucket)) || new Map<string, unknown>();
+    const undone: string[] = [];
+    const names: string[] = [];
+    for (const cid of ordered) {
+      if (hidden.has(cid)) continue;
+      if (bucket && barrierDone(vals.get(cid))) continue;
+      const name = namesByCid.get(cid) ?? roster.find((e) => e.cid === cid)?.name ?? "";
+      if (!name) continue;
+      undone.push(cid);
+      names.push(name);
+    }
+    // No history at all + no names anywhere → generic; a current bucket
+    // with nobody undone → silence. Hidden-everyone with no history lands
+    // generic (done-state unknowable — nagging blind beats silencing blind).
+    if (!undone.length) return bucket ? { kind: "silenced" } : { kind: "generic" };
+    return { kind: "named", ...nameBody(undone, names) };
+  } catch {
+    // Any read failure degrades to the generic copy — a failed lookup must
+    // never cost the user their reminder.
+    return { kind: "generic" };
+  }
+}
+
+/** Local-identical name body: capped 3 + 等N隻. */
+function nameBody(undone: string[], names: string[]): { body: string; chars: string } {
+  const shown = names.slice(0, 3).join("、");
+  const more = names.length > 3 ? ` 等 ${names.length} 隻` : "";
+  return { body: `${shown}${more}`, chars: undone.join(",") };
+}
 
 /**
  * Hourly barrier fanout. Staleness guard first (D4): the useful window ends
@@ -293,43 +435,75 @@ export type FanoutReport = {
  * misleading card. Then one batched read, concurrent sends, and a single
  * write batch (dead-endpoint prune on 404/410 + last_sent_at stamps).
  *
- * Card copy is deliberately NOT the Phase-0 body: the server knows no
- * done-state (D1, unfiltered bell-only fanout), so there are no names to
- * print — the start time (derived from EVENT_SEC_PAST_HOUR, same source as
- * the local lane) is the actionable half. Tap deep-links task-only; the
- * page resolves the first undone character, like a char-less local card.
+ * Card copy: linked subs get undone names (D1a — same cap/format as the
+ * local card, with undone cids riding data.chars so the tap selects
+ * exactly); unlinked subs get the generic start-time body (D1 — the server
+ * knows no done-state); all-done linked subs get silence. Tap deep-links
+ * task-only for generic cards; the page resolves the first undone
+ * character, like a char-less local card.
  */
 export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
   const now = Date.now();
   if (secIntoHour(now) > EVENT_SEC_PAST_HOUR - CATCHUP_MIN_SEC) {
-    return { skipped: true, reason: "past-cutoff", subs: 0, sent: 0, pruned: 0 };
+    return { skipped: true, reason: "past-cutoff", subs: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
   }
   const [listed] = await tursoPipeline(env, [
-    { sql: "SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE lane = ?", args: ["hourly"] },
+    {
+      sql: "SELECT endpoint, p256dh, auth, link_session, roster_json FROM push_subscriptions WHERE lane = ?",
+      args: ["hourly"],
+    },
   ]);
   const subs = listed.rows
-    .map((r) => ({ endpoint: textOf(r[0]), p256dh: textOf(r[1]), auth: textOf(r[2]) }))
+    .map((r) => ({
+      endpoint: textOf(r[0]),
+      p256dh: textOf(r[1]),
+      auth: textOf(r[2]),
+      linkSession: r[3]?.type === "text" ? String(r[3].value) : null,
+      roster: parseRoster(r[4]?.type === "text" ? String(r[4].value) : null),
+    }))
     .filter((s) => s.endpoint.startsWith("https://") && s.p256dh && s.auth);
-  if (!subs.length) return { skipped: true, reason: "no-subs", subs: 0, sent: 0, pruned: 0 };
+  if (!subs.length) {
+    return { skipped: true, reason: "no-subs", subs: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
+  }
+  // Generic copy for unlinked subs (D1): the server knows no done-state, so
+  // the start time (derived from EVENT_SEC_PAST_HOUR, same source as the
+  // local lane) is the actionable half.
   const mm = String(Math.floor(EVENT_SEC_PAST_HOUR / 60)).padStart(2, "0");
   const ss = String(EVENT_SEC_PAST_HOUR % 60).padStart(2, "0");
-  const payload = {
-    title: "不祥的召喚結界出現了",
-    body: `結界開場了，${mm}:${ss} 開始。`,
-    tag: HOURLY_TAG,
-    data: { url: "/", task: "barrier" },
-  };
+  const genericBody = `結界開場了，${mm}:${ss} 開始。`;
   const jwtCache = new Map<string, string>();
-  const statuses = await mapLimit(subs, 20, (sub) =>
-    sendPush(
-      { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-      payload,
-      env,
-      jwtCache,
-    )
-      .then((r) => ({ endpoint: sub.endpoint, status: r.status }))
-      .catch(() => ({ endpoint: sub.endpoint, status: -1 })),
-  );
+  let named = 0;
+  let generic = 0;
+  let silenced = 0;
+  const statuses = await mapLimit(subs, 20, async (sub) => {
+    const card = await resolveNamedCard(env, sub.linkSession, sub.roster, now);
+    if (card.kind === "silenced") {
+      silenced++;
+      return { endpoint: sub.endpoint, status: 0 };
+    }
+    if (card.kind === "named") named++;
+    else generic++;
+    const payload = {
+      title: BARRIER_TITLE,
+      body: card.kind === "named" && card.body ? card.body : genericBody,
+      tag: HOURLY_TAG,
+      data:
+        card.kind === "named" && card.chars
+          ? { url: "/", task: "barrier", chars: card.chars }
+          : { url: "/", task: "barrier" },
+    };
+    try {
+      const r = await sendPush(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload,
+        env,
+        jwtCache,
+      );
+      return { endpoint: sub.endpoint, status: r.status };
+    } catch {
+      return { endpoint: sub.endpoint, status: -1 };
+    }
+  });
   const sent = statuses.filter((s) => s.status === 201).map((s) => s.endpoint);
   const dead = statuses.filter((s) => s.status === 404 || s.status === 410).map((s) => s.endpoint);
   const batch: { sql: string; args: unknown[] }[] = [];
@@ -342,7 +516,16 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
     });
   }
   if (batch.length) await tursoPipeline(env, batch);
-  return { skipped: false, reason: "fanned-out", subs: subs.length, sent: sent.length, pruned: dead.length };
+  return {
+    skipped: false,
+    reason: "fanned-out",
+    subs: subs.length,
+    sent: sent.length,
+    pruned: dead.length,
+    named,
+    generic,
+    silenced,
+  };
 }
 
 export default {

@@ -1,14 +1,16 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getDb } from "../_db/index.js";
-import type { PushSubscription } from "../_db/types.js";
+import type { PushSubscription, RosterEntry } from "../_db/types.js";
 
 // Push-subscription registry for the server-push fanout (plan: full-worker
 // fanout — the worker reads this same table straight from Turso; this route
 // is only the subscribe/unsubscribe door).
 //
-// POST   /api/push/subscribe  { subscription: { endpoint, keys: { p256dh, auth } }, platform?, lane? }
+// POST   /api/push/subscribe  { subscription: { endpoint, keys: { p256dh, auth } }, platform?, lane?, linkSessionId?, roster? }
 //        -> { ok: true } | 400. Upsert by endpoint: re-subscribing refreshes
-//        the row instead of growing the table.
+//        the row instead of growing the table. linkSessionId (a sync session
+//        UUID the device holds) + roster ([{cid, name}]) enable named cards
+//        (D1a); either absent → the generic copy.
 // DELETE /api/push/subscribe  { endpoint } -> { ok: true } (idempotent).
 //
 // Validation is structural, not cryptographic: malformed keys 400 here, and
@@ -90,6 +92,29 @@ function validEndpoint(e: unknown): e is string {
   return typeof e === "string" && e.startsWith("https://") && e.length <= MAX_ENDPOINT_LEN;
 }
 
+// Session-id shape (UUIDv4 — mirrors validId in api/session.ts, duplicated
+// so this route never imports the session handler's internals).
+function validSessionId(id: unknown): id is string {
+  return (
+    typeof id === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+  );
+}
+
+// Roster snapshot: ordering + fallback names for linked cards (D1a). Caps
+// keep one row small; cids must not contain ":" (they're key segments
+// server-side — a colon would break key parsing downstream).
+function validRoster(r: unknown): r is RosterEntry[] {
+  if (!Array.isArray(r) || r.length > 32) return false;
+  for (const e of r) {
+    if (!e || typeof e !== "object") return false;
+    const { cid, name } = e as { cid?: unknown; name?: unknown };
+    if (typeof cid !== "string" || cid.length === 0 || cid.length > 64 || cid.includes(":")) return false;
+    if (typeof name !== "string" || name.length > 32) return false;
+  }
+  return true;
+}
+
 async function handlePost(req: VercelRequest, res: VercelResponse): Promise<void> {
   const db = getDb();
   if (overLimit(`push-sub:${clientIp(req)}`)) {
@@ -115,6 +140,21 @@ async function handlePost(req: VercelRequest, res: VercelResponse): Promise<void
     return;
   }
   const platform = typeof body.platform === "string" && PLATFORMS.includes(body.platform) ? body.platform : "other";
+  // Session linkage (D1a, opt-in by subscribing): a session id the device
+  // already holds (knowledge = capability, same as sync links) plus a roster
+  // snapshot. Either absent → the generic copy. Malformed → 400, never
+  // silently dropped (a dropped link would mislead the bell into thinking
+  // names are coming).
+  const linkRaw = body.linkSessionId ?? null;
+  if (linkRaw !== null && !validSessionId(linkRaw)) {
+    res.status(400).json({ error: "linkSessionId must be a session UUID" });
+    return;
+  }
+  const rosterRaw = body.roster ?? null;
+  if (rosterRaw !== null && !validRoster(rosterRaw)) {
+    res.status(400).json({ error: "roster must be [{cid, name}] (<=32)" });
+    return;
+  }
   const now = Date.now();
   const row: PushSubscription = {
     endpoint,
@@ -124,6 +164,8 @@ async function handlePost(req: VercelRequest, res: VercelResponse): Promise<void
     lane: "hourly",
     createdAt: now,
     lastSentAt: null,
+    linkSession: linkRaw,
+    roster: rosterRaw,
   };
   await db.upsertPushSub(row);
   res.status(200).json({ ok: true });
