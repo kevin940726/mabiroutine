@@ -94,7 +94,8 @@ separate CMS, because Cloudflare already ships two:
   `ADMIN_SECRET`, timing-safe compare, `noindex`): datetime-local inputs,
   current-values preview, and a **promote-candidate button** that copies the
   watcher's parsed candidates into verified values in one tap. ~1 hour
-  extra; the human-confirm loop becomes "open page, glance, tap".
+  extra; the human-confirm loop becomes "open page, glance, tap". Full
+  build spec: `docs/ledger/purple-hole-admin-page.md`.
 
 - Pro: no app commit per maintenance; no third-party host; failure degrades
   to phase-1 behavior; threat model is a nuisance at worst (leaked secret
