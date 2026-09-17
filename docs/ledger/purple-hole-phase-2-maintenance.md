@@ -80,16 +80,27 @@ discipline exactly.
 - Con: commit + push + redeploy per maintenance; useless for same-day
   emergency maintenance unless someone edits within the hour.
 
-### B. Runtime JSON feed (maintainer-published)
+### B. KV-backed feed with built-in editing (no gist needed — decided 2026-09-18)
 
-App fetches a small `{ windows: [{start, end}], updatedAt }` file at load
-(gist, static host, or same-site file updated out-of-band), caches it in
-localStorage, falls back to the hardcoded list on any failure. Feed format
-is the only contract; the writer can be a human or option C.
+App fetches `{ windows: [{start, end}], updatedAt }` from the worker's
+`/purple-schedule` (KV-cached, CORS `*`), caches it in localStorage, falls
+back to the hardcoded list on any failure. The writer is the worker's
+watcher (candidates) or the maintainer — and the maintainer needs no
+separate CMS, because Cloudflare already ships two:
 
-- Pro: no app commit per maintenance; failure degrades to phase-1 behavior.
-- Con: needs a hosting decision + cache/freshness semantics + a "預測更新
-  於 …" honesty label; the feed itself still needs a writer.
+- *Day one:* the **KV dashboard itself** — namespace → key → edit raw JSON.
+  Zero code, phone-accessible, ~1 write/day against the 1k budget.
+- *Graduation:* a **one-page `/admin` route on the same worker** (bearer
+  `ADMIN_SECRET`, timing-safe compare, `noindex`): datetime-local inputs,
+  current-values preview, and a **promote-candidate button** that copies the
+  watcher's parsed candidates into verified values in one tap. ~1 hour
+  extra; the human-confirm loop becomes "open page, glance, tap".
+
+- Pro: no app commit per maintenance; no third-party host; failure degrades
+  to phase-1 behavior; threat model is a nuisance at worst (leaked secret
+  shifts hole predictions — strong random secret suffices, no user system).
+- Con: one more secret to hold (`ADMIN_SECRET`); dashboard JSON has no
+  validation (the `/admin` form fixes that when it lands).
 
 ### C. Scraper (private-local, gitignored)
 
@@ -136,19 +147,45 @@ Mitigations, in order of reliability:
 4. The official detail page remains the only source of actuals — still
    behind the session wall (see Established facts). No change there.
 
-## Decision (recommended, revised with the verified doors)
+## Decision (recommended, revised with worker + verified doors)
 
-Phase 2 = **Wednesday rule + Bahamut keyword poll (human-confirmed) + D**.
-Concretely: hardcode the Wednesday-morning window as the default (covers the
-routine case with zero moving parts); a private-local script fetches the
-Bahamut board list (door #1, GNN as backup) and prints candidate
-maintenance threads; the maintainer eyeballs the times and updates the feed
-(or a code entry) — minutes per week. D still covers same-day emergencies
-the poll can't reach in time. The official-API scraper (C) is dropped, not
-parked: the board list gives the same information with none of the session
-machinery. Full automation (unattended poll → feed with no human) stays out
-until the weekly eyeball becomes a felt burden — and even then, the failure
-design must keep "fetch failed" distinguishable from "no maintenance".
+Phase 2 = **Wednesday rule + worker watcher (KV candidates, human-promoted)
++ D**, built on the push release's worker (shared scaffold, secrets, and
+cron — see the combined architecture below). Concretely: hardcode the
+Wednesday-morning window as the default; a 2×/day worker cron fetches the
+Bahamut search endpoint, regexes windows into KV candidates; the maintainer
+promotes them via KV dashboard (day one) or the `/admin` promote button
+(graduation) — minutes per week. D still covers same-day emergencies the
+poll can't reach in time. The official-API scraper (C) is dropped, not
+parked. Full automation (unattended poll → truth with no human) stays out —
+and the failure design keeps "fetch failed" distinguishable from "no
+maintenance" via `updatedAt` age.
+
+## Combined worker architecture (shared with the push release)
+
+One worker, three jobs — the barrier push plan already pays the fixed costs
+(scaffold, wrangler deploys, `CRON_SECRET`, Turso subs, VAPID), so purple's
+marginal additions are small:
+
+```
+CF Worker (extends barrier's push-cron worker)
+├── every 15 min: spawn check ──▶ spawn within 15 min? ──▶ purple fanout
+│   (imports src/lib/purpleHole.ts directly — DOM-free pure math, window
+│   refs already guarded — one implementation, two runtimes)
+├── 2×/day: Bahamut watch ──▶ search.php fetch ──▶ regex windows + 紫洞
+│   report titles ──▶ KV candidates (maintainer promotes, never auto-truth)
+└── GET /purple-schedule ──▶ resolved {anchorMs, windows[], updatedAt,
+    confidence, sources[]} with CORS *, KV-cached (≥60s TTL)
+```
+
+Client fallback chain: manual override > worker/KV > hardcoded.
+New secret vs the push plan: only `ADMIN_SECRET` (and it degrades to
+dashboard-only without the `/admin` page). Limits (free tier, 2026 docs):
+96 ticks + 2 watcher runs/day ≈ 0.1% of 100k req; KV ~4 writes/day vs 1k;
+watcher parse must fit **10ms CPU per cron run** (network wait excluded —
+keep it to string ops, split fetch/parse across crons if it doesn't fit);
+unverified whether Bahamut rate-limits CF egress (tiny volume says no —
+fallback chain covers a failure).
 
 ## Technical touch points (A + D)
 
@@ -175,5 +212,6 @@ design must keep "fetch failed" distinguishable from "no maintenance".
 
 ## Effort
 
-A ~1 hour. D ~half day (UI + storage + expiry). C API hunt ~half day,
-boxed — abandon to A if the endpoint isn't cleanly readable.
+A ~1 hour. D ~half day (UI + storage + expiry). Watcher + KV + endpoint
+~2–3 days with the push infra (spike first: 10ms CPU fit + Bahamut-from-CF
+egress — one afternoon answers both). `/admin` page ~1 hour on top.

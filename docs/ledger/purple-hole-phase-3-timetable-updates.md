@@ -41,14 +41,14 @@ verifying in-game. Surfaces `預測更新於 MM/DD` in the popover footer.
 
 - Pro: one edit fixes every user, no app release; failure degrades to
   phase-1 baseline.
-- Con: needs a hosting decision (gist? static host? same-site file updated
-  out-of-band — each with its own write path and trust story); the
-  maintainer still does per-drift work, just not a code push; offline-first
-  loads use the cache, which can go stale silently (mitigate with the
-  updated-at label + age warning past N days).
-- Note: this is the same feed shape phase 2's option B proposes for
-  windows — if both land, they should be ONE file
-  (`{anchorMs, windows[], updatedAt}`), not two.
+- Con: the maintainer still does per-drift work, just not a code push;
+  offline-first loads use the cache, which can go stale silently (mitigate
+  with the updated-at label + age warning past N days).
+- Hosting: **no gist needed** (decided 2026-09-18) — the anchor rides the
+  same worker/KV feed as phase 2 (`/purple-schedule` serves ONE doc,
+  `{anchorMs, windows[], updatedAt, confidence, sources[]}`), edited via KV
+  dashboard or the `/admin` page. The admin edit path already exists for
+  windows; anchor is one more field on the same form.
 
 ### C. Crowd reports (user-submitted observations)
 
@@ -60,8 +60,9 @@ building submission infra — verification caveat (thread titles are claims,
 not measurements) applies, but the crowd already exists.
 
 Users submit observed spawn times; a backend reconciles (median of recent
-reports) and publishes the anchor. Natural home would be the existing
-Turso-backed sync infra (new table + API routes).
+reports) and publishes the anchor. Natural home: the phase-2 worker + KV
+(`POST /purple-reports`, near-zero writes against the 1k/day cap; cron
+reconciles into candidates) — no Turso table, no Vercel route needed.
 
 - Pro: most robust long-term; no single maintainer bottleneck.
 - Con: by far the most work (API, storage, rate-limiting, abuse/garbage
