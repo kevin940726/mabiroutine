@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- Spike cleanup (code): temporary worker routes (`/spike-send`, `/fanout-test`, `/db-test`) plus the bearer helper and `SPIKE_SECRET` field deleted — fetch serves health + scheduled only; redeploy + env-secret deletion ride the next push
+
 ## 2026-09-17 — 紫洞維護窗
 
 ### Features

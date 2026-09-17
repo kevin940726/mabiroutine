@@ -45,6 +45,8 @@ Conventions: log oldest-first (append at the end), one line per fact, no commit 
 
 - 2026-09-17: purple 2A built (taipeiWall + predicted 9/23 06:00–08:30 entry, errs short); 2D override designed then dropped per user correction — announcement read is canonical, emergencies go code-edit + push. Recorded in the phase-2 ledger.
 
+- 2026-09-17: spike routes deleted from code (`/spike-send` + `/fanout-test` + `/db-test`, `bearerOk`, `SPIKE_SECRET` env field — fetch is health + scheduled only). NOT yet live: worker redeploy + `SPIKE_SECRET` env delete pending the next push. Push track closes then.
+
 ## 0. What you need (checklist)
 
 Cloudflare side (all free tier, $0):

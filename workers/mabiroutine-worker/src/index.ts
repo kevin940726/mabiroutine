@@ -7,8 +7,9 @@
 // Secrets (wrangler secret put, never committed): VAPID_JWK (app P-256 key,
 // JWK JSON), VAPID_SUBJECT (mailto:/URL contact), TURSO_DB_URL (https),
 // TURSO_AUTH_TOKEN (same token as Vercel; full-access — Turso issues no
-// read-only tokens at our tier), SPIKE_SECRET (bearer for the temporary
-// /spike-send + /fanout-test routes; deleted with them).
+// read-only tokens at our tier). (SPIKE_SECRET + the temporary
+// /spike-send + /fanout-test + /db-test routes died 2026-09-17 with the
+// proven fanout — fetch is health + scheduled only.)
 
 import {
   CATCHUP_MIN_SEC,
@@ -23,7 +24,6 @@ type Env = {
   VAPID_SUBJECT?: string;
   TURSO_DB_URL?: string;
   TURSO_AUTH_TOKEN?: string;
-  SPIKE_SECRET?: string;
 };
 
 type PushSubscriptionJson = {
@@ -189,14 +189,6 @@ async function sendPush(
     body,
   });
   return { status: res.status, detail: (await res.text()).slice(0, 300) };
-}
-
-function bearerOk(req: Request, secret: string | undefined): boolean {
-  if (!secret) return false;
-  const got = req.headers.get("Authorization") ?? "";
-  const a = new TextEncoder().encode(got);
-  const b = new TextEncoder().encode(`Bearer ${secret}`);
-  return a.length === b.length && crypto.subtle.timingSafeEqual(a, b);
 }
 
 // ---- Turso reads/writes (raw /v2/pipeline over fetch — dependency-free;
@@ -532,67 +524,10 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
 }
 
 export default {
-  async fetch(req: Request, env: Env): Promise<Response> {
+  async fetch(req: Request, _env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (req.method === "GET" && url.pathname === "/") {
       return Response.json({ ok: true, worker: "mabiroutine-worker" });
-    }
-    // TEMPORARY test hook (bearer-guarded): runs the real fanout path on
-    // demand so it can be proven without waiting for :00. Deleted with
-    // /spike-send once the hourly tick proves itself for real.
-    if (req.method === "POST" && url.pathname === "/fanout-test") {
-      if (!bearerOk(req, env.SPIKE_SECRET)) {
-        return Response.json({ error: "unauthorized" }, { status: 401 });
-      }
-      try {
-        return Response.json(await runBarrierFanout(env));
-      } catch (e) {
-        return Response.json({ error: String(e) }, { status: 500 });
-      }
-    }
-    // TEMPORARY db hook (bearer-guarded): exercises the exact write path the
-    // fanout uses (tagged-args pipeline batch) without sending anything —
-    // stamps the first hourly sub and re-reads it. Deleted with the rest.
-    if (req.method === "POST" && url.pathname === "/db-test") {
-      if (!bearerOk(req, env.SPIKE_SECRET)) {
-        return Response.json({ error: "unauthorized" }, { status: 401 });
-      }
-      try {
-        const now = Date.now();
-        const [listed] = await tursoPipeline(env, [
-          { sql: "SELECT endpoint FROM push_subscriptions WHERE lane = ?", args: ["hourly"] },
-        ]);
-        const first = listed.rows[0]?.[0];
-        const endpoint = first && first.type === "text" ? String(first.value) : null;
-        if (!endpoint) return Response.json({ stamped: null, reason: "no-subs" });
-        await tursoPipeline(env, [
-          { sql: "UPDATE push_subscriptions SET last_sent_at = ? WHERE endpoint = ?", args: [now, endpoint] },
-        ]);
-        const [check] = await tursoPipeline(env, [
-          { sql: "SELECT last_sent_at FROM push_subscriptions WHERE endpoint = ?", args: [endpoint] },
-        ]);
-        const v = check.rows[0]?.[0];
-        return Response.json({ stamped: now, readBack: v?.type === "null" ? null : Number((v as { value: unknown }).value) });
-      } catch (e) {
-        return Response.json({ error: String(e) }, { status: 500 });
-      }
-    }
-    if (req.method === "POST" && url.pathname === "/spike-send") {
-      if (!bearerOk(req, env.SPIKE_SECRET)) {
-        return Response.json({ error: "unauthorized" }, { status: 401 });
-      }
-      try {
-        const { subscription, title, body, tag } = (await req.json()) as {
-          subscription: PushSubscriptionJson;
-          title: string;
-          body: string;
-          tag: string;
-        };
-        const r = await sendPush(subscription, { title, body, tag }, env);
-        return Response.json({ ok: r.status === 201, pushStatus: r.status, detail: r.detail });
-      } catch (e) {
-        return Response.json({ error: String(e) }, { status: 500 });
-      }
     }
     return Response.json({ error: "not found" }, { status: 404 });
   },
