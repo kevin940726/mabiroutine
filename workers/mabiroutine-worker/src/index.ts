@@ -208,6 +208,18 @@ type TursoResult = {
   rows: TursoValue[][];
 };
 
+// Pipeline args must be explicitly tagged: bare strings happen to pass,
+// but a bare number 400s ("invalid type: integer, expected internally
+// tagged enum Value" — proven 2026-09-17: the 16:00 fanout sent fine, then
+// its write batch died on the bare `now` timestamp). Tag everything here
+// so no caller can repeat it. Integer values are string-encoded per sqld.
+function tagArg(v: unknown): { type: string; value: unknown } {
+  if (v === null || v === undefined) return { type: "null", value: null };
+  if (typeof v === "number") return { type: Number.isInteger(v) ? "integer" : "float", value: String(v) };
+  if (typeof v === "boolean") return { type: "integer", value: v ? "1" : "0" };
+  return { type: "text", value: String(v) };
+}
+
 async function tursoPipeline(
   env: Env,
   stmts: { sql: string; args?: unknown[] }[],
@@ -216,15 +228,32 @@ async function tursoPipeline(
   const res = await fetch(`${env.TURSO_DB_URL}/v2/pipeline`, {
     method: "POST",
     headers: { Authorization: `Bearer ${env.TURSO_AUTH_TOKEN}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ requests: stmts.map((s) => ({ type: "execute", stmt: s })) }),
+    body: JSON.stringify({
+      requests: stmts.map((s) => ({
+        type: "execute",
+        stmt: { sql: s.sql, args: (s.args ?? []).map(tagArg) },
+      })),
+    }),
   });
-  if (!res.ok) throw new Error(`turso ${res.status}`);
-  const doc = (await res.json()) as {
+  // Read the body as text first: on failure sqld's error names the exact
+  // complaint (bare-vs-tagged args, bad shape), and a masked status cost an
+  // hour of guessing on 2026-09-17. Never throw a bare status again.
+  const text = await res.text();
+  let doc: {
     results?: { type: string; response?: { type: string; result?: { cols: ({ name: string } | string)[]; rows: TursoValue[][] } } }[];
   };
+  try {
+    doc = JSON.parse(text) as typeof doc;
+  } catch {
+    throw new Error(`turso ${res.status}: ${text.slice(0, 200)}`);
+  }
+  if (!res.ok) throw new Error(`turso ${res.status}: ${text.slice(0, 200)}`);
   return (doc.results ?? []).map((r) => {
-    if (r?.type !== "ok" || r.response?.type !== "execution" || !r.response.result) {
-      throw new Error("turso bad shape");
+    // Success response types observed live: "execute" (verified 2026-09-17
+    // against the real endpoint — NOT "execution"; demanding that string
+    // would turn every success into a "bad shape" throw).
+    if (r?.type !== "ok" || (r.response?.type !== "execute" && r.response?.type !== "execution") || !r.response.result) {
+      throw new Error(`turso bad shape: ${text.slice(0, 200)}`);
     }
     return {
       cols: r.response.result.cols.map((c) => (typeof c === "string" ? c : c.name)),
@@ -331,6 +360,33 @@ export default {
       }
       try {
         return Response.json(await runBarrierFanout(env));
+      } catch (e) {
+        return Response.json({ error: String(e) }, { status: 500 });
+      }
+    }
+    // TEMPORARY db hook (bearer-guarded): exercises the exact write path the
+    // fanout uses (tagged-args pipeline batch) without sending anything —
+    // stamps the first hourly sub and re-reads it. Deleted with the rest.
+    if (req.method === "POST" && url.pathname === "/db-test") {
+      if (!bearerOk(req, env.SPIKE_SECRET)) {
+        return Response.json({ error: "unauthorized" }, { status: 401 });
+      }
+      try {
+        const now = Date.now();
+        const [listed] = await tursoPipeline(env, [
+          { sql: "SELECT endpoint FROM push_subscriptions WHERE lane = ?", args: ["hourly"] },
+        ]);
+        const first = listed.rows[0]?.[0];
+        const endpoint = first && first.type === "text" ? String(first.value) : null;
+        if (!endpoint) return Response.json({ stamped: null, reason: "no-subs" });
+        await tursoPipeline(env, [
+          { sql: "UPDATE push_subscriptions SET last_sent_at = ? WHERE endpoint = ?", args: [now, endpoint] },
+        ]);
+        const [check] = await tursoPipeline(env, [
+          { sql: "SELECT last_sent_at FROM push_subscriptions WHERE endpoint = ?", args: [endpoint] },
+        ]);
+        const v = check.rows[0]?.[0];
+        return Response.json({ stamped: now, readBack: v?.type === "null" ? null : Number((v as { value: unknown }).value) });
       } catch (e) {
         return Response.json({ error: String(e) }, { status: 500 });
       }
