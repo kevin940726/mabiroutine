@@ -76,14 +76,15 @@ export function usePurpleHoleReminders(enabled: boolean) {
         }
         const r = getUndonePurpleReminder();
         if (r && Notification.permission === "granted") {
+          // Names still gate the fire (all-done → silence) and feed the
+          // tap deep-link, but never render. Minutes are live: exactly 15
+          // on a scheduled fire, fewer on a catch-up.
+          const mins = Math.max(1, Math.round((spawn - Date.now()) / 60000));
           await fireHourlyReminder({
-            // Names still gate the fire (all-done → silence) and feed the
-            // tap deep-link, but never render: the card carries the
-            // predicted time instead (copy TBD — this is the placeholder).
             names: r.names,
             eventLabel: formatTaipei(spawn),
             title: `${r.taskName}即將出現`,
-            body: `預計 ${formatTaipei(spawn)} 出沒`,
+            body: `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 ${mins} 分鐘後出現。`,
             tag: PURPLE_TAG,
             taskId: PURPLE_HOLE_ID,
             charIds: r.charIds,

@@ -16,7 +16,7 @@ Flag: `?purple_hole=1` persists `mabiroutine:purple-hole-flag`. Prod default: ze
 - Row visibility: render-only parking in 已隱藏項目 on off-days (no store writes, out of progress). "Spawn day" = 06:00 daily bucket (decided 09-17: the row showing through 09-17 for the 09-18 02:23 spawn is correct — it doubles as heads-up; calendar-day and hours-before variants rejected).
 - Row times: absolute `MM/DD HH:mm` plain text under the title (no 昨日/明日 — lies across midnight); stale spawn shows `已過` + `下次` pair.
 - Timetable: click-toggle calendar popover, past 2 + next 3, frozen at open, follows page scroll. No dialog.
-- Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), fires 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body TBD (currently predicted time placeholder, no character names — deliberate).
+- Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), fires 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 XX 分鐘後出現。` (live minutes: 15 on schedule, fewer on catch-up; no character names — deliberate, decided 09-17, tested end-to-end).
 - Maintenance feed + no-commit timetable updates: deferred to future exploration.
 - Same local-only rules as the hourly lane: never synced, never sent anywhere, page-open-only.
 
@@ -35,10 +35,10 @@ Flag: `?purple_hole=1` persists `mabiroutine:purple-hole-flag`. Prod default: ze
 ## Todos
 
 - [ ] User test: subscribe persists across reload; forced fire (`__mabiPurpleFire`); real fire 09/18 02:08; tap deep-link + flash
-- [ ] Decide card body copy (currently `預計 MM/DD HH:mm 出沒` placeholder)
+- [x] Card body copy decided + tested end-to-end
 - [ ] Record purple lane in `docs/push-notifications.md` (still barrier-only)
 - [ ] Final `pnpm check`, then push/merge on user approval
 
 ## Open questions
 
-1. Card body: keep predicted time, or something else entirely?
+(none — card body decided 09-17.)

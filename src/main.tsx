@@ -74,11 +74,12 @@ if (typeof window !== 'undefined') {
     const r = getUndonePurpleReminder();
     if (!r) return 'shown (nothing due)';
     const spawn = nextOccurrence(Date.now());
+    const mins = Math.max(1, Math.round((spawn - Date.now()) / 60000));
     const res = await fireHourlyReminder({
       names: r.names,
       eventLabel: formatTaipei(spawn),
       title: `${r.taskName}即將出現`,
-      body: `預計 ${formatTaipei(spawn)} 出沒`,
+      body: `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 ${mins} 分鐘後出現。`,
       tag: PURPLE_TAG,
       taskId: PURPLE_HOLE_ID,
       charIds: r.charIds,
