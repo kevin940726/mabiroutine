@@ -17,6 +17,7 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 - Spike A pending one user action: paste a real test subscription (snippet in the next log entry) → fire `/spike-send` → confirm the card.
 - 2026-09-18: Brave diagnosed — `gcm-internals` showed GCM enabled but no connection; `brave://settings/privacy` → "Use Google services for push messaging" ON + restart fixed it. Brave joins the Phase-1 desktop matrix as primary (daily browser); matrix + onboarding note recorded in `docs/push-notifications.md` §3c/§7.
 - 2026-09-18: spike A first fire failed — FCM 400, body 4182 > 4096 (86-byte header + 4096 record). Fixed RS 4096 → 4000 in `src/index.ts`. Second fire (after a self-inflicted mangled-key 500, resent with the exact subscription) → **FCM 201**. Verdict A: **ADOPT full-worker fanout** — VAPID + aes128gcm in WebCrypto proven against the real push service; the Vercel fanout route never gets built. Display caveat: prod SW has no `push` listener yet (only `notificationclick`), so this card renders as the browser's generic fallback until the Phase-1 client adds `showNotification` to `sw-push.js`.
+- 2026-09-18: `push` listener added to `public/sw-push.js` (payload `{title, body, tag, url?, task?, chars?}` → `showNotification` with the Phase-0 contract: collapse tag, `renotify: true`, auto-dismiss, data passthrough for the existing deep-link click handler). Branch-only until merge + prod push updates the SW on-device.
 
 ## 0. What you need (checklist)
 
