@@ -74,14 +74,16 @@ async function vapidAuthHeader(
 /**
  * RFC 8188 aes128gcm body: salt || rs || idlen || server-pub || ciphertext.
  * HKDF(salt, IKM, info, L) in one WebCrypto deriveBits == the RFC's
- * extract-then-expand. Single 4096 record — our payloads are ~200 bytes.
+ * extract-then-expand. RS is 4000, not 4096: FCM caps the whole body
+ * strictly under 4096 bytes, and 86 header + 4096 record overshoots
+ * (proven 2026-09-18: 4182-byte body → 400). Our payloads are ~200 bytes.
  */
 async function encryptAes128gcm(
   plaintext: Uint8Array,
   clientPub: Uint8Array,
   authSecret: Uint8Array,
 ): Promise<Uint8Array> {
-  const RS = 4096;
+  const RS = 4000;
   const te = new TextEncoder();
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const serverKeys = await crypto.subtle.generateKey(
