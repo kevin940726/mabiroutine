@@ -202,7 +202,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
       <CardHeader className="pb-2 px-3 sm:px-6">
         <button
           onClick={() => setCollapsed((v) => !v)}
-          className="flex w-full items-center justify-between gap-2 text-left rounded-md -mx-1 px-1 py-1 hover:bg-accent/50 transition-colors"
+          className="flex w-full items-center justify-between gap-2 text-left rounded-md -mx-1 px-1 py-1 hover:bg-accent"
         >
           <CardTitle className="flex items-center gap-2 text-base m-0">
             {collapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
@@ -261,7 +261,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
           <div className="-mx-2 rounded-xl px-2 py-2 bg-emerald-500/10 dark:bg-emerald-400/[0.12]">
             <button
               onClick={() => setBarterExpanded((v) => !v)}
-              className="flex w-full items-center gap-2 px-[5px] py-2.5 text-left rounded-md hover:bg-accent/50 transition-colors"
+              className="flex w-full items-center gap-2 px-[5px] py-2.5 text-left rounded-md hover:bg-accent"
             >
               <span className="h-4 w-1 rounded-full shrink-0 bg-emerald-500" />
               <span className="text-base">🔄</span>
@@ -308,7 +308,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
           <div className="-mx-2 rounded-xl px-2 py-2 bg-zinc-500/10 dark:bg-zinc-400/10">
             <button
               onClick={() => setHiddenExpanded((v) => !v)}
-              className="flex w-full items-center gap-2 px-[5px] py-2.5 text-left rounded-md hover:bg-accent/50 transition-colors"
+              className="flex w-full items-center gap-2 px-[5px] py-2.5 text-left rounded-md hover:bg-accent"
             >
               <span className="h-4 w-1 rounded-full shrink-0 bg-muted-foreground/50" />
               <span className="text-base">🙈</span>

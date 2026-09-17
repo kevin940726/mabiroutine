@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- Row hover no longer flashes under Chrome Auto Dark Mode for Web Contents: hover wash is solid instead of translucent with no background fade, the floating hide button is solid with no blur or fade, and the page declares its light/dark `color-scheme`; the hide button is also a guaranteed square again
+
 ## 2026-09-18 — 可見性分流與 JJ
 
 ### Features

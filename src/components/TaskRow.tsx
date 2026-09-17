@@ -395,8 +395,11 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       data-task-row="true"
       data-task-id={task.id}
       className={cn(
-        "rounded-lg border bg-card p-3 transition-colors relative",
-        isDone ? "bg-muted/50 border-muted" : "hover:bg-accent/50",
+        // No background transition: Chrome's "Auto Dark Mode for Web Contents"
+        // re-darkens every painted frame, so an animated translucent hover
+        // strobes. Solid hover without transition is stable there.
+        "rounded-lg border bg-card p-3 relative",
+        isDone ? "bg-muted/50 border-muted" : "hover:bg-accent",
         isHidden ? "opacity-50" : ""
       )}
      >
@@ -580,9 +583,12 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       data-task-row="true"
       data-task-id={task.id}
       className={cn(
-        // compact: progress lives inside the action tile, so no reserved bar height
-        "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors min-h-[88px] pr-14",
-        isDone ? "bg-muted/50 border-muted" : "bg-card hover:bg-accent/50",
+        // compact: progress lives inside the action tile, so no reserved bar height.
+        // No background transition + solid hover + solid floating eye button:
+        // Chrome forced-dark repaints translucent/blurred/animating layers per
+        // frame and flashes on hover otherwise.
+        "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 min-h-[88px] pr-14",
+        isDone ? "bg-muted/50 border-muted" : "bg-card hover:bg-accent",
         isHidden ? "opacity-50" : ""
       )}
      >
@@ -691,9 +697,9 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           />
         </div>
       ) : (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border bg-card/95 backdrop-blur shadow-sm p-0.5 opacity-20 pointer-events-auto group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => toggleHidden(task.id)} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
-            {isHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+        <div className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border bg-card shadow-sm opacity-20 pointer-events-auto group-hover:opacity-100 group-focus-within:opacity-100">
+          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={() => toggleHidden(task.id)} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
+            {isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </Button>
         </div>
       )}
