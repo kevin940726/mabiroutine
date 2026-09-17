@@ -113,6 +113,29 @@ leg. Stored in localStorage, device-local, cleared once passed.
 - Con: manual per device; user must remember to enter it; wrong entries
   skew predictions until cleared (mitigate: one-tap clear + auto-expiry).
 
+## Gotcha: extensions don't propagate (found 2026-09-17)
+
+Bahamut reposts are **snapshots**: when maintenance overruns, only the
+official post is edited — the Bahamut copy stays stale. Concrete case: 9/16
+was announced 06:00–08:30 but actually ended 09:00; the repost still reads
+08:30. A poll of this endpoint therefore yields *scheduled* windows, and any
+leg overlapping one predicts **earliest-possible**, up to the extension
+error (here 30 min early).
+
+Mitigations, in order of reliability:
+
+1. **Reply bumps as extension signal.** The poll sorts by `mtime` (latest
+   activity), so a maintenance thread bumped by "延長到9:00" replies
+   resurfaces on re-poll — the human confirmer checks the newest replies,
+   not just the first post. Cheap, uses the existing endpoint.
+2. **Earliest-possible semantics.** Any prediction whose leg overlaps a
+   window is a lower bound; if this ever surfaces in UI copy, say so
+   (or更晚-style), never a false-precise time.
+3. **In-app entry (D) and recalibrate (phase 3A)** as the backstops: the
+   person watching the extension happen corrects it on the spot.
+4. The official detail page remains the only source of actuals — still
+   behind the session wall (see Established facts). No change there.
+
 ## Decision (recommended, revised with the verified doors)
 
 Phase 2 = **Wednesday rule + Bahamut keyword poll (human-confirmed) + D**.
