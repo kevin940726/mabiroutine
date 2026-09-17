@@ -52,6 +52,13 @@ verifying in-game. Surfaces `預測更新於 MM/DD` in the popover footer.
 
 ### C. Crowd reports (user-submitted observations)
 
+Precedent found 2026-09-17: Bahamut players already publish purple-hole
+times in thread titles (e.g. 通報下場紫洞時間9/16（三) 下午14:08 on the
+board list, which is statically fetchable — see phase-2 doc door #1). A
+phase-3 feed could start as *parsing existing community reports* rather than
+building submission infra — verification caveat (thread titles are claims,
+not measurements) applies, but the crowd already exists.
+
 Users submit observed spawn times; a backend reconciles (median of recent
 reports) and publishes the anchor. Natural home would be the existing
 Turso-backed sync infra (new table + API routes).

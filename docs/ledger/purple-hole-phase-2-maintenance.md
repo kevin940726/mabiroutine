@@ -18,6 +18,35 @@ phase 2 is only about **feeding the window list**.
   inert; prune by convention, don't build storage for them).
 - Server push (orthogonal; phase 1's local timer consumes the same list).
 
+## Verified alternate doors (2026-09-17, probed live)
+
+The official API wall stands — but it turns out we never needed that door:
+
+1. **Bahamut board list is statically fetchable.** `forum.gamer.com.tw/B.php?bsn=32564`
+   (瑪奇Mobile 哈啦板) returns full thread titles + categories + timestamps to
+   a bare server-side GET — no cookies, no JS, no stealth. A dumb keyword poll
+   (維修/維護/更新日誌/臨時) works from anywhere, including a Vercel Hobby
+   daily cron (daily is plenty: routine maintenance is announced day-before).
+   Thread pages (`C.php`) render statically too, for when the times live in
+   the first post rather than the title. Posture: public fan forum, facts
+   only — consistent with the repo's existing source rules.
+2. **GNN news pages are fully readable.** `gnn.gamer.com.tw/detail.php?sn=…`
+   returns complete article text server-side (verified). GNN covers TW
+   maintenance as news — second source, same dumb-fetch profile.
+3. **Routine maintenance is weekly Wednesday mornings** (8/5, 8/12, 8/19,
+   8/26 all 例行維護 on Wednesdays; PC-side precedent 07:00–12:00). A
+   hardcoded Wednesday rule covers ~90% of cases with zero fetching — the
+   poller only needs to catch deviations and emergencies.
+4. **Bonus (phase 3 relevant):** players already crowdsource purple-hole
+   times in thread titles — e.g. `【攻略】通往深淵的黑色坑洞的機制說明和攻略
+   (通報，下場紫洞時間9/16（三) 下午14:08)`. A future timetable feed could
+   parse these (with verification caveats) instead of building reporting
+   infra from zero.
+5. **Official Discord exists** (announcement channel seen referenced in board
+   threads) — not directly fetchable (login-walled), but its announcements
+   get reposted to Bahamut within the community, so door #1 covers it
+   indirectly.
+
 ## Established facts (2026-09-17)
 
 - Official TW board: `https://tw.nexon.com/mabinogimobile/home/news/notice`,
@@ -80,13 +109,19 @@ leg. Stored in localStorage, device-local, cleared once passed.
 - Con: manual per device; user must remember to enter it; wrong entries
   skew predictions until cleared (mitigate: one-tap clear + auto-expiry).
 
-## Decision (recommended)
+## Decision (recommended, revised with the verified doors)
 
-Phase 2 = **A + D**. A covers routine maintenance with the cheapest possible
-mechanism; D covers emergencies with the only mechanism fast enough. B and C
-stay parked until routine maintenance becomes a felt burden (it is weekly at
-most — measure before automating). If C's API hunt succeeds later, it feeds
-B, and A downgrades to fallback-only.
+Phase 2 = **Wednesday rule + Bahamut keyword poll (human-confirmed) + D**.
+Concretely: hardcode the Wednesday-morning window as the default (covers the
+routine case with zero moving parts); a private-local script fetches the
+Bahamut board list (door #1, GNN as backup) and prints candidate
+maintenance threads; the maintainer eyeballs the times and updates the feed
+(or a code entry) — minutes per week. D still covers same-day emergencies
+the poll can't reach in time. The official-API scraper (C) is dropped, not
+parked: the board list gives the same information with none of the session
+machinery. Full automation (unattended poll → feed with no human) stays out
+until the weekly eyeball becomes a felt burden — and even then, the failure
+design must keep "fetch failed" distinguishable from "no maintenance".
 
 ## Technical touch points (A + D)
 
