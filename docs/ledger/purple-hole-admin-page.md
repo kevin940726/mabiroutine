@@ -26,6 +26,9 @@ datetime inputs cover everything else (emergency entries, anchor fixes).
   Validates (numbers, `start < end`, sorted, dropping spent entries is the
   caller's choice, not enforced), writes KV verified doc with
   `updatedAt: now, updatedBy: "admin"`. 400 on garbage.
+- Inputs are **native `<input type="datetime-local">` only** — the browser's
+  built-in picker, zero dependencies, no calendar library. Simple was the
+  requirement; this is the simplest thing that qualifies.
 - `POST /admin/api/promote` — bearer authed. Copies `purple:candidates` →
   verified doc (stamped admin). The one-tap path.
 - `GET /purple-schedule` — public. Resolved doc + CORS `*`,
