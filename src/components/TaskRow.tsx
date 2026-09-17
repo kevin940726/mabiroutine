@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { useGrabCounter } from "@/hooks/useGrabCounter";
 import type { Task } from "@/lib/types";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
 import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
+import { isDesktop, isServerPushMode, reconcileServerPush, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
 import { PURPLE_HOLE_ID, isPurpleHoleEnabled, purpleBadge, type PurpleBadge } from "@/lib/purpleHole";
 import { SchedulePopover } from "@/components/SchedulePopover";
 
@@ -53,28 +54,50 @@ export function TaskRow(props: Props) {
 
 /**
  * Event reminder toggle. Permission is requested from this tap — the only
- * user gesture browsers accept — and the subscription stays local-only
- * (never synced, never sent anywhere). Lane selects the subscription list:
- * hourly (:00 fire) or purple (15-min-early fire). The permission machinery
- * is identical; only the store slice and the soft-ask copy differ.
+ * user gesture browsers accept. The purple lane and the unflagged hourly
+ * lane stay local-only (never synced, never sent anywhere); the hourly lane
+ * on flagged desktop subscribes server-side instead (endpoint + keys in
+ * Turso, bell state in a device map) and never touches the store list, so
+ * the two backends can't double-card. The permission machinery is identical
+ * across all three; only the subscribe end differs.
  */
 export type ReminderLane = "hourly" | "purple";
 
 const PURPLE_SOFT_ASK =
   "出沒前 15 分鐘提醒一次，App 沒開就不會響。時間是預測值，僅供參考。設定只留在這台裝置，隨時點鈴鐺就能取消。按下訂閱後，瀏覽器會再確認一次（Chrome 的提示在左上角），請選允許。";
 
+// Mobile + flag: the server path is desktop-only in Phase 1, so the soft-ask
+// says so — the local timer it falls back to behaves exactly as before.
+const HOURLY_MOBILE_NOTE = "（桌機測試中：手機目前仍用本機提醒，行為不變。）";
+
 function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane) {
   const hourlyOn = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
   const purpleOn = useAppStore((s) => (s.purpleHoleReminders ?? []).includes(taskId));
   const toggleHourly = useAppStore((s) => s.toggleHourlyReminder);
   const togglePurple = useAppStore((s) => s.togglePurpleReminder);
-  const on = lane === "purple" ? purpleOn : hourlyOn;
+  // Server mode owns the hourly lane (flagged desktop): bell state reads the
+  // device endpoint map, never the store list — the two must never stack (D6).
+  const serverMode = lane === "hourly" && isServerPushMode(lane);
+  // The endpoint map is localStorage, not reactive — bump to re-render it.
+  const [, bump] = useReducer((x: number) => x + 1, 0);
+  const on = serverMode ? serverPushOn(taskId) : lane === "purple" ? purpleOn : hourlyOn;
   const toggle = lane === "purple" ? togglePurple : toggleHourly;
   const [coach, setCoach] = useState<CoachMarkKind | null>(null);
   const waiterRef = useRef<AbortController | null>(null);
   // Row unmount (filter/hide/reorder) mid-wait must not leave the 120s poll
   // + permission listener running until timeout.
   useEffect(() => () => waiterRef.current?.abort(), []);
+  // Server-mode mount reconciliation: heal any local entry (it would
+  // double-card under the shared tag) and drop map claims whose live
+  // subscription is gone (the fanout couldn't reach them anyway).
+  useEffect(() => {
+    if (!serverMode) return;
+    const s = useAppStore.getState();
+    if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+    void reconcileServerPush(taskId).then((changed) => {
+      if (changed) bump();
+    });
+  }, [serverMode, taskId]);
   // Idempotent: the permission watcher and the direct path can both land.
   const subscribe = () => {
     const s = useAppStore.getState();
@@ -82,6 +105,21 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
       if (!(s.purpleHoleReminders ?? []).includes(taskId)) s.togglePurpleReminder(taskId);
     } else {
       if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+    }
+  };
+  // Server subscribe end: device sub + registry POST (rolls back on POST
+  // failure), then heal + re-render. Alerts stay plain-worded like the rest
+  // of this flow; failures leave the bell off, never half-subscribed.
+  const finalizeServerSubscribe = async (): Promise<void> => {
+    const r = await subscribeServerPush(taskId);
+    if (r === "ok") {
+      const s = useAppStore.getState();
+      if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+      bump();
+    } else if (r === "need-sw") {
+      alert("推播訂閱需要正式站的 Service Worker：在正式站開 ?push=1 後再點鈴鐺。");
+    } else {
+      alert("訂閱失敗，請再試一次。");
     }
   };
   // Dismissing the coach mark means "leave me alone": stop the watcher so
@@ -98,7 +136,10 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
     const waiter = new AbortController();
     waiterRef.current = waiter;
     const watch = waitForReminderGrant(120_000, waiter.signal).then((granted) => {
-      if (granted) subscribe();
+      if (granted) {
+        if (serverMode) void finalizeServerSubscribe();
+        else subscribe();
+      }
       return granted;
     });
     return { waiter, watch };
@@ -111,7 +152,8 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   const guideReenable = async (waiter: AbortController, watch: Promise<boolean>) => {
     await confirmReenableReminder();
     if (reminderPermission() === "granted") {
-      subscribe();
+      if (serverMode) await finalizeServerSubscribe();
+      else subscribe();
       waiter.abort();
       return;
     }
@@ -121,6 +163,11 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   };
   const onToggle = async () => {
     if (on) {
+      if (serverMode) {
+        await unsubscribeServerPush(taskId);
+        bump();
+        return;
+      }
       toggle(taskId);
       return;
     }
@@ -131,6 +178,10 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
     }
     if (perm === "granted") {
       // Already allowed: one tap subscribes, no dialogs at all.
+      if (serverMode) {
+        await finalizeServerSubscribe();
+        return;
+      }
       subscribe();
       return;
     }
@@ -145,7 +196,9 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
     }
     // Soft-ask before the browser prompt: cold prompts get reflex-denied.
     // The dialog tap keeps the user gesture alive for requestPermission.
-    if (!(await confirmSubscribeReminder(taskName, lane === "purple" ? PURPLE_SOFT_ASK : undefined))) {
+    const softAsk =
+      lane === "purple" ? PURPLE_SOFT_ASK : isPushEnabled() && !isDesktop() ? HOURLY_MOBILE_NOTE : undefined;
+    if (!(await confirmSubscribeReminder(taskName, softAsk))) {
       waiter.abort();
       await watch;
       return;
@@ -156,7 +209,8 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
     const p = await requestReminderPermission();
     setCoach(null);
     if (p === "granted") {
-      subscribe();
+      if (serverMode) await finalizeServerSubscribe();
+      else subscribe();
       waiter.abort();
     } else if (p === "denied") {
       await guideReenable(waiter, watch);
