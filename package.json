@@ -14,7 +14,8 @@
     "check": "pnpm lint && pnpm test:shops && pnpm test:migrations && pnpm test:sync && pnpm build",
     "test:sync": "node scripts/check-sync.mjs",
     "gen-splash": "node scripts/gen-splash.cjs",
-    "test:shops": "node scripts/check-shops.mjs"
+    "test:shops": "node scripts/check-shops.mjs",
+    "worker:deploy": "wrangler deploy --config workers/mabiroutine-worker/wrangler.jsonc"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -53,6 +54,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "wrangler": "^4.132.0"
   }
 }
