@@ -53,25 +53,13 @@ export function setServerPushOn(taskId: string, endpoint: string | null): void {
 }
 
 /**
- * Desktop gate (Phase 1, temporary scaffolding — not a security boundary,
- * just matrix honesty per D7). userAgentData when present, UA tokens
- * otherwise; unknown UAs read as desktop (the gate only ever closes the
- * mobile path, never the desktop one).
+ * Server mode owns exactly one lane: hourly, flagged. The whole path is
+ * opt-in (experimental flag → bell tap with linkage disclosure → OS
+ * permission), so no UA gate — desktop proved it first (Phase 1), iOS PWA
+ * and Android join the matrix on the same flow (Phases 2–3).
  */
-export function isDesktop(): boolean {
-  if (typeof navigator === "undefined") return false;
-  try {
-    const ud = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
-    if (typeof ud?.mobile === "boolean") return !ud.mobile;
-    return !/Mobi|Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  } catch {
-    return true;
-  }
-}
-
-/** Server mode owns exactly one lane: hourly, flagged, desktop. */
 export function isServerPushMode(lane: "hourly" | "purple"): boolean {
-  return lane === "hourly" && isPushEnabled() && isDesktop();
+  return lane === "hourly" && isPushEnabled();
 }
 
 export function detectPlatform(): string {

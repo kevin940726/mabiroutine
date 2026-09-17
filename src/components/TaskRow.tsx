@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
 import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
-import { isDesktop, isServerPushMode, reconcileServerPush, refreshServerRoster, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
+import { isServerPushMode, reconcileServerPush, refreshServerRoster, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
 import { PURPLE_HOLE_ID, isPurpleHoleEnabled, purpleBadge, type PurpleBadge } from "@/lib/purpleHole";
 import { SchedulePopover } from "@/components/SchedulePopover";
 
@@ -66,10 +66,6 @@ export type ReminderLane = "hourly" | "purple";
 const PURPLE_SOFT_ASK =
   "出沒前 15 分鐘提醒一次，App 沒開就不會響。時間是預測值，僅供參考。設定只留在這台裝置，隨時點鈴鐺就能取消。按下訂閱後，瀏覽器會再確認一次（Chrome 的提示在左上角），請選允許。";
 
-// Mobile + flag: the server path is desktop-only in Phase 1, so the soft-ask
-// says so — the local timer it falls back to behaves exactly as before.
-const HOURLY_MOBILE_NOTE = "（桌機測試中：手機目前仍用本機提醒，行為不變。）";
-
 // Server-mode soft-ask: App-closed delivery + the linkage disclosure (the
 // opt-in moment for D1a — tapping 訂閱 after reading this is the consent)
 // + deletion assurance. Replaces the default copy, whose "App 沒開就不會響"
@@ -82,7 +78,7 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   const purpleOn = useAppStore((s) => (s.purpleHoleReminders ?? []).includes(taskId));
   const toggleHourly = useAppStore((s) => s.toggleHourlyReminder);
   const togglePurple = useAppStore((s) => s.togglePurpleReminder);
-  // Server mode owns the hourly lane (flagged desktop): bell state reads the
+  // Server mode owns the hourly lane (flagged): bell state reads the
   // device endpoint map, never the store list — the two must never stack (D6).
   const serverMode = lane === "hourly" && isServerPushMode(lane);
   // The endpoint map is localStorage, not reactive — bump to re-render it.
@@ -212,9 +208,7 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
         ? PURPLE_SOFT_ASK
         : serverMode
           ? SERVER_SOFT_ASK
-          : isPushEnabled() && !isDesktop()
-            ? HOURLY_MOBILE_NOTE
-            : undefined;
+          : undefined;
     if (!(await confirmSubscribeReminder(taskName, softAsk))) {
       waiter.abort();
       await watch;
