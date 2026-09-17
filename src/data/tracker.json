@@ -70,6 +70,18 @@
     "order": 60
   },
   {
+    "id": "purple-hole",
+    "name": "深淵的黑色坑洞",
+    "icon": "🟣",
+    "desc": "約 36 小時 15 分出現一次。女神庭園、冰霜峽谷、雲海曠野各生成一個。時間為預測值，維護期間計時暫停，實際以遊戲內為準。",
+    "section": "daily",
+    "kind": "daily",
+    "type": "counter",
+    "max": 3,
+    "source": "builtin",
+    "order": 55
+  },
+  {
     "id": "black-hole",
     "name": "黑色坑洞",
     "icon": "🕳️",

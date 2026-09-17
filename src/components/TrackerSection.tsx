@@ -8,6 +8,7 @@ import type { Task } from "@/lib/types";
 import { summarizeProgress } from "@/lib/progress";
 import { useAppStore, barterToTask, canonicalBarterOrder } from "@/store/useAppStore";
 import { confirmClearSection } from "@/components/ConfirmDialog";
+import { PURPLE_HOLE_ID, isScheduledToday, nextBadgeLabel } from "@/lib/purpleHole";
 import barterJson from "@/data/barter.json";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -98,16 +99,27 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     );
   }, [cycleBarter, char, hiddenAccountTaskIds]);
 
+  // purple-hole on an off-day parks itself here (render-only auto-hide:
+  // no store write, so manual hide state is untouched and the row returns
+  // on its own next spawn day). Manual unhide can't pull it back early —
+  // the baseTasks filter below wins until isScheduledToday flips.
+  const purpleOffDay = useMemo(
+    () => tasks.some((t) => t.id === PURPLE_HOLE_ID) && !isScheduledToday(),
+    [tasks]
+  );
+  // Next spawn for the off-day note (stable per render; refreshes on reload).
+  const purpleNext = useMemo(() => (purpleOffDay ? nextBadgeLabel() : null), [purpleOffDay]);
+
   const hiddenTasks = useMemo(() => {
     if (!char) return [] as Task[];
-    let list = tasks.filter((t) => isHiddenFor(t));
+    let list = tasks.filter((t) => isHiddenFor(t) || (purpleOffDay && t.id === PURPLE_HOLE_ID));
     list.sort((a, b) => {
       const oa = globalOrder?.[a.id] ?? a.order;
       const ob = globalOrder?.[b.id] ?? b.order;
       return oa - ob;
     });
     return list;
-  }, [tasks, char, globalOrder, isHiddenFor]);
+  }, [tasks, char, globalOrder, isHiddenFor, purpleOffDay]);
 
   const hiddenAll = useMemo(() => [...hiddenTasks, ...hiddenBarter], [hiddenTasks, hiddenBarter]);
 
@@ -125,8 +137,10 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     if (char) {
       list = list.filter((t) => !isHiddenFor(t));
     }
+    // off-day purple-hole parks in the hidden bucket (stays out of progress)
+    if (purpleOffDay) list = list.filter((t) => t.id !== PURPLE_HOLE_ID);
     return list;
-  }, [tasks, globalOrder, char, isHiddenFor]);
+  }, [tasks, globalOrder, char, isHiddenFor, purpleOffDay]);
 
   // render list: baseTasks + the hideCompleted visual filter (no progress impact)
   const allTasks = useMemo(() => {
@@ -311,6 +325,9 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
               <div className="space-y-2">
                 {hiddenTasks.map((t) => (
                   <div key={t.id} className="opacity-60">
+                    {purpleOffDay && t.id === PURPLE_HOLE_ID && !isHiddenFor(t) && (
+                      <p className="text-[11px] text-muted-foreground mb-1 px-1">非出沒日{purpleNext ? ` — 下次${purpleNext}` : ""}，出沒時會自動移回上方</p>
+                    )}
                     <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} />
                   </div>
                 ))}
