@@ -73,11 +73,12 @@ if (typeof window !== 'undefined') {
   w2.__mabiPurpleFire = async () => {
     const r = getUndonePurpleReminder();
     if (!r) return 'shown (nothing due)';
+    const spawn = nextOccurrence(Date.now());
     const res = await fireHourlyReminder({
       names: r.names,
-      eventLabel: formatTaipei(nextOccurrence(Date.now())),
-      titleTask: r.taskName,
+      eventLabel: formatTaipei(spawn),
       title: `${r.taskName}即將出現`,
+      body: `預計 ${formatTaipei(spawn)} 出沒`,
       tag: PURPLE_TAG,
       taskId: PURPLE_HOLE_ID,
       charIds: r.charIds,

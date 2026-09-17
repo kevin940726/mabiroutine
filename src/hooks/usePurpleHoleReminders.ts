@@ -77,12 +77,13 @@ export function usePurpleHoleReminders(enabled: boolean) {
         const r = getUndonePurpleReminder();
         if (r && Notification.permission === "granted") {
           await fireHourlyReminder({
+            // Names still gate the fire (all-done → silence) and feed the
+            // tap deep-link, but never render: the card carries the
+            // predicted time instead (copy TBD — this is the placeholder).
             names: r.names,
             eventLabel: formatTaipei(spawn),
-            // titleTask keeps the 隻 unit for character names; title
-            // overrides the text (出現了 would lie 15 min early).
-            titleTask: r.taskName,
             title: `${r.taskName}即將出現`,
+            body: `預計 ${formatTaipei(spawn)} 出沒`,
             tag: PURPLE_TAG,
             taskId: PURPLE_HOLE_ID,
             charIds: r.charIds,

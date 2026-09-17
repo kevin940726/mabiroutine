@@ -225,6 +225,8 @@ export type ReminderFire = {
   title?: string;
   /** Collapse key override (default HOURLY_TAG — separate lanes need tags). */
   tag?: string;
+  /** Full body override (default: capped name list — lanes that must not leak names pass their own). */
+  body?: string;
   /** Deep-link payload: task row id + undone character ids for tap-through. */
   taskId?: string;
   charIds?: string[];
@@ -262,7 +264,7 @@ export async function fireHourlyReminder(f: ReminderFire): Promise<HourlyFireRes
   // renotify/vibrate predate the TS DOM lib: typed locally, passed through
   // to showNotification which honors them at runtime.
   const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
-    body: `${shown}${more}`,
+    body: f.body ?? `${shown}${more}`,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: f.tag ?? HOURLY_TAG,
