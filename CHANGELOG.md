@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- Push planning: iOS PWA opt-in will need an in-app toggle (`?push=1` can't be entered in the installed app); Vercel Flags evaluated and rejected for this (Next.js/SvelteKit rollout tooling, doesn't solve PWA entry)
+
 ## 2026-09-17 — 通知點按與具名推播
 
 ### Chores
