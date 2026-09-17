@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "mabiroutine-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  // UTC == Taipei minute (+8 fixed, no DST). Hourly barrier tick, flat
+  // 15-min purple check (arithmetic covers the 36h15m cycle), 2x/day watcher.
+  // Cron edits take up to ~15 min to propagate (CF-documented).
+  "triggers": { "crons": ["0 * * * *", "*/15 * * * *", "17 3,15 * * *"] },
+  "kv_namespaces": [{ "binding": "PURPLE", "id": "2c35b0732c9a4ebd8d3088824fdc9401" }]
+}

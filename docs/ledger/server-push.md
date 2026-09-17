@@ -12,6 +12,9 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 - Pending user verdicts: (A) worker-side fanout spike before building Vercel fanout; (C) GH Actions backup promoted to Phase 1.5 after primary proves itself.
 - 2026-09-18: worker named `mabiroutine-worker` (general, extensible; `-cron`/`-push` both go stale as routes grow).
 - Next: spike A verdict → lock fanout location → scaffold `workers/push-cron`.
+- 2026-09-18: wrangler committed as devDependency (`50842aa`); KV `PURPLE` created; `workers/mabiroutine-worker` scaffolded (fetch health + `POST /spike-send` bearer-guarded + scheduled stub) and deployed to `https://mabiroutine-worker.kaihao.workers.dev` with all 3 crons (`cc69ed1c`); verified `/` → ok, blind `/spike-send` → 401. Secrets in worker env only (never in repo): `VAPID_JWK`, `VAPID_SUBJECT`, `SPIKE_SECRET` (spike bearer, held locally, dies with the route).
+- VAPID public key (client-side, safe to record): `BGaqwzh6mEVJXgQiaiYoejpOwhuaGThQl2uf1mIrGkPnzp7J9mv_j51jawf1PZPknuOVnezz6qNHLV2iojNuE2Y`. Private never leaves worker env.
+- Spike A pending one user action: paste a real test subscription (snippet in the next log entry) → fire `/spike-send` → confirm the card.
 
 ## 0. What you need (checklist)
 
