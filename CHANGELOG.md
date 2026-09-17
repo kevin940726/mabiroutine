@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-17 — 推播地基與紫洞追蹤
+
 ### Chores
 - Server-push planning branch (`feat/server-push`): `docs/ledger/server-push.md` combines the Cloudflare setup checklist + step-by-step guide, six-alternative review, build order, and dated work log in one file; worker named `mabiroutine-worker`; wrangler added as a devDependency (+ `workerd` build approval, `.wrangler/` ignored); `workers/mabiroutine-worker` scaffolded and deployed (health + bearer-guarded `/spike-send` + scheduled stub, 3 crons live, KV `PURPLE` bound, VAPID/secrets in worker env only); spike A lands **FCM 201**, adopting full-worker fanout (Vercel fanout route dropped) — record-size fix (RS 4000, FCM caps bodies under 4096); Brave joins the desktop test matrix with its push-messaging toggle note; `sw-push.js` gains a `push` display listener (server cards reuse the local-card contract: collapse tag, re-buzz, auto-dismiss, tap deep-link), reviews the recorded plan against alternatives (recommends a worker-side fanout spike, keeping Turso subs, adding a GH Actions backup trigger after primary proves itself, keeping Web Push/KV-dashboard decisions), and orders the build (spike → worker scaffold → Vercel routes → purple feed/watcher/admin)
 

@@ -6,18 +6,18 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 
 ## Log
 
-- 2026-09-18: plan + ledger combined into this one file (`docs/server-push-plan.md` deleted) — they overlapped almost entirely.
-- 2026-09-18: wrote the setup guide + six-alternative review (see §§0–3 below).
-- 2026-09-18: branch cut from `main` (post purple-hole merge); account probed — zero Workers, greenfield.
+- 2026-09-17: plan + ledger combined into this one file (`docs/server-push-plan.md` deleted) — they overlapped almost entirely.
+- 2026-09-17: wrote the setup guide + six-alternative review (see §§0–3 below).
+- 2026-09-17: branch cut from `main` (post purple-hole merge); account probed — zero Workers, greenfield.
 - Pending user verdicts: (A) worker-side fanout spike before building Vercel fanout; (C) GH Actions backup promoted to Phase 1.5 after primary proves itself.
-- 2026-09-18: worker named `mabiroutine-worker` (general, extensible; `-cron`/`-push` both go stale as routes grow).
+- 2026-09-17: worker named `mabiroutine-worker` (general, extensible; `-cron`/`-push` both go stale as routes grow).
 - Next: spike A verdict → lock fanout location → scaffold `workers/push-cron`.
-- 2026-09-18: wrangler committed as devDependency (`50842aa`); KV `PURPLE` created; `workers/mabiroutine-worker` scaffolded (fetch health + `POST /spike-send` bearer-guarded + scheduled stub) and deployed to `https://mabiroutine-worker.kaihao.workers.dev` with all 3 crons (`cc69ed1c`); verified `/` → ok, blind `/spike-send` → 401. Secrets in worker env only (never in repo): `VAPID_JWK`, `VAPID_SUBJECT`, `SPIKE_SECRET` (spike bearer, held locally, dies with the route).
+- 2026-09-17: wrangler committed as devDependency (`50842aa`); KV `PURPLE` created; `workers/mabiroutine-worker` scaffolded (fetch health + `POST /spike-send` bearer-guarded + scheduled stub) and deployed to `https://mabiroutine-worker.kaihao.workers.dev` with all 3 crons (`cc69ed1c`); verified `/` → ok, blind `/spike-send` → 401. Secrets in worker env only (never in repo): `VAPID_JWK`, `VAPID_SUBJECT`, `SPIKE_SECRET` (spike bearer, held locally, dies with the route).
 - VAPID public key (client-side, safe to record): `BGaqwzh6mEVJXgQiaiYoejpOwhuaGThQl2uf1mIrGkPnzp7J9mv_j51jawf1PZPknuOVnezz6qNHLV2iojNuE2Y`. Private never leaves worker env.
 - Spike A pending one user action: paste a real test subscription (snippet in the next log entry) → fire `/spike-send` → confirm the card.
-- 2026-09-18: Brave diagnosed — `gcm-internals` showed GCM enabled but no connection; `brave://settings/privacy` → "Use Google services for push messaging" ON + restart fixed it. Brave joins the Phase-1 desktop matrix as primary (daily browser); matrix + onboarding note recorded in `docs/push-notifications.md` §3c/§7.
-- 2026-09-18: spike A first fire failed — FCM 400, body 4182 > 4096 (86-byte header + 4096 record). Fixed RS 4096 → 4000 in `src/index.ts`. Second fire (after a self-inflicted mangled-key 500, resent with the exact subscription) → **FCM 201**. Verdict A: **ADOPT full-worker fanout** — VAPID + aes128gcm in WebCrypto proven against the real push service; the Vercel fanout route never gets built. Display caveat: prod SW has no `push` listener yet (only `notificationclick`), so this card renders as the browser's generic fallback until the Phase-1 client adds `showNotification` to `sw-push.js`.
-- 2026-09-18: `push` listener added to `public/sw-push.js` (payload `{title, body, tag, url?, task?, chars?}` → `showNotification` with the Phase-0 contract: collapse tag, `renotify: true`, auto-dismiss, data passthrough for the existing deep-link click handler). Branch-only until merge + prod push updates the SW on-device.
+- 2026-09-17: Brave diagnosed — `gcm-internals` showed GCM enabled but no connection; `brave://settings/privacy` → "Use Google services for push messaging" ON + restart fixed it. Brave joins the Phase-1 desktop matrix as primary (daily browser); matrix + onboarding note recorded in `docs/push-notifications.md` §3c/§7.
+- 2026-09-17: spike A first fire failed — FCM 400, body 4182 > 4096 (86-byte header + 4096 record). Fixed RS 4096 → 4000 in `src/index.ts`. Second fire (after a self-inflicted mangled-key 500, resent with the exact subscription) → **FCM 201**. Verdict A: **ADOPT full-worker fanout** — VAPID + aes128gcm in WebCrypto proven against the real push service; the Vercel fanout route never gets built. Display caveat: prod SW has no `push` listener yet (only `notificationclick`), so this card renders as the browser's generic fallback until the Phase-1 client adds `showNotification` to `sw-push.js`.
+- 2026-09-17: `push` listener added to `public/sw-push.js` (payload `{title, body, tag, url?, task?, chars?}` → `showNotification` with the Phase-0 contract: collapse tag, `renotify: true`, auto-dismiss, data passthrough for the existing deep-link click handler). Branch-only until merge + prod push updates the SW on-device.
 
 ## 0. What you need (checklist)
 
@@ -26,7 +26,7 @@ Cloudflare side (all free tier, $0):
 - [ ] Cloudflare account (email signup, no card for free plan).
 - [ ] A `*.workers.dev` subdomain (claimed at first deploy; our only public surface besides API routes — no custom domain needed).
 - [ ] `wrangler` (CLI; `pnpm add -D wrangler`, or npx — repo has no wrangler yet).
-- [ ] One Worker: `mabiroutine-worker` (decided 2026-09-18 — `-cron` would lie once it serves `/purple-schedule` + `/admin`; bare `mabiroutine` collides with the app itself) — cron + `/purple-schedule` + `/admin` + watcher, all in one worker per the combined architecture.
+- [ ] One Worker: `mabiroutine-worker` (decided 2026-09-17 — `-cron` would lie once it serves `/purple-schedule` + `/admin`; bare `mabiroutine` collides with the app itself) — cron + `/purple-schedule` + `/admin` + watcher, all in one worker per the combined architecture.
 - [ ] One KV namespace: `PURPLE` (keys `purple:schedule`, `purple:candidates`). Day-one editing happens in the dashboard, no code.
 - [ ] Three secrets, set via `wrangler secret put` (never committed, never in Vercel):
   `CRON_SECRET` (worker→Vercel bearer), `ADMIN_SECRET` (admin page bearer), VAPID private key only if fanout moves into the worker (alt A below decides this).

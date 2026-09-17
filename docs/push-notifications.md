@@ -71,7 +71,7 @@ shared; only the store slice and copy differ. Card names no one: title
 ### 3c. Browser matrix (2026)
 
 - Desktop Chrome/Edge: full push, SW click handling works.
-- Desktop Brave (user's daily browser, in-matrix from 2026-09-18): Chromium + FCM, identical to Chrome — but requires `brave://settings/privacy` → "Use Google services for push messaging" ON. Verified: with it off GCM never connects (`gcm-internals` shows INITIALIZED, no connection) and `subscribe()` throws `AbortError: push service error`; enabling + browser restart fixed it.
+- Desktop Brave (user's daily browser, in-matrix from 2026-09-17): Chromium + FCM, identical to Chrome — but requires `brave://settings/privacy` → "Use Google services for push messaging" ON. Verified: with it off GCM never connects (`gcm-internals` shows INITIALIZED, no connection) and `subscribe()` throws `AbortError: push service error`; enabling + browser restart fixed it.
 - Desktop Firefox/Safari: push works; tap-through fine.
 - Android Chrome/Edge/Samsung: works; battery-saver may delay while the
   browser is inactive (system setting, not fixable).
