@@ -207,4 +207,23 @@ export function useReminderDeepLink(enabled: boolean) {
     // flasher retries on its own if the row isn't there yet.
     requestAnimationFrame(() => window.setTimeout(() => resolveReminderDeepLink(task, chars), 80));
   }, [enabled]);
+  // Second tap channel (see sw-push.js): an already-open window that only
+  // gets focused never sees URL params, so the worker posts the tap straight
+  // to the page. Same resolver, no URL to strip.
+  useEffect(() => {
+    if (!enabled || typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    const onMsg = (event: MessageEvent) => {
+      const d = (event.data ?? {}) as { type?: unknown; task?: unknown; chars?: unknown };
+      if (d.type !== "mabi-reminder-tap" || typeof d.task !== "string" || !d.task) return;
+      const chars = Array.isArray(d.chars)
+        ? d.chars.filter((x): x is string => typeof x === "string")
+        : String(d.chars ?? "")
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean);
+      resolveReminderDeepLink(d.task, chars);
+    };
+    navigator.serviceWorker.addEventListener("message", onMsg);
+    return () => navigator.serviceWorker.removeEventListener("message", onMsg);
+  }, [enabled]);
 }
