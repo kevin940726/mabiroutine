@@ -4,6 +4,10 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- Reminder routing by visibility: with the app open the local lane fires (live done-state) and the server card stands down; with it hidden or closed the server delivers — no more double buzz, and subscribing no longer deletes the local entry (unsubscribing clears both)
+- Server generic card drops the `02:30` start time (MM:SS past the hour, misread as 2:30 AM); unlinked body is now `JJ！` (結界 initials)
+
 ## 2026-09-17 — 測試路由退役
 
 ### Chores

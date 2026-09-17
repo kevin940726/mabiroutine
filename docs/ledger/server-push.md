@@ -47,6 +47,8 @@ Conventions: log oldest-first (append at the end), one line per fact, no commit 
 
 - 2026-09-17: spike routes deleted from code (`/spike-send` + `/fanout-test` + `/db-test`, `bearerOk`, `SPIKE_SECRET` env field — fetch is health + scheduled only). NOT yet live: worker redeploy + `SPIKE_SECRET` env delete pending the next push. Push track closes then.
 
+- 2026-09-17: visibility split replaces the D6 heal — both lanes stay armed, visible → local fires (SW suppresses on positive `visibilityState === "visible"`), hidden → local skips (page guards on positive `"hidden"`), server delivers; unsubscribe now disarms both. D6 rewritten, WebKit `visibilityState` recorded unverified (safe fallback both sides: missing API degrades to tag-collapse doubles, never silence). Found while building: flag-off leaves the server sub live (tracked §8, fix parked). Generic body drops the MM:SS (`02:30` read as 2:30 AM); unlinked copy decided as `JJ！` (結界 initials, in-joke).
+
 ## 0. What you need (checklist)
 
 Cloudflare side (all free tier, $0):

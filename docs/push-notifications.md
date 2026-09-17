@@ -155,10 +155,17 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   `push_subscriptions` table next to sync sessions (same region, same driver,
   `@libsql/client` already vendored). No second database. Schema sketch:
   `endpoint PK, p256dh, auth, platform, created_at, last_sent_at`.
-- **D6 — Local and push are separate modes, never stacked (2026-09-16).**
+- **D6 — Visibility split, not mode split (2026-09-16, revised 2026-09-17).**
   Both cards share one tag with `renotify: true` — running both would
-  double-banner every hour. The feature flag (§6) selects exactly one backend
-  per bell.
+  double-banner every hour. Originally the flag selected exactly one backend
+  per bell (server-mode healed the local entry on sight); revised: both
+  lanes stay armed and visibility decides — page visible → local fires with
+  live done-state while the SW suppresses the server card; hidden/closed →
+  local skips, server delivers. Exclusivity without deleting user state.
+  Suppress/skip only on positive visibility (`=== "visible"` /
+  `=== "hidden"`); missing API degrades to today's double-absorbed-by-tag,
+  never to silence. Known sliver: a visibility transition landing exactly
+  on the fire second can skip both — accepted, documented in the ledger.
 - **D7 — Phase 1 is desktop only (2026-09-16).** Bounds the test matrix
   (below) while the infra proves itself. Mobile follows with zero server
   changes (Phases 2–3 are client gates + device testing).
@@ -187,7 +194,7 @@ Behavior matrix:
 | Flag | Platform | Bell does |
 |---|---|---|
 | off (default) | any | No bell, no scheduler (zero surface) |
-| on | desktop | Server push subscribe (VAPID); no local entry (D6) |
+| on | desktop | Server push subscribe (VAPID); local entry kept, visibility decides who fires (D6) |
 | on | mobile (from 2026-09-17) | Server push subscribe (VAPID), same flow; iOS requires the installed PWA (16.4+), tap-through best-effort |
 
 Purple has its own gate with identical mechanics; the bell,
@@ -254,6 +261,11 @@ GH Actions backup trigger, eligibility-list expansion, fanout batching past
 ## 8. Open risks (not questions — tracked, decided or deferred)
 
 - **Night noise — decided 2026-09-17: no in-app scheduler, OS-level guidance at release.** Gaming schedules differ (night owls need night alerts), so quiet hours would be wrong per-user over-engineering. Verified: iOS installed PWA gets its own Notifications entry + Focus support (WebKit blog), Android has per-site toggles (Chrome site settings + OS app channels), installed PWAs are exempt from Chrome's 2025 notification auto-revoke. User-facing copy (per-PWA/Focus/Scheduled-Summary paths) lands in the READMEs only at official release — still experimental, not yet.
+- **Flag-off leaves the server sub live** (found 2026-09-17 during the
+  visibility split): turning the experiment flag off hides the bell but never
+  unsubscribes — cards keep arriving (suppressed when visible, delivered when
+  closed). Fix direction: unsubscribe on flag-off; parked until the next
+  bell-touching change since every current tester keeps the flag on.
 - **CRON_SECRET leak/rotation**: env-only, rotate by redeploy; fanout 401s
   loudly (Vercel logs) rather than failing open.
 - **Hobby fair-use**: personal-use project, traffic trivial — no action.

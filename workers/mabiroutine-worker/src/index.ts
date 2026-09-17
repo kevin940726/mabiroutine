@@ -458,11 +458,10 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
     return { skipped: true, reason: "no-subs", subs: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
   }
   // Generic copy for unlinked subs (D1): the server knows no done-state, so
-  // the start time (derived from EVENT_SEC_PAST_HOUR, same source as the
-  // local lane) is the actionable half.
-  const mm = String(Math.floor(EVENT_SEC_PAST_HOUR / 60)).padStart(2, "0");
-  const ss = String(EVENT_SEC_PAST_HOUR % 60).padStart(2, "0");
-  const genericBody = `結界開場了，${mm}:${ss} 開始。`;
+  // the body names nothing. `JJ！` = 結界 initials, in-group shorthand —
+  // and deliberately no clock time (the old MM:SS "02:30" read as 2:30 AM,
+  // seen 2026-09-17).
+  const genericBody = `JJ！`;
   const jwtCache = new Map<string, string>();
   let named = 0;
   let generic = 0;
