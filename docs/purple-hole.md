@@ -6,6 +6,7 @@ Flag: `?purple_hole=1` persists `mabiroutine:purple-hole-flag`. Prod default: ze
 ## Schedule (hand-owned, phase 1)
 
 - Cycle 36h15m, timer pauses during maintenance (math in place, window list empty).
+- Spawns: one each in 女神庭園, 冰霜峽谷, 雲海曠野 (row desc, per user 2026-09-17).
 - Anchor (observed in-game): 2026-09-16 14:08 Taipei → predicts 2026-09-18 02:23.
 - Correct drift by moving `PURPLE_ANCHOR_MS` in `src/lib/purpleHole.ts` + commit.
 

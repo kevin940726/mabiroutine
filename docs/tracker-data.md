@@ -25,7 +25,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | deep-dungeon | 深層地下城 | counter | 2 | 消耗魔族貢品進入（Lv55+）。貢品每 12 小時 +1、上限 10——別讓它積滿停止恢復。 | nipponhashi; bobogameguides 深淵指南 |
 | parttime | 兼職 | check | - | 18:00 刷新 1 個 | nipponhashi; bobogameguides 已確認 週一06:00重置 + 每日18:00 |
 | tower | 亡靈之塔 | counter | 20 | 每日 20 次挑戰機會（06:00 重置） | nipponhashi — flipped check→counter back 2026-09-05 now that grab-adjust exists; store v10→v11 carries checked `true` as 20 |
-| purple-hole | 深淵的黑色坑洞 | counter | 3 | 約 36 小時 15 分出現一次（出沒日限定顯示）。每日每角色 3 次，06:00 重置。時間為預測值，維護期間計時暫停，實際以遊戲內為準。 | **hand-added 2026-09-17, behind `?purple_hole=1`**: anchor 2026-09-16 14:08 Taipei (`src/lib/purpleHole.ts`); render-only off-day parking, no store change |
+| purple-hole | 深淵的黑色坑洞 | counter | 3 | 約 36 小時 15 分出現一次。女神庭園、冰霜峽谷、雲海曠野各生成一個。時間為預測值，維護期間計時暫停，實際以遊戲內為準。 | **hand-added 2026-09-17, behind `?purple_hole=1`**: anchor 2026-09-16 14:08 Taipei (`src/lib/purpleHole.ts`); render-only off-day parking, no store change |
 
 ### 🗓️ 每週 (Mon 06:00)
 | id | name | type | max | desc (TW-only) | cross-ref |
