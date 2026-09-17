@@ -188,18 +188,20 @@ Behavior matrix:
 |---|---|---|
 | off (default) | any | No bell, no scheduler (zero surface) |
 | on | desktop | Server push subscribe (VAPID); no local entry (D6) |
-| on | mobile (Phase 1) | Local timer + "桌機測試中" note (push path closed until Phases 2–3) |
+| on | mobile (from 2026-09-17) | Server push subscribe (VAPID), same flow; iOS requires the installed PWA (16.4+), tap-through best-effort |
 
 Purple has its own gate with identical mechanics; the bell,
 scheduler, row, and timetable all hide when off. The two flags compose
 independently (either lane testable alone).
 
-Desktop gate (Phase 1, temporary): non-mobile UA heuristics, documented as
-scaffolding to remove in Phase 2 — not a security boundary, just matrix
-honesty. Rejected alternatives: env/build flag (redeploy per tester, no
-prod A/B), remote config (no infra for it). The settings-screen toggle —
-rejected in D7 as premature — is now THE gate (it ships with the dialog,
-post-proof). iOS PWA entry needs it too (no query params there, ever).
+Desktop gate (Phase 1 scaffolding): non-mobile UA heuristics — REMOVED
+2026-09-17. The whole path is opt-in (experimental flag → bell tap with
+linkage disclosure → OS permission), so the UA gate added no consent, only
+matrix delay; the user holds a real iPhone, the scarcest test device.
+Rejected alternatives: env/build flag (redeploy per tester, no prod A/B),
+remote config (no infra for it). The settings-screen toggle — rejected in
+D7 as premature — is now THE gate (it ships with the dialog, post-proof).
+iOS PWA entry needs it too (no query params there, ever).
 Store note: push subscriptions per task imply a new persisted field (likely
 store v19) with the usual migrate + fixture discipline from AGENTS.md.
 
@@ -221,8 +223,9 @@ Done except review. Gate: existing `pnpm check` + ?task=?chars= tap tests.
 5. `workers/mabiroutine-worker` (same repo, wrangler, `0 * * * *` + purple
    + watcher crons) deployed from CI (versioned deploys; never
    dashboard-edit per CF's own warning).
-6. Client: flag gate (§6) + desktop gate + subscribe/unsubscribe wiring that
+6. Client: flag gate (§6) + subscribe/unsubscribe wiring that
    preserves the §3e gesture chain; bell copy unchanged until proven.
+   (Desktop UA gate removed 2026-09-17 — mobile joins the same flow.)
 7. Copy: README privacy bullets (EN + zh_TW) revised per §3d; CHANGELOG.
 8. Test matrix: desktop Brave/Win (primary — daily browser), Chrome/Win, Edge/Win, Chrome/macOS — subscribe →
    wait for :00 (or trigger fanout manually with the secret) → card →
@@ -232,14 +235,16 @@ Done except review. Gate: existing `pnpm check` + ?task=?chars= tap tests.
   dead sub pruned on next run. Gate: manual matrix above (no harness yet).
 
 ### Phase 2 — Android push
-Server untouched. Remove/adjust the desktop gate, test Chrome Android
-(including a battery-saver-delayed case so the copy expectation is honest),
-keep local timer as the unsupported-browser fallback.
+Server untouched (desktop gate already removed 2026-09-17). Test Chrome
+Android (including a battery-saver-delayed case so the copy expectation is
+honest), keep local timer as the unsupported-browser fallback.
 
 ### Phase 3 — iOS PWA push
 Server untouched. Add-to-Home-Screen onboarding copy, permission from an
 in-app gesture inside the installed app, tap-through accepted best-effort
 (§3c). Test on a real iPhone 16.4+ — simulator proves nothing here.
+Early test opened 2026-09-17 (gate lifted, user subscribed from the
+installed PWA); still proving card + tap-through.
 
 ### Phase 4 — Optional hardening (only on evidence)
 Done-state filtering (session linkage + consent copy per §3d), quiet hours,

@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- Server push opens to mobile: the desktop-only UA gate is removed (the path stays triple opt-in — experimental flag → bell tap with linkage disclosure → OS permission — so the gate added no consent, only delay). iPhone PWA can now subscribe from the bell; server already accepts `ios`/`android` rows and the fanout sends to every hourly row with no platform filter
+
 ### Chores
 - Server-push Phase-1 gate: 18:00 named card confirmed (3 undone names in body, D1a linkage proven) — 2 of 3 consecutive :00s; tap-through still untested
 

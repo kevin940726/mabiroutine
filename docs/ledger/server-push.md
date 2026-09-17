@@ -33,6 +33,8 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 
 - 2026-09-17: 18:00 named proof CONFIRMED — server card body carried the 3 undone chars' names, full with no truncation (5-char roster, 2 done). D1a linkage proven end-to-end: subscribe snapshot → live session read → resolveNamedCard → named body on device. Phase-1 gate: 2 of 3 consecutive :00s; tap-through still untested.
 
+- 2026-09-17: desktop UA gate lifted (`isServerPushMode` drops `isDesktop`; `HOURLY_MOBILE_NOTE` + dead branch removed). User approved early open — path is triple opt-in so the gate added no consent. iPhone PWA re-taps the bell → real `ios` row → next :00 proves closed-app card on iOS. Server needed zero changes (ios/android already allowlisted, fanout has no platform filter).
+
 ## 0. What you need (checklist)
 
 Cloudflare side (all free tier, $0):
