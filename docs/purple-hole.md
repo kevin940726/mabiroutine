@@ -13,8 +13,14 @@ Flag: `?purple_hole=1` persists `mabiroutine:purple-hole-flag`. Prod default: ze
 ## Phases (from the original brief, 2026-09-17)
 
 - **Phase 1 (this branch):** local page-timer notification on desktop (same architecture as the barrier MVP), 36h15m hardcoded cycle, maintenance ignored (not predictable), `purple_hole` flag, daily tracker row (max 3/char, spawn-day only), timetable popover, anchor updates via commits.
-- **Phase 2 (future):** maintenance-aware predictions — explore fetching maintenance info from the official TW announcements and feeding it into `MAINTENANCE_WINDOWS`, so a 06:00–08:00 maintenance shifts the prediction (e.g. 02:23 → 04:23) automatically.
-- **Phase 3 (future):** timetable updates without commits — mechanism TBD (user has no fixed idea yet; candidates: recalibrate button, published JSON feed, crowd reporting).
+- **Phase 2 (future):** maintenance-aware predictions — see
+  `docs/ledger/purple-hole-phase-2-maintenance.md` (recommended: hand-entered
+  windows + in-app emergency entry; scraper/feed parked until the burden
+  justifies it).
+- **Phase 3 (future):** timetable updates without commits — see
+  `docs/ledger/purple-hole-phase-3-timetable-updates.md` (recommended:
+  recalibrate button first, published feed if burden justifies, crowd
+  reports only on evidence).
 
 ## Decisions
 
@@ -43,6 +49,7 @@ Flag: `?purple_hole=1` persists `mabiroutine:purple-hole-flag`. Prod default: ze
 - [ ] User test: subscribe persists across reload; forced fire (`__mabiPurpleFire`); real fire 09/18 02:08; tap deep-link + flash
 - [x] Card body copy decided + tested end-to-end
 - [ ] Record purple lane in `docs/push-notifications.md` (still barrier-only)
+- [x] Phase 2 + 3 planned in depth (`docs/ledger/`)
 - [ ] Final `pnpm check`, then push/merge on user approval
 
 ## Open questions
