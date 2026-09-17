@@ -48,7 +48,7 @@ Flag: `?purple_hole=1` persists `mabiroutine:purple-hole-flag`. Prod default: ze
 
 - [ ] User test: subscribe persists across reload; forced fire (`__mabiPurpleFire`); real fire 09/18 02:08; tap deep-link + flash
 - [x] Card body copy decided + tested end-to-end
-- [ ] Record purple lane in `docs/push-notifications.md` (still barrier-only)
+- [x] Purple lane recorded in `docs/push-notifications.md` (§2 lane note, D8, flag composition)
 - [x] Phase 2 + 3 planned in depth (`docs/ledger/`)
 - [ ] Final `pnpm check`, then push/merge on user approval
 

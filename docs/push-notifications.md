@@ -27,6 +27,17 @@ address-bar chip, site settings) auto-completes with no reload, re-tap, or
 re-confirm. Subscriptions never leave the device (store v18, absent from the
 sync key space). Proven limitation: closed tab = no timer.
 
+A second local lane covers 深淵的黑色坑洞 (`purple-hole`, behind its own
+`?purple_hole=1` flag, full spec in `docs/purple-hole.md` + `docs/ledger/`):
+separate subscription list (store v19 `purpleHoleReminders`, same local-only
+rule), separate card tag (`mabi-purple`, never collapses with hourly cards),
+15-minute lead before each predicted 36h15m spawn, catch-up allowed, and —
+unlike the hourly lane — no silence cutoff (the card stays truthful until
+the spawn passes; the hole persists, so there is no startle boundary).
+Permission machinery (soft-ask, coach mark, watcher, denied dialog) is
+shared; only the store slice and copy differ. Card names no one: title
+`深淵的黑色坑洞即將出現`, body names the three zones with live minutes.
+
 ## 3. Hard constraints
 
 ### 3a. Timing — the useful window is 2 minutes
@@ -131,6 +142,15 @@ risk for zero gain. The Worker is a dumb scheduler (10 lines).
 - **D7 — Phase 1 is desktop only (2026-09-16).** Bounds the test matrix
   (below) while the infra proves itself. Mobile follows with zero server
   changes (Phases 2–3 are client gates + device testing).
+- **D8 — One lane per cadence (2026-09-18).** Hourly and purple subscriptions
+  live in separate store lists with separate card tags because their timing,
+  copy, and cutoff rules differ; sharing a list would couple unrelated
+  behavior. The permission flow stays shared (one implementation, lane
+  parameter). Server-side, both lanes ride one worker tick (flat 15-min cron
+  + arithmetic covers the irregular purple spawns — no irregular crons), and
+  the worker imports `src/lib/purpleHole.ts` directly: one math module, two
+  runtimes. The purple maintenance watcher, `/purple-schedule` feed, and
+  `/admin` page live in the same worker; see `docs/ledger/` for their specs.
 
 ## 6. Feature flag (Phase 1 gate)
 
@@ -145,6 +165,11 @@ Behavior matrix:
 | off (default) | any | Local timer (status quo, zero behavior change) |
 | on | desktop | Server push subscribe (VAPID); no local entry (D6) |
 | on | mobile (Phase 1) | Local timer + "桌機測試中" note (push path closed until Phases 2–3) |
+
+Purple has its own gate with identical mechanics: `?purple_hole=1` persists
+`mabiroutine:purple-hole-flag`, `?purple_hole=0` clears it; the bell,
+scheduler, row, and timetable all hide when off. The two flags compose
+independently (either lane testable alone).
 
 Desktop gate (Phase 1, temporary): non-mobile UA heuristics, documented as
 scaffolding to remove in Phase 2 — not a security boundary, just matrix
