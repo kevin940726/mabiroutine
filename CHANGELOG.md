@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- Night-noise decision recorded (no in-app scheduler; OS-level per-app guidance deferred to release): `docs/push-notifications.md` §8
+
 ## 2026-09-17 — 推播點按修正
 
 ### Fixes

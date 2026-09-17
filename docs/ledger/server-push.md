@@ -39,6 +39,8 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 
 - 2026-09-17: tap "focus but no flash" root-caused — worker nested deep-link fields under `data`, SW contract reads them top-level (`sw-push.js:3`), so `notification.data` carried all-undefined on every server card: no params, message dropped, focus only. Fixed worker-side (flattened, contract comment added); SW untouched. Retest at 20:00 fire. Note: `/fanout-test` can't prove this off-hour (the staleness guard inside `runBarrierFanout` clean-misses past :02), so the :00 fire is the test.
 
+- 2026-09-17: night-noise decided — no in-app quiet-hours scheduler (per-user gaming schedules; night owls need night alerts). OS-level per-app control verified (iOS PWA own entry + Focus, Android per-site, PWA auto-revoke exempt); user-facing copy deferred to official release, not README yet. Recorded in `docs/push-notifications.md` §8.
+
 ## 0. What you need (checklist)
 
 Cloudflare side (all free tier, $0):

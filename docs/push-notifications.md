@@ -253,6 +253,7 @@ GH Actions backup trigger, eligibility-list expansion, fanout batching past
 
 ## 8. Open risks (not questions — tracked, decided or deferred)
 
+- **Night noise — decided 2026-09-17: no in-app scheduler, OS-level guidance at release.** Gaming schedules differ (night owls need night alerts), so quiet hours would be wrong per-user over-engineering. Verified: iOS installed PWA gets its own Notifications entry + Focus support (WebKit blog), Android has per-site toggles (Chrome site settings + OS app channels), installed PWAs are exempt from Chrome's 2025 notification auto-revoke. User-facing copy (per-PWA/Focus/Scheduled-Summary paths) lands in the READMEs only at official release — still experimental, not yet.
 - **CRON_SECRET leak/rotation**: env-only, rotate by redeploy; fanout 401s
   loudly (Vercel logs) rather than failing open.
 - **Hobby fair-use**: personal-use project, traffic trivial — no action.
