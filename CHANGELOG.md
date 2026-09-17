@@ -5,7 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Chores
-- Server-push spike closed end-to-end: real card rendered on Brave from a worker-fired test push (crypto → FCM → device → display proven; `/spike-send` stays until the real fanout replaces it)
+- Server-push spike closed end-to-end: real card rendered on Brave from a worker-fired test push (crypto → FCM → device → display proven; `/spike-send` stays until the real fanout replaces it); continued on `feat/push-fanout` (old branch merged + deleted)
 
 ## 2026-09-17 — 推播地基與紫洞追蹤
 

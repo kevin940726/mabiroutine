@@ -1,6 +1,6 @@
 # Server push + purple phase 2 — plan & work ledger
 
-Branch: `feat/server-push` (unmerged, unpushed). Status: planning, unstarted code.
+Branch: `feat/push-fanout` (cut 2026-09-17 from main post-release; `feat/server-push` merged + deleted). Status: real fanout build, unstarted.
 Companion docs: `docs/push-notifications.md` (why), `docs/purple-hole.md` + `docs/ledger/` (purple phases).
 Conventions: log newest-first, one line per fact, no commit hashes (history gets rewritten).
 
@@ -18,6 +18,7 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 - 2026-09-17: Brave diagnosed — `gcm-internals` showed GCM enabled but no connection; `brave://settings/privacy` → "Use Google services for push messaging" ON + restart fixed it. Brave joins the Phase-1 desktop matrix as primary (daily browser); matrix + onboarding note recorded in `docs/push-notifications.md` §3c/§7.
 - 2026-09-17: spike A first fire failed — FCM 400, body 4182 > 4096 (86-byte header + 4096 record). Fixed RS 4096 → 4000 in `src/index.ts`. Second fire (after a self-inflicted mangled-key 500, resent with the exact subscription) → **FCM 201**. Verdict A: **ADOPT full-worker fanout** — VAPID + aes128gcm in WebCrypto proven against the real push service; the Vercel fanout route never gets built. Display caveat: prod SW has no `push` listener yet (only `notificationclick`), so this card renders as the browser's generic fallback until the Phase-1 client adds `showNotification` to `sw-push.js`.
 - 2026-09-17: `push` listener added to `public/sw-push.js` (payload `{title, body, tag, url?, task?, chars?}` → `showNotification` with the Phase-0 contract: collapse tag, `renotify: true`, auto-dismiss, data passthrough for the existing deep-link click handler). Branch-only until merge + prod push updates the SW on-device.
+- 2026-09-17: new branch `feat/push-fanout` for the real fanout (Turso subs + subscribe API + client wiring + scheduled-tick fanout, then delete `/spike-send`). Old branch merged + deleted.
 - 2026-09-17: **real card confirmed on Brave** — post-deploy SW reload + `/spike-send` re-fire rendered `測試通知 — mabiroutine-worker` with body text. Full loop proven: worker crypto → FCM 201 → device → rendered card. Spike A closed; `/spike-send` stays until the real fanout replaces it. Also confirmed to user: regular users receive nothing (flag-gated local lanes, no server fanout, no stored subscriptions, inert SW listener).
 
 ## 0. What you need (checklist)
