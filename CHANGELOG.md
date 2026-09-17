@@ -4,8 +4,13 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-17 — 推播點按修正
+
+### Fixes
+- Server-card tap now deep-links: the worker nested `url`/`task`/`chars` under `data`, but the SW contract reads them top-level — so every server tap focused the window without flashing the row. Payload flattened to match; retest at 20:00
+
 ### Chores
-- Server-push proof complete: 19:00 card arrived on iPhone PWA + desktop in the same fire (3 of 3 consecutive :00s); tap-through test still open, then fanout merges and spike routes die
+- Server-push proof complete: 19:00 card arrived on iPhone PWA (closed app) + desktop in the same fire with names on both (3 of 3 consecutive :00s); tap-through retest at 20:00, then fanout merges and spike routes die
 
 ## 2026-09-17 — 手機推播開門
 
