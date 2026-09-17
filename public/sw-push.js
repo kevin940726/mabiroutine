@@ -27,7 +27,23 @@ self.addEventListener("push", (event) => {
     badge: "/icon-192.png",
     data: { url: payload.url, task: payload.task, chars: payload.chars },
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      // Visibility split (with the page-side guard in fireHourlyReminder):
+      // a visible client means the local lane fires with live done-state,
+      // so the server card stands down — no double buzz, fresher body.
+      // Suppress ONLY on a positive "visible" (missing property → show):
+      // delivery is guaranteed, dedup is opportunistic. Background/closed
+      // clients still get the card.
+      try {
+        const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        if (all.some((c) => c.visibilityState === "visible")) return;
+      } catch {
+        // matchAll failed: show rather than risk silence.
+      }
+      await self.registration.showNotification(title, options);
+    })()
+  );
 });
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

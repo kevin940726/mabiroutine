@@ -79,7 +79,9 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   const toggleHourly = useAppStore((s) => s.toggleHourlyReminder);
   const togglePurple = useAppStore((s) => s.togglePurpleReminder);
   // Server mode owns the hourly lane (flagged): bell state reads the
-  // device endpoint map, never the store list — the two must never stack (D6).
+  // device endpoint map. Both lanes stay armed — visibility decides who
+  // fires (visible → local with live done-state, hidden → server), so the
+  // two never stack without deleting anything (replaces the D6 heal).
   const serverMode = lane === "hourly" && isServerPushMode(lane);
   // The endpoint map is localStorage, not reactive — bump to re-render it.
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -90,13 +92,11 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   // Row unmount (filter/hide/reorder) mid-wait must not leave the 120s poll
   // + permission listener running until timeout.
   useEffect(() => () => waiterRef.current?.abort(), []);
-  // Server-mode mount reconciliation: heal any local entry (it would
-  // double-card under the shared tag) and drop map claims whose live
-  // subscription is gone (the fanout couldn't reach them anyway).
+  // Server-mode mount reconciliation: drop map claims whose live
+  // subscription is gone (the fanout couldn't reach them anyway). Local
+  // entries are KEPT — visibility split, not deletion, prevents doubles.
   useEffect(() => {
     if (!serverMode) return;
-    const s = useAppStore.getState();
-    if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
     void reconcileServerPush(taskId).then((changed) => {
       if (changed) bump();
       // Healthy claims refresh the roster snapshot (renames / new chars)
@@ -115,13 +115,15 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
     }
   };
   // Server subscribe end: device sub + registry POST (rolls back on POST
-  // failure), then heal + re-render. Alerts stay plain-worded like the rest
-  // of this flow; failures leave the bell off, never half-subscribed.
+  // failure), then arm the local lane too + re-render. Both lanes stay
+  // armed (visibility decides who fires); failures leave the bell off,
+  // never half-subscribed. Alerts stay plain-worded like the rest of
+  // this flow.
   const finalizeServerSubscribe = async (): Promise<void> => {
     const r = await subscribeServerPush(taskId);
     if (r === "ok") {
       const s = useAppStore.getState();
-      if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+      if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
       bump();
     } else if (r === "need-sw") {
       alert("推播訂閱需要正式站的 Service Worker：在正式站的實驗性功能開啟後再點鈴鐺。");
@@ -172,6 +174,10 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
     if (on) {
       if (serverMode) {
         await unsubscribeServerPush(taskId);
+        // Symmetric with subscribe: both lanes disarm, or the orphan local
+        // timer keeps firing after the bell goes off.
+        const s = useAppStore.getState();
+        if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
         bump();
         return;
       }

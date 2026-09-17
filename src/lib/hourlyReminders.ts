@@ -222,7 +222,7 @@ export function waitForReminderGrant(timeoutMs = 120_000, signal?: AbortSignal):
   });
 }
 
-export type HourlyFireResult = "shown" | "skipped-permission" | "skipped-unsupported" | "failed";
+export type HourlyFireResult = "shown" | "skipped-permission" | "skipped-unsupported" | "skipped-hidden" | "failed";
 
 export type ReminderFire = {
   names: string[];
@@ -256,6 +256,12 @@ export async function fireHourlyReminder(f: ReminderFire): Promise<HourlyFireRes
   if (names.length === 0) return "shown"; // nothing undone: silence is correct
   if (typeof window === "undefined" || !("Notification" in window)) return "skipped-unsupported";
   if (Notification.permission !== "granted") return "skipped-permission";
+  // Visibility split (with the SW-side suppression in sw-push.js): a hidden
+  // page stands down and lets the server card deliver — the local fire would
+  // double it (same tag) with a throttled-late timer. Skip ONLY on a
+  // positive "hidden" (missing API → fire): delivery guaranteed, dedup
+  // opportunistic. Callers treat non-"shown" as no-card (see scheduler).
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return "skipped-hidden";
   // Character names (per-char tasks) count 隻, task names count 項.
   const unit = titleTask ? "隻" : "項";
   const shown = names.slice(0, 3).join("、");
