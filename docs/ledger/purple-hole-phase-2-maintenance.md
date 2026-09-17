@@ -168,6 +168,17 @@ One worker, three jobs — the barrier push plan already pays the fixed costs
 (scaffold, wrangler deploys, `CRON_SECRET`, Turso subs, VAPID), so purple's
 marginal additions are small:
 
+## Cadence decision (locked 2026-09-17)
+
+15-min tick + 15-min lead, kept as-is. The hole despawns 13 min after
+spawn — that bounds *lateness* (alert must land before S+13), not the lead
+target, which stays prep-time + delivery margin. Lead lands in (L, L+I],
+so a tighter lead without a tighter tick is fiction (5/15 delivers 5–20
+min early while promising 5); and early is cheap while late is fatal
+(Doze/battery-saver eats minutes — L=15 tolerates 28 min of slip).
+Revisit only on evidence: bored waits → 10/5 (tick shrinks too);
+missed holes → loosen, never tighten.
+
 ```
 CF Worker (extends barrier's push-cron worker)
 ├── every 15 min: spawn check ──▶ spawn within 15 min? ──▶ purple fanout

@@ -6,6 +6,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ### Chores
 - Night-noise decision recorded (no in-app scheduler; OS-level per-app guidance deferred to release): `docs/push-notifications.md` §8
+- Purple cadence locked at 15-min tick + 15-min lead (despawn bounds lateness, not lead): phase-2 ledger
 
 ## 2026-09-17 — 推播點按修正
 
