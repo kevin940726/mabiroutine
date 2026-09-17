@@ -10,31 +10,49 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
 import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
 import { isServerPushMode, reconcileServerPush, refreshServerRoster, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
-import { PURPLE_HOLE_ID, isPurpleHoleEnabled, purpleBadge, type PurpleBadge } from "@/lib/purpleHole";
+import { PURPLE_HOLE_ID, formatTaipei, isPurpleHoleEnabled, purpleLive } from "@/lib/purpleHole";
+import { formatCountdown } from "@/lib/reset";
+import { useNow } from "@/hooks/useNow";
 import { SchedulePopover } from "@/components/SchedulePopover";
 
 /**
- * Purple-hole spawn times: plain text (no pill boxes), dimmed
- * struck-through 已過 for the bucket's (past) spawn, violet 下次 for
- * what's coming. Fresh spawns render one.
+ * Purple-hole spawn badges, live: a 1s ticker recomputes countdown text, so
+ * the row crosses spawn/fresh/stale boundaries with no refresh. Exact
+ * datetimes live in the calendar popover — the row answers "how long until".
  */
-function ScheduleBadges({ badge }: { badge: PurpleBadge }) {
+function ScheduleBadges() {
+  const now = useNow(1000);
+  const live = purpleLive(now);
+  if (!live) return null;
+  // Fresh spawn (within 15 min): the window is happening now.
+  if (live.kind === "live") {
+    return (
+      <span className="text-xs whitespace-nowrap shrink-0 font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+        進行中 {formatCountdown(live.endsMs - now)}
+      </span>
+    );
+  }
+  const next = (
+    <Tooltip content={formatTaipei(live.nextMs)}>
+      <span className="text-xs whitespace-nowrap shrink-0 font-medium tabular-nums text-violet-600 dark:text-violet-400">
+        下次 {formatCountdown(live.nextMs - now)}
+      </span>
+    </Tooltip>
+  );
+  if (live.kind === "upcoming") return next;
+  // Static timestamp: a ticking elapsed clock here felt noisy, and 上次
+  // pairs with 下次.
   return (
     <>
-      {badge.past && (
-        <span className="text-xs whitespace-nowrap shrink-0 text-muted-foreground line-through decoration-muted-foreground/50">
-          已過 {badge.past}
-        </span>
-      )}
-      {badge.next && (
-        <span className="text-xs whitespace-nowrap shrink-0 font-medium text-violet-600 dark:text-violet-400">
-          下次 {badge.next}
-        </span>
-      )}
+      <span className="text-xs whitespace-nowrap shrink-0 text-muted-foreground">
+        上次 {formatTaipei(live.pastMs)}
+      </span>
+      {next}
     </>
   );
 }
 import { PermissionCoachMark, type CoachMarkKind } from "@/components/PermissionCoachMark";
+import { Tooltip } from "@/components/ui/tooltip";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { dealTimes, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
@@ -298,9 +316,6 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   // its own experimental flag. Same gate shape, separate subscription list.
   const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
   const purpleReminderEligible = scheduleEligible;
-  // Spawn-day badges: the exact times this bucket is about (昨日 14:08 at
-  // 00:54 reads odd until you see it — that disambiguation is the point).
-  const schedule = scheduleEligible ? purpleBadge() : null;
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
   const [npcImgError, setNpcImgError] = useState(false);
@@ -355,7 +370,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
       </div>
       {scheduleEligible && (
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
-          {schedule && <ScheduleBadges badge={schedule} />}
+          <ScheduleBadges />
           <SchedulePopover taskName={task.name} />
         </div>
       )}
@@ -562,7 +577,6 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
   const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
   const purpleReminderEligible = scheduleEligible;
-  const schedule = scheduleEligible ? purpleBadge() : null;
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
@@ -648,7 +662,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         </div>
         {scheduleEligible && (
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
-            {schedule && <ScheduleBadges badge={schedule} />}
+            <ScheduleBadges />
             <SchedulePopover taskName={task.name} />
           </div>
         )}

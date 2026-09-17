@@ -206,6 +206,27 @@ export function purpleBadge(
   return { past: formatTaipei(t), next: formatTaipei(nextOccurrence(nowMs, windows)) };
 }
 
+/**
+ * Live badge state in ms (render sites derive countdown text from `nowMs`,
+ * so a ticking clock re-renders text without recomputing the timetable).
+ * Null off-days. Upcoming = spawn in the future, live = within
+ * SPAWN_FRESH_MS after the spawn, stale = older (past + next pair).
+ */
+export type PurpleLive =
+  | { kind: "upcoming"; nextMs: number }
+  | { kind: "live"; endsMs: number }
+  | { kind: "stale"; pastMs: number; nextMs: number };
+export function purpleLive(
+  nowMs: number = Date.now(),
+  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+): PurpleLive | null {
+  const t = bucketOccurrence(nowMs, windows);
+  if (t === null) return null;
+  if (t > nowMs) return { kind: "upcoming", nextMs: t };
+  if (t > nowMs - SPAWN_FRESH_MS) return { kind: "live", endsMs: t + SPAWN_FRESH_MS };
+  return { kind: "stale", pastMs: t, nextMs: nextOccurrence(nowMs, windows) };
+}
+
 /** "09-18 02:23"-style label for the next upcoming spawn (off-day note). */
 export function nextBadgeLabel(
   nowMs: number = Date.now(),

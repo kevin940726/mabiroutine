@@ -13,6 +13,7 @@ import barterJson from "@/data/barter.json";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { useNow } from "@/hooks/useNow";
 
 type Props = {
   title: string;
@@ -103,12 +104,15 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   // no store write, so manual hide state is untouched and the row returns
   // on its own next spawn day). Manual unhide can't pull it back early —
   // the baseTasks filter below wins until isScheduledToday flips.
+  // 30s ticker so off-day parking follows the 06:00 bucket rollover with
+  // no refresh (same staleness class as the row badges had).
+  const now = useNow(30_000);
   const purpleOffDay = useMemo(
-    () => tasks.some((t) => t.id === PURPLE_HOLE_ID) && !isScheduledToday(),
-    [tasks]
+    () => tasks.some((t) => t.id === PURPLE_HOLE_ID) && !isScheduledToday(now),
+    [tasks, now]
   );
-  // Next spawn for the off-day note (stable per render; refreshes on reload).
-  const purpleNext = useMemo(() => (purpleOffDay ? nextBadgeLabel() : null), [purpleOffDay]);
+  // Next spawn for the off-day note (absolute date; the row badges carry the countdowns).
+  const purpleNext = useMemo(() => (purpleOffDay ? nextBadgeLabel(now) : null), [purpleOffDay, now]);
 
   const hiddenTasks = useMemo(() => {
     if (!char) return [] as Task[];
