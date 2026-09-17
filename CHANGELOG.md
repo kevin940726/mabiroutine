@@ -4,8 +4,10 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-17 — 通知點按與具名推播
+
 ### Chores
-- Server-push spike closed end-to-end: real card rendered on Brave from a worker-fired test push (crypto → FCM → device → display proven; `/spike-send` stays until the real fanout replaces it)
+- Server-push spike closed end-to-end: real card rendered on Brave from a worker-fired test push (crypto → FCM → device → display proven; `/spike-send` stays until the real fanout replaces it); continued on `feat/push-fanout` (old branch merged + deleted); subscription storage + API live-verified (Turso migration v2 `push_subscriptions`, `POST/DELETE /api/push/subscribe` with upsert, idempotent delete, and shape validation; client server-mode bell (flagged desktop hourly: device sub + registry POST with rollback, endpoint-map bell state with dead-sub reconciliation, D6 local-entry heal; mobile + flag keeps the local timer with a 桌機測試中 note); worker hourly fanout (Turso read, `:02:00` staleness guard, concurrent sends, dead-endpoint prune; server card names the start time, not names; temporary `/fanout-test` hook; fanout fixes: tagged pipeline args, `"execute"` response type, quote-stripped token; 17:00 both lanes fired and told apart by body (names = local, `結界開場了` = first true server send — D6 stacking observed live, the client heal covers it); reminder tap-through fixed for already-open windows (SW postMessage second channel + page listener — the mount-only URL params were the silent killer); named server cards via opt-in session linkage (D1a: link + roster snapshot at subscribe with boot refresh, live done-state read at fire, local-identical names/silence, generic fallback))
 
 ## 2026-09-17 — 推播地基與紫洞追蹤
 

@@ -39,12 +39,27 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      // Two delivery channels: URL params cover fresh loads (navigate /
+      // openWindow reload the page, whose mount hook consumes them), and a
+      // posted message covers an already-open window that only gets focused
+      // — no params ever land there, so without this the tap silently does
+      // nothing (the usual desktop case: the site sits open in a tab).
+      const msg = { type: "mabi-reminder-tap", task: data.task || null, chars: data.chars || null };
+      const tell = (c) => {
+        try {
+          const r = c.postMessage(msg);
+          if (r && typeof r.catch === "function") r.catch(() => {});
+        } catch {
+          // older client without postMessage: params or nothing
+        }
+      };
+      for (const c of all) tell(c);
       for (const c of all) {
         if ("focus" in c) {
           try {
             if ("navigate" in c) await c.navigate(target);
           } catch {
-            // navigate unsupported or blocked: focusing the open app is enough
+            // navigate unsupported or blocked: focus + the message above
           }
           return c.focus();
         }

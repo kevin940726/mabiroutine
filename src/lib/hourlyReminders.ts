@@ -68,8 +68,11 @@ function taipeiHMS(ms: number): { hour: number; minute: number; second: number }
   return { hour: get("hour") % 24, minute: get("minute"), second: get("second") };
 }
 
-/** Seconds into the current Taipei hour (0–3599). */
-function secIntoHour(ms: number): number {
+/**
+ * Seconds into the current Taipei hour (0–3599). Exported for the worker
+ * fanout (one math module, two runtimes — the worker imports it directly).
+ */
+export function secIntoHour(ms: number): number {
   const { minute, second } = taipeiHMS(ms);
   return minute * 60 + second;
 }

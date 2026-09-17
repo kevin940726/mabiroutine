@@ -8,7 +8,24 @@
 // against the field budget. Nulls for non-cycle keys stay as tombstone rows.
 
 import { DatabaseSync } from "node:sqlite";
-import type { ApplyResult, Db, HashState, Probe, SessionImport } from "./types.js";
+import type { ApplyResult, Db, HashState, Probe, PushSubscription, RosterEntry, SessionImport } from "./types.js";
+
+function parseRoster(raw: string | null): RosterEntry[] | null {
+  if (raw == null) return null;
+  try {
+    const v = JSON.parse(raw) as unknown;
+    if (!Array.isArray(v)) return null;
+    const out: RosterEntry[] = [];
+    for (const e of v) {
+      if (e && typeof e === "object" && typeof (e as RosterEntry).cid === "string") {
+        out.push({ cid: (e as RosterEntry).cid, name: typeof (e as RosterEntry).name === "string" ? (e as RosterEntry).name : "" });
+      }
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
 import { MIGRATIONS, VERSION_TABLE } from "./schema.js";
 
 function ensureSchema(db: DatabaseSync): void {
@@ -185,6 +202,61 @@ class LocalDb implements Db {
       this.db.prepare("DELETE FROM kv WHERE session_id = ?").run(id);
       this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
     });
+  }
+
+  async upsertPushSub(sub: PushSubscription): Promise<void> {
+    this.db
+      .prepare(
+        `INSERT INTO push_subscriptions (endpoint, p256dh, auth, platform, lane, created_at, last_sent_at, link_session, roster_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(endpoint) DO UPDATE SET
+           p256dh = excluded.p256dh, auth = excluded.auth, platform = excluded.platform,
+           lane = excluded.lane, link_session = excluded.link_session, roster_json = excluded.roster_json`
+      )
+      .run(
+        sub.endpoint,
+        sub.p256dh,
+        sub.auth,
+        sub.platform,
+        sub.lane,
+        sub.createdAt,
+        sub.lastSentAt,
+        sub.linkSession,
+        sub.roster ? JSON.stringify(sub.roster) : null
+      );
+  }
+
+  async deletePushSub(endpoint: string): Promise<void> {
+    this.db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").run(endpoint);
+  }
+
+  async listPushSubs(lane: string): Promise<PushSubscription[]> {
+    const rows = this.db
+      .prepare(
+        "SELECT endpoint, p256dh, auth, platform, lane, created_at, last_sent_at, link_session, roster_json FROM push_subscriptions WHERE lane = ?"
+      )
+      .all(lane) as unknown as {
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+      platform: string;
+      lane: string;
+      created_at: number;
+      last_sent_at: number | null;
+      link_session: string | null;
+      roster_json: string | null;
+    }[];
+    return rows.map((r) => ({
+      endpoint: r.endpoint,
+      p256dh: r.p256dh,
+      auth: r.auth,
+      platform: r.platform,
+      lane: r.lane,
+      createdAt: r.created_at,
+      lastSentAt: r.last_sent_at,
+      linkSession: r.link_session,
+      roster: parseRoster(r.roster_json),
+    }));
   }
 
   async importSession(rec: SessionImport): Promise<void> {

@@ -102,15 +102,21 @@ flips. Any Phase 1 subscribe flow must preserve this ordering; never call
 
 ```
 CF Worker cron (0 * * * * UTC == Taipei :00)
-  → POST /api/push/fanout, Authorization: Bearer CRON_SECRET
-    → Vercel Node fn: staleness guard → read subs from Turso
-      → web-push send, batched allSettled @ concurrency 20–50,
-        VAPID JWT signed once per run, tag/data payload ported from Phase 0
+  → staleness guard (skip past :02:00 Taipei) → read subs from Turso
+    (raw /v2/pipeline over fetch) → WebCrypto send, concurrency 20,
+      VAPID JWT signed once per push origin per run
 ```
 
-Crypto lives in Node on purpose: the `web-push` VAPID + aes128gcm path
-needs Node crypto semantics — hand-rolling SubtleCrypto in the Worker is
-risk for zero gain. The Worker is a dumb scheduler (10 lines).
+Full-worker fanout (amendment A1, proven 2026-09-17 — spike A landed FCM
+201 against a real subscription, then a rendered card on Brave): WebCrypto
+covers ECDH + HKDF + AES-GCM + ES256, so the send is integration, not
+hand-rolled crypto. The Vercel fanout route was never built and the
+`CRON_SECRET` hop is deleted — one fewer network hop and cold start inside
+the 2-minute window. Vercel keeps only the subscribe door
+(`POST/DELETE /api/push/subscribe`); the worker reads the same Turso table
+straight. Server card copy differs from Phase 0 on purpose: no names (the
+server knows no done-state, D1) — title unchanged, body carries the start
+time derived from `EVENT_SEC_PAST_HOUR`.
 
 ## 5. Decisions
 
@@ -118,6 +124,19 @@ risk for zero gain. The Worker is a dumb scheduler (10 lines).
   The game pings everyone; our card reads fine done or not. Rejected: session
   linkage (2–3 extra days + joins endpoints to progress data, breaking §3d
   harder). Revisit only on real noise complaints (Phase 4).
+- **D1a — Names via opt-in session linkage (2026-09-17, user directive).**
+  D1's generic copy (`結界開場了，02:30 開始。`) was rejected as content-free:
+  the card names undone characters like the local one. How without breaking
+  §3d open: subscribe attaches the device's sync session id (only if the
+  device has one — knowledge = capability, same as sync links) plus a roster
+  snapshot (order + fallback names, refreshed on boot while subscribed);
+  the fanout reads that session's current-bucket barrier values live and
+  prints undone names, capped 3 + 等N隻 exactly like the local card.
+  All-done → silence (same as local); missing/expired session → generic
+  copy. Unlinking (sync off) or bell-off ends it; no new sync keys, no
+  session writes from the worker (read-only — it never deletes sessions).
+  Privacy delta (README bullets at ship): endpoints + linked session id +
+  roster snapshot server-side, done-state read live at fire time.
 - **D2 — Single-task scope (2026-09-16).** `HOURLY_ELIGIBLE_IDS = ["barrier"]`.
   Expansion is a one-line allowlist change, not a refactor.
 - **D3 — CF Worker cron over GitHub Actions (2026-09-16).** Actions' signature
@@ -186,16 +205,18 @@ store v19) with the usual migrate + fixture discipline from AGENTS.md.
 Done except review. Gate: existing `pnpm check` + ?task=?chars= tap tests.
 
 ### Phase 1 — Server push, desktop, flagged (next)
-1. VAPID pair: `npx web-push generate-vapid-keys`, private key to Vercel env
-   only (never committed); public key inlined client-side.
+1. VAPID pair: `npx web-push generate-vapid-keys`, private key (JWK) to the
+   worker env only (never committed); public key inlined client-side.
 2. Turso `push_subscriptions` table + migration (follow `api/_db` patterns).
 3. `POST /api/push/subscribe` (VAPID sub + platform; rate-limit like session
    POST), `DELETE` on bell-off; 404/410 prune inside fanout.
-4. `POST /api/push/fanout`: CRON_SECRET bearer check → staleness guard
-   (§4, skip past :02:00) → batched send, concurrency 20–50, JWT-per-run,
-   Phase-0 tag/data payload verbatim.
-5. `workers/push-cron` (same repo, wrangler, `0 * * * *`) deployed from CI
-   (versioned deploys; never dashboard-edit per CF's own warning).
+4. Worker hourly tick: staleness guard (§4, skip past :02:00) → Turso
+   read → concurrent send (20, JWT cached per origin) → 404/410 prune +
+   `last_sent_at` stamp, all in `workers/mabiroutine-worker` (imports
+   timing/tag from `src/lib/hourlyReminders.ts` — one module, two runtimes).
+5. `workers/mabiroutine-worker` (same repo, wrangler, `0 * * * *` + purple
+   + watcher crons) deployed from CI (versioned deploys; never
+   dashboard-edit per CF's own warning).
 6. Client: flag gate (§6) + desktop gate + subscribe/unsubscribe wiring that
    preserves the §3e gesture chain; bell copy unchanged until proven.
 7. Copy: README privacy bullets (EN + zh_TW) revised per §3d; CHANGELOG.
