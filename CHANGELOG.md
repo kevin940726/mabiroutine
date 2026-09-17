@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- Server-push proof complete: 19:00 card arrived on iPhone PWA + desktop in the same fire (3 of 3 consecutive :00s); tap-through test still open, then fanout merges and spike routes die
+
 ## 2026-09-17 — 手機推播開門
 
 ### Features

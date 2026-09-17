@@ -35,6 +35,8 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 
 - 2026-09-17: desktop UA gate lifted (`isServerPushMode` drops `isDesktop`; `HOURLY_MOBILE_NOTE` + dead branch removed). User approved early open — path is triple opt-in so the gate added no consent. iPhone PWA re-taps the bell → real `ios` row → next :00 proves closed-app card on iOS. Server needed zero changes (ios/android already allowlisted, fanout has no platform filter).
 
+- 2026-09-17: 19:00 iOS proof CONFIRMED — server card arrived on the installed iPhone PWA AND desktop in the same fire. Gate-lift → bell re-tap → real `ios` row → closed/open-app delivery, all in one hour. Phase-1 gate: 3 of 3 consecutive :00s (17:00 generic, 18:00 named, 19:00 cross-device). Remaining before fanout merge: tap-through test (either device), then delete `/spike-send` + `/fanout-test` + `/db-test` and `SPIKE_SECRET`.
+
 ## 0. What you need (checklist)
 
 Cloudflare side (all free tier, $0):
