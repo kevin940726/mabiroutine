@@ -565,14 +565,14 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
       characters: [{ id: "c1", name: "A", taskValues: { "purple-hole": 1 }, hiddenTaskIds: [] }],
       activeCharId: "c1",
       customTasks: [{ id: "custom1" }],
-      hourlyReminders: ["parttime"],
+      hourlyReminders: ["parttime", "gone-xyz"],
       purpleHoleReminders: ["purple-hole", "custom1", "gone-xyz"],
     },
     18
   ) as AnyRec;
   assert(out.version === 19, "S: reaches v19");
   assert(sameSet(out.purpleHoleReminders as string[], ["purple-hole", "custom1"]), "S: live + custom kept, dangling pruned");
-  assert(sameSet(out.hourlyReminders as string[], ["parttime"]), "S: hourly lane untouched");
+  assert(sameSet(out.hourlyReminders as string[], ["parttime"]), "S: hourly lane re-pruned");
   const sc = (out.characters as AnyRec[])[0] as AnyRec;
   assert((sc.taskValues as AnyRec)["purple-hole"] === 1, "S: progress values untouched");
 }

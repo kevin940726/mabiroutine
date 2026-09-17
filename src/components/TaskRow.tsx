@@ -282,9 +282,9 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
         {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
       </div>
-      {schedule && (
+      {scheduleEligible && (
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
-          <ScheduleBadges badge={schedule} />
+          {schedule && <ScheduleBadges badge={schedule} />}
           <SchedulePopover taskName={task.name} />
         </div>
       )}
@@ -569,9 +569,9 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
           {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px]">{task.town}</span>}
         </div>
-        {schedule && (
+        {scheduleEligible && (
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
-            <ScheduleBadges badge={schedule} />
+            {schedule && <ScheduleBadges badge={schedule} />}
             <SchedulePopover taskName={task.name} />
           </div>
         )}

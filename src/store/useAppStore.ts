@@ -663,13 +663,16 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
   }
   if (from < 19) {
     // v18 → v19: purple-hole (15-min-early fire) subscriptions introduced,
-    // default off. Same valid-set prune as v18 — only dangling ids go.
-    // Progress untouched. Reminders stay local-only.
+    // default off. Same valid-set prune as v18 — only dangling ids go — and
+    // re-prune the hourly lane too (a v18 save loaded after a row removal
+    // would otherwise keep the dangling hourly id; review catch). Progress
+    // untouched. Reminders stay local-only.
     const valid = new Set<string>([
       ...(trackerJson as Task[]).map((t) => t.id),
       ...(barterJson as BarterJsonItem[]).map((b) => b.id),
       ...(s.customTasks ?? []).map((t) => t.id),
     ]);
+    s.hourlyReminders = (s.hourlyReminders ?? []).filter((id) => valid.has(id));
     s.purpleHoleReminders = (s.purpleHoleReminders ?? []).filter((id) => valid.has(id));
     s.version = 19;
   }

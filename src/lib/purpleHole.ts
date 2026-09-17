@@ -12,8 +12,8 @@
 
 export const PURPLE_HOLE_ID = "purple-hole";
 
-/** Observed spawn; the whole timetable derives from this. */
-export const PURPLE_ANCHOR_MS = Date.UTC(2026, 8, 16, 14 - 8, 8, 0);
+/** Observed spawn 2026-09-16 14:08 Taipei (= 06:08 UTC); the whole timetable derives from this. */
+export const PURPLE_ANCHOR_MS = Date.UTC(2026, 8, 16, 6, 8, 0);
 
 /** 36h15m in ms. */
 export const PURPLE_PERIOD_MS = (36 * 60 + 15) * 60 * 1000;
@@ -23,7 +23,24 @@ export type MaintenanceWindow = { startMs: number; endMs: number };
 /** Phase 1: empty — maintenance is not predictable. */
 export const MAINTENANCE_WINDOWS: MaintenanceWindow[] = [];
 
-function totalOverlap(aMs: number, bMs: number, windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS): number {
+/**
+ * Sort + merge overlapping/adjacent windows. Extension reposts overlap the
+ * original window (e.g. 06:00–08:30 then 08:00–09:00) — summed raw, the
+ * overlap double-counts and legs overshoot. All leg math runs on merged
+ * windows; callers must not sum raw lists.
+ */
+export function normalizeWindows(windows: MaintenanceWindow[]): MaintenanceWindow[] {
+  const sorted = [...windows].sort((a, b) => a.startMs - b.startMs);
+  const out: MaintenanceWindow[] = [];
+  for (const w of sorted) {
+    const last = out[out.length - 1];
+    if (last && w.startMs <= last.endMs) last.endMs = Math.max(last.endMs, w.endMs);
+    else out.push({ startMs: w.startMs, endMs: w.endMs });
+  }
+  return out;
+}
+
+function totalOverlap(aMs: number, bMs: number, windows: MaintenanceWindow[]): number {
   let total = 0;
   for (const w of windows) {
     total += Math.max(0, Math.min(bMs, w.endMs) - Math.max(aMs, w.startMs));
@@ -33,9 +50,13 @@ function totalOverlap(aMs: number, bMs: number, windows: MaintenanceWindow[] = M
 
 /** Forward leg: occurrence after `fromMs`, stretched by overlapping maintenance. */
 export function nextAfter(fromMs: number, windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS): number {
+  // Merged: each extension pulls the end into at most the next window, so
+  // the fixed point converges in ≤ windows+1 steps; 8 caps pathological
+  // input instead of looping.
+  const ws = normalizeWindows(windows);
   let end = fromMs + PURPLE_PERIOD_MS;
   for (let i = 0; i < 8; i++) {
-    const stretched = fromMs + PURPLE_PERIOD_MS + totalOverlap(fromMs, end, windows);
+    const stretched = fromMs + PURPLE_PERIOD_MS + totalOverlap(fromMs, end, ws);
     if (stretched === end) return end;
     end = stretched;
   }
@@ -44,9 +65,10 @@ export function nextAfter(fromMs: number, windows: MaintenanceWindow[] = MAINTEN
 
 /** Backward leg: occurrence before `toMs` (inverse of nextAfter). */
 export function prevBefore(toMs: number, windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS): number {
+  const ws = normalizeWindows(windows);
   let p = toMs - PURPLE_PERIOD_MS;
   for (let i = 0; i < 8; i++) {
-    const corrected = toMs - PURPLE_PERIOD_MS - totalOverlap(p, toMs, windows);
+    const corrected = toMs - PURPLE_PERIOD_MS - totalOverlap(p, toMs, ws);
     if (corrected === p) return p;
     p = corrected;
   }
@@ -177,6 +199,9 @@ export function formatTaipei(ms: number): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    // hour12:false alone can render midnight as "24:xx" in Chrome/ICU —
+    // h23 pins it to 00:xx (review catch).
+    hourCycle: "h23",
   });
   const parts = fmt.formatToParts(new Date(ms));
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";

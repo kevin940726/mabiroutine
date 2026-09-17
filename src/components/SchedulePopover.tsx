@@ -149,7 +149,9 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
       {open && pos && (
         <div
           ref={cardRef}
-          role="dialog"
+          // region, not dialog: read-only panel with no drafts, so it must
+          // not trip main.tsx's open-dialog reload veto (review catch).
+          role="region"
           aria-label={`出沒時刻表：${taskName}`}
           style={{ top: pos.top, left: pos.left, visibility: fitted ? "visible" : "hidden" }}
           className={cn(

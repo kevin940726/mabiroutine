@@ -28,7 +28,9 @@ export function getUndonePurpleReminder(): UndonePurpleReminder | null {
   if (!(s.purpleHoleReminders ?? []).includes(PURPLE_HOLE_ID)) return null;
   const task = BUILTIN_TASKS.find((t) => t.id === PURPLE_HOLE_ID);
   if (!task) return null;
-  if (s.isTaskHidden(PURPLE_HOLE_ID)) return null; // hidden = never do: don't nag
+  // No global hidden check here: hides are per-character for this task, and
+  // the loop below already skips hidden characters (a global check on the
+  // active char would silence every other character — review catch).
   const names: string[] = [];
   const charIds: string[] = [];
   for (const c of s.characters) {
