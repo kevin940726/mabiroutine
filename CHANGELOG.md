@@ -5,7 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Chores
-- Server-push spike closed end-to-end: real card rendered on Brave from a worker-fired test push (crypto → FCM → device → display proven; `/spike-send` stays until the real fanout replaces it); continued on `feat/push-fanout` (old branch merged + deleted); subscription storage + API live-verified (Turso migration v2 `push_subscriptions`, `POST/DELETE /api/push/subscribe` with upsert, idempotent delete, and shape validation; client server-mode bell (flagged desktop hourly: device sub + registry POST with rollback, endpoint-map bell state with dead-sub reconciliation, D6 local-entry heal; mobile + flag keeps the local timer with a 桌機測試中 note))
+- Server-push spike closed end-to-end: real card rendered on Brave from a worker-fired test push (crypto → FCM → device → display proven; `/spike-send` stays until the real fanout replaces it); continued on `feat/push-fanout` (old branch merged + deleted); subscription storage + API live-verified (Turso migration v2 `push_subscriptions`, `POST/DELETE /api/push/subscribe` with upsert, idempotent delete, and shape validation; client server-mode bell (flagged desktop hourly: device sub + registry POST with rollback, endpoint-map bell state with dead-sub reconciliation, D6 local-entry heal; mobile + flag keeps the local timer with a 桌機測試中 note); worker hourly fanout (Turso read, `:02:00` staleness guard, concurrent sends, dead-endpoint prune; server card names the start time, not names; temporary `/fanout-test` hook))
 
 ## 2026-09-17 — 推播地基與紫洞追蹤
 

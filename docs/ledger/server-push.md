@@ -118,8 +118,11 @@ Verdict up front: **the recorded plan stands, with two amendments** (A-spike, C-
 
 | Secret | Lives in | Sees it | Rotate by |
 |---|---|---|---|
-| `CRON_SECRET` | CF worker env + Vercel env | worker→fanout hop | `wrangler secret put` + Vercel redeploy |
+| ~~`CRON_SECRET`~~ | deleted with verdict A (no worker→Vercel hop left) | — | — |
 | `ADMIN_SECRET` | CF worker env only | admin browser (sessionStorage) | `wrangler secret put` + re-login |
-| VAPID private | Vercel env only (recorded) or CF worker env (if A wins) | fanout sender | regen pair + resubscribe all |
+| VAPID private (`VAPID_JWK`) | CF worker env only | fanout sender | regen pair + resubscribe all |
+| `VAPID_SUBJECT` | CF worker env only | push services (contact) | `wrangler secret put` |
+| `TURSO_DB_URL` / `TURSO_AUTH_TOKEN` | CF worker env only (copied from `.env.local`, never committed) | worker fanout reads | re-copy + `wrangler secret put` (token is full-access — Turso issues no read-only tokens at our tier) |
+| `SPIKE_SECRET` | CF worker env only | temporary test routes | dies with the routes |
 | `CLOUDFLARE_API_TOKEN` | GitHub repo secrets | CI deploy | CF dashboard token roll |
-| Turso creds | Vercel env (existing) | subscribe/fanout routes | existing rotation |
+| Turso creds | Vercel env (existing) | subscribe route | existing rotation |
