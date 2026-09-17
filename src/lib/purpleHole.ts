@@ -235,15 +235,22 @@ export function msUntilNextPurpleFire(nowMs: number = Date.now()): number {
   return Math.max(1_000, nthOccurrence(firstIndexAfter(nowMs) + 1) - PURPLE_LEAD_MS - nowMs);
 }
 
-// Feature flag: `?purple_hole=1` enables and persists,
-// `?purple_hole=0` clears. Mirrors the ?push=1 gate, separate slot.
+// Experimental gate: the 實驗性功能 dialog flips this per device; the row,
+// timetable, bell, and scheduler all hide when off. Mirrors the push gate,
+// separate slot.
 const PURPLE_FLAG_KEY = "mabiroutine:purple-hole-flag";
+/** Experimental-settings write end (the dialog's only writer). */
+export function setPurpleHoleFlag(on: boolean): void {
+  try {
+    if (on) window.localStorage.setItem(PURPLE_FLAG_KEY, "1");
+    else window.localStorage.removeItem(PURPLE_FLAG_KEY);
+  } catch {
+    // storage blocked: the toggle just won't stick — no crash.
+  }
+}
 export function isPurpleHoleEnabled(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const q = new URLSearchParams(window.location.search).get("purple_hole");
-    if (q === "1") window.localStorage.setItem(PURPLE_FLAG_KEY, "1");
-    else if (q === "0") window.localStorage.removeItem(PURPLE_FLAG_KEY);
     return window.localStorage.getItem(PURPLE_FLAG_KEY) === "1";
   } catch {
     return false;

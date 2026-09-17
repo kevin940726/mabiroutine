@@ -1,7 +1,7 @@
 # 深淵的黑色坑洞 — feature ledger
 
 Branch: `feat/purple-hole` (unmerged, unpushed until user approves).
-Flag: `?purple_hole=1` persists `mabiroutine:purple-hole-flag`. Prod default: zero surface.
+Flag: the 實驗性功能 dialog persists `mabiroutine:purple-hole-flag`. Prod default: zero surface.
 
 ## Schedule (hand-owned, phase 1)
 

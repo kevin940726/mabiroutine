@@ -28,7 +28,7 @@ re-confirm. Subscriptions never leave the device (store v18, absent from the
 sync key space). Proven limitation: closed tab = no timer.
 
 A second local lane covers 深淵的黑色坑洞 (`purple-hole`, behind its own
-`?purple_hole=1` flag, full spec in `docs/purple-hole.md` + `docs/ledger/`):
+experimental flag — §6, full spec in `docs/purple-hole.md` + `docs/ledger/`):
 separate subscription list (store v19 `purpleHoleReminders`, same local-only
 rule), separate card tag (`mabi-purple`, never collapses with hourly cards),
 15-minute lead before each predicted 36h15m spawn, catch-up allowed, and —
@@ -162,7 +162,7 @@ time derived from `EVENT_SEC_PAST_HOUR`.
 - **D7 — Phase 1 is desktop only (2026-09-16).** Bounds the test matrix
   (below) while the infra proves itself. Mobile follows with zero server
   changes (Phases 2–3 are client gates + device testing).
-- **D8 — One lane per cadence (2026-09-18).** Hourly and purple subscriptions
+- **D8 — One lane per cadence (2026-09-17).** Hourly and purple subscriptions
   live in separate store lists with separate card tags because their timing,
   copy, and cutoff rules differ; sharing a list would couple unrelated
   behavior. The permission flow stays shared (one implementation, lane
@@ -172,30 +172,34 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   runtimes. The purple maintenance watcher, `/purple-schedule` feed, and
   `/admin` page live in the same worker; see `docs/ledger/` for their specs.
 
-## 6. Feature flag (Phase 1 gate)
+## 6. Experimental gate (Phase 1 gate)
 
-Recommended: **query string + localStorage**, i.e. `?push=1` persists
-`mabiroutine:push-flag = "1"` on first sight; `?push=0` clears it. Helper
-`isPushEnabled()` in client code.
+The 實驗性功能 dialog (footer, next to 重置所有資料) flips two per-device
+slots: `mabiroutine:push-flag` and `mabiroutine:purple-hole-flag` (helpers
+`isPushEnabled()` / `isPurpleHoleEnabled()`; writers `setPushFlag()` /
+`setPurpleHoleFlag()`; toggling reloads once on close to apply). The older
+query-string entry (`?push=1` / `?purple_hole=1`) was removed 2026-09-17 —
+it never worked inside an installed PWA (no URL bar), and the dialog covers
+every entry path.
 
 Behavior matrix:
 
 | Flag | Platform | Bell does |
 |---|---|---|
-| off (default) | any | Local timer (status quo, zero behavior change) |
+| off (default) | any | No bell, no scheduler (zero surface) |
 | on | desktop | Server push subscribe (VAPID); no local entry (D6) |
 | on | mobile (Phase 1) | Local timer + "桌機測試中" note (push path closed until Phases 2–3) |
 
-Purple has its own gate with identical mechanics: `?purple_hole=1` persists
-`mabiroutine:purple-hole-flag`, `?purple_hole=0` clears it; the bell,
+Purple has its own gate with identical mechanics; the bell,
 scheduler, row, and timetable all hide when off. The two flags compose
 independently (either lane testable alone).
 
 Desktop gate (Phase 1, temporary): non-mobile UA heuristics, documented as
 scaffolding to remove in Phase 2 — not a security boundary, just matrix
 honesty. Rejected alternatives: env/build flag (redeploy per tester, no
-prod A/B), settings-screen toggle (premature UI + permission-confusion risk
-before the flow is proven), remote config (no infra for it).
+prod A/B), remote config (no infra for it). The settings-screen toggle —
+rejected in D7 as premature — is now THE gate (it ships with the dialog,
+post-proof). iOS PWA entry needs it too (no query params there, ever).
 Store note: push subscriptions per task imply a new persisted field (likely
 store v19) with the usual migrate + fixture discipline from AGENTS.md.
 

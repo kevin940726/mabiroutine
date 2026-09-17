@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-17 — 實驗性功能開關
+
+### Features
+- 實驗性功能 dialog (footer, next to 重置所有資料): two tracker-style checkboxes for the push + purple-hole flags with an experimental-only warning — the tappable opt-in path, and the only one that works inside an installed PWA (no URL bar for query params). Toggling batches to one reload on close (net-no-change closes silently); the `?push=1` / `?purple_hole=1` query entry is removed (dialog is the only gate now, existing opt-ins carry over)
+
 ### Chores
 - Push planning: iOS PWA opt-in will need an in-app toggle (`?push=1` can't be entered in the installed app); Vercel Flags evaluated and rejected for this (Next.js/SvelteKit rollout tooling, doesn't solve PWA entry)
 

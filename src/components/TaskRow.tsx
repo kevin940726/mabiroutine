@@ -128,7 +128,7 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
       if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
       bump();
     } else if (r === "need-sw") {
-      alert("推播訂閱需要正式站的 Service Worker：在正式站開 ?push=1 後再點鈴鐺。");
+      alert("推播訂閱需要正式站的 Service Worker：在正式站的實驗性功能開啟後再點鈴鐺。");
     } else {
       alert("訂閱失敗，請再試一次。");
     }
@@ -292,10 +292,10 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   const isCustom = task.source === "custom";
   const isBarter = task.source === "barter";
   // Event-reminder bell: only eligible tasks (today just 不祥的召喚結界),
-  // and only with the ?push=1 flag on — prod default is no bell at all.
+  // and only with the experimental flag on — prod default is no bell at all.
   const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
   // Purple lane (timetable + 15-min-early bell): purple-hole only, behind
-  // its own ?purple_hole=1 flag. Same flag, separate subscription list.
+  // its own experimental flag. Same gate shape, separate subscription list.
   const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
   const purpleReminderEligible = scheduleEligible;
   // Spawn-day badges: the exact times this bucket is about (昨日 14:08 at

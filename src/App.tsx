@@ -9,6 +9,7 @@ import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
 import { syncAndResets, markActivity } from "@/sync/session";
 import { InstallButton } from "@/components/InstallButton";
+import { ExpSettingsDialog } from "@/components/ExpSettingsDialog";
 import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
 import { PillProgress } from "@/components/PillProgress";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
@@ -149,7 +150,7 @@ export default function App() {
     input.click();
   };
 
-  // purple-hole row lives behind its own flag (?purple_hole=1); off-day
+  // purple-hole row lives behind its own experimental flag; off-day
   // parking happens render-side in TrackerSection. The header overall also
   // excludes it when the flag is off or today is not a spawn day.
   const purpleHoleOn = isPurpleHoleEnabled();
@@ -546,6 +547,7 @@ export default function App() {
                 重置所有資料
               </Button>
             )}
+            <ExpSettingsDialog />
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <a

@@ -33,17 +33,22 @@ export const HOURLY_ELIGIBLE_IDS = ["barrier"] as const;
 // Collapse key: one card per hour-slot, replaced — never stacked.
 export const HOURLY_TAG = "mabi-hourly";
 
-// Feature flag: `?push=1` enables reminders and persists the choice,
-// `?push=0` clears it. Everything reminder-shaped (bell, scheduler) hides
-// when off. Read-once, no reactivity — enabling/disabling needs a reload,
-// which is fine for a dev/test gate.
+// Experimental gate: the 實驗性功能 dialog flips this per device; everything
+// reminder-shaped (bell, scheduler) hides when off. Read-once, no reactivity
+// — the dialog reloads on close to apply, which keeps every reader honest.
 const PUSH_FLAG_KEY = "mabiroutine:push-flag";
+/** Experimental-settings write end (the dialog's only writer). */
+export function setPushFlag(on: boolean): void {
+  try {
+    if (on) window.localStorage.setItem(PUSH_FLAG_KEY, "1");
+    else window.localStorage.removeItem(PUSH_FLAG_KEY);
+  } catch {
+    // storage blocked: the toggle just won't stick — no crash.
+  }
+}
 export function isPushEnabled(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const q = new URLSearchParams(window.location.search).get("push");
-    if (q === "1") window.localStorage.setItem(PUSH_FLAG_KEY, "1");
-    else if (q === "0") window.localStorage.removeItem(PUSH_FLAG_KEY);
     return window.localStorage.getItem(PUSH_FLAG_KEY) === "1";
   } catch {
     return false;
