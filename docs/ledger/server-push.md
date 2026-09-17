@@ -37,6 +37,8 @@ Conventions: log newest-first, one line per fact, no commit hashes (history gets
 
 - 2026-09-17: 19:00 iOS proof CONFIRMED — server card arrived on the installed iPhone PWA AND desktop in the same fire. Gate-lift → bell re-tap → real `ios` row → closed/open-app delivery, all in one hour. Phase-1 gate: 3 of 3 consecutive :00s (17:00 generic, 18:00 named, 19:00 cross-device). Remaining before fanout merge: tap-through test (either device), then delete `/spike-send` + `/fanout-test` + `/db-test` and `SPIKE_SECRET`.
 
+- 2026-09-17: tap "focus but no flash" root-caused — worker nested deep-link fields under `data`, SW contract reads them top-level (`sw-push.js:3`), so `notification.data` carried all-undefined on every server card: no params, message dropped, focus only. Fixed worker-side (flattened, contract comment added); SW untouched. Retest at 20:00 fire. Note: `/fanout-test` can't prove this off-hour (the staleness guard inside `runBarrierFanout` clean-misses past :02), so the :00 fire is the test.
+
 ## 0. What you need (checklist)
 
 Cloudflare side (all free tier, $0):

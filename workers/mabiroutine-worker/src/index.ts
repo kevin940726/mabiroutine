@@ -436,7 +436,7 @@ function nameBody(undone: string[], names: string[]): { body: string; chars: str
  * write batch (dead-endpoint prune on 404/410 + last_sent_at stamps).
  *
  * Card copy: linked subs get undone names (D1a — same cap/format as the
- * local card, with undone cids riding data.chars so the tap selects
+ * local card, with undone cids riding top-level chars so the tap selects
  * exactly); unlinked subs get the generic start-time body (D1 — the server
  * knows no done-state); all-done linked subs get silence. Tap deep-links
  * task-only for generic cards; the page resolves the first undone
@@ -483,14 +483,17 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
     }
     if (card.kind === "named") named++;
     else generic++;
+    // Deep-link fields ride TOP-LEVEL per the SW contract (sw-push.js:
+    // "the push payload is { title, body, tag, url?, task?, chars? }") —
+    // nested under `data` they never reach notification.data and every tap
+    // focuses without flashing (seen 2026-09-17 on all server cards).
     const payload = {
       title: BARRIER_TITLE,
       body: card.kind === "named" && card.body ? card.body : genericBody,
       tag: HOURLY_TAG,
-      data:
-        card.kind === "named" && card.chars
-          ? { url: "/", task: "barrier", chars: card.chars }
-          : { url: "/", task: "barrier" },
+      url: "/",
+      task: "barrier",
+      ...(card.kind === "named" && card.chars ? { chars: card.chars } : {}),
     };
     try {
       const r = await sendPush(
