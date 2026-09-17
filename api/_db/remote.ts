@@ -8,7 +8,7 @@
 
 import { createClient } from "@libsql/client/web";
 import type { Client, InStatement } from "@libsql/client/web";
-import type { ApplyResult, Db, HashState, Probe, SessionImport } from "./types.js";
+import type { ApplyResult, Db, HashState, Probe, PushSubscription, SessionImport } from "./types.js";
 import { MIGRATIONS, VERSION_TABLE } from "./schema.js";
 
 const UPSERT =
@@ -198,6 +198,43 @@ class RemoteDb implements Db {
       ],
       "write"
     );
+  }
+
+  async upsertPushSub(sub: PushSubscription): Promise<void> {
+    await this.ready;
+    await this.client.execute({
+      sql: `INSERT INTO push_subscriptions (endpoint, p256dh, auth, platform, lane, created_at, last_sent_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(endpoint) DO UPDATE SET
+              p256dh = excluded.p256dh, auth = excluded.auth, platform = excluded.platform,
+              lane = excluded.lane, created_at = excluded.created_at, last_sent_at = excluded.last_sent_at`,
+      args: [sub.endpoint, sub.p256dh, sub.auth, sub.platform, sub.lane, sub.createdAt, sub.lastSentAt],
+    });
+  }
+
+  async deletePushSub(endpoint: string): Promise<void> {
+    await this.ready;
+    await this.client.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint = ?", args: [endpoint] });
+  }
+
+  async listPushSubs(lane: string): Promise<PushSubscription[]> {
+    await this.ready;
+    const rs = await this.client.execute({
+      sql: "SELECT endpoint, p256dh, auth, platform, lane, created_at, last_sent_at FROM push_subscriptions WHERE lane = ?",
+      args: [lane],
+    });
+    return rs.rows.map((r) => {
+      const row = r as Row;
+      return {
+        endpoint: String(row.endpoint),
+        p256dh: String(row.p256dh),
+        auth: String(row.auth),
+        platform: String(row.platform),
+        lane: String(row.lane),
+        createdAt: Number(row.created_at),
+        lastSentAt: row.last_sent_at == null ? null : Number(row.last_sent_at),
+      };
+    });
   }
 
   async importSession(rec: SessionImport): Promise<void> {

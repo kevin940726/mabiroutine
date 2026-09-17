@@ -33,6 +33,18 @@ export type HashState = {
   fields: Record<string, string>;
 };
 
+// One push subscription row. `lane` scopes a row to a cadence ("hourly"
+// today; the purple lane reuses this table when its fanout lands).
+export type PushSubscription = {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  platform: string;
+  lane: string;
+  createdAt: number;
+  lastSentAt: number | null;
+};
+
 // One session lifted out of the pre-SQL store, ready to insert verbatim. Used
 // by the one-time migration fallback (docs/sql-migration.md P4).
 export type SessionImport = {
@@ -86,6 +98,18 @@ export interface Db {
 
   /** Drop the session and all its fields (idempotent). */
   delete(id: string): Promise<void>;
+
+  /**
+   * Push subscriptions (server-push fanout). Upsert by endpoint: a repeat
+   * subscribe refreshes keys/timestamps instead of growing the table.
+   */
+  upsertPushSub(sub: PushSubscription): Promise<void>;
+
+  /** Bell-off / dead-endpoint removal (idempotent). */
+  deletePushSub(endpoint: string): Promise<void>;
+
+  /** All subscriptions for one lane (today only "hourly"). */
+  listPushSubs(lane: string): Promise<PushSubscription[]>;
 
   /** Daily beacon: refresh the sliding TTL. */
   touch(id: string, expiresAt: number): Promise<void>;

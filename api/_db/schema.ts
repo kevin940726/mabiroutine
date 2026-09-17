@@ -27,4 +27,19 @@ export const MIGRATIONS: string[][] = [
       PRIMARY KEY (session_id, key)
     )`,
   ],
+  // v2 — push subscriptions (server-push fanout). One row per endpoint;
+  // re-subscribing upserts the same row, so repeats never grow the table.
+  // `lane` scopes a row to a cadence (today only "hourly"); dead endpoints
+  // are pruned by the fanout on 404/410, and bell-off deletes the row.
+  [
+    `CREATE TABLE IF NOT EXISTS push_subscriptions (
+      endpoint     TEXT PRIMARY KEY,
+      p256dh       TEXT NOT NULL,
+      auth         TEXT NOT NULL,
+      platform     TEXT NOT NULL DEFAULT '',
+      lane         TEXT NOT NULL DEFAULT 'hourly',
+      created_at   INTEGER NOT NULL,
+      last_sent_at INTEGER
+    )`,
+  ],
 ];
