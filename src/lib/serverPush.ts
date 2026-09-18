@@ -1,10 +1,11 @@
 import { isPushEnabled } from "@/lib/hourlyReminders";
+import { isPurpleHoleEnabled } from "@/lib/purpleHole";
 import { loadSession } from "@/sync/session";
 import { useAppStore } from "@/store/useAppStore";
 
-// Server-push door (Phase 1, barrier lane only). The bell ↔
-// /api/push/subscribe round trip; the worker fanout reads the same table.
-// Lives next to the local lane but never touches its timers: server mode
+// Server-push door (barrier + purple lanes). The bell ↔ /api/push/subscribe
+// round trip; the worker fanout reads the same table per lane.
+// Lives next to the local lanes but never touches their timers: server mode
 // OWNS the task (D6 — both cards share one collapse tag, running both would
 // double-banner every hour), so subscribing here heals any local entry for
 // the same task, and the local scheduler never sees server tasks (they stay
@@ -14,6 +15,10 @@ import { useAppStore } from "@/store/useAppStore";
 // the server can't tell the bell anything (no session linkage, D1), and the
 // live PushSubscription is async — so `on` reads the map, and a mount effect
 // reconciles it against the live subscription (dead sub = silently off).
+//
+// The purple lane is unfiltered (decided): cards name zones, never people,
+// so no D1a linkage — linkSession/roster are accepted by the API but the
+// purple fanout never reads them.
 
 /** VAPID app-server key (public half — safe client-side). */
 export const VAPID_PUBLIC_KEY =
@@ -21,8 +26,10 @@ export const VAPID_PUBLIC_KEY =
 
 const SUBS_KEY = "mabiroutine:push-subs";
 
-function subKey(taskId: string): string {
-  return `hourly:${taskId}`;
+export type PushLane = "hourly" | "purple";
+
+function subKey(lane: PushLane, taskId: string): string {
+  return `${lane}:${taskId}`;
 }
 
 function readSubs(): Record<string, string> {
@@ -36,16 +43,16 @@ function readSubs(): Record<string, string> {
 }
 
 /** Bell state: an endpoint is recorded for this task on this device. */
-export function serverPushOn(taskId: string): boolean {
+export function serverPushOn(taskId: string, lane: PushLane = "hourly"): boolean {
   if (typeof window === "undefined") return false;
-  return typeof readSubs()[subKey(taskId)] === "string";
+  return typeof readSubs()[subKey(lane, taskId)] === "string";
 }
 
-export function setServerPushOn(taskId: string, endpoint: string | null): void {
+export function setServerPushOn(taskId: string, endpoint: string | null, lane: PushLane = "hourly"): void {
   try {
     const m = readSubs();
-    if (endpoint) m[subKey(taskId)] = endpoint;
-    else delete m[subKey(taskId)];
+    if (endpoint) m[subKey(lane, taskId)] = endpoint;
+    else delete m[subKey(lane, taskId)];
     window.localStorage.setItem(SUBS_KEY, JSON.stringify(m));
   } catch {
     // storage full/blocked: the bell just won't stick — no crash.
@@ -53,13 +60,12 @@ export function setServerPushOn(taskId: string, endpoint: string | null): void {
 }
 
 /**
- * Server mode owns exactly one lane: hourly, flagged. The whole path is
- * opt-in (experimental flag → bell tap with linkage disclosure → OS
- * permission), so no UA gate — desktop proved it first (Phase 1), iOS PWA
- * and Android join the matrix on the same flow (Phases 2–3).
+ * Server mode per lane, each behind its own experimental flag: hourly
+ * (barrier) behind the push flag, purple (purple-hole) behind the purple
+ * flag. The whole path stays opt-in (flag → bell tap → OS permission).
  */
 export function isServerPushMode(lane: "hourly" | "purple"): boolean {
-  return lane === "hourly" && isPushEnabled();
+  return lane === "hourly" ? isPushEnabled() : isPurpleHoleEnabled();
 }
 
 export function detectPlatform(): string {
@@ -119,11 +125,15 @@ export function snapshotRoster(): { cid: string; name: string }[] {
 /**
  * Full server subscribe: device subscription first, then the registry POST
  * (linkage + roster attached when the device holds them — absent stays
- * absent, never half-linked). A POST failure rolls the device subscription
- * back so no orphan sub lingers that the fanout would 404-prune later
- * anyway. Resolves — never rejects.
+ * absent, never half-linked; the purple lane sends neither, its fanout is
+ * unfiltered). A POST failure rolls the device subscription back so no
+ * orphan sub lingers that the fanout would 404-prune later anyway.
+ * Resolves — never rejects.
  */
-export async function subscribeServerPush(taskId: string): Promise<ServerSubscribeResult> {
+export async function subscribeServerPush(
+  taskId: string,
+  lane: PushLane = "hourly"
+): Promise<ServerSubscribeResult> {
   try {
     if (!("serviceWorker" in navigator)) return "need-sw";
     const reg = await navigator.serviceWorker.getRegistration();
@@ -145,9 +155,9 @@ export async function subscribeServerPush(taskId: string): Promise<ServerSubscri
         body: JSON.stringify({
           subscription: sub.toJSON(),
           platform: detectPlatform(),
-          lane: "hourly",
-          linkSessionId: loadSession()?.id ?? null,
-          roster: snapshotRoster(),
+          lane,
+          linkSessionId: lane === "hourly" ? (loadSession()?.id ?? null) : null,
+          roster: lane === "hourly" ? snapshotRoster() : [],
         }),
       });
     } catch {
@@ -161,7 +171,7 @@ export async function subscribeServerPush(taskId: string): Promise<ServerSubscri
       }
       return "failed";
     }
-    setServerPushOn(taskId, sub.endpoint);
+    setServerPushOn(taskId, sub.endpoint, lane);
     return "ok";
   } catch {
     return "failed";
@@ -171,17 +181,18 @@ export async function subscribeServerPush(taskId: string): Promise<ServerSubscri
 /**
  * Full server unsubscribe: registry DELETE first (idempotent — a failure
  * still proceeds to the device half), then the device unsubscribe, then the
- * map entry. Scope-1 assumption: this device holds at most one hourly sub
- * (today only `barrier` subscribes), so dropping the live sub is exact.
+ * map entry. Scope-1 assumption per lane: this device holds at most one sub
+ * per lane (today `barrier` on hourly, `purple-hole` on purple), so dropping
+ * the live sub is exact.
  */
-export async function unsubscribeServerPush(taskId: string): Promise<void> {
-  const endpoint = readSubs()[subKey(taskId)];
+export async function unsubscribeServerPush(taskId: string, lane: PushLane = "hourly"): Promise<void> {
+  const endpoint = readSubs()[subKey(lane, taskId)];
   if (endpoint) {
     try {
       await fetch("/api/push/subscribe", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint }),
+        body: JSON.stringify({ endpoint, lane }),
       });
     } catch {
       // idempotent server-side; the fanout prune covers a missed delete.
@@ -189,17 +200,28 @@ export async function unsubscribeServerPush(taskId: string): Promise<void> {
   }
   try {
     const live = await getLiveSub();
-    if (live && (!endpoint || live.endpoint === endpoint)) await live.unsubscribe();
+    if (live && (!endpoint || live.endpoint === endpoint)) {
+      // One live sub per origin serves every lane: only revoke it when no
+      // other lane entry still points at it — otherwise bell-off on one lane
+      // silently kills the other lane's delivery (its row survives, pointing
+      // at a dead endpoint, until the prune + reconcile cascade confuses the
+      // bell). The other lane keeps working on the shared sub untouched.
+      const shared = Object.entries(readSubs()).some(
+        ([k, v]) => k !== subKey(lane, taskId) && v === live.endpoint
+      );
+      if (!shared) await live.unsubscribe();
+    }
   } catch {
     // map entry still clears below — a stuck sub dies on 404/410 prune.
   }
-  setServerPushOn(taskId, null);
+  setServerPushOn(taskId, null, lane);
 }
 
 /**
- * Silent roster refresh (D1a): renames and new characters would otherwise
- * stale the snapshot until the next bell toggle. Runs on bell mount while
- * the live sub is healthy — one cheap upsert per page load, no UI.
+ * Silent roster refresh (D1a, hourly only — the purple lane is unlinked):
+ * renames and new characters would otherwise stale the snapshot until the
+ * next bell toggle. Runs on bell mount while the live sub is healthy — one
+ * cheap upsert per page load, no UI.
  */
 export async function refreshServerRoster(taskId: string): Promise<void> {
   try {
@@ -228,18 +250,19 @@ export async function refreshServerRoster(taskId: string): Promise<void> {
  * the bell never shows on for a device the fanout couldn't reach. Returns true
  * when it changed something (caller re-renders).
  */
-export async function reconcileServerPush(taskId: string): Promise<boolean> {
-  const endpoint = readSubs()[subKey(taskId)];
+export async function reconcileServerPush(taskId: string, lane: PushLane = "hourly"): Promise<boolean> {
+  const endpoint = readSubs()[subKey(lane, taskId)];
   if (!endpoint) return false;
   const live = await getLiveSub();
   if (live && live.endpoint === endpoint) return false;
-  setServerPushOn(taskId, null);
-  // Best-effort: the dead endpoint shouldn't linger server-side either.
+  setServerPushOn(taskId, null, lane);
+  // Best-effort: the dead endpoint shouldn't linger server-side either
+  // (scoped to this lane — the other lane's row is untouched).
   try {
     await fetch("/api/push/subscribe", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endpoint }),
+      body: JSON.stringify({ endpoint, lane }),
     });
   } catch {
     // fanout prune covers it.

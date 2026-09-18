@@ -27,13 +27,17 @@ address-bar chip, site settings) auto-completes with no reload, re-tap, or
 re-confirm. Subscriptions never leave the device (store v18, absent from the
 sync key space). Proven limitation: closed tab = no timer.
 
-A second local lane covers 深淵的黑色坑洞 (`purple-hole`, behind its own
+A second lane covers 深淵的黑色坑洞 (`purple-hole`, behind its own
 experimental flag — §6, full spec in `docs/purple-hole.md` + `docs/ledger/`):
-separate subscription list (store v19 `purpleHoleReminders`, same local-only
-rule), separate card tag (`mabi-purple`, never collapses with hourly cards),
-15-minute lead before each predicted 36h15m spawn, catch-up allowed, and —
-unlike the hourly lane — no silence cutoff (the card stays truthful until
-the spawn passes; the hole persists, so there is no startle boundary).
+separate local subscription list (store v19 `purpleHoleReminders`), separate
+card tag (`mabi-purple`, never collapses with hourly cards), 15-minute lead
+before each predicted 36h15m spawn, catch-up allowed, and — unlike the hourly
+lane — no silence cutoff (the card stays truthful until the spawn passes; the
+hole persists, so there is no startle boundary). Since 2026-09-18 the purple
+bell also subscribes a server lane (`lane=purple` rows, same triple opt-in):
+unfiltered zone cards (no D1a linkage — zones, never people), skip-past-spawns
+cutoff, KV fire-once guard; visibility split and bell/flag-off parity match
+the hourly lane exactly.
 Permission machinery (soft-ask, coach mark, watcher, denied dialog) is
 shared; only the store slice and copy differ. Card names no one: title
 `深淵的黑色坑洞即將出現`, body names the three zones with live minutes.
@@ -198,8 +202,11 @@ Behavior matrix:
 | on | mobile (from 2026-09-17) | Server push subscribe (VAPID), same flow; iOS requires the installed PWA (16.4+), tap-through best-effort |
 
 Purple has its own gate with identical mechanics; the bell,
-scheduler, row, and timetable all hide when off. The two flags compose
-independently (either lane testable alone).
+scheduler, row, and timetable all hide when off. Since 2026-09-18 its bell
+subscribes a server lane too (`lane=purple`, unfiltered — the linkage
+disclosure in its soft-ask is replaced by a no-linkage note; roster refresh
+stays hourly-only); flag-off disarms both lanes on both flags. The two flags
+compose independently (either lane testable alone).
 
 Desktop gate (Phase 1 scaffolding): non-mobile UA heuristics — REMOVED
 2026-09-17. The whole path is opt-in (experimental flag → bell tap with

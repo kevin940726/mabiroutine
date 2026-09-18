@@ -33,8 +33,8 @@ export type HashState = {
   fields: Record<string, string>;
 };
 
-// One push subscription row. `lane` scopes a row to a cadence ("hourly"
-// today; the purple lane reuses this table when its fanout lands).
+// One push subscription row. `lane` scopes a row to a cadence ("hourly" /
+// "purple" — the purple fanout reads its own lane).
 // `linkSession` (nullable) is the device's sync session id for named cards
 // (D1a); `roster` (nullable) is a [{cid, name}] snapshot for ordering +
 // fallback names. Either null → the generic copy.
@@ -106,15 +106,20 @@ export interface Db {
   delete(id: string): Promise<void>;
 
   /**
-   * Push subscriptions (server-push fanout). Upsert by endpoint: a repeat
-   * subscribe refreshes keys/timestamps instead of growing the table.
+   * Push subscriptions (server-push fanout). Upsert by (endpoint, lane): a
+   * repeat subscribe refreshes keys/timestamps instead of growing the table,
+   * and two lanes on one device (same endpoint) keep separate rows.
    */
   upsertPushSub(sub: PushSubscription): Promise<void>;
 
-  /** Bell-off / dead-endpoint removal (idempotent). */
-  deletePushSub(endpoint: string): Promise<void>;
+  /**
+   * Bell-off / dead-endpoint removal (idempotent). Scoped to `lane` when
+   * given; without it deletes every row for the endpoint (legacy
+   * full-unsubscribe — pre-lane clients only ever held hourly rows).
+   */
+  deletePushSub(endpoint: string, lane?: string): Promise<void>;
 
-  /** All subscriptions for one lane (today only "hourly"). */
+  /** All subscriptions for one lane ("hourly" / "purple"). */
   listPushSubs(lane: string): Promise<PushSubscription[]>;
 
   /** Daily beacon: refresh the sliding TTL. */

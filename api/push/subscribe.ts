@@ -7,15 +7,19 @@ import type { PushSubscription, RosterEntry } from "../_db/types.js";
 // is only the subscribe/unsubscribe door).
 //
 // POST   /api/push/subscribe  { subscription: { endpoint, keys: { p256dh, auth } }, platform?, lane?, linkSessionId?, roster? }
-//        -> { ok: true } | 400. Upsert by endpoint: re-subscribing refreshes
-//        the row instead of growing the table. linkSessionId (a sync session
+//        -> { ok: true } | 400. Upsert by (endpoint, lane): re-subscribing refreshes
+//        the row instead of growing the table, and two lanes on one device
+//        (same endpoint) keep separate rows. linkSessionId (a sync session
 //        UUID the device holds) + roster ([{cid, name}]) enable named cards
-//        (D1a); either absent → the generic copy.
-// DELETE /api/push/subscribe  { endpoint } -> { ok: true } (idempotent).
+//        (D1a, hourly only — the purple lane is unfiltered); either absent →
+//        the generic copy.
+// DELETE /api/push/subscribe  { endpoint, lane? } -> { ok: true } (idempotent).
+//        Scoped to the lane when given; without it deletes every row for the
+//        endpoint (legacy full-unsubscribe).
 //
 // Validation is structural, not cryptographic: malformed keys 400 here, and
 // endpoints that reject at send time are pruned by the fanout on 404/410.
-// `lane` is an allowlist of one ("hourly") — expansion is a one-line change,
+// `lane` is an allowlist ("hourly" / "purple") — expansion is a one-line change,
 // not a refactor (same discipline as HOURLY_ELIGIBLE_IDS).
 //
 // Env: same DATABASE_URL / TURSO resolution as the sync backend (local dev
@@ -23,7 +27,7 @@ import type { PushSubscription, RosterEntry } from "../_db/types.js";
 
 const B64URL = /^[A-Za-z0-9\-_]+$/;
 const MAX_ENDPOINT_LEN = 2048;
-const LANES = ["hourly"];
+const LANES = ["hourly", "purple"];
 const PLATFORMS = ["win", "mac", "linux", "android", "ios", "other"];
 
 // Subscribe mints no keys and fires at bell-tap frequency: the general
@@ -161,7 +165,7 @@ async function handlePost(req: VercelRequest, res: VercelResponse): Promise<void
     p256dh,
     auth,
     platform,
-    lane: "hourly",
+    lane,
     createdAt: now,
     lastSentAt: null,
     linkSession: linkRaw,
@@ -177,12 +181,16 @@ async function handleDelete(req: VercelRequest, res: VercelResponse): Promise<vo
     res.status(429).json({ error: "rate limited" });
     return;
   }
-  const { endpoint } = bodyOf(req);
+  const { endpoint, lane } = bodyOf(req);
   if (!validEndpoint(endpoint)) {
     res.status(400).json({ error: "endpoint must be an https URL" });
     return;
   }
-  await db.deletePushSub(endpoint);
+  if (lane !== undefined && (typeof lane !== "string" || !LANES.includes(lane))) {
+    res.status(400).json({ error: "unknown lane" });
+    return;
+  }
+  await db.deletePushSub(endpoint, typeof lane === "string" ? lane : undefined);
   res.status(200).json({ ok: true });
 }
 

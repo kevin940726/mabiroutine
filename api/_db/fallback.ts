@@ -55,7 +55,7 @@ export function withFallback(db: Db, source: MigrationSource): Db {
     // Push subscriptions bypass the migration source entirely (no Redis-era
     // equivalent): straight delegation.
     upsertPushSub: (sub) => db.upsertPushSub(sub),
-    deletePushSub: (endpoint) => db.deletePushSub(endpoint),
+    deletePushSub: (endpoint, lane) => db.deletePushSub(endpoint, lane),
     listPushSubs: (lane) => db.listPushSubs(lane),
   };
 }

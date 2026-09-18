@@ -91,19 +91,25 @@ const PURPLE_SOFT_ASK =
 const SERVER_SOFT_ASK =
   "整點推播到這台裝置，App 沒開也會響。若有同步連結，卡片會顯示未完成角色的名字（提醒時只讀取當日結界狀態）；沒有連結就是通用提醒。取消訂閱會同時刪除伺服器上的資料。按下訂閱後，瀏覽器會再確認一次，請選允許。";
 
+// Server-mode soft-ask for the purple lane: App-closed delivery, no linkage
+// (cards name zones, never people), deletion assurance. Replaces the default
+// copy, whose "App 沒開就不會響" would lie here.
+const PURPLE_SERVER_SOFT_ASK =
+  "出沒 15 分鐘前推播到這台裝置，App 沒開也會響。時間是預測值，僅供參考。取消訂閱會同時刪除伺服器上的資料。按下訂閱後，瀏覽器會再確認一次，請選允許。";
+
 function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane) {
   const hourlyOn = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
   const purpleOn = useAppStore((s) => (s.purpleHoleReminders ?? []).includes(taskId));
   const toggleHourly = useAppStore((s) => s.toggleHourlyReminder);
   const togglePurple = useAppStore((s) => s.togglePurpleReminder);
-  // Server mode owns the hourly lane (flagged): bell state reads the
-  // device endpoint map. Both lanes stay armed — visibility decides who
-  // fires (visible → local with live done-state, hidden → server), so the
-  // two never stack without deleting anything (replaces the D6 heal).
-  const serverMode = lane === "hourly" && isServerPushMode(lane);
+  // Server mode per lane (flagged): bell state reads the device endpoint
+  // map. Both lanes stay armed — visibility decides who fires (visible →
+  // local with live done-state, hidden → server), so the two never stack
+  // without deleting anything (replaces the D6 heal).
+  const serverMode = isServerPushMode(lane);
   // The endpoint map is localStorage, not reactive — bump to re-render it.
   const [, bump] = useReducer((x: number) => x + 1, 0);
-  const on = serverMode ? serverPushOn(taskId) : lane === "purple" ? purpleOn : hourlyOn;
+  const on = serverMode ? serverPushOn(taskId, lane) : lane === "purple" ? purpleOn : hourlyOn;
   const toggle = lane === "purple" ? togglePurple : toggleHourly;
   const [coach, setCoach] = useState<CoachMarkKind | null>(null);
   const waiterRef = useRef<AbortController | null>(null);
@@ -115,14 +121,15 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   // entries are KEPT — visibility split, not deletion, prevents doubles.
   useEffect(() => {
     if (!serverMode) return;
-    void reconcileServerPush(taskId).then((changed) => {
+    void reconcileServerPush(taskId, lane).then((changed) => {
       if (changed) bump();
       // Healthy claims refresh the roster snapshot (renames / new chars)
       // and pick up a session linked after subscribing — silent by design,
-      // the soft-ask already disclosed both.
-      else if (serverPushOn(taskId)) void refreshServerRoster(taskId);
+      // the soft-ask already disclosed both. Hourly only: the purple lane
+      // is unlinked, there is nothing to refresh.
+      else if (lane === "hourly" && serverPushOn(taskId, lane)) void refreshServerRoster(taskId);
     });
-  }, [serverMode, taskId]);
+  }, [serverMode, taskId, lane]);
   // Idempotent: the permission watcher and the direct path can both land.
   const subscribe = () => {
     const s = useAppStore.getState();
@@ -138,10 +145,14 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   // never half-subscribed. Alerts stay plain-worded like the rest of
   // this flow.
   const finalizeServerSubscribe = async (): Promise<void> => {
-    const r = await subscribeServerPush(taskId);
+    const r = await subscribeServerPush(taskId, lane);
     if (r === "ok") {
       const s = useAppStore.getState();
-      if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+      if (lane === "purple") {
+        if (!(s.purpleHoleReminders ?? []).includes(taskId)) s.togglePurpleReminder(taskId);
+      } else {
+        if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+      }
       bump();
     } else if (r === "need-sw") {
       alert("推播訂閱需要正式站的 Service Worker：在正式站的實驗性功能開啟後再點鈴鐺。");
@@ -191,11 +202,15 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   const onToggle = async () => {
     if (on) {
       if (serverMode) {
-        await unsubscribeServerPush(taskId);
+        await unsubscribeServerPush(taskId, lane);
         // Symmetric with subscribe: both lanes disarm, or the orphan local
         // timer keeps firing after the bell goes off.
         const s = useAppStore.getState();
-        if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+        if (lane === "purple") {
+          if ((s.purpleHoleReminders ?? []).includes(taskId)) s.togglePurpleReminder(taskId);
+        } else {
+          if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+        }
         bump();
         return;
       }
@@ -229,7 +244,9 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
     // The dialog tap keeps the user gesture alive for requestPermission.
     const softAsk =
       lane === "purple"
-        ? PURPLE_SOFT_ASK
+        ? serverMode
+          ? PURPLE_SERVER_SOFT_ASK
+          : PURPLE_SOFT_ASK
         : serverMode
           ? SERVER_SOFT_ASK
           : undefined;

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { isPushEnabled, setPushFlag } from "@/lib/hourlyReminders";
-import { isPurpleHoleEnabled, setPurpleHoleFlag } from "@/lib/purpleHole";
+import { PURPLE_HOLE_ID, isPurpleHoleEnabled, setPurpleHoleFlag } from "@/lib/purpleHole";
 import { unsubscribeServerPush } from "@/lib/serverPush";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -78,6 +78,24 @@ function disarmHourlyLanes(): Promise<void> {
   return unsubscribeServerPush("barrier");
 }
 
+/**
+ * Same bug class, purple lane: the purple server row outlives the purple
+ * flag the same way. Single subscriber today (`purple-hole`), same
+ * literal-id assumption as the hourly half.
+ */
+function disarmPurpleLanes(): Promise<void> {
+  try {
+    const s = useAppStore.getState();
+    if ((s.purpleHoleReminders ?? []).includes(PURPLE_HOLE_ID)) {
+      s.togglePurpleReminder(PURPLE_HOLE_ID);
+    }
+  } catch {
+    // store unreachable: the flag gates cover the local lane after the
+    // reload, and the server half still runs below.
+  }
+  return unsubscribeServerPush(PURPLE_HOLE_ID, "purple");
+}
+
 export function ExpSettingsDialog() {
   const [open, setOpen] = useState(false);
   const [push, setPush] = useState(false);
@@ -105,6 +123,7 @@ export function ExpSettingsDialog() {
     } else {
       setPurpleHoleFlag(!on);
       setPurple(!on);
+      if (on) void disarmPurpleLanes().catch(() => {});
     }
   };
   return (
@@ -117,6 +136,13 @@ export function ExpSettingsDialog() {
           if (initial.push && !push) {
             try {
               await disarmHourlyLanes();
+            } catch {
+              // idempotent server-side; the fanout prune covers a miss.
+            }
+          }
+          if (initial.purple && !purple) {
+            try {
+              await disarmPurpleLanes();
             } catch {
               // idempotent server-side; the fanout prune covers a miss.
             }

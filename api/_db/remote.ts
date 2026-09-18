@@ -222,9 +222,9 @@ class RemoteDb implements Db {
     await this.client.execute({
       sql: `INSERT INTO push_subscriptions (endpoint, p256dh, auth, platform, lane, created_at, last_sent_at, link_session, roster_json)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(endpoint) DO UPDATE SET
+            ON CONFLICT(endpoint, lane) DO UPDATE SET
               p256dh = excluded.p256dh, auth = excluded.auth, platform = excluded.platform,
-              lane = excluded.lane, link_session = excluded.link_session, roster_json = excluded.roster_json`,
+              link_session = excluded.link_session, roster_json = excluded.roster_json`,
       args: [
         sub.endpoint,
         sub.p256dh,
@@ -239,9 +239,16 @@ class RemoteDb implements Db {
     });
   }
 
-  async deletePushSub(endpoint: string): Promise<void> {
+  async deletePushSub(endpoint: string, lane?: string): Promise<void> {
     await this.ready;
-    await this.client.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint = ?", args: [endpoint] });
+    if (lane) {
+      await this.client.execute({
+        sql: "DELETE FROM push_subscriptions WHERE endpoint = ? AND lane = ?",
+        args: [endpoint, lane],
+      });
+    } else {
+      await this.client.execute({ sql: "DELETE FROM push_subscriptions WHERE endpoint = ?", args: [endpoint] });
+    }
   }
 
   async listPushSubs(lane: string): Promise<PushSubscription[]> {

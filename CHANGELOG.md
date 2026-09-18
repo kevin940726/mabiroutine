@@ -4,6 +4,15 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- Purple-hole `/admin` editor (needs worker deploy + `ADMIN_SECRET` to go live): published values, watcher candidates with one-tap promote, and manual datetime entries on one bearer-guarded page — no dashboard JSON hand-edits
+- Watcher auto-apply (ships with the same deploy): non-empty watcher results update the published windows on their own; any hand edit locks auto so corrections persist, promote keeps it, one tap resumes
+- Per-window admin overrides (same deploy): correct one window's end, add a missed one, or ignore a bogus candidate — the rest keep auto-updating; expired records clean themselves up
+- Purple bell subscribes a server lane (needs worker deploy + a bell re-tap): unfiltered zone cards ~15 min before each predicted spawn with App-closed delivery, same visibility-split and unsubscribe semantics as hourly
+
+### Fixes
+- Subscription rows are keyed by endpoint + lane (was endpoint alone, so the second lane silently stole the first): migration v4 rebuilds the table, upserts/deletes/stamps are lane-scoped in both drivers, the API, and both fanouts — bell-off on one lane no longer kills the other lane's delivery
+
 ## 2026-09-18 — 紫洞 feed 與退訂修正
 
 ### Features

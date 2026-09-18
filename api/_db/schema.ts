@@ -27,9 +27,11 @@ export const MIGRATIONS: string[][] = [
       PRIMARY KEY (session_id, key)
     )`,
   ],
-  // v2 — push subscriptions (server-push fanout). One row per endpoint;
-  // re-subscribing upserts the same row, so repeats never grow the table.
-  // `lane` scopes a row to a cadence (today only "hourly"); dead endpoints
+  // v2 — push subscriptions (server-push fanout). One row per
+  // (endpoint, lane) since v4 (v2 keyed endpoint alone — harmless while
+  // every row was hourly); re-subscribing upserts the same row, so repeats
+  // never grow the table.
+  // `lane` scopes a row to a cadence ("hourly" / "purple"); dead endpoints
   // are pruned by the fanout on 404/410, and bell-off deletes the row.
   [
     `CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -53,5 +55,33 @@ export const MIGRATIONS: string[][] = [
   [
     `ALTER TABLE push_subscriptions ADD COLUMN link_session TEXT`,
     `ALTER TABLE push_subscriptions ADD COLUMN roster_json TEXT`,
+  ],
+  // v4 — composite key (endpoint, lane). A second lane on the same device
+  // shares the browser endpoint, so an endpoint-only PK let one lane's
+  // upsert steal the other's row (and an endpoint-only DELETE cleared both).
+  // SQLite can't add a PK by ALTER: rebuild + copy + swap. The remote driver
+  // batches each version atomically (safe); the local driver runs statements
+  // one-by-one with no transaction, so a crash between DROP and RENAME
+  // breaks retry ("no such table" on every boot until rm dev.db) — same
+  // accepted class as the v3 note (local dev is a throwaway file).
+  [
+    `CREATE TABLE IF NOT EXISTS push_subscriptions_new (
+      endpoint     TEXT NOT NULL,
+      p256dh       TEXT NOT NULL,
+      auth         TEXT NOT NULL,
+      platform     TEXT NOT NULL DEFAULT '',
+      lane         TEXT NOT NULL DEFAULT 'hourly',
+      created_at   INTEGER NOT NULL,
+      last_sent_at INTEGER,
+      link_session TEXT,
+      roster_json  TEXT,
+      PRIMARY KEY (endpoint, lane)
+    )`,
+    `INSERT OR IGNORE INTO push_subscriptions_new
+       (endpoint, p256dh, auth, platform, lane, created_at, last_sent_at, link_session, roster_json)
+       SELECT endpoint, p256dh, auth, platform, lane, created_at, last_sent_at, link_session, roster_json
+       FROM push_subscriptions`,
+    `DROP TABLE IF EXISTS push_subscriptions`,
+    `ALTER TABLE push_subscriptions_new RENAME TO push_subscriptions`,
   ],
 ];

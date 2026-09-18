@@ -380,32 +380,54 @@ export type PurpleScheduleDoc = {
   windows: MaintenanceWindow[];
   updatedAt: number | null;
   updatedBy: string | null;
+  /**
+   * Watcher auto-apply (decided 2026-09-18): true (default) = each watcher
+   * run overwrites `windows` when candidates are non-empty; any manual
+   * publish flips it false (the hand edit wins and persists); promote keeps
+   * it true; the admin resume button flips it back. The anchor is always
+   * manual — the watcher never observes spawns, only maintenance posts.
+   */
+  auto: boolean;
 };
 
 /**
- * Strict schedule-doc parse, both runtimes: anchor must be a finite number
- * and EVERY window entry must be finite with start < end — one fat-fingered
- * dashboard entry rejects the whole doc instead of half-applying it, and the
- * caller falls back to cache/hardcoded. Returns the doc normalized (sorted +
- * merged), or null.
+ * Strict window-list gate, both runtimes: an array (cap 64) of finite
+ * {startMs, endMs} with start < end, or null. One bad entry rejects the
+ * whole list — a fat-fingered dashboard edit degrades instead of
+ * half-applying.
  */
-export function parseScheduleDoc(v: unknown): PurpleScheduleDoc | null {
-  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
-  const d = v as Record<string, unknown>;
-  if (typeof d.anchorMs !== "number" || !Number.isFinite(d.anchorMs)) return null;
-  if (!Array.isArray(d.windows) || d.windows.length > 64) return null;
+export function validWindowsList(v: unknown): MaintenanceWindow[] | null {
+  if (!Array.isArray(v) || v.length > 64) return null;
   const windows: MaintenanceWindow[] = [];
-  for (const e of d.windows) {
+  for (const e of v) {
     if (!e || typeof e !== "object") return null;
     const { startMs, endMs } = e as Record<string, unknown>;
     if (typeof startMs !== "number" || typeof endMs !== "number") return null;
     if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || !(startMs < endMs)) return null;
     windows.push({ startMs, endMs });
   }
+  return windows;
+}
+
+/**
+ * Strict schedule-doc parse, both runtimes: finite anchor + a valid window
+ * list — one bad entry rejects the whole doc instead of half-applying it,
+ * and the caller falls back to cache/hardcoded. Returns the doc normalized
+ * (sorted + merged), or null.
+ */
+export function parseScheduleDoc(v: unknown): PurpleScheduleDoc | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const d = v as Record<string, unknown>;
+  if (typeof d.anchorMs !== "number" || !Number.isFinite(d.anchorMs)) return null;
+  const windows = validWindowsList(d.windows);
+  if (!windows) return null;
   const updatedAt =
     typeof d.updatedAt === "number" && Number.isFinite(d.updatedAt) ? d.updatedAt : null;
   const updatedBy = typeof d.updatedBy === "string" ? d.updatedBy.slice(0, 32) : null;
-  return { anchorMs: d.anchorMs, windows: normalizeWindows(windows), updatedAt, updatedBy };
+  // Absent (all pre-auto docs, incl. the first dashboard seed) reads as
+  // auto-on: the watcher starts improving the doc on its next run.
+  const auto = typeof d.auto === "boolean" ? d.auto : true;
+  return { anchorMs: d.anchorMs, windows: normalizeWindows(windows), updatedAt, updatedBy, auto };
 }
 
 export type PurpleFeedSource = "live" | "cache" | "hardcoded";

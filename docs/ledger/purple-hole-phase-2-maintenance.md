@@ -17,8 +17,13 @@ phase 2 is only about **feeding the window list**.
 
 - Real-time detection (no game API exists; the app learns about maintenance
   the same way players do — by reading announcements).
-- Historical archive (windows older than the current spawn are mathematically
-  inert; prune by convention, don't build storage for them).
+- Historical archive (only pre-anchor windows are truly inert — legs tile
+  continuously from the anchor, so every post-anchor window permanently
+  shapes later legs; pruning a spent window un-does a real pause and shifts
+  all future predictions earlier. Correction 2026-09-18: the old
+  "mathematically inert" claim below was wrong. Never prune post-anchor
+  windows from verified; override records expire themselves when past and
+  unobserved).
 - Server push (orthogonal; phase 1's local timer consumes the same list).
 
 ## Verified alternate doors (2026-09-17, probed live)
@@ -101,7 +106,8 @@ separate CMS, because Cloudflare already ships two:
     "anchorMs": 1789538880000,
     "windows": [{ "startMs": 1790114400000, "endMs": 1790123400000 }],
     "updatedAt": 1758240000000,
-    "updatedBy": "seed"
+    "updatedBy": "seed",
+    "auto": true
   }
   ```
   `updatedAt` is your edit time (any recent ms timestamp); the client shows
@@ -199,6 +205,14 @@ be a second source to reconcile), watcher + feed built in code (see build
 log). What lands live: published feed + candidates; the hardcoded list stays
 pure fallback.
 
+Update 2026-09-18 (per-window overrides): whole-doc lock replaced by
+override records — KV `purple:overrides` (`overrides` + `tombstones`, each a
+window list). Resolve per run: override sharing a candidate's startMs
+replaces it, unmatched overrides append, tombstoned starts suppress; records
+past and unobserved expire on resolve. One code path (`resolveAndStore`)
+serves the watcher, the overrides save, and resume-auto. Manual publish
+still locks the whole doc; promote/resume keep auto.
+
 ## Combined worker architecture (shared with the push release)
 
 One worker, three jobs — the barrier push plan already pays the fixed costs
@@ -221,10 +235,15 @@ CF Worker (extends barrier's push-cron worker)
 ├── every 15 min: spawn check ──▶ spawn within 15 min? ──▶ purple fanout
 │   (imports src/lib/purpleHole.ts directly — DOM-free pure math, window
 │   refs already guarded — one implementation, two runtimes)
+│   BUILT 2026-09-18: unfiltered lane=purple subs, skip-past-spawns cutoff,
+│   KV fire-once guard, prune + last_sent_at batch (probed fanned-out →
+│   fired-already → no-spawn)
 ├── 2×/day: Bahamut watch ──▶ search.php fetch ──▶ regex windows + 紫洞
 │   report titles ──▶ KV candidates (maintainer promotes, never auto-truth)
+│   BUILT 2026-09-18 (probed 7/7 live ranges, 0.35ms; egress proof pending)
 └── GET /purple-schedule ──▶ resolved {anchorMs, windows[], updatedAt,
     confidence, sources[]} with CORS *, KV-cached (≥60s TTL)
+    BUILT 2026-09-18 (+ /admin editor, same deploy)
 ```
 
 Client fallback chain: worker/KV > hardcoded (per-device override dropped with D).
@@ -278,11 +297,9 @@ fallback chain covers a failure).
 - Pending, in order: (1) ~~`pnpm worker:deploy`~~ done 2026-09-18, endpoint
   verified from outside; (2) ~~seed `purple:schedule` via dashboard (JSON
   above)~~ done 2026-09-18 — `/purple-schedule` serves it with
-  `confidence: "verified"`; (3) CF-egress proof — the one unverified bit
-  (Bahamut blocking Cloudflare IPs): `wrangler tail` across 03:17/15:17 UTC
-  (11:17/23:17 Taipei) for `purple watch … {"windows": N}` (N ≥ 1 while
-  routine posts are up) or   read `purple:candidates` in the dashboard; on failure the watcher degrades
-  to local script + dashboard paste, feed contract unchanged; (4) ~~client
+  `confidence: "verified"`; (3) ~~CF-egress proof~~ PROVEN 2026-09-18
+  15:17 UTC fire — `purple:candidates` in KV with a fresh `observedAt` and
+  all 7 known windows (Bahamut does not block CF egress); (4) ~~client
   proof — `__mabiPurpleFeed()` reads `{"source":"live",…}` after a reload~~
   proven 2026-09-18 on dev (`{"source":"live","updatedAt":1758240000000,…}` —
   seed timestamp matches).
