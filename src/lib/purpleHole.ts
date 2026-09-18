@@ -7,8 +7,10 @@
 // math is already here so a future window feed just fills the list.
 //
 // Anchor (observed in-game): 2026-09-16 14:08 Taipei → predicts
-// 2026-09-18 02:23. Correct drift by moving the anchor in code (phase 1,
-// same hand-owned discipline as all other TW data).
+// 2026-09-18 02:23. Correct drift by moving the anchor in code until the
+// admin feed (phase 2B) publishes it — then the worker's /purple-schedule
+// doc wins and the code values below are only the offline fallback
+// (see "Schedule feed" near the end of this file).
 
 export const PURPLE_HOLE_ID = "purple-hole";
 
@@ -64,6 +66,48 @@ export function normalizeWindows(windows: MaintenanceWindow[]): MaintenanceWindo
   return out;
 }
 
+// Active timetable: the code values above until a schedule feed doc applies.
+// Every public entry point defaults to this snapshot (anchor AND windows),
+// so a feed update shifts badges, popover, and fire times with no caller
+// changes; explicit args keep working for probes and tests. The worker
+// imports this module too (one math module, two runtimes) — the snapshot
+// is per-runtime, and the worker reads KV directly instead of this.
+export type PurpleTimetable = { anchorMs: number; windows: MaintenanceWindow[] };
+
+let activeAnchorMs = PURPLE_ANCHOR_MS;
+let activeWindows: MaintenanceWindow[] | null = null; // null = MAINTENANCE_WINDOWS
+
+function activeTimetableWindows(): MaintenanceWindow[] {
+  return activeWindows ?? MAINTENANCE_WINDOWS;
+}
+
+/** Apply a feed (or probe) timetable; null halves keep the current values. */
+export function setPurpleTimetable(anchorMs: number | null, windows: MaintenanceWindow[] | null): void {
+  if (typeof anchorMs === "number" && Number.isFinite(anchorMs)) activeAnchorMs = anchorMs;
+  if (windows) {
+    activeWindows = normalizeWindows(
+      windows.filter(
+        (w) =>
+          w &&
+          typeof w.startMs === "number" &&
+          typeof w.endMs === "number" &&
+          Number.isFinite(w.startMs) &&
+          Number.isFinite(w.endMs) &&
+          w.startMs < w.endMs
+      )
+    );
+  }
+}
+
+export function currentPurpleTimetable(): PurpleTimetable {
+  return { anchorMs: activeAnchorMs, windows: activeTimetableWindows() };
+}
+
+export function resetPurpleTimetable(): void {
+  activeAnchorMs = PURPLE_ANCHOR_MS;
+  activeWindows = null;
+}
+
 function totalOverlap(aMs: number, bMs: number, windows: MaintenanceWindow[]): number {
   let total = 0;
   for (const w of windows) {
@@ -100,25 +144,33 @@ export function prevBefore(toMs: number, windows: MaintenanceWindow[] = MAINTENA
 }
 
 /** nth occurrence relative to the anchor (0 = anchor, negative = past). */
-export function nthOccurrence(n: number, windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS): number {
-  if (n === 0) return PURPLE_ANCHOR_MS;
+export function nthOccurrence(
+  n: number,
+  windows: MaintenanceWindow[] = activeTimetableWindows(),
+  anchorMs: number = activeAnchorMs
+): number {
+  if (n === 0) return anchorMs;
   if (n > 0) {
-    let t = PURPLE_ANCHOR_MS;
+    let t = anchorMs;
     for (let k = 0; k < n; k++) t = nextAfter(t, windows);
     return t;
   }
-  let t = PURPLE_ANCHOR_MS;
+  let t = anchorMs;
   for (let k = 0; k < -n; k++) t = prevBefore(t, windows);
   return t;
 }
 
 /** Index of the first occurrence strictly after `nowMs`. */
-export function firstIndexAfter(nowMs: number, windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS): number {
+export function firstIndexAfter(
+  nowMs: number,
+  windows: MaintenanceWindow[] = activeTimetableWindows(),
+  anchorMs: number = activeAnchorMs
+): number {
   // Estimate ignoring maintenance, then walk to the truth (maintenance only
   // shifts forward, so the estimate is never ahead by more than the windows).
-  let k = Math.floor((nowMs - PURPLE_ANCHOR_MS) / PURPLE_PERIOD_MS);
-  while (nthOccurrence(k + 1, windows) <= nowMs) k++;
-  while (nthOccurrence(k, windows) > nowMs) k--;
+  let k = Math.floor((nowMs - anchorMs) / PURPLE_PERIOD_MS);
+  while (nthOccurrence(k + 1, windows, anchorMs) <= nowMs) k++;
+  while (nthOccurrence(k, windows, anchorMs) > nowMs) k--;
   return k + 1;
 }
 
@@ -127,11 +179,12 @@ export function occurrencesAround(
   nowMs: number = Date.now(),
   past = 2,
   future = 3,
-  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+  windows: MaintenanceWindow[] = activeTimetableWindows(),
+  anchorMs: number = activeAnchorMs
 ): number[] {
-  const first = firstIndexAfter(nowMs, windows);
+  const first = firstIndexAfter(nowMs, windows, anchorMs);
   const out: number[] = [];
-  for (let k = first - past; k < first + future; k++) out.push(nthOccurrence(k, windows));
+  for (let k = first - past; k < first + future; k++) out.push(nthOccurrence(k, windows, anchorMs));
   return out;
 }
 
@@ -147,9 +200,10 @@ export function dailyBucketStartMs(nowMs: number = Date.now()): number {
 /** True when at least one occurrence falls in the current daily bucket. */
 export function isScheduledToday(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+  windows: MaintenanceWindow[] = activeTimetableWindows(),
+  anchorMs: number = activeAnchorMs
 ): boolean {
-  return bucketOccurrence(nowMs, windows) !== null;
+  return bucketOccurrence(nowMs, windows, anchorMs) !== null;
 }
 
 /**
@@ -158,13 +212,14 @@ export function isScheduledToday(
  */
 export function bucketOccurrence(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+  windows: MaintenanceWindow[] = activeTimetableWindows(),
+  anchorMs: number = activeAnchorMs
 ): number | null {
   const start = dailyBucketStartMs(nowMs);
   const end = start + 24 * 60 * 60 * 1000;
-  const first = firstIndexAfter(start - PURPLE_PERIOD_MS * 2, windows);
+  const first = firstIndexAfter(start - PURPLE_PERIOD_MS * 2, windows, anchorMs);
   for (let k = first; ; k++) {
-    const t = nthOccurrence(k, windows);
+    const t = nthOccurrence(k, windows, anchorMs);
     if (t >= end) return null;
     if (t >= start) return t;
   }
@@ -173,9 +228,10 @@ export function bucketOccurrence(
 /** First occurrence strictly after now. */
 export function nextOccurrence(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+  windows: MaintenanceWindow[] = activeTimetableWindows(),
+  anchorMs: number = activeAnchorMs
 ): number {
-  return nthOccurrence(firstIndexAfter(nowMs, windows), windows);
+  return nthOccurrence(firstIndexAfter(nowMs, windows, anchorMs), windows, anchorMs);
 }
 
 
@@ -195,15 +251,16 @@ export const SPAWN_FRESH_MS = 15 * 60 * 1000;
 export type PurpleBadge = { past: string | null; next: string | null };
 export function purpleBadge(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+  windows: MaintenanceWindow[] = activeTimetableWindows(),
+  anchorMs: number = activeAnchorMs
 ): PurpleBadge | null {
-  const t = bucketOccurrence(nowMs, windows);
+  const t = bucketOccurrence(nowMs, windows, anchorMs);
   if (t === null) return null;
   // Absolute "MM/DD HH:mm": relative words (昨日/明日) lie to late-night
   // players sitting on the wrong side of midnight from the 06:00 bucket.
   if (t > nowMs) return { past: null, next: formatTaipei(t) };
   if (t > nowMs - SPAWN_FRESH_MS) return { past: formatTaipei(t), next: null };
-  return { past: formatTaipei(t), next: formatTaipei(nextOccurrence(nowMs, windows)) };
+  return { past: formatTaipei(t), next: formatTaipei(nextOccurrence(nowMs, windows, anchorMs)) };
 }
 
 /**
@@ -218,21 +275,23 @@ export type PurpleLive =
   | { kind: "stale"; pastMs: number; nextMs: number };
 export function purpleLive(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+  windows: MaintenanceWindow[] = activeTimetableWindows(),
+  anchorMs: number = activeAnchorMs
 ): PurpleLive | null {
-  const t = bucketOccurrence(nowMs, windows);
+  const t = bucketOccurrence(nowMs, windows, anchorMs);
   if (t === null) return null;
   if (t > nowMs) return { kind: "upcoming", nextMs: t };
   if (t > nowMs - SPAWN_FRESH_MS) return { kind: "live", endsMs: t + SPAWN_FRESH_MS };
-  return { kind: "stale", pastMs: t, nextMs: nextOccurrence(nowMs, windows) };
+  return { kind: "stale", pastMs: t, nextMs: nextOccurrence(nowMs, windows, anchorMs) };
 }
 
 /** "09-18 02:23"-style label for the next upcoming spawn (off-day note). */
 export function nextBadgeLabel(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS
+  windows: MaintenanceWindow[] = activeTimetableWindows(),
+  anchorMs: number = activeAnchorMs
 ): string {
-  return formatTaipei(nextOccurrence(nowMs, windows));
+  return formatTaipei(nextOccurrence(nowMs, windows, anchorMs));
 }
 
 /** "MM/DD HH:mm" in Taipei. */
@@ -300,4 +359,143 @@ export function isPurpleHoleEnabled(): boolean {
   } catch {
     return false;
   }
+}
+
+// Schedule feed (phase 2B): the worker's /purple-schedule doc (KV-backed,
+// maintainer-published) wins over the hardcoded timetable above. Chain:
+// live fetch > localStorage cache > hardcoded. A failed fetch keeps the
+// cache (or hardcoded); an empty-windows doc is a real "no maintenance",
+// distinguishable from "unknown" via updatedAt (null = never published).
+// The worker imports this module for parseScheduleDoc (one module, two
+// runtimes) but reads KV directly — it never calls the browser half below.
+
+/** Worker endpoint serving the published doc (public, CORS *, 60s cache). */
+export const PURPLE_SCHEDULE_URL =
+  "https://mabiroutine-worker.kaihao.workers.dev/purple-schedule";
+
+const FEED_CACHE_KEY = "mabiroutine:purple-schedule";
+
+export type PurpleScheduleDoc = {
+  anchorMs: number;
+  windows: MaintenanceWindow[];
+  updatedAt: number | null;
+  updatedBy: string | null;
+};
+
+/**
+ * Strict schedule-doc parse, both runtimes: anchor must be a finite number
+ * and EVERY window entry must be finite with start < end — one fat-fingered
+ * dashboard entry rejects the whole doc instead of half-applying it, and the
+ * caller falls back to cache/hardcoded. Returns the doc normalized (sorted +
+ * merged), or null.
+ */
+export function parseScheduleDoc(v: unknown): PurpleScheduleDoc | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const d = v as Record<string, unknown>;
+  if (typeof d.anchorMs !== "number" || !Number.isFinite(d.anchorMs)) return null;
+  if (!Array.isArray(d.windows) || d.windows.length > 64) return null;
+  const windows: MaintenanceWindow[] = [];
+  for (const e of d.windows) {
+    if (!e || typeof e !== "object") return null;
+    const { startMs, endMs } = e as Record<string, unknown>;
+    if (typeof startMs !== "number" || typeof endMs !== "number") return null;
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || !(startMs < endMs)) return null;
+    windows.push({ startMs, endMs });
+  }
+  const updatedAt =
+    typeof d.updatedAt === "number" && Number.isFinite(d.updatedAt) ? d.updatedAt : null;
+  const updatedBy = typeof d.updatedBy === "string" ? d.updatedBy.slice(0, 32) : null;
+  return { anchorMs: d.anchorMs, windows: normalizeWindows(windows), updatedAt, updatedBy };
+}
+
+export type PurpleFeedSource = "live" | "cache" | "hardcoded";
+export type PurpleFeedStatus = {
+  source: PurpleFeedSource;
+  updatedAt: number | null;
+  fetchedAtMs: number | null;
+};
+
+let feedStatus: PurpleFeedStatus = { source: "hardcoded", updatedAt: null, fetchedAtMs: null };
+let feedVersion = 0;
+const feedListeners = new Set<() => void>();
+
+/** Feed-change generation (consumers re-arm/re-render on change only). */
+export function purpleFeedVersion(): number {
+  return feedVersion;
+}
+
+export function purpleFeedStatus(): PurpleFeedStatus {
+  return feedStatus;
+}
+
+/** Subscribe to feed changes; returns the unsubscriber. */
+export function subscribePurpleFeed(fn: () => void): () => void {
+  feedListeners.add(fn);
+  return () => {
+    feedListeners.delete(fn);
+  };
+}
+
+function applyFeedDoc(doc: PurpleScheduleDoc, source: "live" | "cache"): boolean {
+  const cur = currentPurpleTimetable();
+  const same =
+    cur.anchorMs === doc.anchorMs &&
+    JSON.stringify(normalizeWindows(cur.windows)) === JSON.stringify(doc.windows);
+  setPurpleTimetable(doc.anchorMs, doc.windows);
+  feedStatus = { source, updatedAt: doc.updatedAt, fetchedAtMs: Date.now() };
+  if (!same) {
+    feedVersion++;
+    for (const fn of [...feedListeners]) {
+      try {
+        fn();
+      } catch {
+        // a listener must never break the feed for the others.
+      }
+    }
+  }
+  return !same;
+}
+
+/**
+ * Boot entry: apply the cache synchronously (no network wait), then refresh
+ * in the background. Consumers already re-render on their own ticks; the
+ * reminder hook re-arms via subscribePurpleFeed. Resolves — never rejects.
+ */
+export function initPurpleFeed(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(FEED_CACHE_KEY);
+    if (raw) {
+      const cached = parseScheduleDoc((JSON.parse(raw) as { doc?: unknown })?.doc);
+      if (cached) applyFeedDoc(cached, "cache");
+    }
+  } catch {
+    // no (or corrupt) cache: hardcoded stands until the refresh lands.
+  }
+  void refreshPurpleFeed().catch(() => {
+    // offline / worker down: cache-or-hardcoded stands, status says so.
+  });
+}
+
+/**
+ * Fetch-apply-cache one round. Throws on network or shape failure so the
+ * caller (or DevTools) can tell "failed" from "stale-but-usable".
+ */
+export async function refreshPurpleFeed(): Promise<PurpleFeedStatus> {
+  const res = await fetch(PURPLE_SCHEDULE_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error(`schedule ${res.status}`);
+  const doc = parseScheduleDoc(await res.json());
+  if (!doc) throw new Error("schedule bad shape");
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(
+        FEED_CACHE_KEY,
+        JSON.stringify({ doc, fetchedAtMs: Date.now() })
+      );
+    } catch {
+      // storage blocked: this session still uses the live doc.
+    }
+  }
+  applyFeedDoc(doc, "live");
+  return purpleFeedStatus();
 }

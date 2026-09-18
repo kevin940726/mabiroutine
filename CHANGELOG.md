@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- Purple-hole schedule feed (phase 2B, needs worker deploy + KV seed to go live): the worker serves the published timetable at `GET /purple-schedule` and the app prefers it over hardcoded values (cached offline, refreshed at boot, reminder timer re-arms when it changes); the twice-daily Bahamut watcher parses maintenance windows into review candidates — never auto-published
+
 ### Fixes
 - Turning the 開場提醒 experiment flag off now actually unsubscribes: the server row is deleted, the device subscription dropped, and the local lane entry cleared (bell-off semantics) — cards no longer keep arriving after flag-off
 

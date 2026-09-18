@@ -8,7 +8,7 @@ Flag: the 實驗性功能 dialog persists `mabiroutine:purple-hole-flag`. Prod d
 - Cycle 36h15m, timer pauses during maintenance (math in place, window list empty).
 - Spawns: one each in 女神庭園, 冰霜峽谷, 雲海曠野 (row desc, per user 2026-09-17).
 - Anchor (observed in-game): 2026-09-16 14:08 Taipei → predicts 2026-09-18 02:23.
-- Correct drift by moving `PURPLE_ANCHOR_MS` in `src/lib/purpleHole.ts` + commit.
+- Correct drift by moving `PURPLE_ANCHOR_MS` in `src/lib/purpleHole.ts` + commit (until the feed deploys + KV seeds — then publish via dashboard/admin, code stays fallback).
 
 ## Phases (from the original brief, 2026-09-17)
 

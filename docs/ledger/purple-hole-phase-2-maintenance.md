@@ -1,7 +1,8 @@
 # Purple-hole phase 2 — maintenance-aware predictions
 
-Status: A built 2026-09-17 (helper + first dated entry); D dropped same day
-(correction below); watcher + feed unstarted. Phase 1 shipped with
+Status: A built 2026-09-17 (helper + first dated entry); D dropped same day;
+B feed + watcher built in code 2026-09-18, NOT yet live (worker redeploy +
+KV seed pending; CF-egress proof pending first deploy). Phase 1 shipped with
 `MAINTENANCE_WINDOWS = []`.
 
 ## Goal
@@ -91,7 +92,23 @@ watcher (candidates) or the maintainer — and the maintainer needs no
 separate CMS, because Cloudflare already ships two:
 
 - *Day one:* the **KV dashboard itself** — namespace → key → edit raw JSON.
-  Zero code, phone-accessible, ~1 write/day against the 1k budget.
+  Zero code, phone-accessible, ~1 write/day against the 1k budget. Key
+  `purple:schedule`, exact shape (numbers are UTC ms — build them with
+  `taipeiWall`, never by hand; seed below = anchor 2026-09-16 14:08 Taipei
+  + predicted 9/23 06:00–08:30 window):
+  ```json
+  {
+    "anchorMs": 1789538880000,
+    "windows": [{ "startMs": 1790114400000, "endMs": 1790123400000 }],
+    "updatedAt": 1758240000000,
+    "updatedBy": "seed"
+  }
+  ```
+  `updatedAt` is your edit time (any recent ms timestamp); the client shows
+  nothing for it yet — it only separates "published" from "never published"
+  (`null` = hardcoded fallback). One fat-fingered entry rejects the whole
+  doc (strict parse, both runtimes) and the app keeps cache/hardcoded, so a
+  bad dashboard edit degrades, never corrupts.
 - *Graduation:* a **one-page `/admin` route on the same worker** (bearer
   `ADMIN_SECRET`, timing-safe compare, `noindex`): datetime-local inputs,
   current-values preview, and a **promote-candidate button** that copies the
@@ -176,6 +193,12 @@ parked. Full automation (unattended poll → truth with no human) stays out —
 and the failure design keeps "fetch failed" distinguishable from "no
 maintenance" via `updatedAt` age.
 
+Update 2026-09-18: D dropped 2026-09-17, Wednesday rule never built (the feed
+carries verified windows instead — a hardcoded Wednesday default would just
+be a second source to reconcile), watcher + feed built in code (see build
+log). What lands live: published feed + candidates; the hardcoded list stays
+pure fallback.
+
 ## Combined worker architecture (shared with the push release)
 
 One worker, three jobs — the barrier push plan already pays the fixed costs
@@ -227,8 +250,52 @@ fallback chain covers a failure).
   change) or a long-press on the 已過/下次 line; keep it to set + clear.
 - Convention: prune spent windows when adding new ones (same commit for A).
 
+## Build log 2026-09-18 (feed + watcher in code, not yet live)
+
+- Timetable parameterized: every `purpleHole.ts` entry point now defaults to
+  an active snapshot (`setPurpleTimetable` / `currentPurpleTimetable` /
+  `resetPurpleTimetable`) instead of the constants — a feed doc shifts
+  badges, popover, and fire times with no caller changes (all callers used
+  defaults; explicit args still work for probes). Shared strict
+  `parseScheduleDoc` serves both runtimes (worker imports it like the hourly
+  timing math).
+- `GET /purple-schedule` live in code: published KV doc with CORS `*` +
+  `public, max-age=60`; empty/corrupt KV degrades to hardcoded with
+  `confidence: "hardcoded"`, `updatedAt: null`.
+- Client chain live in code: `initPurpleFeed()` at boot (cache sync, refresh
+  async), `mabiroutine:purple-schedule` cache, `subscribePurpleFeed` re-arms
+  the reminder timer on real changes only; `__mabiPurpleFeed()` reports
+  live/cache/hardcoded in DevTools.
+- Watcher spike folded in: live Bahamut fetch → 200, 8 mentions → 7 unique
+  windows matching all 7 hand-recorded ranges (prefix-less `6時 ～ 8時`,
+  `9時00分` variants handled; overnight tails roll +1 day; repost dupes
+  deduped), parse 0.35ms (28x inside the 10ms cron budget). The probe caught
+  one real bug first — a group-index slip in the worker port parsed every
+  end as 12:00 — fixed and re-probed 15/15 (parse matrix, 02:23→04:23 shift,
+  anchor re-base, explicit-args passthrough, live page).
+- Watcher cron (`17 3,15 * * *` → `parseMaintWindows` → `purple:candidates`
+  `{windows, observedAt, sources}`, never auto-truth) live in code.
+- Pending, in order: (1) ~~`pnpm worker:deploy`~~ done 2026-09-18, endpoint
+  verified from outside; (2) ~~seed `purple:schedule` via dashboard (JSON
+  above)~~ done 2026-09-18 — `/purple-schedule` serves it with
+  `confidence: "verified"`; (3) CF-egress proof — the one unverified bit
+  (Bahamut blocking Cloudflare IPs): `wrangler tail` across 03:17/15:17 UTC
+  (11:17/23:17 Taipei) for `purple watch … {"windows": N}` (N ≥ 1 while
+  routine posts are up) or   read `purple:candidates` in the dashboard; on failure the watcher degrades
+  to local script + dashboard paste, feed contract unchanged; (4) ~~client
+  proof — `__mabiPurpleFeed()` reads `{"source":"live",…}` after a reload~~
+  proven 2026-09-18 on dev (`{"source":"live","updatedAt":1758240000000,…}` —
+  seed timestamp matches).
+  Server purple fanout on the 15-min tick is still a stub (later work).
+
 ## Tests
 
+- Feed probes 2026-09-18, 15/15 via esbuild-bundled real modules
+  (`feed-probe.mjs`, throwaway): parseScheduleDoc matrix (valid / bad anchor
+  / end<start / non-object / 65-cap / missing updatedAt / overlap merge),
+  02:23→04:23 shift through the snapshot AND through explicit args, anchor
+  re-base, reset restores hardcoded, worker `parseMaintWindows` on the live
+  page (7 unique, <1ms).
 - Synthetic-window probes (the 02:23 → 04:23 pattern) via `node -e` against
   the real module math, documented in the commit message; no harness exists
   for lib code, and none is proposed for this.

@@ -14,6 +14,7 @@ import {
   msUntilNextPurpleFire,
   msUntilPurpleFire,
   nthOccurrence,
+  subscribePurpleFeed,
 } from "@/lib/purpleHole";
 import { resolveReminderDeepLink } from "@/hooks/useHourlyReminders";
 
@@ -112,10 +113,19 @@ export function usePurpleHoleReminders(enabled: boolean) {
       }
     };
     document.addEventListener("visibilitychange", onVisible);
+    // Feed change (phase 2B: published anchor/windows land mid-session):
+    // re-arm from the new timetable — catch-up semantics, so a spawn the
+    // feed just pulled closer fires ~immediately when due, never late.
+    const offFeed = subscribePurpleFeed(() => {
+      if (cancelled) return;
+      window.clearTimeout(timer);
+      armCatchUp();
+    });
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
+      offFeed();
     };
   }, [enabled]);
 }

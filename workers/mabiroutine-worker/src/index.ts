@@ -1,15 +1,22 @@
-// mabiroutine-worker: push fanout + purple schedule feed + admin + watcher.
+// mabiroutine-worker: push fanout + purple schedule feed + watcher (+ admin).
 // Full-worker fanout (verdict A, proven 2026-09-17): the hourly cron reads
 // push_subscriptions straight from Turso and sends here — no Vercel fanout
 // route exists. Timing/tag math is imported from the app source (one module,
 // two runtimes — the lib is DOM-free, window refs guarded).
+//
+// Purple feed (phase 2B, live 2026-09-18): GET /purple-schedule serves the
+// published KV doc (CORS *, 60s cache), hardcoded fallback when KV is empty
+// or corrupt. The 2x/day watcher fetches the Bahamut maintenance search,
+// regexes scheduled windows into KV candidates — never auto-truth (the
+// maintainer promotes via dashboard day one, /admin at graduation).
+// Server purple fanout on the 15-min tick is later work (still a stub).
 //
 // Secrets (wrangler secret put, never committed): VAPID_JWK (app P-256 key,
 // JWK JSON), VAPID_SUBJECT (mailto:/URL contact), TURSO_DB_URL (https),
 // TURSO_AUTH_TOKEN (same token as Vercel; full-access — Turso issues no
 // read-only tokens at our tier). (SPIKE_SECRET + the temporary
 // /spike-send + /fanout-test + /db-test routes died 2026-09-17 with the
-// proven fanout — fetch is health + scheduled only.)
+// proven fanout — fetch is health + scheduled + purple-schedule only.)
 
 import {
   CATCHUP_MIN_SEC,
@@ -17,6 +24,12 @@ import {
   HOURLY_TAG,
   secIntoHour,
 } from "../../../src/lib/hourlyReminders";
+import {
+  MAINTENANCE_WINDOWS,
+  PURPLE_ANCHOR_MS,
+  parseScheduleDoc,
+  type MaintenanceWindow,
+} from "../../../src/lib/purpleHole";
 
 type Env = {
   PURPLE: KVNamespace;
@@ -522,11 +535,137 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
   };
 }
 
+// ---- Purple schedule feed (phase 2B) ----
+//
+// KV `purple:schedule` is the published doc
+// {anchorMs, windows: [{startMs, endMs}], updatedAt, updatedBy} — written by
+// the dashboard (day one) or /admin (graduation), seeded once by hand. The
+// client prefers it over its hardcoded timetable; an empty KV, a corrupt
+// doc, or a KV failure all degrade to the hardcoded values with
+// confidence "hardcoded" and updatedAt null — "unknown", never "no
+// maintenance". parseScheduleDoc is the shared strict gate (one fat-fingered
+// entry rejects the whole doc).
+
+export type ScheduleResponse = {
+  anchorMs: number;
+  windows: MaintenanceWindow[];
+  updatedAt: number | null;
+  updatedBy: string | null;
+  confidence: "verified" | "hardcoded";
+  sources: string[];
+};
+
+async function readSchedule(env: Env): Promise<ScheduleResponse> {
+  try {
+    const doc = parseScheduleDoc(await env.PURPLE.get("purple:schedule", "json"));
+    if (doc) {
+      return {
+        anchorMs: doc.anchorMs,
+        windows: doc.windows,
+        updatedAt: doc.updatedAt,
+        updatedBy: doc.updatedBy,
+        confidence: "verified",
+        sources: ["kv:purple:schedule"],
+      };
+    }
+  } catch (e) {
+    console.log(`purple-schedule kv read failed: ${String(e)}`);
+  }
+  return {
+    anchorMs: PURPLE_ANCHOR_MS,
+    windows: MAINTENANCE_WINDOWS,
+    updatedAt: null,
+    updatedBy: null,
+    confidence: "hardcoded",
+    sources: ["code"],
+  };
+}
+
+const SCHEDULE_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Cache-Control": "public, max-age=60",
+};
+
+// ---- Purple watcher (2x/day Bahamut poll → candidates, never truth) ----
+//
+// The official board is JS-rendered, but the Bahamut search endpoint serves
+// the 8 maintenance posts pre-filtered and time-sorted to a bare GET — full
+// first-post bodies inline, fixed-format 維護時間 lines a regex extracts
+// (proven 2026-09-18: 8 mentions → 7 unique windows, 0.39ms parse, 25x
+// inside the 10ms cron CPU budget). Public fan forum, facts only.
+//
+// Gotcha (proven same day): reposts are snapshots — 9/16 announced
+// 06:00–08:30 but actually ended 09:00, and the repost still reads 08:30.
+// So candidates are SCHEDULED windows (earliest-possible); the human
+// confirmer checks the newest replies for 延長 bumps before promoting.
+// CF-egress access (Bahamut blocking Cloudflare IPs) is the one unverified
+// bit — first deploy proves it via the log lines below; on failure the
+// watcher degrades to local script + dashboard paste, feed contract
+// unchanged.
+
+const BAHAMUT_SEARCH_URL =
+  "https://forum.gamer.com.tw/search.php?bsn=32564&q=" +
+  encodeURIComponent("維護公告") +
+  "&field=title&firstFloorOnly=1&advancedSearch=1&subbsn=5&sortType=mtime";
+const WATCH_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+
+// One window per 維護時間 mention (120-char window past the mention —
+// precise, no cross-post bleed): `2026年9月16日(三) 上午6時 ～ 上午8時30分`.
+// ampm prefixes are optional on either half (missing inherits the other,
+// both missing means 上午); end <= start rolls to the next day.
+const MAINT_RE =
+  /(\d{4})年(\d{1,2})月(\d{1,2})日[^上中下\d]{0,20}(上午|下午|中午)?(\d{1,2})時(?:(\d{1,2})分)?\s*[～~\-–—至]\s*(上午|下午|中午)?(\d{1,2})時(?:(\d{1,2})分)?/;
+
+function maintHour(ampm: string | undefined, inherit: string | undefined, h: number): number {
+  const ap = ampm ?? inherit ?? "上午";
+  if (ap === "下午") return h < 12 ? h + 12 : h;
+  if (ap === "上午") return h === 12 ? 0 : h;
+  return 12; // 中午
+}
+
+export function parseMaintWindows(html: string): MaintenanceWindow[] {
+  const out: MaintenanceWindow[] = [];
+  for (let i = html.indexOf("維護時間"); i !== -1; i = html.indexOf("維護時間", i + 4)) {
+    const m = MAINT_RE.exec(html.slice(i, i + 120));
+    if (!m) continue;
+    const [, Y, Mo, D, ap1, h1, mi1, ap2, h2, mi2] = m;
+    const y = +Y;
+    const mo = +Mo;
+    const d = +D;
+    const start = Date.UTC(y, mo - 1, d, maintHour(ap1, ap2, +h1) - 8, +(mi1 ?? 0));
+    let end = Date.UTC(y, mo - 1, d, maintHour(ap2, ap1, +h2) - 8, +(mi2 ?? 0));
+    if (end <= start) end += 24 * 3600 * 1000; // overnight tail
+    if (start < end) out.push({ startMs: start, endMs: end });
+  }
+  const seen = new Set<string>();
+  return out.filter((w) => {
+    const k = `${w.startMs}-${w.endMs}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+async function runPurpleWatch(env: Env): Promise<{ windows: number }> {
+  const res = await fetch(BAHAMUT_SEARCH_URL, { headers: { "User-Agent": WATCH_UA } });
+  if (!res.ok) throw new Error(`bahamut ${res.status}`);
+  const windows = parseMaintWindows(await res.text());
+  await env.PURPLE.put(
+    "purple:candidates",
+    JSON.stringify({ windows, observedAt: Date.now(), sources: [BAHAMUT_SEARCH_URL] })
+  );
+  return { windows: windows.length };
+}
+
 export default {
   async fetch(req: Request, _env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (req.method === "GET" && url.pathname === "/") {
       return Response.json({ ok: true, worker: "mabiroutine-worker" });
+    }
+    if (req.method === "GET" && url.pathname === "/purple-schedule") {
+      return Response.json(await readSchedule(_env), { headers: SCHEDULE_HEADERS });
     }
     return Response.json({ error: "not found" }, { status: 404 });
   },
@@ -541,8 +680,16 @@ export default {
       }
       return;
     }
-    // Purple 15-min tick + Bahamut watcher land on later branches — the
-    // wiring proof stays a log line until then.
+    if (event.cron === "17 3,15 * * *") {
+      try {
+        console.log(`purple watch ${at}: ${JSON.stringify(await runPurpleWatch(env))}`);
+      } catch (e) {
+        console.log(`purple watch ${at} error: ${String(e)}`);
+      }
+      return;
+    }
+    // Purple 15-min tick: server fanout is later work — the wiring proof
+    // stays a log line until then.
     console.log(`tick: ${event.cron} (stub) at ${at}`);
   },
 } satisfies ExportedHandler<Env>;
