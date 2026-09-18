@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- Docs fold: the four `docs/ledger/` work logs are archived as history; one living runbook at `docs/operations.md` (state, deploy/verify, KV inventory, admin workflows, gaps) with cross-refs updated
+
 ## 2026-09-18 — 紫洞管理後台與伺服器推播
 
 ### Features

@@ -1,8 +1,11 @@
 # Push notifications — plan
 
-Status: planning. Phase 0 (local timer) in review on `feat/hourly-reminders-mvp`;
-Phases 1+ unstarted. This doc records constraints, decisions, and phase scope —
-the *why*; code maps live with the code.
+Status: SHIPPED — Phase 0 (local timer), Phase 1 (server push, hourly lane),
+Phases 2–3 (mobile / iOS PWA, same flow), and the purple lane are live in prod
+as of 2026-09-18, all behind the 實驗性功能 flags. This doc records
+constraints, decisions, and phase scope — the *why*; code maps live with the
+code, work history in the archived `docs/ledger/server-push.md`; runbooks in
+`docs/operations.md`.
 
 ## 1. Goal / non-goals
 
@@ -13,7 +16,7 @@ Non-goals: done-state personalization (the game itself pings everyone — we do
 the same), multi-task timers (eligibility list stays length 1 until proven
 otherwise), quiet hours, rich media cards.
 
-## 2. Where we are (Phase 0, this branch)
+## 2. Where we are (both lanes shipped)
 
 Local-only page timer (`src/lib/hourlyReminders.ts`,
 `src/hooks/useHourlyReminders.ts`): bell on the `barrier` row → soft-ask
@@ -181,7 +184,8 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   + arithmetic covers the irregular purple spawns — no irregular crons), and
   the worker imports `src/lib/purpleHole.ts` directly: one math module, two
   runtimes. The purple maintenance watcher, `/purple-schedule` feed, and
-  `/admin` page live in the same worker; see `docs/ledger/` for their specs.
+  `/admin` page live in the same worker; runbook in `docs/operations.md`,
+  history in the archived `docs/ledger/` files.
 
 ## 6. Experimental gate (Phase 1 gate)
 
@@ -221,10 +225,9 @@ store v19) with the usual migrate + fixture discipline from AGENTS.md.
 
 ## 7. Phases
 
-### Phase 0 — Local timer (this branch, in review)
-Done except review. Gate: existing `pnpm check` + ?task=?chars= tap tests.
+### Phase 0 — Local timer (SHIPPED)
 
-### Phase 1 — Server push, desktop, flagged (next)
+### Phase 1 — Server push, desktop, flagged (SHIPPED 2026-09-18)
 1. VAPID pair: `npx web-push generate-vapid-keys`, private key (JWK) to the
    worker env only (never committed); public key inlined client-side.
 2. Turso `push_subscriptions` table + migration (follow `api/_db` patterns).
@@ -235,12 +238,14 @@ Done except review. Gate: existing `pnpm check` + ?task=?chars= tap tests.
    `last_sent_at` stamp, all in `workers/mabiroutine-worker` (imports
    timing/tag from `src/lib/hourlyReminders.ts` — one module, two runtimes).
 5. `workers/mabiroutine-worker` (same repo, wrangler, `0 * * * *` + purple
-   + watcher crons) deployed from CI (versioned deploys; never
-   dashboard-edit per CF's own warning).
+   + watcher crons) deployed MANUALLY (`pnpm worker:deploy` — CI dropped
+   2026-09-18; versioned deploys, never dashboard-edit per CF's own warning).
 6. Client: flag gate (§6) + subscribe/unsubscribe wiring that
    preserves the §3e gesture chain; bell copy unchanged until proven.
    (Desktop UA gate removed 2026-09-17 — mobile joins the same flow.)
-7. Copy: README privacy bullets (EN + zh_TW) revised per §3d; CHANGELOG.
+7. Copy: README privacy bullets (EN + zh_TW) revised per §3d — STILL OPEN,
+   deferred to the official release (features remain flag-gated); CHANGELOG
+   entries landed.
 8. Test matrix: desktop Brave/Win (primary — daily browser), Chrome/Win, Edge/Win, Chrome/macOS — subscribe →
    wait for :00 (or trigger fanout manually with the secret) → card →
    tap → char priority + flash (§2 behavior, now via SW path). Firefox/Safari
@@ -248,17 +253,18 @@ Done except review. Gate: existing `pnpm check` + ?task=?chars= tap tests.
 - Success: 3 consecutive :00 hours, card + tap-through, zero double-fires,
   dead sub pruned on next run. Gate: manual matrix above (no harness yet).
 
-### Phase 2 — Android push
-Server untouched (desktop gate already removed 2026-09-17). Test Chrome
-Android (including a battery-saver-delayed case so the copy expectation is
-honest), keep local timer as the unsupported-browser fallback.
+### Phase 2 — Android push (SHIPPED — same flow, server untouched)
 
-### Phase 3 — iOS PWA push
-Server untouched. Add-to-Home-Screen onboarding copy, permission from an
-in-app gesture inside the installed app, tap-through accepted best-effort
-(§3c). Test on a real iPhone 16.4+ — simulator proves nothing here.
-Early test opened 2026-09-17 (gate lifted, user subscribed from the
-installed PWA); still proving card + tap-through.
+Server untouched (desktop gate removed 2026-09-17). Chrome Android rides the
+same subscribe flow; battery-saver delays remain a system-level caveat and the
+local timer is the unsupported-browser fallback.
+
+### Phase 3 — iOS PWA push (SHIPPED 2026-09-18)
+
+Server untouched. Permission from an in-app gesture inside the installed PWA
+(16.4+), tap-through best-effort (§3c). Proven on a real iPhone: the 19:00
+proof card arrived on the installed PWA and desktop in the same fire; a prod
+`lane=purple` row for the iOS endpoint was confirmed 2026-09-18.
 
 ### Phase 4 — Optional hardening (only on evidence)
 Done-state filtering (session linkage + consent copy per §3d), quiet hours,

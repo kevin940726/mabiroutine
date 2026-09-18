@@ -1,6 +1,11 @@
 # Server push + purple phase 2 — plan & work ledger
 
-Branch: `feat/push-fanout` merged into main 2026-09-17 and deleted (`feat/server-push` merged + deleted earlier). Status: Phase-1 server push proven end-to-end and fully closed on 2026-09-18 — spike routes dead live, `SPIKE_SECRET` gone, server-card tap flashes the row. Open: flag-off unsubscribe, README privacy bullets, purple feed/watcher/admin.
+> **ARCHIVED 2026-09-18** — work complete. Current state, runbooks, and open
+> items live in `docs/operations.md`; decisions in
+> `docs/push-notifications.md`. Kept as history; new entries go in the ops
+> doc, not here.
+
+Branch: `feat/push-fanout` merged into main 2026-09-17 and deleted (`feat/server-push` merged + deleted earlier). Status: both server lanes LIVE in prod 2026-09-18 — hourly fanout (named + generic, tap-through, visibility split) and purple fanout (unfiltered zone cards), purple feed/watcher/admin/overrides all shipped. Open: README privacy bullets (deferred to official release), phase-3C crowd reports (evidence-gated), freshness label in the purple popover (optional).
 Companion docs: `docs/push-notifications.md` (why), `docs/purple-hole.md` + `docs/ledger/` (purple phases).
 Conventions: log oldest-first (append at the end), one line per fact, no commit hashes (history gets rewritten).
 
@@ -64,6 +69,9 @@ Conventions: log oldest-first (append at the end), one line per fact, no commit 
 - 2026-09-18: watcher auto-apply + admin restyle (in code): each watcher run overwrites verified windows when candidates are non-empty (reverses never-auto-truth; anchor stays manual, empty never wipes); manual publish locks auto (extension fixes persist), promote keeps it, new resume endpoint re-resolves immediately; admin page shows auto/locked badge. Admin page restyled (shadcn-look, Taipei previews per input, candidate cards, two-tap publish). Probed 26/26.
 - 2026-09-18: per-window overrides (in code, answers the lock-freeze challenge): KV `purple:overrides` (overrides + tombstones) resolved per run — replace-by-startMs, unmatched append, tombstone suppress, past + unobserved records expire. One `resolveAndStore` path serves watcher/overrides-save/resume; new `POST /admin/api/overrides` (full-replace, strict) + 手動覆寫 card with per-candidate 修正/忽略 staging. Also corrected: spent candidate windows are NOT inert (legs tile from anchor — pruning un-does real pauses); only pre-anchor windows are. Probed 34/34.
 - 2026-09-18: review fixes round 2 (all in code): promote routes through the shared resolve (it wrote raw candidates, so a curated override silently dropped out of verified and flip-flopped back next run); lane-less DELETE stays full-endpoint — a stale pre-lane tab's bell-off clears both lanes, which matches its "stop everything" intent and self-heals via reconcile + re-tap.
+- 2026-09-18: PROD LIVE, whole track. Worker redeployed (feed + watcher + `/admin` + purple fanout + lane scoping); `ADMIN_SECRET` set; `GET /admin` 200, wrong secret → 401; maintainer login + publish round trip done. Client half shipped to main (lane-aware purple bell, flag-off parity). Verified live: `/purple-schedule` serves the seed as `verified`; the 15:17 UTC watcher fire wrote 7 windows to `purple:candidates` (CF egress proven); a prod purple-bell re-tap created two `lane=purple` rows (win + ios) that coexist with `lane=hourly` rows on the same endpoints — the composite-key fix proven in prod; feeders on the hourly lane carry linkage (`linked: true`), purple rows don't (unfiltered by design).
+- 2026-09-18: first server purple card due 09/19 14:30 Taipei (spawn 14:38). Note the tick granularity: the 14:15 tick skips at 23 min out, 14:30 fires at 8 min — server lead lands in (15, 0] before spawn, never exactly 15. The local lane still fires at exactly 14:23 when a tab is visible.
+- 2026-09-18: known gap recorded in the phase-2 ledger — auto-apply resolves from candidates + overrides and never consults verified, so a future hand-predicted window (the seeded 9/23) is dropped at the next watcher fire; impact bounded to the 9/24 spawn, announcement restores it 9/22. Decision: do nothing for now; the two candidate fixes and why they were declined are written up there.
 
 ## 0. What you need (checklist)
 
@@ -72,18 +80,18 @@ Cloudflare side (all free tier, $0):
 - [x] Cloudflare account (email signup, no card for free plan).
 - [x] A `*.workers.dev` subdomain (claimed at first deploy — `mabiroutine-worker.kaihao.workers.dev`; our only public surface besides API routes — no custom domain needed).
 - [x] `wrangler` (devDependency, committed 2026-09-17).
-- [x] One Worker: `mabiroutine-worker` (decided 2026-09-17 — `-cron`/`-push` both go stale as routes grow) — hourly barrier fanout live; `/purple-schedule` + watcher + `/admin` + purple fanout built in code 2026-09-18, deploy + `ADMIN_SECRET` + KV seed pending.
-- [x] One KV namespace: `PURPLE` (keys `purple:schedule`, `purple:candidates`). Created; seeding waits on the purple feed (day-one editing in the dashboard, no code).
-- [x] Secrets, set via `wrangler secret put` (never committed, never in Vercel): `VAPID_JWK` + `VAPID_SUBJECT` + `TURSO_DB_URL`/`TURSO_AUTH_TOKEN` live in the worker env (`CRON_SECRET` died with verdict A — no worker→Vercel hop; `ADMIN_SECRET` waits on the `/admin` page; `SPIKE_SECRET` dies with the routes — env deletion to confirm).
+- [x] One Worker: `mabiroutine-worker` (decided 2026-09-17 — `-cron`/`-push` both go stale as routes grow) — ALL jobs live in prod 2026-09-18: hourly barrier fanout, purple fanout (15-min tick), `/purple-schedule`, watcher, `/admin` (+ `robots.txt`).
+- [x] One KV namespace: `PURPLE` (keys `purple:schedule`, `purple:candidates`, `purple:overrides`, `purple:last-fire`). Created, seeded, and written by the watcher/fanout in prod.
+- [x] Secrets, set via `wrangler secret put` (never committed, never in Vercel): `VAPID_JWK` + `VAPID_SUBJECT` + `TURSO_DB_URL`/`TURSO_AUTH_TOKEN` + `ADMIN_SECRET` all live in the worker env (`CRON_SECRET` died with verdict A — no worker→Vercel hop; `SPIKE_SECRET` deleted with the routes, env absence confirmed live).
 
 Vercel/Turso side (existing infra):
 
 - [x] VAPID pair generated once — private key as `VAPID_JWK` in the worker env only (never committed); public key inlined client-side (recorded in the log above).
-- [x] Turso migration: `push_subscriptions(endpoint PK, p256dh, auth, platform, lane, created_at, last_sent_at)` v2 + `link_session`/`roster_json` v3 via `api/_db` patterns (additive, idempotent).
+- [x] Turso migration: `push_subscriptions(endpoint PK, …)` v2 + `link_session`/`roster_json` v3 + **composite `(endpoint, lane)` PK v4** (rebuild migration; endpoint-only PK let one lane steal the other's row) via `api/_db` patterns.
 - [x] Subscribe door: `POST/DELETE /api/push/subscribe` (upsert, idempotent delete, shape 400s, per-IP budget). No Vercel fanout route, no `CRON_SECRET` hop — verdict A.
 - ~~[ ] GitHub repo secrets for CI deploys: `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` (no `.github/` in repo — deploys are manual `wrangler deploy` for now).~~ Dropped 2026-09-18 with the backup — deploys stay manual (`pnpm worker:deploy`), no CI, no token.
 
-Local machine: Node + pnpm (already have), `wrangler login` (browser OAuth once), `openssl rand -hex 32` for secret generation.
+Local machine: Node + pnpm (already have), `wrangler login` (browser OAuth once), a hex random for secret generation — `openssl rand -hex 32` if present, else `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` (Windows here has no openssl).
 
 ## 1. Full setup guide (Cloudflare, step by step)
 
@@ -107,7 +115,7 @@ Local machine: Node + pnpm (already have), `wrangler login` (browser OAuth once)
    a. ~~Dumb hourly tick: `scheduled()` on `0 * * * *` → `POST https://<app>/api/push/fanout` with `Authorization: Bearer CRON_SECRET`.~~ SUPERSEDED by verdict A (never built) — the worker's own `scheduled()` on `0 * * * *` runs `runBarrierFanout` directly (staleness guard → Turso read → concurrent send → prune + stamp).
    b. `GET /purple-schedule` (public, CORS `*`, `max-age=60`) serving the KV doc.
    c. Purple 15-min tick: import `src/lib/purpleHole.ts` directly (DOM-free pure math — one module, two runtimes) → spawn within 15 min → purple fanout.
-   d. Watcher cron → fetch Bahamut search URL → regex windows into `purple:candidates` (never auto-truth).
+   d. Watcher cron → fetch Bahamut search URL → regex windows into `purple:candidates` → auto-apply into `purple:schedule` when unlocked (overrides layered on top; manual publish locks).
    e. `/admin` routes per `docs/ledger/purple-hole-admin-page.md` (verify/state/publish/promote, native datetime-local form).
 7. **Deploy.** `pnpm wrangler deploy` from repo root (versioned deploys; never dashboard-edit code — CF's own warning). Claim the `workers.dev` subdomain on first deploy.
 8. ~~**CI.** GitHub Actions: `wrangler deploy` on push to main with `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`. Pin wrangler version; deploys only from main (branch pushes preview nothing — workers have no preview env unless configured).~~ Dropped 2026-09-18 — manual deploys only.
@@ -144,16 +152,16 @@ Verdict up front: **the recorded plan stands, with two amendments** (A-spike, C-
 
 - Gist already dropped (third-party host for no reason); R2 is object storage for a 1KB doc; Turso would drag app-DB creds into the worker. KV's 1k writes/day vs our ~4/day is 250× headroom; the dashboard-is-the-day-one-CMS insight removes all CMS code. The only addition: document the **dashboard-edit JSON shape** next to the key names (already required by the admin spec's fallback clause) so a phone edit can't fat-finger the schema — the `/admin` form's validation fixes this permanently when it lands.
 
-### F. Watcher placement: Worker cron (recorded) vs Vercel cron vs local script — STANDS (Worker)
+### F. Watcher placement: Worker cron (recorded) vs Vercel cron vs local script — STANDS (Worker), egress PROVEN 2026-09-18
 
-- Vercel Hobby allows daily crons only — 2×/day is impossible without upgrade, killing Vercel placement outright. Local script works (matches fetcher discipline) but needs a human-run schedule; the worker cron is 2 extra lines once the worker exists. Bahamut-from-CF-egress is the one unverified bit — folded into the §1 step-6d spike (if blocked, watcher degrades to local script + dashboard paste, feed contract unchanged).
+- Vercel Hobby allows daily crons only — 2×/day is impossible without upgrade, killing Vercel placement outright. Local script works (matches fetcher discipline) but needs a human-run schedule; the worker cron is 2 extra lines once the worker exists. Bahamut-from-CF-egress was the one unverified bit — **proven 2026-09-18**: the prod fire wrote all 7 windows to `purple:candidates`, so the local-script fallback stays documented but unbuilt.
 
-## 3. Build order on this branch
+## 3. Build order (all landed 2026-09-18)
 
 1. ~~Spike A (worker-side push to one test sub) → record verdict here, then lock fanout location.~~ Done 2026-09-17 — verdict A adopted.
 2. ~~`workers/push-cron` scaffold + hourly tick + CI deploy (barrier Phase 1 infra).~~ Done 2026-09-17 except CI (`workers/mabiroutine-worker` + hourly tick live; deploys manual, no `.github/`).
 3. Vercel: ~~VAPID + Turso table + subscribe/fanout (or subscribe-only if A wins) + client wiring + README privacy bullets.~~ Done except README privacy bullets (subscribe-only per A + client wiring shipped; bullets deferred to release per `push-notifications.md` §8).
-4. Purple: `/purple-schedule` + KV seed → client fallback chain (KV > hardcoded) → 15-min tick + purple fanout → watcher + candidates → `/admin` (phase-2/3 feed pieces are independent and can interleave; per-device corrections dropped — D 2026-09-17, recalibrate A 2026-09-18 — admin publishes). — Unstarted (worker non-hourly crons still stub; specs in `docs/ledger/purple-hole-*.md`).
+4. ~~Purple: `/purple-schedule` + KV seed → client fallback chain (KV > hardcoded) → 15-min tick + purple fanout → watcher + candidates → `/admin`~~ **DONE 2026-09-18** (all live in prod; overrides + auto-apply added on top; per-device corrections dropped — D 2026-09-17, recalibrate A 2026-09-18 — admin publishes).
 5. ~~Phase-1.5 Actions backup trigger (after primary proves 3 consecutive :00s). — Due now (3/3 proven 2026-09-17), unstarted.~~ Dropped 2026-09-18 — CF worker entirely.
 
 ## Appendix — secrets inventory

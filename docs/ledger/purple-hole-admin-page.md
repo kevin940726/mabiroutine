@@ -1,17 +1,23 @@
 # Purple-hole `/admin` page — build spec
 
-Status: built in code 2026-09-18, NOT yet live (worker redeploy +
-`ADMIN_SECRET` pending). Decided 2026-09-18: bearer `ADMIN_SECRET`
-(single maintainer, no usernames, no passkeys, no IP allowlist — see
-decisions below). Serves phases 2 (windows) and 3 (anchor) on one form.
+> **ARCHIVED 2026-09-18** — built, shipped, and live in prod. Runbook lives
+> in `docs/operations.md` (§1, §6). Kept as history: routes, auth decisions,
+> KV schema, probe record.
+
+Status: LIVE in prod 2026-09-18 — deployed, `ADMIN_SECRET` set, login +
+publish round trip done by the maintainer. Decided 2026-09-18: bearer
+`ADMIN_SECRET` (single maintainer, no usernames, no passkeys, no IP
+allowlist — see decisions below). Serves phases 2 (windows) and 3 (anchor)
+on one form.
 
 ## What it is
 
-A one-page admin UI served by the schedule worker itself. One screen, three
-blocks: **current verified values** (anchor datetime + windows list),
-**watcher candidates** (parsed Bahamut output, if any), and a
-**promote button** that copies candidates → verified in one tap. Manual
-datetime inputs cover everything else (emergency entries, anchor fixes).
+A one-page admin UI served by the schedule worker itself: a plain-language
+guide, then **candidates** (parsed Bahamut output) with per-row 修正/忽略
+staging, the **手動覆寫** card (override + tombstone lists), a read-only
+**已發佈** preview with the rarely-used whole-doc editor and auto/resume
+behind a flap. Manual datetime inputs cover emergency entries and anchor
+fixes; every input shows its resolved Taipei time live.
 
 ## Routes (same worker)
 
@@ -21,17 +27,20 @@ datetime inputs cover everything else (emergency entries, anchor fixes).
   data).
 - `POST /admin/api/verify` — `{ secret }` → `{ ok: true }` or 401. The only
   endpoint that takes the secret in the body (once, at login).
-- `GET /admin/api/state` — bearer authed. Returns `{ verified, candidates }`
-  for rendering the form.
+- `GET /admin/api/state` — bearer authed. Returns
+  `{ verified, candidates, overrides }` for rendering the form.
 - `POST /admin/api/publish` — bearer authed. Body `{ anchorMs, windows[] }`.
-  Validates (numbers, `start < end`, sorted, dropping spent entries is the
-  caller's choice, not enforced), writes KV verified doc with
-  `updatedAt: now, updatedBy: "admin"`. 400 on garbage.
+  Validates (numbers, `start < end`; the strict gate rejects the whole doc on
+  any bad entry), writes KV verified doc with `updatedAt: now,
+  updatedBy: "admin"`, and **locks auto-apply** (`auto: false`). 400 on
+  garbage. The rare whole-doc path (behind the 手動修改全部 flap).
 - Inputs are **native `<input type="datetime-local">` only** — the browser's
   built-in picker, zero dependencies, no calendar library. Simple was the
   requirement; this is the simplest thing that qualifies.
-- `POST /admin/api/promote` — bearer authed. Copies `purple:candidates` →
-  verified doc (stamped admin). The one-tap path. Keeps auto-apply on.
+- `POST /admin/api/promote` — bearer authed. Re-resolves `purple:candidates`
+  through the override/tombstone records and writes verified (stamped admin,
+  auto on) — the same resolve the watcher uses, so a curated correction can't
+  be dropped by promoting. The one-tap path.
 - `POST /admin/api/auto` — bearer authed. Body `{ auto: boolean }` (400
   otherwise). Lock (`false`) keeps the published values untouched; resume
   (`true`) re-resolves windows from the current candidates immediately when
@@ -103,17 +112,19 @@ datetime inputs cover everything else (emergency entries, anchor fixes).
   edit, extract and `node --check` it:
   `node -e "const fs=require('fs');const s=fs.readFileSync('workers/mabiroutine-worker/src/index.ts','utf8');fs.writeFileSync('/tmp/admin-inline.js',s.match(/<script>([\s\S]*?)<\/script>/)[1])" && node --check /tmp/admin-inline.js`.
 
-## Build log 2026-09-18 (in code, not yet live)
+## Build log 2026-09-18 (LIVE)
 
 - All five routes in the worker (`/admin` shell + verify/state/publish/
-  promote), probed 16/16 against mocked KV/Turso/push with real WebCrypto
-  encrypt (auth gate 401s + 200, publish 400s + 200, promote empty/copy/
-  anchor-preserve, fanout fanned-out → fired-already → no-spawn). Node lacks
-  `subtle.timingSafeEqual`, so the probe shimmed it — deploy-time check:
-  wrong secret → 401, right secret → editor loads.
-- Pending: `pnpm worker:deploy` (ships feed + watcher + admin + purple
-  fanout together) + `wrangler secret put ADMIN_SECRET`, then open
-  `/admin`, log in, and publish once to prove the round trip.
+  promote) plus `auto` and `overrides`, probed against mocked KV/Turso/push
+  with real WebCrypto encrypt (auth gate 401s + 200, publish 400s + 200,
+  promote empty/copy/anchor-preserve, fanout fanned-out → fired-already →
+  no-spawn, auto state machine, override replace/add/tombstone/expiry). Node
+  lacks `subtle.timingSafeEqual`, so probes shim it.
+- Prod verification: `GET /admin` → 200, `GET /robots.txt` → 200 (worker
+  route added, plus `Disallow: /admin` in the app's `public/robots.txt`),
+  wrong secret → 401 (armed, not 500), maintainer login + publish round trip
+  done.
+- Worker-side only: no Vercel route, no app deploy needed for admin changes.
 
 ## Effort
 

@@ -1,26 +1,32 @@
 # 深淵的黑色坑洞 — feature ledger
 
-Branch: `feat/purple-hole` (unmerged, unpushed until user approves).
+Branch: `feat/purple-hole` merged to main; phase 2 shipped 2026-09-18.
 Flag: the 實驗性功能 dialog persists `mabiroutine:purple-hole-flag`. Prod default: zero surface.
 
-## Schedule (hand-owned, phase 1)
+## Schedule (feed-owned since 2026-09-18)
 
-- Cycle 36h15m, timer pauses during maintenance (math in place, window list empty).
+- Cycle 36h15m, timer pauses during maintenance; windows come from the worker
+  feed (`/purple-schedule`, KV `purple:schedule`), hardcoded list is the
+  empty-KV/offline baseline.
 - Spawns: one each in 女神庭園, 冰霜峽谷, 雲海曠野 (row desc, per user 2026-09-17).
-- Anchor (observed in-game): 2026-09-16 14:08 Taipei → predicts 2026-09-18 02:23.
-- Correct drift by moving `PURPLE_ANCHOR_MS` in `src/lib/purpleHole.ts` + commit (until the feed deploys + KV seeds — then publish via dashboard/admin, code stays fallback).
+- Anchor (observed in-game): 2026-09-16 14:08 Taipei; now published via the
+  worker feed — edit it on `/admin` (錨點 field), no code push. Moving
+  `PURPLE_ANCHOR_MS` in code only matters for the hardcoded fallback.
 
 ## Phases (from the original brief, 2026-09-17)
 
-- **Phase 1 (this branch):** local page-timer notification on desktop (same architecture as the barrier MVP), 36h15m hardcoded cycle, maintenance ignored (not predictable), `purple_hole` flag, daily tracker row (max 3/char, spawn-day only), timetable popover, anchor updates via commits.
-- **Phase 2 (future):** maintenance-aware predictions — see
-  `docs/ledger/purple-hole-phase-2-maintenance.md` (recommended: hand-entered
-  windows + in-app emergency entry; scraper/feed parked until the burden
-  justifies it).
-- **Phase 3 (future):** timetable updates without commits — see
-  `docs/ledger/purple-hole-phase-3-timetable-updates.md` (admin-published
-  feed if burden justifies — the per-device recalibrate button was dropped
-  2026-09-18; crowd reports only on evidence).
+- **Phase 1 (shipped):** local page-timer notification, 36h15m cycle,
+  `purple_hole` flag, daily tracker row (max 3/char, spawn-day only),
+  timetable popover.
+- **Phase 2 (SHIPPED 2026-09-18):** maintenance-aware predictions — worker
+  watcher parses Bahamut into candidates, auto-applies published windows,
+  per-window admin overrides/tombstones, `/admin` editor. Runbook:
+  `docs/operations.md`; history:
+  `docs/ledger/purple-hole-phase-2-maintenance.md` (archived).
+- **Phase 3 (B shipped 2026-09-18):** timetable updates without commits —
+  the anchor is published through the same feed/admin. Crowd reports (C) stay
+  evidence-gated. History:
+  `docs/ledger/purple-hole-phase-3-timetable-updates.md` (archived).
 
 ## Decisions
 
@@ -42,16 +48,19 @@ Flag: the 實驗性功能 dialog persists `mabiroutine:purple-hole-flag`. Prod d
 - [x] 15-min-early scheduler + catch-up + dedup + tap deep-link + DevTools handles
 - [x] Store v18→v19 + migrate step + fixtures (A bumped, S added)
 - [x] Card body: names removed, predicted-time placeholder
-- [x] `pnpm check` green (post-body-change run pending — see todos)
+- [x] `pnpm check` green (repeatedly, including the feed/overrides work)
+- [x] Phase 2 shipped: feed + watcher + auto-apply + overrides + `/admin` (2026-09-18)
+- [x] Phase 3B shipped: anchor published through the feed/admin (2026-09-18)
+- [x] Purple server lane live: `lane=purple` subs, fanout on the 15-min tick
 
 ## Todos
 
-- [ ] User test: subscribe persists across reload; forced fire (`__mabiPurpleFire`); real fire 09/18 02:08; tap deep-link + flash
-- [x] Card body copy decided + tested end-to-end
-- [x] Purple lane recorded in `docs/push-notifications.md` (§2 lane note, D8, flag composition)
-- [x] Phase 2 + 3 planned in depth (`docs/ledger/`)
-- [ ] Final `pnpm check`, then push/merge on user approval
+- [ ] Observe the first server purple card (due 09/19 14:30 Taipei; closed-app proof = close all tabs)
+- [ ] Verify the 9/23 predicted window against the 09/22 announcement (auto-apply may drop it until announced — see the phase-2 gap note)
+- [ ] Optional: surface `updatedAt` freshness (`預測更新於 …`) in the popover — data already travels on the feed
+- [ ] Phase 3C crowd reports — evidence-gated, not started
+- [ ] README privacy bullets — at official release, not before
 
 ## Open questions
 
-(none — card body decided 09-17.)
+(none — card body decided 09-17; per-device corrections dropped 2026-09-18.)

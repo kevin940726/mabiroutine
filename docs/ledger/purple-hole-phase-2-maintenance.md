@@ -1,9 +1,15 @@
 # Purple-hole phase 2 — maintenance-aware predictions
 
-Status: A built 2026-09-17 (helper + first dated entry); D dropped same day;
-B feed + watcher built in code 2026-09-18, NOT yet live (worker redeploy +
-KV seed pending; CF-egress proof pending first deploy). Phase 1 shipped with
-`MAINTENANCE_WINDOWS = []`.
+> **ARCHIVED 2026-09-18** — work complete (shipped + live in prod). Current
+> state and runbooks live in `docs/operations.md`. Kept as history: verified
+> doors, spike numbers, the inert-claim correction, auto-apply + overrides
+> design. New entries go in the ops doc, not here.
+
+Status: LIVE in prod 2026-09-18 — feed served, watcher parsing on schedule,
+egress proven, auto-apply + per-window overrides live, `/admin` live. A built
+2026-09-17 (helper + first dated entry); D dropped same day; per-device
+corrections all dropped (admin-side only). Phase 1 shipped with
+`MAINTENANCE_WINDOWS = []`; the code list is now only the empty-KV baseline.
 
 ## Goal
 
@@ -239,8 +245,9 @@ CF Worker (extends barrier's push-cron worker)
 │   KV fire-once guard, prune + last_sent_at batch (probed fanned-out →
 │   fired-already → no-spawn)
 ├── 2×/day: Bahamut watch ──▶ search.php fetch ──▶ regex windows + 紫洞
-│   report titles ──▶ KV candidates (maintainer promotes, never auto-truth)
-│   BUILT 2026-09-18 (probed 7/7 live ranges, 0.35ms; egress proof pending)
+│   report titles ──▶ KV candidates ──▶ auto-apply (unlocked) with override
+│   records layered on top; manual publish locks, promote/resume unlock
+│   BUILT 2026-09-18 (probed 7/7 live ranges, 0.35ms; egress PROVEN in prod)
 └── GET /purple-schedule ──▶ resolved {anchorMs, windows[], updatedAt,
     confidence, sources[]} with CORS *, KV-cached (≥60s TTL)
     BUILT 2026-09-18 (+ /admin editor, same deploy)
@@ -269,7 +276,7 @@ fallback chain covers a failure).
   change) or a long-press on the 已過/下次 line; keep it to set + clear.
 - Convention: prune spent windows when adding new ones (same commit for A).
 
-## Build log 2026-09-18 (feed + watcher in code, not yet live)
+## Build log 2026-09-18 (LIVE in prod)
 
 - Timetable parameterized: every `purpleHole.ts` entry point now defaults to
   an active snapshot (`setPurpleTimetable` / `currentPurpleTimetable` /
@@ -293,7 +300,8 @@ fallback chain covers a failure).
   end as 12:00 — fixed and re-probed 15/15 (parse matrix, 02:23→04:23 shift,
   anchor re-base, explicit-args passthrough, live page).
 - Watcher cron (`17 3,15 * * *` → `parseMaintWindows` → `purple:candidates`
-  `{windows, observedAt, sources}`, never auto-truth) live in code.
+  `{windows, observedAt, sources}`) live; the candidates-only rule was later
+  superseded by auto-apply (next entry).
 - Pending, in order: (1) ~~`pnpm worker:deploy`~~ done 2026-09-18, endpoint
   verified from outside; (2) ~~seed `purple:schedule` via dashboard (JSON
   above)~~ done 2026-09-18 — `/purple-schedule` serves it with
@@ -303,7 +311,39 @@ fallback chain covers a failure).
   proof — `__mabiPurpleFeed()` reads `{"source":"live",…}` after a reload~~
   proven 2026-09-18 on dev (`{"source":"live","updatedAt":1758240000000,…}` —
   seed timestamp matches).
-  Server purple fanout on the 15-min tick is still a stub (later work).
+- Auto-apply built + live: each watcher run resolves candidate base + override
+  records and writes verified when the doc is unlocked (`updatedBy:
+  "watcher"`); empty candidates never wipe; manual publish locks; promote
+  routes through the same resolve; resume flips back with immediate re-resolve.
+- Per-window overrides built + live: KV `purple:overrides` (`overrides` +
+  `tombstones`), replace-by-startMs / append-unmatched / suppress-tombstoned,
+  past-and-unobserved records expire on resolve. Staged from `/admin` per
+  candidate (修正 / 忽略) or added by hand.
+- Server purple fanout built + live on the 15-min tick: unfiltered
+  `lane=purple` subs, skip-past-spawns cutoff, KV fire-once guard (stamped
+  only when something went out or every sub was terminally dead), lane-scoped
+  prune + `last_sent_at`.
+
+## Known gap 2026-09-18: auto-apply drops future hand-predicted windows
+
+Found while shipping: the watcher resolves from **candidates + overrides** and
+never consults verified, so a future window that exists only in verified is
+silently dropped on the next run. Concrete case: the seeded 9/23 predicted
+routine window (hand-added 2026-09-17, "verify against the announcement 9/22")
+is not announced on Bahamut yet, so the 2026-09-18 15:17 UTC fire (or any fire
+before the announcement) removes it — every leg crossing 9/23 morning then
+reads ~2.5h early until the announcement is parsed back in.
+
+Impact bounded: the only spawn it affects is 9/24 morning (intermediate
+spawns 9/19, 9/21, 9/22 don't overlap the window), and the announcement lands
+9/22 at the latest fire before it — so clients are correct before the affected
+spawn arrives. Decision 2026-09-18: **do nothing** (accept the temporary
+earliness). Two candidate fixes were weighed and NOT taken: (a) hold future
+predictions as override records (works, but a stale override then wins over
+the real announcement and needs manual cleanup), (b) make auto-apply preserve
+published not-yet-passed windows that candidates don't contradict (small
+worker change; removes the silent-deletion class rather than one instance).
+Revisit if hand-held future windows become routine.
 
 ## Tests
 
@@ -316,9 +356,18 @@ fallback chain covers a failure).
 - Synthetic-window probes (the 02:23 → 04:23 pattern) via `node -e` against
   the real module math, documented in the commit message; no harness exists
   for lib code, and none is proposed for this.
-- Manual matrix: routine window shifts popover + badges + fire time; D entry
-  shifts the same; expiry restores; offline + failed-feed behavior unchanged
-  (phase-1 baseline).
+- Manual matrix: routine window shifts popover + badges + fire time; override
+  entry shifts the same; expiry restores; offline + failed-feed behavior
+  unchanged (phase-1 baseline).
+- Worker probe 2026-09-18, 36/36 via esbuild-bundled real module
+  (`admin-probe.mjs`, throwaway): admin auth/publish/promote/auto/overrides,
+  fanout send → fired-already → no-spawn, transient-failure retry, lane-scoped
+  write SQL, override replace/add/tombstone/expiry, promote-through-resolve,
+  real WebCrypto encrypt (node's missing `subtle.timingSafeEqual` shimmed).
+- Prod, 2026-09-18: `/purple-schedule` verified; watcher fire wrote 7 windows
+  to `purple:candidates`; two `lane=purple` rows (win + ios) created by a bell
+  re-tap, coexisting with `lane=hourly` rows on the same endpoints (composite
+  key proven live); first server purple card due 09/19 14:30 Taipei.
 
 ## Effort
 

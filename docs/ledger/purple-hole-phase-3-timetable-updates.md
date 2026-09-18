@@ -1,8 +1,13 @@
 # Purple-hole phase 3 — timetable updates without commits
 
-Status: A dropped 2026-09-18 — anchor fixes go through the admin feed
-(B), never a per-device button. Until B lands, drift is corrected by moving
-`PURPLE_ANCHOR_MS` in code + push (redeploys prod on merge).
+> **ARCHIVED 2026-09-18** — decided and delivered (B shipped, A dropped, C
+> parked). Current state lives in `docs/operations.md`. Kept as history.
+
+Status: B DELIVERED 2026-09-18 — the admin feed now publishes the anchor
+(`/admin` 錨點 field → KV `purple:schedule` → `/purple-schedule` → client
+`setPurpleTimetable`), so drift is fixed by an admin edit, not a code push.
+A dropped 2026-09-18 (per-device button rejected). C parked on evidence.
+Code fallback (`PURPLE_ANCHOR_MS`) is only the offline/empty-KV baseline.
 
 ## Goal
 
@@ -39,7 +44,7 @@ deletes it. Popover footer shows a small `已手動校準` hint while active.
   slot, no extra popover interaction, no per-device skew to explain. The spec
   below is retained as rejected context, not a build plan.
 
-### B. Published JSON feed (maintainer-verified anchor)
+### B. Published JSON feed (maintainer-verified anchor) — BUILT & LIVE 2026-09-18
 
 App fetches `{ anchorMs, updatedAt, note }` at load, caches in localStorage,
 falls back to hardcoded on any failure. Maintainer updates the file after
@@ -55,6 +60,12 @@ verifying in-game. Surfaces `預測更新於 MM/DD` in the popover footer.
   `{anchorMs, windows[], updatedAt, confidence, sources[]}`), edited via KV
   dashboard or the `/admin` page. The admin edit path already exists for
   windows; anchor is one more field on the same form.
+- Delivered 2026-09-18: prod `/purple-schedule` serves `anchorMs`, the
+  `/admin` form edits it (with a live Taipei preview), and the client applies
+  it (`setPurpleTimetable(doc.anchorMs, …)` re-bases every leg). The
+  freshness UI (`預測更新於 …` in the popover) is NOT built — the doc's
+  `updatedAt` travels over the wire ready for it, but no client surface shows
+  it yet.
 
 ### C. Crowd reports (user-submitted observations)
 
@@ -81,10 +92,10 @@ reconciles into candidates) — no Turso table, no Vercel route needed.
 
 ## Decision (recommended)
 
-Phase 3 = **B when the burden justifies, C on evidence** — A dropped
-2026-09-18 (unnecessary complexity: the admin feed already corrects every
-device at once). B centralizes only when the maintainer is recalibrating
-often enough that a KV/admin edit beats a code edit + push.
+Phase 3 = **B delivered 2026-09-18, C on evidence** — A dropped
+2026-09-18 (unnecessary complexity: the admin feed corrects every device at
+once). B is live: drift is an admin edit, no code push. Remaining upside of
+the original B spec is the freshness label (see above) and nothing else.
 
 ## Technical touch points (A — dropped, retained as rejected context)
 
