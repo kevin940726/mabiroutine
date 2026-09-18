@@ -5,7 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Chores
-- Docs fold: the four `docs/ledger/` work logs are archived as history; one living runbook at `docs/operations.md` (state, deploy/verify, KV inventory, admin workflows, gaps) with cross-refs updated
+- Docs fold: the four `docs/ledger/` work logs are deleted (full text in git history); needed purple history/decisions folded into `docs/purple-hole.md`, DB notes into `docs/sql-migration.md`, worker-page notes into `docs/development.md`; one living runbook at `docs/operations.md`
 
 ## 2026-09-18 — 紫洞管理後台與伺服器推播
 

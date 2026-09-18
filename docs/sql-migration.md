@@ -336,6 +336,12 @@ once there are real users.
 - [x] `_schema_version` migration runner (`api/_db/schema.ts`); both drivers
       create the version table, seed 0, and apply pending migrations on first
       open (existing databases converge because migrations are IF NOT EXISTS).
+- [x] `push_subscriptions` v4 (2026-09-18): composite `(endpoint, lane)` PK
+      via rebuild migration — the endpoint-only PK let one lane's upsert steal
+      the other's row. Rebuild (not ALTER) because SQLite can't add a PK;
+      remote batches atomically, local crash between DROP/RENAME needs
+      `rm dev.db`. Upserts/deletes/stamps are lane-scoped in both drivers,
+      the API, and both fanouts.
 - [ ] Optional `api/_db/postgres.ts` behind the same interface (or defer).
 - [ ] Remove `@upstash/redis` once no code path uses it (api-live still needs
       it until ported).

@@ -4,8 +4,8 @@ Status: SHIPPED — Phase 0 (local timer), Phase 1 (server push, hourly lane),
 Phases 2–3 (mobile / iOS PWA, same flow), and the purple lane are live in prod
 as of 2026-09-18, all behind the 實驗性功能 flags. This doc records
 constraints, decisions, and phase scope — the *why*; code maps live with the
-code, work history in the archived `docs/ledger/server-push.md`; runbooks in
-`docs/operations.md`.
+code; day-by-day work history is in git history (the `docs/ledger/` files
+were folded away 2026-09-18); runbooks in `docs/operations.md`.
 
 ## 1. Goal / non-goals
 
@@ -31,7 +31,8 @@ re-confirm. Subscriptions never leave the device (store v18, absent from the
 sync key space). Proven limitation: closed tab = no timer.
 
 A second lane covers 深淵的黑色坑洞 (`purple-hole`, behind its own
-experimental flag — §6, full spec in `docs/purple-hole.md` + `docs/ledger/`):
+experimental flag — §6, full spec in `docs/purple-hole.md`, runbook in
+`docs/operations.md`):
 separate local subscription list (store v19 `purpleHoleReminders`), separate
 card tag (`mabi-purple`, never collapses with hourly cards), 15-minute lead
 before each predicted 36h15m spawn, catch-up allowed, and — unlike the hourly
@@ -184,8 +185,8 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   + arithmetic covers the irregular purple spawns — no irregular crons), and
   the worker imports `src/lib/purpleHole.ts` directly: one math module, two
   runtimes. The purple maintenance watcher, `/purple-schedule` feed, and
-  `/admin` page live in the same worker; runbook in `docs/operations.md`,
-  history in the archived `docs/ledger/` files.
+  `/admin` page live in the same worker; runbook in `docs/operations.md`
+  (day-by-day history in git history).
 
 ## 6. Experimental gate (Phase 1 gate)
 

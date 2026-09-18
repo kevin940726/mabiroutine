@@ -2,8 +2,8 @@
 
 Status: everything below is LIVE in prod as of 2026-09-18. This is the one
 file to update when operations change. Design rationale lives in
-`docs/push-notifications.md`; day-by-day history lives in the archived files
-under `docs/ledger/` (kept, do not update).
+`docs/push-notifications.md`; day-by-day history lives in git history
+(the `docs/ledger/` files were folded away 2026-09-18).
 
 ## 1. Services & URLs
 
@@ -141,14 +141,10 @@ predictions LATE (miss), understated skew EARLY (wait) — err short.
 
 ## 9. History & rationale (read when revisiting a decision)
 
-- `docs/ledger/server-push.md` — full work log: spike A, the 16:00
-  contamination + three Turso bugs, D1→D1a overturn, visibility split,
-  tap-flattening, prod proofs, review rounds.
-- `docs/ledger/purple-hole-phase-2-maintenance.md` — verified Bahamut doors,
-  cadence lock, the inert-claim correction, auto-apply + overrides design.
-- `docs/ledger/purple-hole-phase-3-timetable-updates.md` — why A dropped,
-  what B delivered, what C waits on.
-- `docs/ledger/purple-hole-admin-page.md` — admin spec, auth decisions,
-  probe record.
-- `docs/push-notifications.md` — constraints, matrix, and the phase scope
-  this file implements.
+- Decisions and constraints: `docs/push-notifications.md` (push lanes, fanout,
+  flags, matrix) + `docs/purple-hole.md` (feature decisions plus folded
+  purple history: sources, cadence, gotchas, dropped options).
+- Day-by-day work logs (2026-09-17/18 spikes, proofs, review rounds) lived in
+  `docs/ledger/` until the 2026-09-18 fold deleted those files — full text
+  recoverable from git history (e.g. `git log -- docs/ledger/server-push.md`).
+  Nothing in code referenced them, so deletion changed no behavior.

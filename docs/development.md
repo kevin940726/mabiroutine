@@ -100,6 +100,15 @@ Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
 - Workbox packages must stay explicit in `package.json` (the PWA build needs
   them resolvable, not hoisted-by-luck).
 - `suggestions/` is gitignored review scratch — never committed, never required.
+- The worker's `/admin` page embeds its JS as an HTML string in
+  `workers/mabiroutine-worker/src/index.ts`, which no linter parses
+  (esbuild/oxlint see a string, not code — this already hid a stray brace
+  that blanked the page). After any edit, extract and `node --check` it:
+  `node -e "const fs=require('fs');const s=fs.readFileSync('workers/mabiroutine-worker/src/index.ts','utf8');fs.writeFileSync('/tmp/admin-inline.js',s.match(/<script>([\s\S]*?)<\/script>/)[1])" && node --check /tmp/admin-inline.js`.
+- Worker/lib logic without a harness (feed math, watcher parse, admin
+  routes, fanout) is verified with throwaway esbuild-bundled node scripts
+  against mocked KV/Turso/push with real WebCrypto — no test harness
+  proposed for this code; `pnpm check` stays green regardless.
 - Sync is the retention-critical path and has its own gate (`pnpm test:sync`,
   wired into `pnpm check`). Suites in `scripts/sync-tests/` (orchestrated by
   `scripts/check-sync.mjs`), all against REAL code — no unit tests:

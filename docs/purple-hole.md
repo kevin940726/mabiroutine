@@ -21,12 +21,10 @@ Flag: the 實驗性功能 dialog persists `mabiroutine:purple-hole-flag`. Prod d
 - **Phase 2 (SHIPPED 2026-09-18):** maintenance-aware predictions — worker
   watcher parses Bahamut into candidates, auto-applies published windows,
   per-window admin overrides/tombstones, `/admin` editor. Runbook:
-  `docs/operations.md`; history:
-  `docs/ledger/purple-hole-phase-2-maintenance.md` (archived).
+  `docs/operations.md`.
 - **Phase 3 (B shipped 2026-09-18):** timetable updates without commits —
   the anchor is published through the same feed/admin. Crowd reports (C) stay
-  evidence-gated. History:
-  `docs/ledger/purple-hole-phase-3-timetable-updates.md` (archived).
+  evidence-gated.
 
 ## Decisions
 
@@ -37,6 +35,40 @@ Flag: the 實驗性功能 dialog persists `mabiroutine:purple-hole-flag`. Prod d
 - Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), fires 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 XX 分鐘後出現。` (live minutes: 15 on schedule, fewer on catch-up; no character names — deliberate, decided 09-17, tested end-to-end).
 - Maintenance feed (phase 2) + no-commit timetable updates (phase 3): deferred — see Phases.
 - Same local-only rules as the hourly lane: never synced, never sent anywhere, page-open-only.
+
+## History & past decisions (day-by-day log in git history, ex-`docs/ledger/`)
+
+- Sources (verified live 2026-09-17): the official TW board is JS-rendered
+  (static fetch returns empty chrome — no official scraper), but the Bahamut
+  search endpoint serves the maintenance posts pre-filtered + time-sorted to a
+  bare GET with full first-post bodies inline
+  (`forum.gamer.com.tw/search.php?bsn=32564&q=維護公告&field=title&firstFloorOnly=1&advancedSearch=1&subbsn=5&sortType=mtime`).
+  GNN news pages are fully readable (second source). Routine maintenance is
+  Wednesday mornings; same-day emergencies go through a code edit + push like
+  all TW data.
+- Cadence locked 2026-09-17: 15-min tick + 15-min lead. The hole despawns
+  ~13 min after spawn, which bounds *lateness*, not lead; early is cheap
+  (wait), late is fatal (miss). Revisit only on evidence.
+- Extension gotcha (proven 9/16: announced 06:00–08:30, actually ended
+  09:00): Bahamut reposts are snapshots — only the official post is edited on
+  overrun. Candidates are therefore *scheduled* windows (earliest-possible);
+  whoever confirms checks the newest replies for 延長 bumps first.
+- Legs tile continuously from the anchor, so every post-anchor window
+  permanently shapes later legs — never prune them from verified (corrects an
+  early "mathematically inert" claim); only pre-anchor windows are truly inert.
+- Dropped, not parked: official-API scraper, Wednesday-rule default (the feed
+  carries verified windows instead), in-app maintenance override, per-device
+  recalibrate button (the maintainer's announcement read is canonical), GH
+  Actions backup trigger (CF worker entirely), Vercel fanout route
+  (full-worker fanout proven with FCM 201), gist/R2/Turso feed hosting
+  (KV + dashboard + `/admin`).
+- Auto-apply (2026-09-18, reverses the earlier never-auto rule): unlocked docs
+  take resolved candidates (anchor stays manual, empty never wipes); manual
+  publish locks; promote/resume keep/set auto; per-window overrides replace by
+  startMs, unmatched append, tombstones suppress, past + unobserved records
+  expire. Known limitation, accepted: auto-apply drops future hand-predicted
+  windows not yet announced (9/23 case) — the announcement restores them
+  before the affected spawn.
 
 ## Done
 
