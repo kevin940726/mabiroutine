@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-18 — 紫洞管理後台與伺服器推播
+
 ### Features
 - Purple-hole `/admin` editor (needs worker deploy + `ADMIN_SECRET` to go live): published values, watcher candidates with one-tap promote, and manual datetime entries on one bearer-guarded page — no dashboard JSON hand-edits
 - Watcher auto-apply (ships with the same deploy): non-empty watcher results update the published windows on their own; any hand edit locks auto so corrections persist, promote keeps it, one tap resumes
