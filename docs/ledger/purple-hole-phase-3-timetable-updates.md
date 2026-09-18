@@ -1,6 +1,7 @@
 # Purple-hole phase 3 — timetable updates without commits
 
-Status: planned, unstarted. Phase 1 corrects drift by moving
+Status: A dropped 2026-09-18 — anchor fixes go through the admin feed
+(B), never a per-device button. Until B lands, drift is corrected by moving
 `PURPLE_ANCHOR_MS` in code + push (redeploys prod on merge).
 
 ## Goal
@@ -18,7 +19,7 @@ at a keyboard.
 
 ## Options
 
-### A. Recalibrate button ("剛出沒過")
+### A. Recalibrate button ("剛出沒過") — DROPPED 2026-09-18
 
 One tap stamps `now` as the anchor override:
 `mabiroutine:purple-anchor-override` (`{anchorMs, setAtMs}`), consumed with
@@ -32,6 +33,11 @@ deletes it. Popover footer shows a small `已手動校準` hint while active.
   the resulting next spawn before committing).
 - Sync: leave local-only (consistent with both reminder lanes + the phase-2
   D override). Revisit only on multi-device complaints.
+- Dropped 2026-09-18: anchor fixes go through the admin feed like every other
+  maintainer-verified correction (KV dashboard day one, `/admin` page at
+  graduation) — one device-owning edit fixes everyone, no per-device override
+  slot, no extra popover interaction, no per-device skew to explain. The spec
+  below is retained as rejected context, not a build plan.
 
 ### B. Published JSON feed (maintainer-verified anchor)
 
@@ -75,13 +81,12 @@ reconciles into candidates) — no Turso table, no Vercel route needed.
 
 ## Decision (recommended)
 
-Phase 3 = **A first, B if the burden justifies, C on evidence**. A puts the
-fix in the hands of the person seeing the hole, today, with no infra. B
-centralizes only when the maintainer is recalibrating often enough that a
-file edit beats telling users to tap recalibrate. A and B compose (override
-wins), so building A never blocks B.
+Phase 3 = **B when the burden justifies, C on evidence** — A dropped
+2026-09-18 (unnecessary complexity: the admin feed already corrects every
+device at once). B centralizes only when the maintainer is recalibrating
+often enough that a KV/admin edit beats a code edit + push.
 
-## Technical touch points (A)
+## Technical touch points (A — dropped, retained as rejected context)
 
 - `src/lib/purpleHole.ts`: `readAnchorOverride()` (validates shape, ignores
   garbage), anchor resolution `override ?? hardcoded`; all public entry

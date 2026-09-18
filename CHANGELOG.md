@@ -4,6 +4,12 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- Turning the 開場提醒 experiment flag off now actually unsubscribes: the server row is deleted, the device subscription dropped, and the local lane entry cleared (bell-off semantics) — cards no longer keep arriving after flag-off
+
+### Chores
+- Phase-3 recalibrate button dropped — anchor drift goes through the admin feed, not a per-device button
+
 ## 2026-09-18 — 紫洞即時倒數
 
 ### Features

@@ -145,8 +145,12 @@ Mitigations, in order of reliability:
 2. **Earliest-possible semantics.** Any prediction whose leg overlaps a
    window is a lower bound; if this ever surfaces in UI copy, say so
    (or更晚-style), never a false-precise time.
-3. **In-app entry (D) and recalibrate (phase 3A)** as the backstops: the
-   person watching the extension happen corrects it on the spot.
+3. **Admin feed as the backstop.** Both on-device corrections are dropped
+   (in-app entry D 2026-09-17, phase-3A recalibrate 2026-09-18) — the person
+   watching the extension happen tells the maintainer, who publishes the
+   correction through the feed (KV dashboard day one, `/admin` at
+   graduation). Slower than a same-spot tap, but one edit fixes every
+   device with no per-device skew.
 4. The official detail page remains the only source of actuals — still
    behind the session wall (see Established facts). No change there.
 
@@ -200,7 +204,7 @@ CF Worker (extends barrier's push-cron worker)
     confidence, sources[]} with CORS *, KV-cached (≥60s TTL)
 ```
 
-Client fallback chain: manual override > worker/KV > hardcoded.
+Client fallback chain: worker/KV > hardcoded (per-device override dropped with D).
 New secret vs the push plan: only `ADMIN_SECRET` (and it degrades to
 dashboard-only without the `/admin` page). Limits (free tier, 2026 docs):
 96 ticks + 2 watcher runs/day ≈ 0.1% of 100k req; KV ~4 writes/day vs 1k;

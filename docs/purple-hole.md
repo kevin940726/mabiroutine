@@ -18,9 +18,9 @@ Flag: the 實驗性功能 dialog persists `mabiroutine:purple-hole-flag`. Prod d
   windows + in-app emergency entry; scraper/feed parked until the burden
   justifies it).
 - **Phase 3 (future):** timetable updates without commits — see
-  `docs/ledger/purple-hole-phase-3-timetable-updates.md` (recommended:
-  recalibrate button first, published feed if burden justifies, crowd
-  reports only on evidence).
+  `docs/ledger/purple-hole-phase-3-timetable-updates.md` (admin-published
+  feed if burden justifies — the per-device recalibrate button was dropped
+  2026-09-18; crowd reports only on evidence).
 
 ## Decisions
 

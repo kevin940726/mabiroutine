@@ -1,6 +1,6 @@
 # Server push + purple phase 2 — plan & work ledger
 
-Branch: `feat/push-fanout` (cut 2026-09-17 from main post-release; `feat/server-push` merged + deleted). Status: real fanout build, unstarted.
+Branch: `feat/push-fanout` merged into main 2026-09-17 and deleted (`feat/server-push` merged + deleted earlier). Status: Phase-1 server push proven end-to-end and fully closed on 2026-09-18 — spike routes dead live, `SPIKE_SECRET` gone, server-card tap flashes the row. Open: flag-off unsubscribe, README privacy bullets, purple feed/watcher/admin.
 Companion docs: `docs/push-notifications.md` (why), `docs/purple-hole.md` + `docs/ledger/` (purple phases).
 Conventions: log oldest-first (append at the end), one line per fact, no commit hashes (history gets rewritten).
 
@@ -49,24 +49,33 @@ Conventions: log oldest-first (append at the end), one line per fact, no commit 
 
 - 2026-09-17: visibility split replaces the D6 heal — both lanes stay armed, visible → local fires (SW suppresses on positive `visibilityState === "visible"`), hidden → local skips (page guards on positive `"hidden"`), server delivers; unsubscribe now disarms both. D6 rewritten, WebKit `visibilityState` recorded unverified (safe fallback both sides: missing API degrades to tag-collapse doubles, never silence). Found while building: flag-off leaves the server sub live (tracked §8, fix parked). Generic body drops the MM:SS (`02:30` read as 2:30 AM); unlinked copy decided as `JJ！` (結界 initials, in-joke).
 
+- 2026-09-17: `feat/push-fanout` merged to main and deleted — subscribe API (v2 table + v3 linkage columns), server bell, D1a named cards, postMessage tap channel all on main. Desktop gate already gone, so mobile rides the same flow with zero server changes.
+- 2026-09-17: spike routes deleted in code (fetch is health + scheduled only). Live redeploy + `SPIKE_SECRET` env delete are unverifiable from the repo — confirm via `wrangler secret list` + dashboard before closing the push track.
+- 2026-09-17: 20:00 tap-retest (flattened top-level `url`/`task`/`chars`) was named as the test — its outcome was never recorded in this ledger. Code on main matches the SW contract; treat the retest as unconfirmed until a :00 server-card tap flashes the row.
+- 2026-09-18: code-verified on main — zero references to `/spike-send`, `/fanout-test`, `/db-test`, `SPIKE_SECRET`, `bearerOk`; worker carries the staleness guard, tagged pipeline args, `resolveNamedCard` (live session read, all-done silence, failure → generic), 404/410 prune + `last_sent_at` batch, per-origin JWT cache; subscribe API allowlists one lane (`hourly`) + six platforms with UUID/roster-shape 400s; SW has the `push` listener (visible-suppress + postMessage second channel); `isServerPushMode` is flag-only (`HOURLY_MOBILE_NOTE` gone); 實驗性功能 dialog mounted in the footer. Still open: redeploy liveness, 20:00 outcome, Phase-1.5 Actions backup (no `.github/` in repo), flag-off unsubscribe (parked), README privacy bullets (deferred to release per §8), purple `/purple-schedule` + watcher + `/admin` (worker non-hourly crons still stub).
+- 2026-09-18: push track CLOSED — live probe confirmed the spike routes dead (`/spike-send`, `/fanout-test`, `/db-test` all 404, `GET /` healthy) and `SPIKE_SECRET` absent from the worker env. Fetch is health + scheduled only, in code and live.
+- 2026-09-18: server-card tap retest PASSED — :00 fire tapped with the app open focuses the window and flashes the barrier row. Flattened top-level `url`/`task`/`chars` proven on device; the focus-without-flash bug is gone.
+- 2026-09-18: GH Actions backup DROPPED — the CF worker is the entire trigger story (no second trigger, no CI deploy pipeline). §§2C/3.5 struck accordingly; `CLOUDFLARE_API_TOKEN` never needed.
+- 2026-09-18: phase-3A recalibrate button DROPPED — anchor fixes go through the admin feed only (B-if-burden, C-on-evidence); per-device override judged unnecessary complexity. Phase-3 doc + `purple-hole.md` + phase-2 backstop updated.
+- 2026-09-18: flag-off unsubscribe BUILT — `ExpSettingsDialog` disarms both lanes on push flag-off (server row DELETE + device unsubscribe + local `barrier` entry clear, bell-off semantics; fired at toggle, awaited at close so a fast reload can't cancel the DELETE). §8 parked-fix closed.
+
 ## 0. What you need (checklist)
 
 Cloudflare side (all free tier, $0):
 
-- [ ] Cloudflare account (email signup, no card for free plan).
-- [ ] A `*.workers.dev` subdomain (claimed at first deploy; our only public surface besides API routes — no custom domain needed).
-- [ ] `wrangler` (CLI; `pnpm add -D wrangler`, or npx — repo has no wrangler yet).
-- [ ] One Worker: `mabiroutine-worker` (decided 2026-09-17 — `-cron` would lie once it serves `/purple-schedule` + `/admin`; bare `mabiroutine` collides with the app itself) — cron + `/purple-schedule` + `/admin` + watcher, all in one worker per the combined architecture.
-- [ ] One KV namespace: `PURPLE` (keys `purple:schedule`, `purple:candidates`). Day-one editing happens in the dashboard, no code.
-- [ ] Three secrets, set via `wrangler secret put` (never committed, never in Vercel):
-  `CRON_SECRET` (worker→Vercel bearer), `ADMIN_SECRET` (admin page bearer), VAPID private key only if fanout moves into the worker (alt A below decides this).
+- [x] Cloudflare account (email signup, no card for free plan).
+- [x] A `*.workers.dev` subdomain (claimed at first deploy — `mabiroutine-worker.kaihao.workers.dev`; our only public surface besides API routes — no custom domain needed).
+- [x] `wrangler` (devDependency, committed 2026-09-17).
+- [x] One Worker: `mabiroutine-worker` (decided 2026-09-17 — `-cron`/`-push` both go stale as routes grow) — hourly barrier fanout live; `/purple-schedule` + `/admin` + watcher still unbuilt (non-hourly crons are stubs).
+- [x] One KV namespace: `PURPLE` (keys `purple:schedule`, `purple:candidates`). Created; seeding waits on the purple feed (day-one editing in the dashboard, no code).
+- [x] Secrets, set via `wrangler secret put` (never committed, never in Vercel): `VAPID_JWK` + `VAPID_SUBJECT` + `TURSO_DB_URL`/`TURSO_AUTH_TOKEN` live in the worker env (`CRON_SECRET` died with verdict A — no worker→Vercel hop; `ADMIN_SECRET` waits on the `/admin` page; `SPIKE_SECRET` dies with the routes — env deletion to confirm).
 
 Vercel/Turso side (existing infra):
 
-- [ ] `npx web-push generate-vapid-keys` once — private key to Vercel env, public key inlined client-side.
-- [ ] Turso migration: `push_subscriptions(endpoint PK, p256dh, auth, platform, created_at, last_sent_at)` via `api/_db` patterns (additive, idempotent, like `schema.ts`).
-- [ ] Vercel env: `CRON_SECRET`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` (mailto:). Preview + Production.
-- [ ] GitHub repo secrets for CI deploys: `CLOUDFLARE_API_TOKEN` (Workers deploy-scoped token) + `CLOUDFLARE_ACCOUNT_ID`.
+- [x] VAPID pair generated once — private key as `VAPID_JWK` in the worker env only (never committed); public key inlined client-side (recorded in the log above).
+- [x] Turso migration: `push_subscriptions(endpoint PK, p256dh, auth, platform, lane, created_at, last_sent_at)` v2 + `link_session`/`roster_json` v3 via `api/_db` patterns (additive, idempotent).
+- [x] Subscribe door: `POST/DELETE /api/push/subscribe` (upsert, idempotent delete, shape 400s, per-IP budget). No Vercel fanout route, no `CRON_SECRET` hop — verdict A.
+- ~~[ ] GitHub repo secrets for CI deploys: `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` (no `.github/` in repo — deploys are manual `wrangler deploy` for now).~~ Dropped 2026-09-18 with the backup — deploys stay manual (`pnpm worker:deploy`), no CI, no token.
 
 Local machine: Node + pnpm (already have), `wrangler login` (browser OAuth once), `openssl rand -hex 32` for secret generation.
 
@@ -89,20 +98,20 @@ Local machine: Node + pnpm (already have), `wrangler login` (browser OAuth once)
 4. **KV.** `pnpm wrangler kv namespace create PURPLE` → paste `id` into `wrangler.jsonc`. Seed `purple:schedule` once via dashboard (anchor + empty windows) so `/purple-schedule` serves from minute one.
 5. **Secrets.** `pnpm wrangler secret put CRON_SECRET`, `ADMIN_SECRET` (generate with `openssl rand -hex 32`). Verify with `wrangler secret list`.
 6. **Implement (order matters — each step deploys independently):**
-   a. Dumb hourly tick: `scheduled()` on `0 * * * *` → `POST https://<app>/api/push/fanout` with `Authorization: Bearer CRON_SECRET`. ~10 lines, the current plan's D3/D4.
+   a. ~~Dumb hourly tick: `scheduled()` on `0 * * * *` → `POST https://<app>/api/push/fanout` with `Authorization: Bearer CRON_SECRET`.~~ SUPERSEDED by verdict A (never built) — the worker's own `scheduled()` on `0 * * * *` runs `runBarrierFanout` directly (staleness guard → Turso read → concurrent send → prune + stamp).
    b. `GET /purple-schedule` (public, CORS `*`, `max-age=60`) serving the KV doc.
    c. Purple 15-min tick: import `src/lib/purpleHole.ts` directly (DOM-free pure math — one module, two runtimes) → spawn within 15 min → purple fanout.
    d. Watcher cron → fetch Bahamut search URL → regex windows into `purple:candidates` (never auto-truth).
    e. `/admin` routes per `docs/ledger/purple-hole-admin-page.md` (verify/state/publish/promote, native datetime-local form).
 7. **Deploy.** `pnpm wrangler deploy` from repo root (versioned deploys; never dashboard-edit code — CF's own warning). Claim the `workers.dev` subdomain on first deploy.
-8. **CI.** GitHub Actions: `wrangler deploy` on push to main with `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`. Pin wrangler version; deploys only from main (branch pushes preview nothing — workers have no preview env unless configured).
-9. **Verify.** Dashboard → Workers → Triggers shows next run; `wrangler tail` streams live logs; local cron testing via `wrangler dev --test-scheduled` (exposes `/__scheduled`). Manual fanout test: `curl -X POST /api/push/fanout -H "Authorization: Bearer $CRON_SECRET"`.
-10. **Vercel side (built).** `/api/push/subscribe` (POST rate-limited, DELETE on bell-off; no fanout route — verdict A). Client: 實驗性功能 dialog gate + desktop gate + subscribe wiring preserving the gesture chain (§3e).
+8. ~~**CI.** GitHub Actions: `wrangler deploy` on push to main with `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`. Pin wrangler version; deploys only from main (branch pushes preview nothing — workers have no preview env unless configured).~~ Dropped 2026-09-18 — manual deploys only.
+9. **Verify.** Dashboard → Workers → Triggers shows next run; `wrangler tail` streams live logs; local cron testing via `wrangler dev --test-scheduled` (exposes `/__scheduled`). (No `/api/push/fanout` manual-test route was ever built — verdict A; the temporary `/fanout-test` died with the spike routes.)
+10. **Vercel side (built).** `/api/push/subscribe` (POST rate-limited, DELETE on bell-off; no fanout route — verdict A). Client: 實驗性功能 dialog gate + subscribe wiring preserving the gesture chain (§3e). (Desktop gate removed 2026-09-17 — mobile rides the same flow.)
 11. **Dashboard hygiene.** Cron dashboard keeps last 100 events only — keep a local log of manual test fires (date, result) in this doc's appendix while proving Phase 1.
 
 ## 2. Plan review — alternatives considered
 
-Verdict up front: **the recorded plan stands, with two amendments** (A-spike, C-backup). Detail:
+Verdict up front: **the recorded plan stands, with two amendments** (A-spike, C-backup). Update 2026-09-18: **A decided — full-worker fanout adopted** (FCM 201 + rendered card + 3/3 :00s; `CRON_SECRET` and the Vercel fanout route never existed); **C dropped 2026-09-18 — CF worker entirely, no backup trigger, no CI pipeline.** Detail:
 
 ### A. Fanout location: Vercel Node fn (recorded) vs full-Worker fanout (challenger) — SPIKE FIRST
 
@@ -116,10 +125,10 @@ Verdict up front: **the recorded plan stands, with two amendments** (A-spike, C-
 - Turso `push_subscriptions` reuses region, driver, and migration patterns already in `api/_db`. No second database, no new dashboard. At 100–1000 subs the quota cost is noise either way.
 - KV would force `list()` pagination in fanout and eventual-consistency reads after subscribe (a user subscribing at :59 might miss :00 — real UX edge); D1 is nicer than KV but is still a second store. Neither beats "the store we already run" without the colocation argument from A.
 
-### C. Trigger reliability: CF cron (recorded) vs GH Actions (rejected) — ADD BACKUP, don't relitigate
+### C. Trigger reliability: CF cron (recorded) vs GH Actions (rejected) — ~~ADD BACKUP, don't relitigate~~ DROPPED 2026-09-18, CF worker entirely
 
 - D3's reasoning stands (Actions top-of-hour delays land inside the 2-min window; 60-day auto-disable fails silently). But new evidence cuts the other way too: **CF had a ~56h cron-degraded incident Sep 2026** (triggers delayed or dropped, config propagation slow). Single-trigger dependency either way is the actual risk.
-- **Recommendation: keep CF cron primary, promote the Phase-4 "GH Actions backup trigger" to Phase 1.5** — same `/api/push/fanout` adapter (10-line YAML, scheduled `:55` to dodge the herd per the recorded mitigation), staleness guard makes double-fires collapse into one card via tag. Cheap insurance against a recurrence; build it the week primary proves itself, not before.
+- ~~**Recommendation: keep CF cron primary, promote the Phase-4 "GH Actions backup trigger" to Phase 1.5** — same `/api/push/fanout` adapter (10-line YAML, scheduled `:55` to dodge the herd per the recorded mitigation), staleness guard makes double-fires collapse into one card via tag. Cheap insurance against a recurrence; build it the week primary proves itself, not before.~~ **Dropped 2026-09-18** — CF worker is the entire trigger story; the Sep-2026 cron-degraded incident is accepted as residual risk, no second trigger.
 
 ### D. Push vendor: standard Web Push/VAPID (recorded) vs OneSignal/FCM wrapper — STANDS
 
@@ -135,11 +144,11 @@ Verdict up front: **the recorded plan stands, with two amendments** (A-spike, C-
 
 ## 3. Build order on this branch
 
-1. Spike A (worker-side push to one test sub) → record verdict here, then lock fanout location.
-2. `workers/push-cron` scaffold + hourly tick + CI deploy (barrier Phase 1 infra).
-3. Vercel: VAPID + Turso table + subscribe/fanout (or subscribe-only if A wins) + client wiring + README privacy bullets.
-4. Purple: `/purple-schedule` + KV seed → client fallback chain (override > KV > hardcoded) → 15-min tick + purple fanout → watcher + candidates → `/admin` → in-app override D + recalibrate A (phase-2/3 client pieces are independent and can interleave).
-5. Phase-1.5 Actions backup trigger (after primary proves 3 consecutive :00s).
+1. ~~Spike A (worker-side push to one test sub) → record verdict here, then lock fanout location.~~ Done 2026-09-17 — verdict A adopted.
+2. ~~`workers/push-cron` scaffold + hourly tick + CI deploy (barrier Phase 1 infra).~~ Done 2026-09-17 except CI (`workers/mabiroutine-worker` + hourly tick live; deploys manual, no `.github/`).
+3. Vercel: ~~VAPID + Turso table + subscribe/fanout (or subscribe-only if A wins) + client wiring + README privacy bullets.~~ Done except README privacy bullets (subscribe-only per A + client wiring shipped; bullets deferred to release per `push-notifications.md` §8).
+4. Purple: `/purple-schedule` + KV seed → client fallback chain (KV > hardcoded) → 15-min tick + purple fanout → watcher + candidates → `/admin` (phase-2/3 feed pieces are independent and can interleave; per-device corrections dropped — D 2026-09-17, recalibrate A 2026-09-18 — admin publishes). — Unstarted (worker non-hourly crons still stub; specs in `docs/ledger/purple-hole-*.md`).
+5. ~~Phase-1.5 Actions backup trigger (after primary proves 3 consecutive :00s). — Due now (3/3 proven 2026-09-17), unstarted.~~ Dropped 2026-09-18 — CF worker entirely.
 
 ## Appendix — secrets inventory
 
@@ -150,6 +159,6 @@ Verdict up front: **the recorded plan stands, with two amendments** (A-spike, C-
 | VAPID private (`VAPID_JWK`) | CF worker env only | fanout sender | regen pair + resubscribe all |
 | `VAPID_SUBJECT` | CF worker env only | push services (contact) | `wrangler secret put` |
 | `TURSO_DB_URL` / `TURSO_AUTH_TOKEN` | CF worker env only (copied from `.env.local`, never committed) | worker fanout reads | re-copy + `wrangler secret put` (token is full-access — Turso issues no read-only tokens at our tier) |
-| `SPIKE_SECRET` | CF worker env only | temporary test routes | dies with the routes |
-| `CLOUDFLARE_API_TOKEN` | GitHub repo secrets | CI deploy | CF dashboard token roll |
+| ~~`SPIKE_SECRET`~~ | deleted with the routes 2026-09-17 (code); env absence confirmed live 2026-09-18 — track closed | — | — |
+| ~~`CLOUDFLARE_API_TOKEN`~~ | dropped 2026-09-18 with the backup — no CI, no token | — | — |
 | Turso creds | Vercel env (existing) | subscribe route | existing rotation |

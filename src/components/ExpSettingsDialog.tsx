@@ -10,6 +10,8 @@ import {
 import { cn } from "@/lib/utils";
 import { isPushEnabled, setPushFlag } from "@/lib/hourlyReminders";
 import { isPurpleHoleEnabled, setPurpleHoleFlag } from "@/lib/purpleHole";
+import { unsubscribeServerPush } from "@/lib/serverPush";
+import { useAppStore } from "@/store/useAppStore";
 
 // Experimental feature toggles. The dialog is the only writer of these
 // per-device slots (query-param entry is removed — it never worked inside
@@ -58,6 +60,24 @@ function ExpRow({
   );
 }
 
+/**
+ * Bell-off semantics for flag-off: the server row + device sub + local lane
+ * entry all go, or an orphan keeps firing after the feature reads off.
+ * Single-task scope today (`barrier` is the only hourly subscriber), so the
+ * id is literal — same assumption `unsubscribeServerPush` documents.
+ * Resolves, never rejects (every half is best-effort inside).
+ */
+function disarmHourlyLanes(): Promise<void> {
+  try {
+    const s = useAppStore.getState();
+    if ((s.hourlyReminders ?? []).includes("barrier")) s.toggleHourlyReminder("barrier");
+  } catch {
+    // store unreachable: the local lane just stays as-is; the flag gates
+    // cover it after the reload, and the server half still runs below.
+  }
+  return unsubscribeServerPush("barrier");
+}
+
 export function ExpSettingsDialog() {
   const [open, setOpen] = useState(false);
   const [push, setPush] = useState(false);
@@ -76,6 +96,12 @@ export function ExpSettingsDialog() {
     if (which === "push") {
       setPushFlag(!on);
       setPush(!on);
+      // Flag-off must actually stop cards: the server row outlives the flag
+      // (it lives in Turso, not in the flag slot), so disarm both lanes with
+      // bell-off semantics. Fired here for the slow-close path; the close
+      // handler below awaits it for the fast-close path (a reload can cancel
+      // the in-flight DELETE). Idempotent — double calls are safe.
+      if (on) void disarmHourlyLanes().catch(() => {});
     } else {
       setPurpleHoleFlag(!on);
       setPurple(!on);
@@ -84,10 +110,19 @@ export function ExpSettingsDialog() {
   return (
     <Dialog
       open={open}
-      onOpenChange={(v) => {
+      onOpenChange={async (v) => {
         setOpen(v);
         if (v) refresh();
-        else if (push !== initial.push || purple !== initial.purple) window.location.reload();
+        else {
+          if (initial.push && !push) {
+            try {
+              await disarmHourlyLanes();
+            } catch {
+              // idempotent server-side; the fanout prune covers a miss.
+            }
+          }
+          if (push !== initial.push || purple !== initial.purple) window.location.reload();
+        }
       }}
     >
       <Button

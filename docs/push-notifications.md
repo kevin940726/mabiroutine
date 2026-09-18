@@ -145,9 +145,9 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   60-day auto-disable on quiet public repos fails silently. CF holds :00
   within ~a minute with no disable mode. Actions' wins (in-repo YAML,
   one-click `workflow_dispatch` test fires, familiar logs) are real but don't
-  survive contact with §3a. Mitigation if ever reconsidered: schedule `:55`
-  (dodge the herd, surrender the pairing) + staleness guard. The trigger is a
-  swappable 10-line adapter over `/api/push/fanout` either way.
+   survive contact with §3a. ~~Mitigation if ever reconsidered: schedule `:55`
+   (dodge the herd, surrender the pairing) + staleness guard.~~ (Backup-trigger idea dropped 2026-09-18 — CF worker entirely.) The trigger is a
+   swappable 10-line adapter over `/api/push/fanout` either way.
 - **D4 — Staleness guard in fanout, not in trigger (2026-09-16).** Any delay
   source (trigger, cold start, retry) degrades to a clean miss. Never send
   past :02:00 Taipei.
@@ -255,8 +255,8 @@ installed PWA); still proving card + tap-through.
 
 ### Phase 4 — Optional hardening (only on evidence)
 Done-state filtering (session linkage + consent copy per §3d), quiet hours,
-GH Actions backup trigger, eligibility-list expansion, fanout batching past
-10K subs (sharding by endpoint hash, `maxDuration` bump).
+~~GH Actions backup trigger,~~ eligibility-list expansion, fanout batching past
+10K subs (sharding by endpoint hash, `maxDuration` bump). (Backup trigger dropped 2026-09-18 — CF worker entirely.)
 
 ## 8. Open risks (not questions — tracked, decided or deferred)
 
@@ -264,8 +264,9 @@ GH Actions backup trigger, eligibility-list expansion, fanout batching past
 - **Flag-off leaves the server sub live** (found 2026-09-17 during the
   visibility split): turning the experiment flag off hides the bell but never
   unsubscribes — cards keep arriving (suppressed when visible, delivered when
-  closed). Fix direction: unsubscribe on flag-off; parked until the next
-  bell-touching change since every current tester keeps the flag on.
+  closed). Fixed 2026-09-18: flag-off disarms both lanes (server row DELETE +
+  device unsubscribe + local entry clear, bell-off semantics; fired at toggle,
+  awaited at dialog close so a fast reload can't cancel it).
 - **CRON_SECRET leak/rotation**: env-only, rotate by redeploy; fanout 401s
   loudly (Vercel logs) rather than failing open.
 - **Hobby fair-use**: personal-use project, traffic trivial — no action.
