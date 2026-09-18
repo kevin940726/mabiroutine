@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-18 — 紫洞 feed 與退訂修正
+
 ### Features
 - Purple-hole schedule feed (phase 2B, needs worker deploy + KV seed to go live): the worker serves the published timetable at `GET /purple-schedule` and the app prefers it over hardcoded values (cached offline, refreshed at boot, reminder timer re-arms when it changes); the twice-daily Bahamut watcher parses maintenance windows into review candidates — never auto-published
 
