@@ -94,7 +94,7 @@ const SERVER_SOFT_ASK =
 // (cards name zones, never people), deletion assurance. Replaces the default
 // copy, whose "App 沒開就不會響" would lie here.
 const PURPLE_SERVER_SOFT_ASK =
-  "出沒 15 分鐘前推播到這台裝置，App 沒開也會響。時間是預測值，僅供參考。取消訂閱會同時刪除伺服器上的資料。按下訂閱後，瀏覽器會再確認一次，請選允許。";
+  "出沒前最多 15 分鐘推播到這台裝置，App 沒開也會響（App 開著是準 15 分鐘；沒開時伺服器每 15 分鐘檢查一次）。時間是預測值，僅供參考。取消訂閱會同時刪除伺服器上的資料。按下訂閱後，瀏覽器會再確認一次，請選允許。";
 
 function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane) {
   const hourlyOn = useAppStore((s) => (s.hourlyReminders ?? []).includes(taskId));
