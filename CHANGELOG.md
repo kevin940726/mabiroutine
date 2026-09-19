@@ -11,6 +11,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - Stale doc lines corrected: the `note`-rewrite blocker in `docs/tracker-data.md` (rewrite done in two passes, CC BY-NC stamp shipped in Phase 2) and the duplicate-pair flag in `suggestions/barter-sources.md` (4 `yen-` twins dropped 2026-09-09 with state remapped)
 
 ### Fixes
+- Purple reminder timing clarified: the open-app timer fires exactly 15 min early, but the closed-app server push lands on the first 15-min tick inside the window (lead varies 1–15 min) — the 8-min card for the 09/19 spawn is that design working, and doubles as the closed-app delivery proof; READMEs and push docs updated
 - Purple timetable popover no longer vanishes on page scroll (touch devices): outside-tap now dismisses on click instead of pointerdown — a scroll gesture opens with a pointerdown, which dismissed the card before scroll-follow ever ran
 - In-game-verified barter costs: 卡利克斯 胡椒 ×2 costs 不死粉末 ×5 (was ×1 — the Google Doc was right); 奈麗絲 高級生皮 ×1 ← 銅礦石 ×1 (both quantities filled, shops twin already agreed); nipponhashi delta parked as future reference
 

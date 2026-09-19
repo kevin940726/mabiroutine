@@ -34,13 +34,16 @@ sync key space). Proven limitation: closed tab = no timer.
 A second lane covers 深淵的黑色坑洞 (`purple-hole` — §6, full spec in `docs/purple-hole.md`, runbook in
 `docs/operations.md`):
 separate local subscription list (store v19 `purpleHoleReminders`), separate
-card tag (`mabi-purple`, never collapses with hourly cards), 15-minute lead
-before each predicted 36h15m spawn, catch-up allowed, and — unlike the hourly
+card tag (`mabi-purple`, never collapses with hourly cards), exact 15-minute
+lead on the local page-timer before each predicted 36h15m spawn, catch-up
+allowed, and — unlike the hourly
 lane — no silence cutoff (the card stays truthful until the spawn passes; the
 hole persists, so there is no startle boundary). Since 2026-09-18 the purple
 bell also subscribes a server lane (`lane=purple` rows, same triple opt-in):
 unfiltered zone cards (no D1a linkage — zones, never people), skip-past-spawns
-cutoff, KV fire-once guard; visibility split and bell/flag-off parity match
+cutoff, KV fire-once guard, and a variable lead — the first 15-min cron tick
+inside the window (1–15 min; observed 8 min for the 2026-09-19 ~14:38 spawn);
+visibility split and bell/flag-off parity match
 the hourly lane exactly.
 Permission machinery (soft-ask, coach mark, watcher, denied dialog) is
 shared; only the store slice and copy differ. Card names no one: title

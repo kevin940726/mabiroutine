@@ -38,8 +38,9 @@ handled for you.
   and get one quiet notification at :00 Taipei sharp (~2.5 min before the XX:02:30
   start, with the in-game ping) when it's still undone — the open app uses a local
   timer, a hidden or closed app is covered by server push (iPhone needs the
-  Home-Screen app first). 深淵的黑色坑洞 has its own bell, 15 min before each
-   predicted spawn. Each device subscribes separately; reminders are best-effort,
+     Home-Screen app first). 深淵的黑色坑洞 has its own bell, up to 15 min before each
+   predicted spawn (exactly 15 with the app open; the closed-app server push lands
+   on the first 15-min tick inside the window). Each device subscribes separately; reminders are best-effort,
    an occasional miss is normal. No in-app quiet hours by design — silence nights
    in the OS instead (iOS Focus / per-PWA notification settings, Android per-site
    toggles).
