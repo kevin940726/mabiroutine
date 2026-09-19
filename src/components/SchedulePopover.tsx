@@ -1,8 +1,11 @@
 // Timetable popover for 深淵的黑色坑洞: click-toggle, read-only, past 2 +
-// next 3 predicted spawns. Positioning + dismiss (scroll/resize/Escape/
-// outside-tap) follow the MaterialHoverCard pattern — the repo has no
+// next 3 predicted spawns. Positioning + dismiss (scroll-follow, resize,
+// Escape, outside-tap) follow the MaterialHoverCard pattern — the repo has no
 // popover dep. Content is frozen at open time (a ticking clock adds nothing;
-// reopening refreshes).
+// reopening refreshes). Outside-tap dismisses on click, NOT pointerdown: a
+// touch-scroll opens with a pointerdown on page content, so pointerdown would
+// dismiss before any scrolling happens (iOS bug); browsers suppress click
+// after a scroll gesture, so taps still dismiss and scrolls don't.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -75,20 +78,24 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
-    const onDown = (e: PointerEvent) => {
+    // Click, not pointerdown (see header): a scroll gesture starts with a
+    // pointerdown outside, which would dismiss before the scroll-follow below
+    // ever runs. Browsers suppress click after scrolling, so this fires for
+    // real taps only.
+    const onClickOut = (e: MouseEvent) => {
       const t = e.target as Node;
       if (!triggerRef.current?.contains(t) && !cardRef.current?.contains(t)) setOpen(false);
     };
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
     window.addEventListener("keydown", onKey);
-    window.addEventListener("pointerdown", onDown);
+    window.addEventListener("click", onClickOut);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onScroll);
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("click", onClickOut);
     };
   }, [open, reposition]);
 
