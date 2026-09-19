@@ -139,9 +139,6 @@ predictions LATE (miss), understated skew EARLY (wait) — err short.
   already travels on the feed; UI not built.
 - [ ] Phase-3C crowd reports — needs frequent drift AND an active reporter
   base plus a privacy review. Not this year on current information.
-- [ ] README privacy bullets (EN + zh_TW) — at official release, not before
-  (endpoints + session linkage + roster snapshot are the delta over
-  "progress lives in your browser").
 
 ## 9. History & rationale (read when revisiting a decision)
 

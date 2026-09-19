@@ -243,9 +243,10 @@ store v19) with the usual migrate + fixture discipline from AGENTS.md.
 6. Client: flag gate (§6) + subscribe/unsubscribe wiring that
    preserves the §3e gesture chain; bell copy unchanged until proven.
    (Desktop UA gate removed 2026-09-17 — mobile joins the same flow.)
-7. Copy: README privacy bullets (EN + zh_TW) revised per §3d — STILL OPEN,
-   deferred to the official release (features remain flag-gated); CHANGELOG
-   entries landed.
+7. Copy: README privacy bullets (EN + zh_TW) revised per §3d — LANDED at
+   graduation 2026-09-19 (endpoints + keys, linked session id, roster
+   snapshot, live done-state reads; unsubscribe deletes all);
+   CHANGELOG entries landed.
 8. Test matrix: desktop Brave/Win (primary — daily browser), Chrome/Win, Edge/Win, Chrome/macOS — subscribe →
    wait for :00 (or trigger fanout manually with the secret) → card →
    tap → char priority + flash (§2 behavior, now via SW path). Firefox/Safari
@@ -273,7 +274,7 @@ Done-state filtering (session linkage + consent copy per §3d), quiet hours,
 
 ## 8. Open risks (not questions — tracked, decided or deferred)
 
-- **Night noise — decided 2026-09-17: no in-app scheduler, OS-level guidance at release.** Gaming schedules differ (night owls need night alerts), so quiet hours would be wrong per-user over-engineering. Verified: iOS installed PWA gets its own Notifications entry + Focus support (WebKit blog), Android has per-site toggles (Chrome site settings + OS app channels), installed PWAs are exempt from Chrome's 2025 notification auto-revoke. User-facing copy (per-PWA/Focus/Scheduled-Summary paths) lands in the READMEs only at official release — still experimental, not yet.
+- **Night noise — decided 2026-09-17: no in-app scheduler, OS-level guidance at release.** Gaming schedules differ (night owls need night alerts), so quiet hours would be wrong per-user over-engineering. Verified: iOS installed PWA gets its own Notifications entry + Focus support (WebKit blog), Android has per-site toggles (Chrome site settings + OS app channels), installed PWAs are exempt from Chrome's 2025 notification auto-revoke. User-facing copy (per-PWA/Focus/Scheduled-Summary paths) landed in both READMEs at graduation 2026-09-19 (no in-app quiet hours; OS-level guidance).
 - **Flag-off leaves the server sub live** (found 2026-09-17 during the
   visibility split): turning the experiment flag off hides the bell but never
   unsubscribes — cards keep arriving (suppressed when visible, delivered when

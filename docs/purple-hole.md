@@ -91,7 +91,6 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 - [ ] Verify the 9/23 predicted window against the 09/22 announcement (auto-apply may drop it until announced — see the phase-2 gap note)
 - [ ] Optional: surface `updatedAt` freshness (`預測更新於 …`) in the popover — data already travels on the feed
 - [ ] Phase 3C crowd reports — evidence-gated, not started
-- [ ] README privacy bullets — at official release, not before
 
 ## Open questions
 

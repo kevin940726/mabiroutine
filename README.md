@@ -39,14 +39,16 @@ handled for you.
   start, with the in-game ping) when it's still undone — the open app uses a local
   timer, a hidden or closed app is covered by server push (iPhone needs the
   Home-Screen app first). 深淵的黑色坑洞 has its own bell, 15 min before each
-  predicted spawn. Each device subscribes separately; reminders are best-effort,
-  an occasional miss is normal.
+   predicted spawn. Each device subscribes separately; reminders are best-effort,
+   an occasional miss is normal. No in-app quiet hours by design — silence nights
+   in the OS instead (iOS Focus / per-PWA notification settings, Android per-site
+   toggles).
 - 🔒 **Private by default.** Your progress lives in your browser
   (localStorage), not in our database. No tracking, no ads. The only exception
   is push you subscribe to yourself: that device's push endpoint (plus keys)
   is stored server-side so cards can be delivered (barrier cards with a sync
-  link also read that day's done-state live to name names); unsubscribing
-  deletes it all.
+  link also read that day's done-state live to name names, backed by a stored
+  roster snapshot for fallback names); unsubscribing deletes it all.
 
 ## Sources & licenses
 
