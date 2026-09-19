@@ -27,6 +27,7 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
   Code comments for internal-only changes. Dev-only details (commands, project
   structure, verification) live in `docs/development.md`, never in the READMEs.
 - Newest first: add bullets under the top `## Unreleased — …` section, grouped into `### Features` / `### Fixes` / `### Chores`. Every push to `main` deploys to prod, so when you push, rename that section to `## <YYYY-MM-DD> — <short label>` and start a fresh `## Unreleased`. No commit hashes in headings or bullets — they go stale when history is rewritten (amend/rebase).
+- Changelog language: English always. Traditional Chinese appears only when quoting actual UI/copy text or when a term has no English counterpart; otherwise write `english (中文)` side-by-side if both help. (Older entries predate this rule — leave them.)
 - User-facing changes → `### Features` / `### Fixes`; internal/agent-only changes → `### Chores`.
 - If you spot a past commit with no entry, backfill it in the next commit — never let the gap grow.
 

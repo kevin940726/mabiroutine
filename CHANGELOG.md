@@ -4,10 +4,10 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
-## 2026-09-19 — 提醒功能正式上線
+## 2026-09-19 — Reminders graduate to public release
 
 ### Features
-- 提醒功能正式上線：鈴鐺不再需要實驗開關，直接點就能訂閱（結界整點 + 紫洞出沒前 15 分鐘；App 關掉由伺服器推播補上，iPhone 需先加入主畫面）；舊訂閱無縫接軌，不用重按
+- Reminders go public: bells no longer need the experimental switch — tap to subscribe (barrier on the hour + purple hole 15 min before spawn; closed apps covered by server push, iPhone needs the Home-Screen app first); existing subscriptions carry over, no re-tap needed
 
 ## 2026-09-19 — 文件整理
 
