@@ -7,6 +7,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ### Features
 - Release copy: both READMEs now disclose the full server-side push footprint (endpoint + keys, linked session id, roster snapshot, live done-state reads — unsubscribe deletes all) and carry OS-level night-silencing guidance (iOS Focus / per-PWA settings, Android per-site toggles); checks off the last §8 doc todos
 
+### Chores
+- Stale doc lines corrected: the `note`-rewrite blocker in `docs/tracker-data.md` (rewrite done in two passes, CC BY-NC stamp shipped in Phase 2) and the duplicate-pair flag in `suggestions/barter-sources.md` (4 `yen-` twins dropped 2026-09-09 with state remapped)
+
 ## 2026-09-19 — Reminders graduate to public release
 
 ### Features
