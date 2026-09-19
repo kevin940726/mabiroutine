@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-19 — 文件整理
+
 ### Chores
 - Docs fold: the four `docs/ledger/` work logs are deleted (full text in git history); needed purple history/decisions folded into `docs/purple-hole.md`, DB notes into `docs/sql-migration.md`, worker-page notes into `docs/development.md`; one living runbook at `docs/operations.md`
 - Fold leftovers: stale deferred/dangling-ledger references corrected, admin-JS check rewritten PowerShell-safe and verified, runbook URLs full, 9/23 gap note self-contained
