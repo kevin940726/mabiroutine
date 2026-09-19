@@ -1,7 +1,7 @@
 # 深淵的黑色坑洞 — feature ledger
 
 Branch: `feat/purple-hole` merged to main; phase 2 shipped 2026-09-18.
-Flag: the 實驗性功能 dialog persists `mabiroutine:purple-hole-flag`. Prod default: zero surface.
+Reminders graduated 2026-09-19: no flag, bells show for everyone.
 
 ## Schedule (feed-owned since 2026-09-18)
 

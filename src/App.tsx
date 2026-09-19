@@ -22,9 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
-import { isPushEnabled } from "@/lib/hourlyReminders";
 import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
-import { PURPLE_HOLE_ID, isPurpleHoleEnabled, isScheduledToday } from "@/lib/purpleHole";
+import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task } from "@/lib/types";
 import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
@@ -112,10 +111,10 @@ export default function App() {
   // app is open, one collapsed card for subscribed-but-undone tasks. Runs
   // only when at least one task is subscribed — zero timers otherwise.
   const hasReminders = useAppStore((s) => (s.hourlyReminders ?? []).length > 0);
-  useHourlyReminders(hasHydrated && hasReminders && isPushEnabled());
+  useHourlyReminders(hasHydrated && hasReminders);
   // Purple-hole lane (15-min-early fire): separate flag, separate list.
   const hasPurpleReminders = useAppStore((s) => (s.purpleHoleReminders ?? []).length > 0);
-  usePurpleHoleReminders(hasHydrated && hasPurpleReminders && isPurpleHoleEnabled());
+  usePurpleHoleReminders(hasHydrated && hasPurpleReminders);
   // Reminder-tap landing (?task=&chars=): resolve the character, scroll to
   // the row, flash it once. Runs for every load — cheap no-op without params.
   useReminderDeepLink(hasHydrated);
@@ -150,12 +149,11 @@ export default function App() {
     input.click();
   };
 
-  // purple-hole row lives behind its own experimental flag; off-day
-  // parking happens render-side in TrackerSection. The header overall also
-  // excludes it when the flag is off or today is not a spawn day.
-  const purpleHoleOn = isPurpleHoleEnabled();
+  // purple-hole row renders on spawn days (off-day parking happens
+  // render-side in TrackerSection). The header overall also excludes it when
+  // today is not a spawn day.
   const purpleToday = isScheduledToday();
-  const excludePurple = (t: Task) => t.id === PURPLE_HOLE_ID && !(purpleHoleOn && purpleToday);
+  const excludePurple = (t: Task) => t.id === PURPLE_HOLE_ID && !purpleToday;
 
   // overall progress for active char + account (hidden tasks excluded):
   // builtins + custom + pinned barter, same ruler as the section badges.
@@ -175,10 +173,10 @@ export default function App() {
     return { pct: percent, done, total };
   })();
 
-  // Daily list keeps the row whenever the flag is on — TrackerSection parks
+  // Daily list keeps the row — TrackerSection parks
   // it into 已隱藏項目 on off-days (render-only, stays out of progress).
   const dailyTasks = BUILTIN_TASKS.filter(
-    (t) => t.section === "daily" && (t.id !== PURPLE_HOLE_ID || purpleHoleOn)
+    (t) => t.section === "daily"
   );
   const weeklyTasks = BUILTIN_TASKS.filter((t) => t.section === "weekly");
   const accountTasks = BUILTIN_TASKS.filter((t) => t.section === "account");

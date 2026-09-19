@@ -339,11 +339,11 @@ export function msUntilNextPurpleFire(nowMs: number = Date.now()): number {
   return Math.max(1_000, nthOccurrence(firstIndexAfter(nowMs) + 1) - PURPLE_LEAD_MS - nowMs);
 }
 
-// Experimental gate: the 實驗性功能 dialog flips this per device; the row,
-// timetable, bell, and scheduler all hide when off. Mirrors the push gate,
-// separate slot.
+// Reminder availability: shipped to everyone (same graduated-flag deal as
+// the push lane — slot retained unread for old saves, dialog renders
+// nothing while empty).
 const PURPLE_FLAG_KEY = "mabiroutine:purple-hole-flag";
-/** Experimental-settings write end (the dialog's only writer). */
+/** Legacy writer (kept for the dialog registry shape; nothing calls it). */
 export function setPurpleHoleFlag(on: boolean): void {
   try {
     if (on) window.localStorage.setItem(PURPLE_FLAG_KEY, "1");
@@ -353,12 +353,7 @@ export function setPurpleHoleFlag(on: boolean): void {
   }
 }
 export function isPurpleHoleEnabled(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(PURPLE_FLAG_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 // Schedule feed (phase 2B): the worker's /purple-schedule doc (KV-backed,

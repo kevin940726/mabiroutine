@@ -1,10 +1,10 @@
 import type { Task } from "@/lib/types";
 
-// Local-only event reminders (MVP): while the app is open, a page timer
-// fires once per hour ahead of the verified in-game event at XX:02:30 and
-// raises one collapsed system notification for subscribed tasks still
-// undone. No server, no push subscription, nothing leaves the device.
-//
+// Event reminders: while the app is open, a page timer fires ahead of the
+// verified in-game event at XX:02:30 and raises one collapsed system
+// notification for subscribed tasks still undone. Every bell also arms a
+// server lane (see serverPush.ts — endpoint + keys in Turso so cards arrive
+// with the app closed); visibility decides which lane fires, never both.
 // Timing (verified in-game): the game pings soft at :00, the real event
 // starts :02:30, walking there takes ~1 minute — so the scheduled fire is
 // :00:00 sharp, landing together with the soft ping (150s before the
@@ -33,11 +33,12 @@ export const HOURLY_ELIGIBLE_IDS = ["barrier"] as const;
 // Collapse key: one card per hour-slot, replaced — never stacked.
 export const HOURLY_TAG = "mabi-hourly";
 
-// Experimental gate: the 實驗性功能 dialog flips this per device; everything
-// reminder-shaped (bell, scheduler) hides when off. Read-once, no reactivity
-// — the dialog reloads on close to apply, which keeps every reader honest.
+// Reminder availability: shipped to everyone. The experimental-flag era
+// ended (the `mabiroutine:push-flag` slot is retained unread so old saves
+// carry over silently); `ExpSettingsDialog` stays mounted for future flags
+// and renders nothing while its registry is empty.
 const PUSH_FLAG_KEY = "mabiroutine:push-flag";
-/** Experimental-settings write end (the dialog's only writer). */
+/** Legacy writer (kept for the dialog registry shape; nothing calls it). */
 export function setPushFlag(on: boolean): void {
   try {
     if (on) window.localStorage.setItem(PUSH_FLAG_KEY, "1");
@@ -47,12 +48,7 @@ export function setPushFlag(on: boolean): void {
   }
 }
 export function isPushEnabled(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(PUSH_FLAG_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 export function isEligibleReminderId(id: string): boolean {

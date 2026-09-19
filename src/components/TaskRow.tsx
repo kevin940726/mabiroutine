@@ -8,9 +8,9 @@ import { confirmRemoveTask, confirmReenableReminder, confirmSubscribeReminder } 
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRing } from "lucide-react";
-import { isEligibleReminderId, isPushEnabled, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
-import { isServerPushMode, reconcileServerPush, refreshServerRoster, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
-import { PURPLE_HOLE_ID, formatTaipei, isPurpleHoleEnabled, purpleLive } from "@/lib/purpleHole";
+import { isEligibleReminderId, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
+import { isServerPushMode, isIOSWithoutPWA, reconcileServerPush, refreshServerRoster, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
+import { PURPLE_HOLE_ID, formatTaipei, purpleLive } from "@/lib/purpleHole";
 import { formatCountdown } from "@/lib/reset";
 import { useNow } from "@/hooks/useNow";
 import { SchedulePopover } from "@/components/SchedulePopover";
@@ -72,12 +72,11 @@ export function TaskRow(props: Props) {
 
 /**
  * Event reminder toggle. Permission is requested from this tap — the only
- * user gesture browsers accept. The purple lane and the unflagged hourly
- * lane stay local-only (never synced, never sent anywhere); the hourly lane
- * on flagged desktop subscribes server-side instead (endpoint + keys in
- * Turso, bell state in a device map) and never touches the store list, so
- * the two backends can't double-card. The permission machinery is identical
- * across all three; only the subscribe end differs.
+ * user gesture browsers accept. Both lanes stay armed per bell (local entry
+ * + server subscription; visibility decides who fires), so the two backends
+ * can't double-card. The permission machinery is identical across lanes;
+ * only the subscribe end differs (hourly names names via opt-in linkage,
+ * purple names zones).
  */
 export type ReminderLane = "hourly" | "purple";
 
@@ -145,17 +144,25 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   // never half-subscribed. Alerts stay plain-worded like the rest of
   // this flow.
   const finalizeServerSubscribe = async (): Promise<void> => {
-    const r = await subscribeServerPush(taskId, lane);
-    if (r === "ok") {
+    const armLocal = () => {
       const s = useAppStore.getState();
       if (lane === "purple") {
         if (!(s.purpleHoleReminders ?? []).includes(taskId)) s.togglePurpleReminder(taskId);
       } else {
         if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
       }
+    };
+    const r = await subscribeServerPush(taskId, lane);
+    if (r === "ok") {
+      armLocal();
       bump();
     } else if (r === "need-sw") {
-      alert("推播訂閱需要正式站的 Service Worker：在正式站的實驗性功能開啟後再點鈴鐺。");
+      // No Service Worker here (dev preview, SW-less browsers): the server
+      // lane is unreachable, but the local timer works fine — arm it instead
+      // of leaving the user with nothing. The bell still reads the server
+      // map (off), so a re-tap is a harmless no-op re-arm.
+      armLocal();
+      bump();
     } else {
       alert("訂閱失敗，請再試一次。");
     }
@@ -215,6 +222,12 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
         return;
       }
       toggle(taskId);
+      return;
+    }
+    // iOS Safari tabs (not installed) can never subscribe — no native prompt,
+    // no settings switch. Say so up front instead of failing into retries.
+    if (serverMode && isIOSWithoutPWA()) {
+      alert("iOS 的推播只能從主畫面的 App 使用：先用分享 → 加入主畫面安裝，再從主畫面開啟本站點鈴鐺訂閱。");
       return;
     }
     const perm = reminderPermission();
@@ -331,12 +344,11 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
 
   const isCustom = task.source === "custom";
   const isBarter = task.source === "barter";
-  // Event-reminder bell: only eligible tasks (today just 不祥的召喚結界),
-  // and only with the experimental flag on — prod default is no bell at all.
-  const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
-  // Purple lane (timetable + 15-min-early bell): purple-hole only, behind
-  // its own experimental flag. Same gate shape, separate subscription list.
-  const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
+  // Event-reminder bell: only eligible tasks (today just 不祥的召喚結界).
+  const reminderEligible = isEligibleReminderId(task.id);
+  // Purple lane (timetable + 15-min-early bell): purple-hole only, on spawn
+  // days. Same gate shape, separate subscription list.
+  const scheduleEligible = task.id === PURPLE_HOLE_ID;
   const purpleReminderEligible = scheduleEligible;
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
@@ -596,8 +608,8 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
-  const reminderEligible = isEligibleReminderId(task.id) && isPushEnabled();
-  const scheduleEligible = task.id === PURPLE_HOLE_ID && isPurpleHoleEnabled();
+  const reminderEligible = isEligibleReminderId(task.id);
+  const scheduleEligible = task.id === PURPLE_HOLE_ID;
   const purpleReminderEligible = scheduleEligible;
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });

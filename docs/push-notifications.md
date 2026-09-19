@@ -2,7 +2,8 @@
 
 Status: SHIPPED — Phase 0 (local timer), Phase 1 (server push, hourly lane),
 Phases 2–3 (mobile / iOS PWA, same flow), and the purple lane are live in prod
-as of 2026-09-18, all behind the 實驗性功能 flags. This doc records
+as of 2026-09-18 and graduated from the 實驗性功能 flags 2026-09-19
+(bells show for everyone; flags read always-on). This doc records
 constraints, decisions, and phase scope — the *why*; code maps live with the
 code; day-by-day work history is in git history (the `docs/ledger/` files
 were folded away 2026-09-18); runbooks in `docs/operations.md`.
@@ -30,8 +31,7 @@ address-bar chip, site settings) auto-completes with no reload, re-tap, or
 re-confirm. Subscriptions never leave the device (store v18, absent from the
 sync key space). Proven limitation: closed tab = no timer.
 
-A second lane covers 深淵的黑色坑洞 (`purple-hole`, behind its own
-experimental flag — §6, full spec in `docs/purple-hole.md`, runbook in
+A second lane covers 深淵的黑色坑洞 (`purple-hole` — §6, full spec in `docs/purple-hole.md`, runbook in
 `docs/operations.md`):
 separate local subscription list (store v19 `purpleHoleReminders`), separate
 card tag (`mabi-purple`, never collapses with hourly cards), 15-minute lead
@@ -189,30 +189,28 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   `/admin` page live in the same worker; runbook in `docs/operations.md`
   (day-by-day history in git history).
 
-## 6. Experimental gate (Phase 1 gate)
+## 6. Shipped to everyone (graduated 2026-09-19)
 
-The 實驗性功能 dialog (footer, next to 重置所有資料) flips two per-device
-slots: `mabiroutine:push-flag` and `mabiroutine:purple-hole-flag` (helpers
-`isPushEnabled()` / `isPurpleHoleEnabled()`; writers `setPushFlag()` /
-`setPurpleHoleFlag()`; toggling reloads once on close to apply). The older
-query-string entry (`?push=1` / `?purple_hole=1`) was removed 2026-09-17 —
-it never worked inside an installed PWA (no URL bar), and the dialog covers
-every entry path.
+The 實驗性功能 dialog persists two per-device slots (`mabiroutine:push-flag`
+and `mabiroutine:purple-hole-flag`) but both lanes now read always-on — old
+saves carry over with zero taps, and the dialog renders nothing while its
+registry is empty (kept, with its batch-apply pattern, for the next
+experiment). Reminders are best-effort: an occasional missed card is normal
+(single trigger, no backup — accepted), and each device taps its own bell
+(subscriptions never sync).
 
-Behavior matrix:
+Behavior matrix (flags graduated — every row below is the shipped default):
 
-| Flag | Platform | Bell does |
-|---|---|---|
-| off (default) | any | No bell, no scheduler (zero surface) |
-| on | desktop | Server push subscribe (VAPID); local entry kept, visibility decides who fires (D6) |
-| on | mobile (from 2026-09-17) | Server push subscribe (VAPID), same flow; iOS requires the installed PWA (16.4+), tap-through best-effort |
+| Platform | Bell does |
+|---|---|
+| desktop | Server push subscribe (VAPID); local entry kept, visibility decides who fires (D6) |
+| mobile | Server push subscribe (VAPID), same flow; iOS requires the installed PWA (16.4+), tap-through best-effort |
+| no Service Worker (dev preview, SW-less browsers) | Local-only timer (no server card); the bell explains instead of failing |
 
-Purple has its own gate with identical mechanics; the bell,
-scheduler, row, and timetable all hide when off. Since 2026-09-18 its bell
-subscribes a server lane too (`lane=purple`, unfiltered — the linkage
-disclosure in its soft-ask is replaced by a no-linkage note; roster refresh
-stays hourly-only); flag-off disarms both lanes on both flags. The two flags
-compose independently (either lane testable alone).
+Purple subscribes its own server lane (`lane=purple`, unfiltered — the
+linkage disclosure in its soft-ask is replaced by a no-linkage note; roster
+refresh stays hourly-only). Bell-off disarms both lanes on both bells. The
+flag slots still exist in storage (old saves carry over) but are unread.
 
 Desktop gate (Phase 1 scaffolding): non-mobile UA heuristics — REMOVED
 2026-09-17. The whole path is opt-in (experimental flag → bell tap with

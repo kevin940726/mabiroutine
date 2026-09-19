@@ -36,10 +36,17 @@ handled for you.
   ready, works offline.
 - 🔔 **A nudge before 召喚結界, if you want it.** Tap the bell on 不祥的召喚結界
   and get one quiet notification at :00 Taipei sharp (~2.5 min before the XX:02:30
-  start, with the in-game ping) when it's still undone — local-only, off by default,
-  works while the app is open.
+  start, with the in-game ping) when it's still undone — the open app uses a local
+  timer, a hidden or closed app is covered by server push (iPhone needs the
+  Home-Screen app first). 深淵的黑色坑洞 has its own bell, 15 min before each
+  predicted spawn. Each device subscribes separately; reminders are best-effort,
+  an occasional miss is normal.
 - 🔒 **Private by default.** Your progress lives in your browser
-  (localStorage), not in our database. No tracking, no ads.
+  (localStorage), not in our database. No tracking, no ads. The only exception
+  is push you subscribe to yourself: that device's push endpoint (plus keys)
+  is stored server-side so cards can be delivered (barrier cards with a sync
+  link also read that day's done-state live to name names); unsubscribing
+  deletes it all.
 
 ## Sources & licenses
 

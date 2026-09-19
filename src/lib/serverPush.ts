@@ -1,5 +1,3 @@
-import { isPushEnabled } from "@/lib/hourlyReminders";
-import { isPurpleHoleEnabled } from "@/lib/purpleHole";
 import { loadSession } from "@/sync/session";
 import { useAppStore } from "@/store/useAppStore";
 
@@ -60,12 +58,40 @@ export function setServerPushOn(taskId: string, endpoint: string | null, lane: P
 }
 
 /**
- * Server mode per lane, each behind its own experimental flag: hourly
- * (barrier) behind the push flag, purple (purple-hole) behind the purple
- * flag. The whole path stays opt-in (flag → bell tap → OS permission).
+ * Server mode per lane, always on (the experimental-flag era ended — the
+ * flag slots below are retained unread so old saves carry over). The whole
+ * path stays opt-in per bell tap (bell tap → OS permission), no UA gate.
  */
-export function isServerPushMode(lane: "hourly" | "purple"): boolean {
-  return lane === "hourly" ? isPushEnabled() : isPurpleHoleEnabled();
+export function isServerPushMode(_lane: "hourly" | "purple"): boolean {
+  return true;
+}
+
+/**
+ * iOS runs Web Push only from an installed Home-Screen app — a bell tap in a
+ * plain Safari tab can never subscribe (the native prompt never comes up and
+ * there is no settings switch to guide to). Detect it up front so the bell
+ * explains instead of failing into the generic retry loop.
+ */
+export function isIOSWithoutPWA(): boolean {
+  try {
+    if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+    const ua = navigator.userAgent || "";
+    const isiOS =
+      /iPad|iPhone|iPod/.test(ua) ||
+      ((navigator as Navigator & { platform?: string }).platform === "MacIntel" &&
+        navigator.maxTouchPoints > 1);
+    if (!isiOS) return false;
+    if ((navigator as Navigator & { standalone?: boolean }).standalone === true) return false;
+    if (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(display-mode: standalone)").matches
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function detectPlatform(): string {
