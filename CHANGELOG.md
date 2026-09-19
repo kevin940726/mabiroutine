@@ -10,6 +10,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ### Chores
 - Stale doc lines corrected: the `note`-rewrite blocker in `docs/tracker-data.md` (rewrite done in two passes, CC BY-NC stamp shipped in Phase 2) and the duplicate-pair flag in `suggestions/barter-sources.md` (4 `yen-` twins dropped 2026-09-09 with state remapped)
 
+### Fixes
+- In-game-verified barter costs: 卡利克斯 胡椒 ×2 costs 不死粉末 ×5 (was ×1 — the Google Doc was right); 奈麗絲 高級生皮 ×1 ← 銅礦石 ×1 (both quantities filled, shops twin already agreed); nipponhashi delta parked as future reference
+
 ## 2026-09-19 — Reminders graduate to public release
 
 ### Features
