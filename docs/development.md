@@ -104,7 +104,13 @@ Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
   `workers/mabiroutine-worker/src/index.ts`, which no linter parses
   (esbuild/oxlint see a string, not code — this already hid a stray brace
   that blanked the page). After any edit, extract and `node --check` it:
-  `node -e "const fs=require('fs');const s=fs.readFileSync('workers/mabiroutine-worker/src/index.ts','utf8');fs.writeFileSync('/tmp/admin-inline.js',s.match(/<script>([\s\S]*?)<\/script>/)[1])" && node --check /tmp/admin-inline.js`.
+  ```powershell
+  $s=[IO.File]::ReadAllText('workers/mabiroutine-worker/src/index.ts')
+  $m=[regex]::Match($s,'<script>([\s\S]*?)</script>')
+  if(-not $m.Success){throw 'no inline script found'}
+  [IO.File]::WriteAllText("$env:TEMP\admin-inline.js",$m.Groups[1].Value)
+  node --check $env:TEMP\admin-inline.js
+  ```
 - Worker/lib logic without a harness (feed math, watcher parse, admin
   routes, fanout) is verified with throwaway esbuild-bundled node scripts
   against mocked KV/Turso/push with real WebCrypto — no test harness

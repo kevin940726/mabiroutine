@@ -78,7 +78,7 @@ Worker (code + worker behavior ship here, independent of app pushes):
 pnpm worker:deploy
 curl.exe https://mabiroutine-worker.kaihao.workers.dev/purple-schedule   # confidence?
 curl.exe https://mabiroutine-worker.kaihao.workers.dev/admin -o NUL -w "%{http_code}"  # 200 = HTML shell
-curl.exe -X POST .../admin/api/verify -H "Content-Type: application/json" -d '{"secret":"wrong"}'  # 401 = armed (500 = secret unset)
+curl.exe -X POST https://mabiroutine-worker.kaihao.workers.dev/admin/api/verify -H "Content-Type: application/json" -d '{"secret":"wrong"}'  # 401 = armed (500 = secret unset)
 pnpm wrangler kv key list --config workers/mabiroutine-worker/wrangler.jsonc --namespace-id 2c35b0732c9a4ebd8d3088824fdc9401
 ```
 
@@ -127,10 +127,14 @@ predictions LATE (miss), understated skew EARLY (wait) — err short.
 - [ ] First server purple card — confirm body + closed-app delivery (first
   window after launch; check `purple:last-fire` + `last_sent_at`).
 - [ ] 9/23 predicted window: dropped from verified by auto-apply until the
-  announcement is parsed (accepted 2026-09-18 — only the 9/24 spawn is
-  affected and the announcement lands first; see phase-2 gap note). If
-  hand-held future windows become routine, teach auto-apply to preserve
-  published not-yet-passed windows candidates don't contradict.
+  announcement is parsed (accepted 2026-09-18). Why it's bounded: auto-apply
+  resolves from candidates + overrides and never consults verified, so the
+  hand-seeded 9/23 window vanishes at the next watcher fire — but legs tile
+  forward from the anchor, so only spawns whose leg crosses 9/23 morning
+  shift (the 9/24 one; 9/19–9/22 don't overlap it), and the announcement
+  lands 9/22 at the latest fire before it. If hand-held future windows become
+  routine, teach auto-apply to preserve published not-yet-passed windows
+  candidates don't contradict.
 - [ ] Freshness label (`預測更新於 …`) in the purple popover — `updatedAt`
   already travels on the feed; UI not built.
 - [ ] Phase-3C crowd reports — needs frequent drift AND an active reporter

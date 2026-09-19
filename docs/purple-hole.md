@@ -33,7 +33,7 @@ Flag: the 實驗性功能 dialog persists `mabiroutine:purple-hole-flag`. Prod d
 - Row times: absolute `MM/DD HH:mm` plain text under the title (no 昨日/明日 — lies across midnight); stale spawn shows `已過` + `下次` pair.
 - Timetable: click-toggle calendar popover, past 2 + next 3, frozen at open, follows page scroll. No dialog.
 - Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), fires 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 XX 分鐘後出現。` (live minutes: 15 on schedule, fewer on catch-up; no character names — deliberate, decided 09-17, tested end-to-end).
-- Maintenance feed (phase 2) + no-commit timetable updates (phase 3): deferred — see Phases.
+- Maintenance feed + no-commit timetable updates: shipped (phase 2 + 3B) — runbook in `docs/operations.md`.
 - Same local-only rules as the hourly lane: never synced, never sent anywhere, page-open-only.
 
 ## History & past decisions (day-by-day log in git history, ex-`docs/ledger/`)

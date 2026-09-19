@@ -173,7 +173,8 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   Suppress/skip only on positive visibility (`=== "visible"` /
   `=== "hidden"`); missing API degrades to today's double-absorbed-by-tag,
   never to silence. Known sliver: a visibility transition landing exactly
-  on the fire second can skip both — accepted, documented in the ledger.
+   on the fire second can skip both — accepted (was documented in the
+   pre-fold ledger; history in git).
 - **D7 — Phase 1 is desktop only (2026-09-16).** Bounds the test matrix
   (below) while the infra proves itself. Mobile follows with zero server
   changes (Phases 2–3 are client gates + device testing).
