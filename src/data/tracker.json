@@ -129,6 +129,18 @@
     "order": 130
   },
   {
+    "id": "white-succubus",
+    "name": "團隊副本（白魅魔）",
+    "icon": "💋",
+    "desc": "每週 1 次獎勵。週一 06:00 重置。",
+    "section": "weekly",
+    "kind": "weekly",
+    "type": "counter",
+    "max": 1,
+    "source": "builtin",
+    "order": 132
+  },
+  {
     "id": "field-boss",
     "name": "野外首領",
     "icon": "🐗",
