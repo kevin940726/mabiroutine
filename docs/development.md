@@ -35,7 +35,7 @@ case — switch to `dev:api`.
 ## Five-minute tour
 
 - **Game data is hand-owned JSON** — `src/data/tracker.json` (20 rows) +
-  `src/data/barter.json` (94 rows) + `src/data/defaultPins.json` +
+  `src/data/barter.json` (107 rows) + `src/data/defaultPins.json` +
   `src/data/recipes.json` (make/gather/quest/drop routes per item — shop/barter legs live in `shops.json`) +
   `src/data/shops.json` (NPC → purchase/exchange options, schema'd by
   `shops.schema.json`). No codegen, no

@@ -5,12 +5,14 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
+- Barter explorer grows 94→107 rows: 13 previously untracked shops exchanges folded in (all 視需求 with hand-written notes, readable get-item ids), 休馬斯 卓越繃帶 twin fixed to ×5 so it pairs with `seumas-finest-bandage`, new 伊比 portrait, and the two 康納魔力石 notes shortened to 依需求再換。
 - Drag reorder is undoable: dropping a row fires a 復原 toast (rapid drops batch into one, repeated rows deduped), and undo glides rows back with an animation
 - Hide control moved off the thumb zone: the eye/⋯ menu now lives in a left rail (mobile: eye over a vertically-centered grip; desktop: grip then eye) instead of stacking over the progress tile, which is centered on the row height; hiding fires a 復原 undo toast so a mis-tap costs one tap instead of a scroll to 已隱藏項目 (user feedback)
 - New weekly tracker row: 團隊副本（白魅魔）, weekly counter ×1 resetting Monday 06:00
 - Release copy: both READMEs now disclose the full server-side push footprint (endpoint + keys, linked session id, roster snapshot, live done-state reads — unsubscribe deletes all) and carry OS-level night-silencing guidance (iOS Focus / per-PWA settings, Android per-site toggles); checks off the last §8 doc todos
 
 ### Chores
+- Migration fixture P follows the data: server-shared premise 8→11 rows (the three new `perChar=false` swaps)
 - Agent runbook: explicit push discipline — never `git push` / `worker:deploy` without the user's explicit approval; commit and push are separate decisions, especially for new features
 - Stale doc lines corrected: the `note`-rewrite blocker in `docs/tracker-data.md` (rewrite done in two passes, CC BY-NC stamp shipped in Phase 2) and the duplicate-pair flag in `suggestions/barter-sources.md` (4 `yen-` twins dropped 2026-09-09 with state remapped)
 

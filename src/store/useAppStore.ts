@@ -127,8 +127,8 @@ export function barterCycleOf(b: { limit?: string }): "daily" | "weekly" {
   return isWeeklyLimit(b.limit) ? "weekly" : "daily";
 }
 
-// Server-shared barter: barter.json rows with perChar === false (today the 7
-// 每日 N 次 (伺服器) rows) share one value across every character — checking
+// Server-shared barter: barter.json rows with perChar === false (today 11
+// rows) share one value across every character — checking
 // on any character checks all of them, like 帳號共通. They keep rendering in
 // the daily/weekly pinned subsections (NOT moved to the account section, so
 // no cycle grouping is introduced there); only their value + hide scope is
@@ -634,7 +634,7 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.version = 15;
   }
   if (from < 16) {
-    // v15 → v16: server-shared barter (perChar === false, today 7 rows:
+    // v15 → v16: server-shared barter (perChar === false, at the time 7 rows:
     // 麗莎×3, 阿爾米斯 銀合金錠, 康納 魔力石×2, 安黛莉 聖水) moves from
     // per-char taskValues to accountValues. See absorbSharedBarter.
     absorbSharedBarter(s);

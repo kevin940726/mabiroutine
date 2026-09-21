@@ -1770,6 +1770,25 @@
       }
     ]
   },
+  "伊比": {
+    "town": "班克爾",
+    "items": [
+      {
+        "name": "落葉蛾",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "用心準備的花束"
+        },
+        "get": {
+          "amount": 10
+        },
+        "limit": {
+          "times": 1
+        }
+      }
+    ]
+  },
   "休馬斯": {
     "town": "萊爾特丘陵",
     "items": [
@@ -1790,6 +1809,9 @@
         "cost": {
           "amount": 1,
           "currency": "沙威瑪"
+        },
+        "get": {
+          "amount": 5
         },
         "limit": {
           "times": 3
