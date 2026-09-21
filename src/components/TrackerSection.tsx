@@ -14,6 +14,93 @@ import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { useNow } from "@/hooks/useNow";
+import { toastAction } from "@/sync/session";
+
+// Batched drag-undo: rapid successive drops coalesce into one toast
+// (已移動 A、B、C) whose undo replays every snapshot in order — so the
+// list returns to its pre-first-drag state. The batch resets after 5s
+// quiet; each drop re-fires the toast with the accumulated label (the bus
+// shows one toast at a time, so the visible one is always the latest).
+// Snapshots are whole order slices; restores are disjoint per list, and a
+// superseded toast's button is unreachable once replaced.
+type DragUndoBatch = { names: string[]; restores: Array<() => void> };
+let dragUndoBatch: DragUndoBatch | null = null;
+let dragUndoTimer = 0;
+
+/**
+ * Run order restores with a FLIP glide: snapshot row tops, apply, then play
+ * each moved row from its old top to its new one. Rows identify by the
+ * data-task-id both row variants already render; unmounted rows (collapsed
+ * sections) are simply skipped. Inline styles are scrubbed after so dnd-kit
+ * never fights them. Honors prefers-reduced-motion (plain restore).
+ */
+function flipRestore(restore: () => void): void {
+  if (
+    typeof window === "undefined" ||
+    typeof document === "undefined" ||
+    (typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+  ) {
+    restore();
+    return;
+  }
+  const before = new Map<string, number>();
+  document.querySelectorAll<HTMLElement>('[data-task-row="true"][data-task-id]').forEach((el) => {
+    const id = el.dataset.taskId;
+    if (id) before.set(id, el.getBoundingClientRect().top);
+  });
+  restore();
+  // Two frames: let React commit the restored order before measuring.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      document
+        .querySelectorAll<HTMLElement>('[data-task-row="true"][data-task-id]')
+        .forEach((el) => {
+          const id = el.dataset.taskId;
+          const from = id ? before.get(id) : undefined;
+          if (from === undefined) return;
+          const delta = from - el.getBoundingClientRect().top;
+          if (!delta) return;
+          el.style.transition = "none";
+          el.style.transform = `translateY(${delta}px)`;
+          requestAnimationFrame(() => {
+            el.style.transition = "transform 300ms ease";
+            el.style.transform = "";
+            let done = false;
+            const clear = () => {
+              if (done) return;
+              done = true;
+              el.style.transition = "";
+              el.style.transform = "";
+              el.removeEventListener("transitionend", clear);
+            };
+            el.addEventListener("transitionend", clear);
+            window.setTimeout(clear, 400);
+          });
+        });
+    })
+  );
+}
+
+function batchedDragUndo(name: string, restore: () => void): void {
+  if (!dragUndoBatch) dragUndoBatch = { names: [], restores: [] };
+  // Label dedupes (first-seen order); every restore still replays — a row
+  // dropped twice needs both snapshots to walk back correctly.
+  if (!dragUndoBatch.names.includes(name)) dragUndoBatch.names.push(name);
+  dragUndoBatch.restores.push(restore);
+  window.clearTimeout(dragUndoTimer);
+  dragUndoTimer = window.setTimeout(() => {
+    dragUndoBatch = null;
+  }, 5000);
+  const run = [...dragUndoBatch.restores];
+  const names = dragUndoBatch.names;
+  const shown = names.length <= 3 ? names.join("、") : `${names.slice(0, 3).join("、")}等${names.length}項`;
+  toastAction(`已移動${shown}`, "復原", () =>
+    flipRestore(() => {
+      for (const r of run) r();
+    })
+  );
+}
 
 type Props = {
   title: string;
@@ -180,7 +267,14 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     const newOrder = [...allTasks];
     const [moved] = newOrder.splice(oldIndex, 1);
     newOrder.splice(newIndex, 0, moved);
+    // Snapshot for undo: reorder merges into the live maps, so restore the
+    // whole slices. Batched across rapid drops — one toast, pre-burst state.
+    const s = useAppStore.getState();
+    const prev = { customTasks: s.customTasks, globalTaskOrder: s.globalTaskOrder };
     reorder(newOrder.map((t) => t.id));
+    batchedDragUndo(moved.name, () =>
+      useAppStore.setState({ customTasks: prev.customTasks, globalTaskOrder: prev.globalTaskOrder })
+    );
   };
 
   const handleBarterDragEnd = (e: DragEndEvent) => {
@@ -195,7 +289,9 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     const newOrder = [...cycleBarter];
     const [moved] = newOrder.splice(oldIndex, 1);
     newOrder.splice(newIndex, 0, moved);
+    const prev = useAppStore.getState().barterCustomOrder;
     reorderBarter(newOrder.map((t) => t.id));
+    batchedDragUndo(moved.name, () => useAppStore.setState({ barterCustomOrder: prev }));
   };
 
   // section key for clear

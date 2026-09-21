@@ -662,47 +662,49 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         isHidden ? "opacity-50" : ""
       )}
      >
-      {/* Structural controls lead: grip first, then eye/menu — the tile
-          owns the right end alone now. Eye stays faint until hover. Custom
-          rows: the ⋯ menu takes the eye slot (hide lives inside it). */}
-      <button {...attributes} {...listeners} className="cursor-grab p-1 opacity-40 hover:opacity-100 touch-none" aria-label="drag">
-        <GripVertical className="h-4 w-4" />
-      </button>
-      {task.source === "custom" ? (
-        <RowMenu
-          isHidden={isHidden}
-          hideScope={hideScope}
-          onEdit={onEdit}
-          onToggleHidden={onHide}
-          onRemove={() => {
-            void confirmRemoveTask(task.name).then((ok) => {
-              if (ok) removeCustom(task.id);
-            });
-          }}
-        />
-      ) : (
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-card shadow-sm opacity-20 group-hover:opacity-100 group-focus-within:opacity-100">
-          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={onHide} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
-            {isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-          </Button>
-        </div>
-      )}
-      {showNpc ? (
-        <img
-          src={`/npc/${encodeURIComponent(task.npc!)}.png`}
-          alt={task.npc!}
-          className="h-[50px] w-[50px] rounded-full object-cover shrink-0 border border-border/50 bg-muted"
-          loading="lazy"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = "/npc/placeholder.png";
-            setNpcImgError(false);
-          }}
-        />
-      ) : (
-        <span className="h-[50px] w-[50px] shrink-0 grid place-items-center text-2xl leading-none select-none" aria-hidden>
-          {task.icon}
-        </span>
-      )}
+      {/* Leading cluster: grip + eye/menu + icon ride tight (gap-1); the
+          tile owns the right end alone now. Eye stays faint until hover.
+          Custom rows: the ⋯ menu takes the eye slot (hide lives inside it). */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button {...attributes} {...listeners} className="cursor-grab p-1 opacity-40 hover:opacity-100 touch-none" aria-label="drag">
+          <GripVertical className="h-4 w-4" />
+        </button>
+        {task.source === "custom" ? (
+          <RowMenu
+            isHidden={isHidden}
+            hideScope={hideScope}
+            onEdit={onEdit}
+            onToggleHidden={onHide}
+            onRemove={() => {
+              void confirmRemoveTask(task.name).then((ok) => {
+                if (ok) removeCustom(task.id);
+              });
+            }}
+          />
+        ) : (
+          <div className="flex h-7 w-7 items-center justify-center rounded-md border bg-card shadow-sm opacity-20 group-hover:opacity-100 group-focus-within:opacity-100">
+            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={onHide} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
+              {isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            </Button>
+          </div>
+        )}
+        {showNpc ? (
+          <img
+            src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+            alt={task.npc!}
+            className="h-[50px] w-[50px] rounded-full object-cover shrink-0 border border-border/50 bg-muted"
+            loading="lazy"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "/npc/placeholder.png";
+              setNpcImgError(false);
+            }}
+          />
+        ) : (
+          <span className="h-[50px] w-[50px] shrink-0 grid place-items-center text-2xl leading-none select-none" aria-hidden>
+            {task.icon}
+          </span>
+        )}
+      </div>
       {isBarter ? (
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
