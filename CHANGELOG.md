@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
+- Hide control moved off the thumb zone: the eye/⋯ menu now leads a left rail (eye, grip, content, tile — same order on mobile and desktop) instead of stacking over the progress tile, and hiding fires a 復原 undo toast so a mis-tap costs one tap instead of a scroll to 已隱藏項目 (user feedback)
 - New weekly tracker row: 團隊副本（白魅魔）, weekly counter ×1 resetting Monday 06:00
 - Release copy: both READMEs now disclose the full server-side push footprint (endpoint + keys, linked session id, roster snapshot, live done-state reads — unsubscribe deletes all) and carry OS-level night-silencing guidance (iOS Focus / per-PWA settings, Android per-site toggles); checks off the last §8 doc todos
 

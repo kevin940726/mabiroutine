@@ -57,6 +57,23 @@ import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { dealTimes, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { toastAction } from "@/sync/session";
+
+/**
+ * Hide with an undo toast (user feedback 2026-09-21: the eye sits next to
+ * the tile and a mis-tap used to cost a scroll to 已隱藏項目 to recover).
+ * Only the hide direction toasts — unhiding happens where the user already
+ * is. The toggle reads render-time isHidden, so rapid taps can't invert it.
+ */
+function hideWithUndo(task: Task, isHidden: boolean): () => void {
+  return () => {
+    useAppStore.getState().toggleHidden(task.id);
+    if (!isHidden) {
+      const id = task.id;
+      toastAction(`已隱藏「${task.name}」`, "復原", () => useAppStore.getState().toggleHidden(id));
+    }
+  };
+}
 
 type Props = {
   task: Task;
@@ -332,9 +349,9 @@ function barterTimes(task: Task): number {
 
 function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
-  const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
+  const onHide = hideWithUndo(task, isHidden);
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
 
   const isCheck = task.type === "check";
@@ -452,19 +469,17 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         isHidden ? "opacity-50" : ""
       )}
      >
-      <button {...attributes} {...listeners} className="cursor-grab w-5 py-1 opacity-40 hover:opacity-100 touch-none absolute left-1 top-1/2 -translate-y-1/2 flex justify-center" aria-label="drag">
-        <GripVertical className="h-4 w-4" />
-      </button>
-      <div className="min-w-0 pl-5">
       <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">{title}</div>
-        <div className="w-11 shrink-0 flex justify-end">
+        {/* Left rail: structural controls (eye/menu + grip) live here, far
+            from the thumb-zone tile — same order as desktop. The right
+            column holds ONLY the progress tile now. */}
+        <div className="flex w-7 shrink-0 flex-col items-center gap-1 pt-0.5">
           {isCustom ? (
             <RowMenu
               isHidden={isHidden}
               hideScope={hideScope}
               onEdit={onEdit}
-              onToggleHidden={() => toggleHidden(task.id)}
+              onToggleHidden={onHide}
               onRemove={() => {
                 void confirmRemoveTask(task.name).then((ok) => {
                   if (ok) removeCustom(task.id);
@@ -473,36 +488,41 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
             />
           ) : (
             <button
-              onClick={() => toggleHidden(task.id)}
+              onClick={onHide}
               className="h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               aria-label={`${isHidden ? "顯示" : "隱藏"}${hideScope}`}
             >
               {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
             </button>
           )}
+          <button {...attributes} {...listeners} className="cursor-grab opacity-40 hover:opacity-100 touch-none flex justify-center py-1" aria-label="drag">
+            <GripVertical className="h-4 w-4" />
+          </button>
         </div>
-      </div>
-      <div className="flex items-center gap-2 mt-1">
-        {body}
-        <div className="w-11 shrink-0 flex justify-center">
-          {isCheck ? (
-            <button
-              className={cn(
-                "h-11 w-11 rounded-xl border grid place-items-center transition-colors",
-                checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
+        <div className="min-w-0 flex-1">
+          <div>{title}</div>
+          <div className="flex items-center gap-2 mt-1">
+            {body}
+            <div className="w-11 shrink-0 flex justify-center">
+              {isCheck ? (
+                <button
+                  className={cn(
+                    "h-11 w-11 rounded-xl border grid place-items-center transition-colors",
+                    checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
+                  )}
+                  onClick={() => toggleCheck(task.id, isAccount)}
+                  aria-label={task.name}
+                  role="checkbox"
+                  aria-checked={checked}
+                >
+                  <span className="text-lg leading-none">{checked ? "✓" : ""}</span>
+                </button>
+              ) : (
+                <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} />
               )}
-              onClick={() => toggleCheck(task.id, isAccount)}
-              aria-label={task.name}
-              role="checkbox"
-              aria-checked={checked}
-            >
-              <span className="text-lg leading-none">{checked ? "✓" : ""}</span>
-            </button>
-          ) : (
-            <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} />
-          )}
+            </div>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
@@ -605,9 +625,9 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown }: { taskI
 
 function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
-  const toggleHidden = useAppStore((s) => s.toggleHidden);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
+  const onHide = hideWithUndo(task, isHidden);
   const reminderEligible = isEligibleReminderId(task.id);
   const scheduleEligible = task.id === PURPLE_HOLE_ID;
   const purpleReminderEligible = scheduleEligible;
@@ -635,11 +655,34 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         // No background transition + solid hover + solid floating eye button:
         // Chrome forced-dark repaints translucent/blurred/animating layers per
         // frame and flashes on hover otherwise.
-        "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 min-h-[88px] pr-14",
+        // Control order matches mobile: eye/menu, grip, icon, content, tile.
+        "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 min-h-[88px]",
         isDone ? "bg-muted/50 border-muted" : "bg-card hover:bg-accent",
         isHidden ? "opacity-50" : ""
       )}
      >
+      {/* Structural controls lead (same order as the mobile left rail), faint
+          until hover — the tile owns the right end alone now. Custom rows:
+          the ⋯ menu takes the eye slot (hide lives inside it). */}
+      {task.source === "custom" ? (
+        <RowMenu
+          isHidden={isHidden}
+          hideScope={hideScope}
+          onEdit={onEdit}
+          onToggleHidden={onHide}
+          onRemove={() => {
+            void confirmRemoveTask(task.name).then((ok) => {
+              if (ok) removeCustom(task.id);
+            });
+          }}
+        />
+      ) : (
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border bg-card shadow-sm opacity-20 group-hover:opacity-100 group-focus-within:opacity-100">
+          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={onHide} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
+            {isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </Button>
+        </div>
+      )}
       <button {...attributes} {...listeners} className="cursor-grab p-1 opacity-40 hover:opacity-100 touch-none" aria-label="drag">
         <GripVertical className="h-4 w-4" />
       </button>
@@ -726,31 +769,6 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           <CounterTileDesktop taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} />
         )}
       </div>
-
-      {/* A) always-faint in gutter — balances ≡ left weight, no overlap.
-          Custom rows: bare ⋯ at full opacity (hide lives inside the menu).
-          Builtin rows keep the single faint hide icon. */}
-      {task.source === "custom" ? (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2">
-          <RowMenu
-            isHidden={isHidden}
-            hideScope={hideScope}
-            onEdit={onEdit}
-            onToggleHidden={() => toggleHidden(task.id)}
-            onRemove={() => {
-              void confirmRemoveTask(task.name).then((ok) => {
-                if (ok) removeCustom(task.id);
-              });
-            }}
-          />
-        </div>
-      ) : (
-        <div className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md border bg-card shadow-sm opacity-20 pointer-events-auto group-hover:opacity-100 group-focus-within:opacity-100">
-          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 rounded-md" onClick={() => toggleHidden(task.id)} aria-label={`${isHidden ? "show" : "hide"}${hideScope}`}>
-            {isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

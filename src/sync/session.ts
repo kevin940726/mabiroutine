@@ -238,9 +238,43 @@ export async function copyText(text: string): Promise<boolean> {
 }
 
 // Minimal toast bus: any sync module can toast without prop drilling.
+// Object form carries an optional one-tap action (e.g. hide → 復原):
+// toastAction stashes the callback memory-only (no persistence — a reload
+// drops it with the toast) and SyncToasts renders the button while the
+// toast is up. Stale keys are ignored, so a superseded toast's action can
+// never fire late.
+export type ToastDetail = {
+  text: string;
+  actionLabel?: string;
+  actionKey?: string;
+  ms?: number;
+};
+
+const toastActions = new Map<string, { fn: () => void; at: number }>();
+const TOAST_ACTION_TTL_MS = 10_000;
+let toastActionSeq = 0;
+
+if (typeof window !== "undefined") {
+  window.addEventListener("mabiroutine:toast-action", (e) => {
+    const key = (e as CustomEvent<string>).detail;
+    const pending = toastActions.get(key);
+    toastActions.delete(key);
+    if (pending && Date.now() - pending.at < TOAST_ACTION_TTL_MS) pending.fn();
+  });
+}
+
 export function toast(message: string): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent<string>("mabiroutine:toast", { detail: message }));
+}
+
+/** Toast with a trailing action button; the callback runs at most once. */
+export function toastAction(text: string, actionLabel: string, fn: () => void, ms = 5000): void {
+  if (typeof window === "undefined") return;
+  const key = `ta${++toastActionSeq}`;
+  toastActions.set(key, { fn, at: Date.now() });
+  const detail: ToastDetail = { text, actionLabel, actionKey: key, ms };
+  window.dispatchEvent(new CustomEvent<ToastDetail>("mabiroutine:toast", { detail }));
 }
 
 export type ImportRequest = { id: string; state: unknown; updatedAt: number };
