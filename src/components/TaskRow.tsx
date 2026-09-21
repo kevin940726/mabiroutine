@@ -471,9 +471,10 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
      >
       <div className="flex items-start gap-2">
         {/* Left rail: structural controls (eye/menu + grip) live here, far
-            from the thumb-zone tile — same order as desktop. The right
+            from the thumb-zone tile — same order as desktop. Eye rides top
+            in flow; grip takes the rest and centers. The right
             column holds ONLY the progress tile now. */}
-        <div className="flex w-7 shrink-0 flex-col items-center gap-1 pt-0.5">
+        <div className="flex w-7 shrink-0 flex-col items-center self-stretch pt-0.5">
           {isCustom ? (
             <RowMenu
               isHidden={isHidden}
@@ -495,33 +496,32 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
               {isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
             </button>
           )}
-          <button {...attributes} {...listeners} className="cursor-grab opacity-40 hover:opacity-100 touch-none flex justify-center py-1" aria-label="drag">
+          <button {...attributes} {...listeners} className="cursor-grab opacity-40 hover:opacity-100 touch-none flex flex-1 items-center justify-center py-1" aria-label="drag">
             <GripVertical className="h-4 w-4" />
           </button>
         </div>
         <div className="min-w-0 flex-1">
           <div>{title}</div>
-          <div className="flex items-center gap-2 mt-1">
-            {body}
-            <div className="w-11 shrink-0 flex justify-center">
-              {isCheck ? (
-                <button
-                  className={cn(
-                    "h-11 w-11 rounded-xl border grid place-items-center transition-colors",
-                    checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
-                  )}
-                  onClick={() => toggleCheck(task.id, isAccount)}
-                  aria-label={task.name}
-                  role="checkbox"
-                  aria-checked={checked}
-                >
-                  <span className="text-lg leading-none">{checked ? "✓" : ""}</span>
-                </button>
-              ) : (
-                <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} />
+          <div className="mt-1">{body}</div>
+        </div>
+        {/* Tile owns the right column alone now — centered on the row height. */}
+        <div className="w-11 shrink-0 self-stretch flex items-center justify-center">
+          {isCheck ? (
+            <button
+              className={cn(
+                "h-11 w-11 rounded-xl border grid place-items-center transition-colors",
+                checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
               )}
-            </div>
-          </div>
+              onClick={() => toggleCheck(task.id, isAccount)}
+              aria-label={task.name}
+              role="checkbox"
+              aria-checked={checked}
+            >
+              <span className="text-lg leading-none">{checked ? "✓" : ""}</span>
+            </button>
+          ) : (
+            <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} />
+          )}
         </div>
       </div>
     </div>
@@ -655,15 +655,19 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         // No background transition + solid hover + solid floating eye button:
         // Chrome forced-dark repaints translucent/blurred/animating layers per
         // frame and flashes on hover otherwise.
-        // Control order matches mobile: eye/menu, grip, icon, content, tile.
+        // Control order on desktop: grip, eye/menu, icon, content, tile
+        // (mobile rail stacks eye over grip instead).
         "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 min-h-[88px]",
         isDone ? "bg-muted/50 border-muted" : "bg-card hover:bg-accent",
         isHidden ? "opacity-50" : ""
       )}
      >
-      {/* Structural controls lead (same order as the mobile left rail), faint
-          until hover — the tile owns the right end alone now. Custom rows:
-          the ⋯ menu takes the eye slot (hide lives inside it). */}
+      {/* Structural controls lead: grip first, then eye/menu — the tile
+          owns the right end alone now. Eye stays faint until hover. Custom
+          rows: the ⋯ menu takes the eye slot (hide lives inside it). */}
+      <button {...attributes} {...listeners} className="cursor-grab p-1 opacity-40 hover:opacity-100 touch-none" aria-label="drag">
+        <GripVertical className="h-4 w-4" />
+      </button>
       {task.source === "custom" ? (
         <RowMenu
           isHidden={isHidden}
@@ -683,9 +687,6 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           </Button>
         </div>
       )}
-      <button {...attributes} {...listeners} className="cursor-grab p-1 opacity-40 hover:opacity-100 touch-none" aria-label="drag">
-        <GripVertical className="h-4 w-4" />
-      </button>
       {showNpc ? (
         <img
           src={`/npc/${encodeURIComponent(task.npc!)}.png`}
