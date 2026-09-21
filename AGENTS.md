@@ -31,6 +31,20 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 - User-facing changes → `### Features` / `### Fixes`; internal/agent-only changes → `### Chores`.
 - If you spot a past commit with no entry, backfill it in the next commit — never let the gap grow.
 
+## Push discipline (agents: never push without explicit approval)
+
+- Every push to `main` deploys to prod immediately — and `pnpm worker:deploy`
+  ships the push fanout the same way. NEVER `git push` / `worker:deploy`
+  until the user has explicitly allowed it. "Commit this" never implies
+  "push this"; they are separate decisions, every time.
+- Ongoing feature work stays UNCOMMITTED in the working tree: the user
+  iterates, and premature commits (even local) are noise to amend or unwind.
+  Commit only when a piece is done, reviewed, or explicitly requested — one
+  logical change per commit, changelog entry included per the rule below.
+- Especially for new features: report the diff + verification from the
+  working tree, and wait. Review, then commit, then push — three separate
+  user decisions, in that order.
+
 ## Pre-push Gate (agents: run this before every push)
 
 `pnpm check` = `lint` + `test:shops` + `test:migrations` + `test:sync` + `build`. All five must pass:
