@@ -166,7 +166,8 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   `push_subscriptions` table next to sync sessions (same region, same driver,
   `@libsql/client` already vendored). No second database. Schema sketch:
   `endpoint PK, p256dh, auth, platform, created_at, last_sent_at`.
-- **D6 — Visibility split, not mode split (2026-09-16, revised 2026-09-17).**
+- **D6 — Visibility split, not mode split (2026-09-16, revised 2026-09-17,
+  fixed 2026-09-21).**
   Both cards share one tag with `renotify: true` — running both would
   double-banner every hour. Originally the flag selected exactly one backend
   per bell (server-mode healed the local entry on sight); revised: both
@@ -175,9 +176,18 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   local skips, server delivers. Exclusivity without deleting user state.
   Suppress/skip only on positive visibility (`=== "visible"` /
   `=== "hidden"`); missing API degrades to today's double-absorbed-by-tag,
-  never to silence. Known sliver: a visibility transition landing exactly
-   on the fire second can skip both — accepted (was documented in the
-   pre-fold ledger; history in git).
+  never to silence. 2026-09-21 fix: the hidden stand-down assumed server
+  delivery ("delivery guaranteed"), but that holds only when a server
+  subscription actually owns the task — local-only/need-sw bells stood down
+  into nothing. Now the fire carries `serverOwned` (caller reads
+  `serverPushOn`) and hidden pages fire locally without it. Same day: the
+  server mirror read the latest present bucket instead of the current one,
+  so post-reset Mondays silenced linked subs until the first play (reset
+  deletions are memory-only and never reach the server); the fanout now
+  reads `getTaipeiWeekKey` — the same function the client stamps — with
+  absent keys undone, exactly like local. Known sliver: a visibility transition landing exactly
+  on the fire second can skip both — accepted (was documented in the
+  pre-fold ledger; history in git).
 - **D7 — Phase 1 is desktop only (2026-09-16).** Bounds the test matrix
   (below) while the infra proves itself. Mobile follows with zero server
   changes (Phases 2–3 are client gates + device testing).

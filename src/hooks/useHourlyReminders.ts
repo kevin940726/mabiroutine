@@ -13,6 +13,7 @@ import {
   remainingSecToEvent,
   upcomingEventLabel,
 } from "@/lib/hourlyReminders";
+import { serverPushOn } from "@/lib/serverPush";
 
 const BUILTIN_TASKS = trackerJson as Task[];
 type BarterJsonItem = (typeof barterJson)[number];
@@ -120,6 +121,9 @@ export function useHourlyReminders(enabled: boolean) {
             titleTask: r.taskName,
             taskId: r.taskId,
             charIds: r.charIds,
+            // Stand down while hidden only if the server owns this task —
+            // otherwise no card would ever arrive (see fireHourlyReminder).
+            serverOwned: serverPushOn(r.taskId, "hourly"),
             onClick: () => resolveReminderDeepLink(r.taskId, r.charIds),
           });
           firedEventHour = eventHourOf(Date.now());

@@ -16,6 +16,7 @@ import {
   nthOccurrence,
   subscribePurpleFeed,
 } from "@/lib/purpleHole";
+import { serverPushOn } from "@/lib/serverPush";
 import { resolveReminderDeepLink } from "@/hooks/useHourlyReminders";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -91,6 +92,9 @@ export function usePurpleHoleReminders(enabled: boolean) {
             tag: PURPLE_TAG,
             taskId: PURPLE_HOLE_ID,
             charIds: r.charIds,
+            // Stand down while hidden only if the server owns this task —
+            // otherwise no card would ever arrive (see fireHourlyReminder).
+            serverOwned: serverPushOn(PURPLE_HOLE_ID, "purple"),
             onClick: () => resolveReminderDeepLink(PURPLE_HOLE_ID, r.charIds),
           });
           firedSpawn = spawn;

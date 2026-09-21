@@ -234,6 +234,13 @@ export type ReminderFire = {
   /** Deep-link payload: task row id + undone character ids for tap-through. */
   taskId?: string;
   charIds?: string[];
+  /**
+   * True when a server subscription owns this task (caller reads
+   * serverPushOn): a hidden page then stands down and lets the server card
+   * deliver (same tag dedup). False/omitted → fire even while hidden —
+   * showNotification works from a hidden page and nothing else delivers.
+   */
+  serverOwned?: boolean;
   /** Page-side tap handler (dev `new Notification()` path; the SW path
    * carries task/chars in notification.data instead). */
   onClick?: () => void;
@@ -253,11 +260,17 @@ export async function fireHourlyReminder(f: ReminderFire): Promise<HourlyFireRes
   if (typeof window === "undefined" || !("Notification" in window)) return "skipped-unsupported";
   if (Notification.permission !== "granted") return "skipped-permission";
   // Visibility split (with the SW-side suppression in sw-push.js): a hidden
-  // page stands down and lets the server card deliver — the local fire would
-  // double it (same tag) with a throttled-late timer. Skip ONLY on a
-  // positive "hidden" (missing API → fire): delivery guaranteed, dedup
-  // opportunistic. Callers treat non-"shown" as no-card (see scheduler).
-  if (typeof document !== "undefined" && document.visibilityState === "hidden") return "skipped-hidden";
+  // page stands down ONLY when a server subscription owns this task — the
+  // server card then delivers and the local fire would double it (same tag).
+  // Local-only bells fire while hidden too: showNotification works from a
+  // hidden page, and an unconditional stand-down silenced every backgrounded
+  // fire for users the server could never reach (need-sw, lapsed subs).
+  // Skip ONLY on a positive "hidden" (missing API → fire): delivery
+  // guaranteed, dedup opportunistic. Callers treat non-"shown" as no-card
+  // (see scheduler).
+  if (typeof document !== "undefined" && document.visibilityState === "hidden" && f.serverOwned) {
+    return "skipped-hidden";
+  }
   // Character names (per-char tasks) count 隻, task names count 項.
   const unit = titleTask ? "隻" : "項";
   const shown = names.slice(0, 3).join("、");

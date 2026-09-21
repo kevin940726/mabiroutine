@@ -26,6 +26,7 @@ import {
   HOURLY_TAG,
   secIntoHour,
 } from "../../../src/lib/hourlyReminders";
+import { getTaipeiWeekKey } from "../../../src/lib/reset";
 import {
   MAINTENANCE_WINDOWS,
   PURPLE_ANCHOR_MS,
@@ -360,9 +361,14 @@ type NamedCard = { body: string; chars: string } | null;
  * entirely, same as local. The worker only READS sessions (never writes or
  * deletes them); an expired read is just a generic card.
  *
- * Bucket without the reset math: keys carry `@bucket`, cycle-key GC keeps
- * ≤8d of history, so the lexically largest weekly bucket IS the current
- * week. LIKE overmatches on exotic cids (`_` is a wildcard) — the regexes
+ * Bucket by name, never "latest present": rollover resets delete cycle
+ * keys memory-only (never pushed), so right after a Monday reset the newest
+ * present bucket is LAST week's (all done) while the client correctly shows
+ * everything undone. Read the current Taipei week key — the same
+ * getTaipeiWeekKey the client stamps — so the mirror matches isTaskDone
+ * exactly and absent keys read as undone, like local (seen 2026-09-21:
+ * linked subs silenced all Monday until the first play landed).
+ * LIKE overmatches on exotic cids (`_` is a wildcard) — the regexes
  * below re-filter precisely, so overmatches die in code, not in cards.
  */
 async function resolveNamedCard(
@@ -412,13 +418,14 @@ async function resolveNamedCard(
     for (const cid of namesByCid.keys()) sessionCids.add(cid);
     const rosterCids = new Set(roster.map((e) => e.cid));
     const ordered = [...roster.map((e) => e.cid), ...[...sessionCids].filter((c) => !rosterCids.has(c)).sort()];
-    const bucket = [...byBucket.keys()].sort().pop() ?? null;
-    const vals = (bucket && byBucket.get(bucket)) || new Map<string, unknown>();
+    const bucket = getTaipeiWeekKey(new Date(now));
+    const haveHistory = byBucket.size > 0;
+    const vals = byBucket.get(bucket) || new Map<string, unknown>();
     const undone: string[] = [];
     const names: string[] = [];
     for (const cid of ordered) {
       if (hidden.has(cid)) continue;
-      if (bucket && barrierDone(vals.get(cid))) continue;
+      if (barrierDone(vals.get(cid))) continue;
       const name = namesByCid.get(cid) ?? roster.find((e) => e.cid === cid)?.name ?? "";
       if (!name) continue;
       undone.push(cid);
@@ -427,7 +434,7 @@ async function resolveNamedCard(
     // No history at all + no names anywhere → generic; a current bucket
     // with nobody undone → silence. Hidden-everyone with no history lands
     // generic (done-state unknowable — nagging blind beats silencing blind).
-    if (!undone.length) return bucket ? { kind: "silenced" } : { kind: "generic" };
+    if (!undone.length) return haveHistory ? { kind: "silenced" } : { kind: "generic" };
     return { kind: "named", ...nameBody(undone, names) };
   } catch {
     // Any read failure degrades to the generic copy — a failed lookup must
