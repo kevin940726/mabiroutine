@@ -1,12 +1,12 @@
 // Live-API checks: concurrency, upgrade paths, failure modes, cache headers.
 // Base: local `pnpm dev:api` by default, preview deployment via
 // SYNC_TEST_BASE (previews run the dev key prefix — never prod).
-// Needs Upstash REST credentials (process env, else .env.local's
-// KV_REST_API_URL/TOKEN — same source vercel dev uses).
+// Needs Turso credentials (process env, else .env.local's
+// TURSO_DATABASE_URL/TOKEN) for direct store inspection on deployed bases;
+// local dev servers inspect the throwaway file DB directly and need none.
 // SKIP (exit 0, loud) when the server or credentials are absent, so
 // `pnpm check` stays green offline — the hermetic suites carry the gate.
 import fs from "node:fs";
-import { Redis } from "@upstash/redis";
 import { storeForBase } from "./backend.mjs";
 
 const BASE = `${(process.env.SYNC_TEST_BASE || "http://localhost:52608").replace(/\/+$/, "")}/api/session`;
@@ -29,10 +29,6 @@ function loadEnv() {
 }
 
 const env = loadEnv();
-if (!env.UPSTASH_REDIS_REST_URL && env.KV_REST_API_URL) {
-  env.UPSTASH_REDIS_REST_URL = env.KV_REST_API_URL;
-  env.UPSTASH_REDIS_REST_TOKEN = env.KV_REST_API_TOKEN;
-}
 process.env.TURSO_DATABASE_URL ??= env.TURSO_DATABASE_URL;
 process.env.TURSO_AUTH_TOKEN ??= env.TURSO_AUTH_TOKEN;
 
@@ -51,16 +47,13 @@ if (!reachable) {
   process.exitCode = 0;
   return;
 }
-const hasRedis = !!(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN);
+const isLocal = /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?\//.test(BASE);
 const hasTurso = !!(env.TURSO_DATABASE_URL && env.TURSO_AUTH_TOKEN);
-if (!hasRedis && !hasTurso) {
-  console.log("SKIP: api-live needs either Upstash or Turso credentials (env or .env.local)");
+if (!isLocal && !hasTurso) {
+  console.log("SKIP: api-live needs Turso credentials (env or .env.local) for non-local bases");
   process.exitCode = 0;
   return;
 }
-process.env.UPSTASH_REDIS_REST_URL = env.UPSTASH_REDIS_REST_URL;
-process.env.UPSTASH_REDIS_REST_TOKEN = env.UPSTASH_REDIS_REST_TOKEN;
-const redis = hasRedis ? Redis.fromEnv() : null;
 
 let failures = 0;
 let store = null;
@@ -79,8 +72,8 @@ const del = (id) =>
 const uuid = () => globalThis.crypto.randomUUID();
 const created = [];
 
-// 1. create + storage layout (backend auto-detected: Redis hash or SQL)
-// 429 here is environmental (10/hr/IP create budget spent by earlier runs),
+// 1. create + storage layout (SQL backend)
+ // 429 here is environmental (10/hr/IP create budget spent by earlier runs),
 // not a product failure — SKIP loudly, retry within the hour.
 {
   const r = await post({ state: { "pin:t": true } });
@@ -93,7 +86,7 @@ const created = [];
   const id = r.json.id;
   created.push(id);
   ok("create id shape", /^[0-9a-f-]{36}$/.test(id ?? ""));
-  store = await storeForBase(redis, id, BASE);
+  store = await storeForBase(BASE);
   const rec = await store.readMeta(id);
   ok(`session persisted (${store.name})`, !!rec, JSON.stringify(rec)?.slice(0, 120));
   ok("field persisted", (await store.kvValue(id, "pin:t")) === "j:true");

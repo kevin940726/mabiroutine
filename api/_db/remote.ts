@@ -8,7 +8,7 @@
 
 import { createClient } from "@libsql/client/web";
 import type { Client, InStatement } from "@libsql/client/web";
-import type { ApplyResult, Db, HashState, Probe, PushSubscription, RosterEntry, SessionImport } from "./types.js";
+import type { ApplyResult, Db, HashState, Probe, PushSubscription, RosterEntry } from "./types.js";
 
 function parseRoster(raw: unknown): RosterEntry[] | null {
   if (raw == null) return null;
@@ -271,20 +271,6 @@ class RemoteDb implements Db {
         roster: parseRoster(row.roster_json),
       };
     });
-  }
-
-  async importSession(rec: SessionImport): Promise<void> {
-    await this.ready;
-    const stmts: InStatement[] = [
-      {
-        sql: "INSERT OR IGNORE INTO sessions (id, updated_at, seq, expires_at, field_count, meta, legacy) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        args: [rec.id, rec.updatedAt, rec.seq, rec.expiresAt, Object.keys(rec.fields).length, rec.metaRaw, rec.legacyRaw],
-      },
-    ];
-    for (const [k, v] of Object.entries(rec.fields)) {
-      stmts.push({ sql: "INSERT OR IGNORE INTO kv (session_id, key, value) VALUES (?, ?, ?)", args: [rec.id, k, v] });
-    }
-    await this.client.batch(stmts, "write");
   }
 
   async touch(id: string, expiresAt: number): Promise<void> {

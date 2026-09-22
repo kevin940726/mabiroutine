@@ -51,18 +51,6 @@ export type PushSubscription = {
   roster: RosterEntry[] | null;
 };
 
-// One session lifted out of the pre-SQL store, ready to insert verbatim. Used
-// by the one-time migration fallback (docs/sql-migration.md P4).
-export type SessionImport = {
-  id: string;
-  updatedAt: number;
-  seq: number;
-  expiresAt: number;
-  metaRaw: string | null;
-  legacyRaw: string | null;
-  fields: Record<string, string>;
-};
-
 export interface Db {
   /**
    * Sessions row only (1 row read). Returns null when the session is missing
@@ -124,11 +112,4 @@ export interface Db {
 
   /** Daily beacon: refresh the sliding TTL. */
   touch(id: string, expiresAt: number): Promise<void>;
-
-  /**
-   * Idempotent bulk insert of a session lifted from the pre-SQL store
-   * (migration fallback). No-op when the id already exists, so racing imports
-   * and repeated probes cannot duplicate or clobber.
-   */
-  importSession(rec: SessionImport): Promise<void>;
 }

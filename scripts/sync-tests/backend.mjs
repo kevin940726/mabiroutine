@@ -1,35 +1,6 @@
-// Storage adapter for the live sync suites. The same operations run against
-// the Redis hash layout or the SQL backend, chosen after probing the running
-// server (create a session, then see whether a Redis hash appeared).
-//
-// Redis values are @upstash/redis-serialized JSON; SQL stores the same tagged
-// strings the server writes. Only the inspection/seeding seams differ — every
+// Storage adapter for the live sync suites. Inspects/seeds the SQL backend
+// directly (Turso over HTTP, or the local file DB for dev servers) — every
 // behavioral assertion stays API-driven.
-
-const DEV = "mabiroutine:dev:session:";
-
-function redisStore(redis) {
-  return {
-    name: "redis",
-    async readMeta(id) {
-      const h = await redis.hgetall(`${DEV}${id}:h`);
-      return h && typeof h["~meta"] === "string" ? h : null;
-    },
-    async kvValue(id, key) {
-      const h = await redis.hgetall(`${DEV}${id}:h`);
-      return h ? (h[key] ?? null) : null;
-    },
-    async readLegacy(id) {
-      return (await redis.get(`${DEV}${id}`)) ?? null;
-    },
-    async ttl(id) {
-      return await redis.ttl(`${DEV}${id}:h`);
-    },
-    async seedLegacy(id, rec) {
-      await redis.set(`${DEV}${id}`, rec);
-    },
-  };
-}
 
 function sqlStore() {
   let clientP = null;
@@ -125,20 +96,10 @@ function fileStore(dbPath = "./dev.db") {
   };
 }
 
-// Returns the store matching the running server. `redis` may be null when no
-// Upstash credentials are configured (SQL-only setup).
-export async function detectStore(redis, id) {
-  if (redis) {
-    const h = await redis.hgetall(`${DEV}${id}:h`);
-    if (h && typeof h["~meta"] === "string") return redisStore(redis);
-  }
-  return sqlStore();
-}
-
 // Store matching the suite base: local dev servers (localhost/127.0.0.1)
 // write the throwaway file DB, so inspect it directly; previews/prod share
-// one Turso database with the inspector, so probe as before.
-export async function storeForBase(redis, id, base) {
+// one Turso database with the inspector.
+export async function storeForBase(base) {
   if (/^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?\//.test(base)) return fileStore();
-  return detectStore(redis, id);
+  return sqlStore();
 }

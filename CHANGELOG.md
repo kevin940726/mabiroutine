@@ -12,6 +12,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - Release copy: both READMEs now disclose the full server-side push footprint (endpoint + keys, linked session id, roster snapshot, live done-state reads — unsubscribe deletes all) and carry OS-level night-silencing guidance (iOS Focus / per-PWA settings, Android per-site toggles); checks off the last §8 doc todos
 
 ### Chores
+- Redis layer decommissioned (fallback window closed 2026-09-21): `api/_db/fallback.ts` and its `getDb()` wiring, the `SessionImport`/`importSession` seam it alone used, `scripts/sync-tests/fallback.entry.ts`, the one-shot `scripts/migrate-upstash-to-sql.mjs`, and the Redis branches in `api-live.mjs`/`backend.mjs` deleted; `@upstash/redis` dropped. `api-live` now inspects the SQL backend only (Turso credentials). Remember to unset `SYNC_MIGRATION_FALLBACK`, remove the Upstash/KV env keys, and decommission the Redis database.
 - Migration fixture P follows the data: server-shared premise 8→11 rows (the three new `perChar=false` swaps)
 - Agent runbook: explicit push discipline — never `git push` / `worker:deploy` without the user's explicit approval; commit and push are separate decisions, especially for new features
 - Stale doc lines corrected: the `note`-rewrite blocker in `docs/tracker-data.md` (rewrite done in two passes, CC BY-NC stamp shipped in Phase 2) and the duplicate-pair flag in `suggestions/barter-sources.md` (4 `yen-` twins dropped 2026-09-09 with state remapped)

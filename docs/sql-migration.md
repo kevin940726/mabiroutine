@@ -1,9 +1,10 @@
 # SQL migration — Upstash Redis -> SQLite (Turso) — plan & ledger
 
-Status: **live in production since 2026-09-14** (squash-merged as PR #1). The
-7-day migration fallback window closes **2026-09-21**, after which
-`api/_db/fallback.ts` and `@upstash/redis` are removed and Redis is
-decommissioned. Owner: maintainer. Supersedes the Redis
+Status: **decommissioned 2026-09-22**. SQL has been live in production since
+2026-09-14 (squash-merged as PR #1); the 7-day migration fallback window
+closed 2026-09-21, and `api/_db/fallback.ts`, the Redis test branches,
+`scripts/migrate-upstash-to-sql.mjs`, and `@upstash/redis` were removed with
+the Redis database decommissioned. Owner: maintainer. Supersedes the Redis
 storage layer in `api/session.ts` only; the client protocol (`docs/sync.md`) is
 unchanged.
 
@@ -342,9 +343,10 @@ once there are real users.
       remote batches atomically, local crash between DROP/RENAME needs
       `rm dev.db`. Upserts/deletes/stamps are lane-scoped in both drivers,
       the API, and both fanouts.
-- [ ] Optional `api/_db/postgres.ts` behind the same interface (or defer).
-- [ ] Remove `@upstash/redis` once no code path uses it (api-live still needs
-      it until ported).
+- [x] Optional `api/_db/postgres.ts` behind the same interface — deferred
+      (no second driver needed while Turso holds).
+- [x] `@upstash/redis` removed (2026-09-22 decommission: fallback, Redis test
+      branches, and the one-shot export script deleted with it).
 
 ### P3 — parity, GC, TTL, limits (done)
 
@@ -422,8 +424,9 @@ once there are real users.
 ## Cutover runbook
 
 Executed 2026-09-14 through step 5: snapshot + export applied, fallback flag set
-on Production, merged, prod verified (`api-live` on SQL + Edge E1/E2). Step 6 is
-due 2026-09-21.
+on Production, merged, prod verified (`api-live` on SQL + Edge E1/E2). Step 6
+executed 2026-09-22 (fallback code, Redis test branches, export script, and
+`@upstash/redis` removed; Redis database decommissioned).
 
 Order matters. Production runs Redis until step 4, so steps 1-3 are additive and
 safe to abort.
@@ -447,11 +450,13 @@ safe to abort.
    (prod is public, no bypass needed), then link a second device by hand and
    confirm a tap merges both ways. Watch Turso usage and `pnpm test:sync`'s
    `api-live` (`session persisted (sql)`).
-6. **After 7 days, decommission the fallback**: unset
-   `SYNC_MIGRATION_FALLBACK`, delete `api/_db/fallback.ts`, its `getDb()` wiring,
-   `scripts/sync-tests/fallback.entry.ts`, and the Redis branch in
-   `api-live.mjs`/`backend.mjs`; drop `@upstash/redis`. Then decommission the
-   Redis database.
+6. **(done 2026-09-22) Decommission the fallback**: unset
+    `SYNC_MIGRATION_FALLBACK`, delete `api/_db/fallback.ts`, its `getDb()` wiring,
+    the `SessionImport`/`importSession` seam it alone used,
+    `scripts/sync-tests/fallback.entry.ts`, the one-shot
+    `scripts/migrate-upstash-to-sql.mjs`, and the Redis branch in
+    `api-live.mjs`/`backend.mjs`; drop `@upstash/redis`. Then decommission the
+    Redis database.
 7. **Rollback** (only within the 7-day window): revert the merge / redeploy the
    previous revision. Prod talks Redis again with data untouched, but any edits
    written to SQL after step 4 are lost (the fallback only imports

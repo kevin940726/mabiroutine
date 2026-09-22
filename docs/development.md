@@ -131,12 +131,10 @@ Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
     SQL database: protocol parity plus the SQL-specific rules (cycle-key
     nulls delete, persistent tombstones retained, cap 413, legacy v1/v2
     upgrade, lazy TTL). A `--remote` mode runs the same against Turso.
-  - `fallback.entry.ts` — migration read-through: a session only in the old
-    store is lifted into SQL on first read, deletes mirror back, expired
-    records do not resurrect. `--redis` mode checks the real Redis source.
   - `api-live.mjs` — dev-API concurrency (25 parallel PATCHes),
-    same-key LWW, legacy upgrades, failure paths, no-store headers. Backend-
-    agnostic via `backend.mjs` (auto-detects Redis vs SQL).
+    same-key LWW, legacy upgrades, failure paths, no-store headers. Inspects
+    the SQL backend via `backend.mjs` (Turso over HTTP, local file DB for dev
+    servers).
   - `browser-e2e.mjs` — real Edge over CDP: tap→server→second-device
     render, wake-pull convergence. Needs `pnpm dev:api` + Edge.
   - Live suites SKIP loudly (exit 0) without their deps; hermetic suites

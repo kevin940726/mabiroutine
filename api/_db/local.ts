@@ -8,7 +8,7 @@
 // against the field budget. Nulls for non-cycle keys stay as tombstone rows.
 
 import { DatabaseSync } from "node:sqlite";
-import type { ApplyResult, Db, HashState, Probe, PushSubscription, RosterEntry, SessionImport } from "./types.js";
+import type { ApplyResult, Db, HashState, Probe, PushSubscription, RosterEntry } from "./types.js";
 
 function parseRoster(raw: string | null): RosterEntry[] | null {
   if (raw == null) return null;
@@ -261,19 +261,6 @@ class LocalDb implements Db {
       linkSession: r.link_session,
       roster: parseRoster(r.roster_json),
     }));
-  }
-
-  async importSession(rec: SessionImport): Promise<void> {
-    this.tx(() => {
-      const ins = this.db
-        .prepare(
-          "INSERT OR IGNORE INTO sessions (id, updated_at, seq, expires_at, field_count, meta, legacy) VALUES (?, ?, ?, ?, ?, ?, ?)"
-        )
-        .run(rec.id, rec.updatedAt, rec.seq, rec.expiresAt, Object.keys(rec.fields).length, rec.metaRaw, rec.legacyRaw);
-      if (Number(ins.changes) === 0) return; // already imported
-      const kv = this.db.prepare("INSERT OR IGNORE INTO kv (session_id, key, value) VALUES (?, ?, ?)");
-      for (const [k, v] of Object.entries(rec.fields)) kv.run(rec.id, k, v);
-    });
   }
 
   async touch(id: string, expiresAt: number): Promise<void> {

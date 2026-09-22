@@ -111,22 +111,6 @@ function run(file, args = []) {
   run("scripts/sync-tests/sql-smoke.mjs");
 }
 
-// fallback (hermetic): migration read-through against a real local driver
-{
-  section("fallback (migration read-through)");
-  const out = path.join(cache, "fallback.mjs");
-  buildSync({
-    entryPoints: ["scripts/sync-tests/fallback.entry.ts"],
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    outfile: out,
-    alias: { "@": "./src" },
-    logLevel: "error",
-  });
-  run(out);
-}
-
 // live suites (skip-loud when deps absent)
 if (!skipLive) {
   section("api-live (dev API)");
