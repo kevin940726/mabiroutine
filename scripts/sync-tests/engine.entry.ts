@@ -113,12 +113,18 @@ function nullsOf(pushes: FlatMap[]): string[] {
 // Faithful pull-round port of SyncButton.pullNow (incl. GC), minus UI refs.
 // NOTE: keep in sync with pullNow by inspection — divergence risk documented.
 function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
+  // Order-withhold mirror (SyncButton pulledSessionRef + omit-strip): the
+  // tab-order key is stripped from pushes until this engine's first pull
+  // completes, and whenever flatten omits it, so no device volunteers canon
+  // blind or tombstones it via the null path.
+  let pulled = false;
   return async function fakePull(): Promise<void> {
     const session = loadSession();
     if (!session) return;
     const flat = flattenSnapshot(buildSnapshot());
     const base = loadBase(session.id);
     const changes = diffFlat(base, flat);
+    if (!pulled || !("meta:charorder" in flat)) delete changes["meta:charorder"];
     if (process.env.DBG) console.log("DBG-PULL", JSON.stringify({ baseKeys: Object.keys(base), changeKeys: Object.keys(changes) }));
     if (Object.keys(changes).length) {
       pushes.push({ ...changes });
@@ -147,6 +153,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
       for (const k of expired) delete serverView[k];
     }
     saveBase(session.id, serverView);
+    pulled = true;
     if (process.env.DBG) console.log("DBG-SAVED", JSON.stringify(Object.keys(serverView)));
   };
 }
@@ -467,6 +474,164 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   await syncAndResets();
   const ids = useAppStore.getState().characters.map((c) => c.id);
   ok("E10 removed character stays removed", !ids.includes("c2"), ids);
+}
+
+// E12: character tab order syncs (meta:charorder, last-writer-wins, then
+// sticks — biased toward the human-made order). The reported bug: linked
+// devices split permanently — creator keeps creation order, the adopter laid
+// out id-sorted — with no way to realign. Two guards: pushes withhold the
+// key until the first pull (nobody contests canon blind), and id-sorted
+// orders are neither volunteered nor tombstoned (generated layouts can't
+// overwrite — or delete — chosen ones). Whoever's volunteered order reaches the server is adopted, never
+// contested; the pair then goes quiet (no ping-pong). Fresh adopts land in
+// the pushed layout. Absent/malformed keys fall back (pre-upgrade peers,
+// stale-tombstoned key).
+{
+  const server = { flat: {} as FlatMap };
+  const SID = "e12-charorder";
+  const CREATOR_ORDER = ["z3k9q2m", "a1b2c3d", "m7x4p8q"]; // creation order, deliberately unsorted
+  const ARTIFACT_ORDER = ["a1b2c3d", "m7x4p8q", "z3k9q2m"]; // id-sorted, as fresh adopt used to lay out
+  const chars = (ids: string[]) => ids.map((id) => ({ id, name: `N-${id}`, taskValues: {}, hiddenTaskIds: [] }));
+  const orderOf = () => useAppStore.getState().characters.map((c) => c.id);
+  // --- device A (creator): no base yet; round 1 withholds the order (no
+  // blind volunteer), round 2 establishes canon ---
+  isolate();
+  const pushesA: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesA));
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), characters: chars(CREATOR_ORDER), activeCharId: CREATOR_ORDER[0] });
+  saveSession({ id: SID, updatedAt: 1 });
+  await syncAndResets();
+  ok(
+    "E12 first round withholds order (no blind volunteer)",
+    !pushesA.some((p) => "meta:charorder" in p) && !("meta:charorder" in server.flat),
+    pushesA.map((p) => Object.keys(p))
+  );
+  await syncAndResets();
+  ok(
+    "E12 creator pushes its tab order",
+    pushesA.some((p) => p["meta:charorder"] === CREATOR_ORDER.join(",")),
+    pushesA.map((p) => Object.keys(p))
+  );
+  ok("E12 server holds creator order", server.flat["meta:charorder"] === CREATOR_ORDER.join(","));
+  // --- device B: established, same ids in artifact order — adopts, no contest ---
+  isolate();
+  const pushesB: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesB));
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), characters: chars(ARTIFACT_ORDER), activeCharId: ARTIFACT_ORDER[0] });
+  saveSession({ id: SID, updatedAt: 2 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  await syncAndResets();
+  ok("E12 divergent peer adopts canon order", JSON.stringify(orderOf()) === JSON.stringify(CREATOR_ORDER), orderOf());
+  await syncAndResets();
+  const nB = pushesB.length;
+  await syncAndResets();
+  ok("E12 pair quiet after converge (no ping-pong)", pushesB.length === nB, pushesB.slice(nB));
+  // --- device A again: still canon, still quiet ---
+  isolate();
+  const pushesA2: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesA2));
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), characters: chars(CREATOR_ORDER), activeCharId: CREATOR_ORDER[0] });
+  saveSession({ id: SID, updatedAt: 3 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  await syncAndResets();
+  await syncAndResets();
+  ok("E12 writer keeps canon order", JSON.stringify(orderOf()) === JSON.stringify(CREATOR_ORDER), orderOf());
+  ok("E12 writer quiet (canon already server-side)", pushesA2.length === 0, pushesA2);
+  // --- device C: pristine adopt lands in the pushed layout, not id-sorted ---
+  isolate();
+  seedStore(snap({}, {}, TODAY, THIS_WEEK));
+  ok("E12 fresh adopt ok", adoptState({ state: { ...server.flat } }));
+  ok("E12 fresh adopt takes pushed order", JSON.stringify(orderOf()) === JSON.stringify(CREATOR_ORDER), orderOf());
+  // --- absent key (pre-upgrade session): local order stands, device writes it ---
+  isolate();
+  const pushesD: FlatMap[] = [];
+  const noKeyServer = { flat: {} as FlatMap };
+  setPullHook(makeEngine(noKeyServer, pushesD));
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), characters: chars(CREATOR_ORDER), activeCharId: CREATOR_ORDER[0] });
+  saveSession({ id: SID, updatedAt: 4 });
+  saveBase(SID, {});
+  noKeyServer.flat = { "char:z3k9q2m:name": "N-z3k9q2m", "char:a1b2c3d:name": "N-a1b2c3d", "char:m7x4p8q:name": "N-m7x4p8q" };
+  await syncAndResets();
+  ok("E12 absent key keeps local order", JSON.stringify(orderOf()) === JSON.stringify(CREATOR_ORDER), orderOf());
+  ok("E12 absent key withheld first round", !("meta:charorder" in noKeyServer.flat));
+  await syncAndResets();
+  ok("E12 absent key gets written (establishes canon)", noKeyServer.flat["meta:charorder"] === CREATOR_ORDER.join(","));
+  // --- malformed keys: ignored, local order stands ---
+  const local = { ...snap({}, {}, TODAY, THIS_WEEK), characters: chars(CREATOR_ORDER), activeCharId: CREATOR_ORDER[0] };
+  const localArtifact = { ...local, characters: chars(ARTIFACT_ORDER), activeCharId: ARTIFACT_ORDER[0] };
+  const noKeyFlat = flattenSnapshot(local) as FlatMap;
+  delete noKeyFlat["meta:charorder"];
+  const m0 = unflattenMerge(noKeyFlat, localArtifact, 15);
+  ok(
+    "E12 absent key falls back to local order",
+    JSON.stringify(m0.characters.map((c) => c.id)) === JSON.stringify(ARTIFACT_ORDER),
+    m0.characters.map((c) => c.id)
+  );
+  for (const [label, bad] of [["empty segment", "a1,,b2"], ["dupe", "a1,a1"], ["non-string", 42], ["empty", ""]] as const) {
+    const m = unflattenMerge({ ...flattenSnapshot(local), "meta:charorder": bad }, local, 15);
+    ok(
+      `E12 malformed order ignored (${label})`,
+      JSON.stringify(m.characters.map((c) => c.id)) === JSON.stringify(CREATOR_ORDER),
+      m.characters.map((c) => c.id)
+    );
+  }
+  // --- artifact deferral: a stale-base artifact device full-pushes without
+  // ever volunteering its generated order, then adopts canon on the pull ---
+  isolate();
+  const pushesR: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesR));
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), characters: chars(ARTIFACT_ORDER), activeCharId: ARTIFACT_ORDER[0] });
+  saveSession({ id: SID, updatedAt: 5 });
+  saveBase(SID, {});
+  await syncAndResets();
+  await syncAndResets();
+  ok("E12 stale artifact adopts canon", JSON.stringify(orderOf()) === JSON.stringify(CREATOR_ORDER), orderOf());
+  ok(
+    "E12 artifact order never volunteered",
+    !pushesR.some((p) => p["meta:charorder"] === ARTIFACT_ORDER.join(",")),
+    pushesR.map((p) => p["meta:charorder"])
+  );
+  // --- established device going sorted (removal leaves an id-sorted
+  // remainder) never tombstones canon: the key is stripped whenever flatten
+  // omits it, not just pre-first-pull. Needs two rounds — round 1 still
+  // withholds, round 2 is where the null would escape. ---
+  isolate();
+  const pushesN: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesN));
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), characters: chars(CREATOR_ORDER), activeCharId: CREATOR_ORDER[0] });
+  saveSession({ id: SID, updatedAt: 7 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  (useAppStore.getState() as { removeCharacter: (id: string) => void }).removeCharacter("z3k9q2m");
+  await syncAndResets();
+  await syncAndResets();
+  ok(
+    "E12 sorted remainder never nulls canon",
+    !pushesN.some((p) => "meta:charorder" in p),
+    pushesN.map((p) => Object.keys(p))
+  );
+  ok("E12 canon survives the removal", server.flat["meta:charorder"] === CREATOR_ORDER.join(","));
+  ok("E12 the removal itself propagates", server.flat["char:z3k9q2m:name"] === null);
+  ok(
+    "E12 remainder order stands",
+    JSON.stringify(orderOf()) === JSON.stringify(["a1b2c3d", "m7x4p8q"]),
+    orderOf()
+  );
+  // --- volunteer-vs-volunteer (unit level: the round port can't push without
+  // pulling, so a true simultaneous race is modeled as Y's blind full push
+  // landing over X canon): last arrival takes the key, the loser adopts on
+  // its next merge, and the adopted order diffs silent (quiet after) ---
+  const RIVAL_ORDER = ["m7x4p8q", "z3k9q2m", "a1b2c3d"]; // unsorted, distinct from canon
+  const rivalLocal = { ...snap({}, {}, TODAY, THIS_WEEK), characters: chars(RIVAL_ORDER), activeCharId: RIVAL_ORDER[0] };
+  const canonServer = flattenSnapshot(local) as FlatMap;
+  const afterRace = { ...canonServer, ...diffFlat({}, flattenSnapshot(rivalLocal)) };
+  ok("E12 race: last arrival takes the key", afterRace["meta:charorder"] === RIVAL_ORDER.join(","));
+  const xAfter = unflattenMerge(afterRace, local, 15);
+  const xOrder = xAfter.characters.map((c) => c.id);
+  ok("E12 race: loser adopts winner", JSON.stringify(xOrder) === JSON.stringify(RIVAL_ORDER), xOrder);
+  ok(
+    "E12 race: quiet after converge",
+    diffFlat(afterRace, flattenSnapshot({ ...local, characters: xAfter.characters } as Snap))["meta:charorder"] === undefined
+  );
 }
 
 setPullHook(null);

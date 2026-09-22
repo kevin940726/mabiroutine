@@ -24,6 +24,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - Purple reminder timing clarified: the open-app timer fires exactly 15 min early, but the closed-app server push lands on the first 15-min tick inside the window (lead varies 1–15 min) — the 8-min card for the 09/19 spawn is that design working, and doubles as the closed-app delivery proof; READMEs and push docs updated
 - Purple timetable popover no longer vanishes on page scroll (touch devices): outside-tap now dismisses on click instead of pointerdown — a scroll gesture opens with a pointerdown, which dismissed the card before scroll-follow ever ran
 - In-game-verified barter costs: 卡利克斯 胡椒 ×2 costs 不死粉末 ×5 (was ×1 — the Google Doc was right); 奈麗絲 高級生皮 ×1 ← 銅礦石 ×1 (both quantities filled, shops twin already agreed); nipponhashi delta parked as future reference
+- Linked devices now agree on character tab order: the order syncs (`meta:charorder` — everyone else adopts instead of contesting, converging in one round; id-sorted layouts are neither volunteered nor deleted, so the human-made order wins regardless of which device syncs first). Previously the linking device laid out id-sorted while the creator kept creation order, splitting the tabs permanently with no way to realign. Diverged households converge on the next sync; currently-synced devices see no change
 
 ## 2026-09-19 — Reminders graduate to public release
 

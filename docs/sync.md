@@ -58,6 +58,8 @@ pin:{bid}        pin membership (true; unpin = null)
 custom:{id}      custom task object, order stripped | null
 char:{cid}:name  character name
 meta:active      active character id
+meta:charorder   character tab order, comma-joined cids (string — the API
+                 rejects array values; last writer wins, then sticks, see decision 4b)
 pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 ```
 
@@ -92,8 +94,9 @@ v13) and rides the wire on every value key.
   6-char-cap rounds always full-GET so cap-slice scrubbing never lags a push),
   abort if edited mid-flight, fold the acknowledged push over the GET result
   (a lagged/cached read must never resurrect a pre-push absence — this also
-  covers the preloaded pre-flush read), apply wholesale via `unflattenMerge`
-  (current-bucket values only, **local ordering**), GC expired cycle keys
+   covers the preloaded pre-flush read), apply wholesale via `unflattenMerge`
+   (current-bucket values only, remote tab order authoritative when present —
+   decision 4b — local ordering only as the no-information fallback), GC expired cycle keys
   (tombstone once past the 8-day retention), save base. TTL renewal rides a
 daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
 routine polls skip the touch. The 5min repoll pauses after 15min without
@@ -133,11 +136,36 @@ routine polls skip the touch. The 5min repoll pauses after 15min without
    No GC needed: reset-cleared keys are revived by reuse, and
    never-reused keys (deleted customs/chars) are bytes at this scale.
    Stale replicas cannot resurrect — the tombstone's newer seq wins.
-4. **Ordering is per-device local, never synced.** Drag order, pin order,
-   character tabs. Cross-device order merge is index soup even with ranks;
-   local order is also arguably better UX (different screens, different ideal
-   orders). Fresh adopts fall back to deterministic id-sorted layout.
-   Cost: reordering on desktop doesn't move phone rows. Accepted.
+4. **Ordering is per-device local, never synced — except character tabs.**
+   Drag order, pin order. Cross-device order merge is index soup even with
+   ranks; local order is also arguably better UX (different screens,
+   different ideal orders). Cost: reordering on desktop doesn't move phone
+   rows. Accepted.
+   4b. **Character tabs sync via `meta:charorder` (2026-09-23, supersedes #4
+   for tabs only).** The id-sorted fresh-adopt fallback split linked devices
+   permanently — creator kept creation order, adopter got id-sorted, with no
+   reorder UI to realign (reported: first two characters swapped
+   phone-vs-desktop). Last writer wins, then sticks: the remote order is
+   authoritative whenever present — every device adopts it instead of
+   contesting, so divergent devices converge in one round and go quiet after
+   (no ping-pong — post-adopt both sides flatten the same array). Two guards
+   bias the race toward the human-made order: pushes withhold the key until
+   the first pull for the binding completes (nobody volunteers canon blind),
+   and id-sorted orders are never volunteered (an id-sorted layout is
+   overwhelmingly likely generated, not chosen — generated layouts can't
+   overwrite chosen ones, and coincidentally-sorted creation orders need no
+   reconciliation since all parties already agree). The push strips the key
+   whenever flatten omits it, so an established device going sorted (e.g. a
+   removal leaving a sorted remainder) never tombstones shared canon via
+   the null path, either. Sequential upgrades
+   converge on the first volunteer; a volunteer-vs-volunteer race resolves
+   by server arrival order, then sticks. Strict parse
+   (any empty/dupe segment rejects the key): absence always means "no
+   information" and falls back to local order / id-sorted adopt, which is
+   also the stale-client shield — pre-upgrade peers tombstone unknown keys
+   on push, so mixed-version households degrade to the old behavior until
+   all devices refresh, then converge. Local add/remove still propagates
+   (unknown ids append id-sorted, dead ids filter against the live set).
  5. **Resets are read-time expiry, never deletes** (rev 3 — supersedes the
     marker-gating of #11). Every wiped session traced to one domain decision:
     resets as write-time deletes. Rev 3 tags every value with its cycle

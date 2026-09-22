@@ -22,6 +22,11 @@ export { parseCycleKey, isCycleKey, expiredCycleKeys };
 //   custom:{id}      custom task object (order stripped) | null
 //   char:{cid}:name  character name
 //   meta:active      active character id
+//   meta:charorder   character tab order, comma-joined cids (string: the API
+//                    rejects array values; 6 ids fit easily in the 500-char
+//                    string cap). Last writer wins, then sticks — volunteered
+//                    only by non-sorted orders, withheld before the first pull.
+//                    See parseCharOrder.
 //   pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 //
 // BUCKETED CYCLE KEYS — the core of rev 3: a value is written under the
@@ -35,10 +40,12 @@ export { parseCycleKey, isCycleKey, expiredCycleKeys };
 // Old-bucket keys age out server-side via GC (expiredCycleKeys, tombstoned
 // once past the retention window). Buckets are fixed-width date strings.
 //
-// Deliberately NOT synced (per-device local): all ordering (drag order,
-// character tabs, pin order — deterministic id-sorted fallback on fresh
-// adopt); reset markers (each device resets itself by Taipei clock; those
-// deletes are memory-only and healed by the next pull's re-adopt).
+// Deliberately NOT synced (per-device local): drag order, pin order,
+// globalTaskOrder, reset markers (each device resets itself by Taipei clock;
+// those deletes are memory-only and healed by the next pull's re-adopt).
+// Character tabs ARE synced (meta:charorder) — the adopt-time id-sorted
+// layout split linked devices permanently with no way to realign (no
+// reorder UI), so order rides the wire; everything else above stays local.
 
 export type FlatMap = Record<string, unknown>;
 
@@ -67,6 +74,24 @@ export function flattenSnapshot(s: SyncSnapshot): FlatMap {
     flat[`custom:${t.id}`] = rest;
   }
   if (s.activeCharId) flat["meta:active"] = s.activeCharId;
+  // Artifact deferral (decision 4b migration rule): an id-sorted order is
+  // overwhelmingly likely generated (fresh-adopt fallback), not chosen —
+  // never volunteer it. A device holding one adopts instead of contesting,
+  // so the human-made order wins regardless of upgrade/arrival order.
+  // Coincidentally-sorted creation orders need no reconciliation (all
+  // parties holding them already agree). The push side strips the key
+  // whenever flatten omits it (SyncButton), so an established device going
+  // sorted — e.g. a removal leaving a sorted remainder — never tombstones
+  // shared canon via the null path. Post-convergence silence is
+  // unaffected: every device flattens the adopted canon, so the key diffs
+  // quiet after the first push either way.
+  const charOrder = (s.characters ?? [])
+    .map((c) => c.id)
+    .filter((id) => typeof id === "string" && id.length > 0);
+  const orderSorted = sortedIds(charOrder);
+  if (charOrder.length > 0 && charOrder.some((id, i) => id !== orderSorted[i])) {
+    flat["meta:charorder"] = charOrder.join(",");
+  }
   if (s.prefs) flat["pref:hideCompleted"] = s.prefs.hideCompleted === true;
   const f = s.barterFilters;
   if (f) {
@@ -188,6 +213,38 @@ function sortedIds(ids: string[]): string[] {
   return [...ids].sort();
 }
 
+// Parse the synced tab order. Strict: any empty/duplicate/non-string segment
+// rejects the whole key and the caller falls back (local order on merge,
+// id-sorted on fresh adopt). Strictness is the stale-client shield — a
+// pre-upgrade peer tombstones unknown keys on push (diffFlat nulls base keys
+// its flatten never emits), so absence must always mean "no information",
+// never "empty order". Convergence rule: the remote order is authoritative
+// whenever present — every device adopts it instead of contesting, so
+// divergent devices converge in one round and stay quiet after. This is
+// ordinary per-key last-writer-wins, like every other key: sequential
+// upgrades converge on the first writer; a true simultaneous race resolves
+// by server arrival order (push runs before pull, so a stale-base push
+// overwrites canon before its author ever reads it), then sticks. Two
+// guards bias the race toward the human-made order: pushes withhold the key
+// until the first pull for the binding completes (SyncButton — nobody
+// contests canon blind), and flatten never volunteers an id-sorted order
+// (artifact deferral above — generated layouts can't overwrite chosen ones).
+// Convergence is guaranteed; the winner of a true volunteer-vs-volunteer
+// race is not. Local
+// add/remove still propagates: merged ids unknown to the remote order
+// append id-sorted via buildCharacters, and dead ids filter against the
+// live set.
+function parseCharOrder(v: unknown): string[] | null {
+  if (typeof v !== "string" || v.length === 0 || v.length > 500) return null;
+  const ids = v.split(",");
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (id.length === 0 || seen.has(id)) return null;
+    seen.add(id);
+  }
+  return ids;
+}
+
 type CharBucket = {
   name: string;
   taskValues: Record<string, number | boolean>;
@@ -278,8 +335,10 @@ export function capOverflowKeys(flat: FlatMap, keptIds: string[]): string[] {
   return out;
 }
 
-// Fresh adopt (no local order to preserve): deterministic id-sorted layout.
-// Feeds applySnapshot like a backup import.
+// Fresh adopt (no local order to preserve): the pushed tab order when the
+// session carries one (a linked device lands in the creator's exact layout),
+// deterministic id-sorted fallback for pre-upgrade sessions that never wrote
+// the key. Feeds applySnapshot like a backup import.
 export function unflattenReplace(flat: FlatMap, version: number): AppState & { version: number } {
   const customs: Task[] = [];
   for (const [k, v] of Object.entries(flat)) {
@@ -294,7 +353,7 @@ export function unflattenReplace(flat: FlatMap, version: number): AppState & { v
       .filter(([k, v]) => v === true && k.startsWith("pin:"))
       .map(([k]) => k.slice(4))
   );
-  const characters = buildCharacters(buckets, []);
+  const characters = buildCharacters(buckets, parseCharOrder(flat["meta:charorder"]) ?? []);
   const active =
     typeof flat["meta:active"] === "string" && characters.some((c) => c.id === flat["meta:active"])
       ? (flat["meta:active"] as string)
@@ -363,7 +422,9 @@ function pickOne<T extends string>(v: unknown, allowed: T[], fallback: T): T {
 }
 
 // Merge pull: remote values wholesale (caller guarantees local already
-// pushed, so every local key exists remotely), local ordering preserved.
+// pushed, so every local key exists remotely), remote tab order authoritative
+// when present (last-writer-wins — see parseCharOrder), local ordering only
+// as the no-information fallback (pre-upgrade peers, stale-tombstoned key).
 // Dead keys (null/absent remotely) drop; new ids append deterministically.
 export function unflattenMerge(
   flat: FlatMap,
@@ -372,7 +433,7 @@ export function unflattenMerge(
 ): AppState & { version: number } {
   const buckets = bucketize(flat, local.customTasks ?? []);
   const localOrder = (local.characters ?? []).map((c) => c.id);
-  const characters = buildCharacters(buckets, localOrder);
+  const characters = buildCharacters(buckets, parseCharOrder(flat["meta:charorder"]) ?? localOrder);
   // Names for brand-new chars come from the bucket; order preserved above.
   const remoteCustoms = new Map<string, Task>();
   for (const [k, v] of Object.entries(flat)) {

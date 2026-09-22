@@ -92,6 +92,11 @@ export const SyncButton = memo(function SyncButton() {
   const inflightRef = useRef<Promise<void> | null>(null);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushFails = useRef(0);
+  const pulledSessionRef = useRef<string | null>(null);
+  // Binding id the last successful pull completed for. The tab-order key is
+  // withheld from pushes until the first pull for the binding lands
+  // (decision 4b) — a blind volunteer would overwrite canon the pull was
+  // about to adopt. Binding switches reset it via the id comparison.
 
   // Copy-confirmation bubble lives inside the dialog (above the URL row) —
   // the global toast would render underneath the dialog overlay.
@@ -134,6 +139,14 @@ export const SyncButton = memo(function SyncButton() {
     const flat = flattenSnapshot(buildSnapshot());
     const base = loadBase(session.id);
     const changes = takeFullPush() ? { ...flat } : diffFlat(base, flat);
+    // Order-key guard (decision 4b): withhold before the first pull for the
+    // binding (nobody volunteers canon blind), and never send the key when
+    // flatten omits it — an id-sorted local order means "no information",
+    // and diffFlat would otherwise tombstone shared canon via the null path
+    // (e.g. a removal leaving a sorted remainder on an established device).
+    if (pulledSessionRef.current !== session.id || !("meta:charorder" in flat)) {
+      delete changes["meta:charorder"];
+    }
     if (Object.keys(changes).length === 0) return {};
     try {
       const updatedAt = await patchSession(session.id, changes as FlatMap, {
@@ -220,6 +233,7 @@ export const SyncButton = memo(function SyncButton() {
       const merged = unflattenMerge(serverView, buildSnapshot(), useAppStore.getState().version);
       if (!applySnapshot(merged)) return;
       saveBase(session.id, serverView);
+      pulledSessionRef.current = session.id;
       // GC: tombstone cycle keys past the retention window. Real deletes of
       // values no device reads anymore — bounds the server hash; racing
       // tabs dedupe via base-advance and tombstones-once.
