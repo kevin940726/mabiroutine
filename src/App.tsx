@@ -40,6 +40,13 @@ const BarterExplorer = lazy(() =>
 const AddTaskDialog = lazy(() =>
   import("@/components/AddTaskDialog").then((m) => ({ default: m.AddTaskDialog }))
 );
+// PROTOTYPE gate (throwaway shop-browser, ?shopproto=a|b|c on the barter tab;
+// uncommitted exploration — remove with src/proto-shop when the verdict lands).
+const ShopProto = lazy(() =>
+  import("@/proto-shop/ShopProto").then((m) => ({ default: m.ShopProto }))
+);
+const shopProtoVariant =
+  typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("shopproto") : null;
 
 export default function App() {
   const chars = useAppStore((s) => s.characters);
@@ -493,7 +500,8 @@ export default function App() {
               </div>
             }
           >
-            <BarterExplorer />
+            {/* PROTOTYPE: ?shopproto=a|b|c swaps the explorer for the shop variants */}
+            {shopProtoVariant ? <ShopProto /> : <BarterExplorer />}
           </Suspense>
         )}
 
