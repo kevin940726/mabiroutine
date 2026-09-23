@@ -3,7 +3,7 @@ import { useAppStore, barterToTask } from "@/store/useAppStore";
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 import { summarizeProgress } from "@/lib/progress";
-import { CharacterTabs } from "@/components/CharacterTabs";
+import { CharacterTabs, SortableCharMenu } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncButton, SyncToasts } from "@/sync/SyncButton";
@@ -12,7 +12,7 @@ import { InstallButton } from "@/components/InstallButton";
 import { ExpSettingsDialog } from "@/components/ExpSettingsDialog";
 import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
 import { PillProgress } from "@/components/PillProgress";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { SyncImport } from "@/sync/SyncImport";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -303,16 +303,10 @@ export default function App() {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="center" className="min-w-[8rem]">
-                    <DropdownMenuRadioGroup
-                      value={active?.id ?? ""}
-                      onValueChange={(v) => useAppStore.getState().setActiveChar(v)}
-                    >
-                      {chars.map((c) => (
-                        <DropdownMenuRadioItem key={c.id} value={c.id} className="text-xs">
-                          {c.name}
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
+                    <SortableCharMenu
+                      activeId={active?.id ?? ""}
+                      onSelect={(v) => useAppStore.getState().setActiveChar(v)}
+                    />
                   </DropdownMenuContent>
                 </DropdownMenu>
               </span>
@@ -403,16 +397,10 @@ export default function App() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center">
-                  <DropdownMenuRadioGroup
-                    value={active?.id ?? ""}
-                    onValueChange={(v) => useAppStore.getState().setActiveChar(v)}
-                  >
-                    {chars.map((c) => (
-                      <DropdownMenuRadioItem key={c.id} value={c.id} className="text-xs">
-                        {c.name}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
+                  <SortableCharMenu
+                    activeId={active?.id ?? ""}
+                    onSelect={(v) => useAppStore.getState().setActiveChar(v)}
+                  />
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button

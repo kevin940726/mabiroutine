@@ -19,7 +19,8 @@ handled for you.
 - ⏰ **Resets handled for you.** Daily 06:00 / Monday 06:00 (Asia/Taipei), with
   a live countdown in the header. Done items reset on their own — just come
   back and play.
-- 👥 **Up to 6 characters, fully separated.** One tab per character, renameable;
+- 👥 **Up to 6 characters, fully separated.** One tab per character, renameable and
+  draggable into any order;
   each keeps its own progress.
 - 🔄 **A barter explorer that answers "what do I trade today".** 107 以物易物
   trades with must/extra/once/situational guidance, search by what you have or

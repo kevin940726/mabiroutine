@@ -88,6 +88,7 @@ type Store = AppState & {
   addCharacter: (name?: string) => void;
   removeCharacter: (id: string) => void;
   renameCharacter: (id: string, name: string) => void;
+  reorderCharacters: (orderedIds: string[]) => void;
 
   toggleCheck: (taskId: string, isAccount: boolean) => void;
   setCounter: (taskId: string, value: number, isAccount: boolean) => void;
@@ -716,6 +717,15 @@ export const useAppStore = create<Store>()(
         set((s) => ({
           characters: s.characters.map((c) => (c.id === id ? { ...c, name: name.trim() || c.name } : c)),
         })),
+      reorderCharacters: (orderedIds) =>
+        set((s) => {
+          // Unknown ids dropped, missing ids appended in current order —
+          // a racing remove/add must never lose a character or resurrect one.
+          const byId = new Map(s.characters.map((c) => [c.id, c]));
+          const ordered = orderedIds.map((id) => byId.get(id)).filter((c) => c !== undefined);
+          const missing = s.characters.filter((c) => !orderedIds.includes(c.id));
+          return { characters: [...ordered, ...missing] };
+        }),
 
       toggleCheck: (taskId, isAccount) =>
         set((s) => {

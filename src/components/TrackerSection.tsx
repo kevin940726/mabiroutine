@@ -82,7 +82,7 @@ function flipRestore(restore: () => void): void {
   );
 }
 
-function batchedDragUndo(name: string, restore: () => void): void {
+export function batchedDragUndo(name: string, restore: () => void): void {
   if (!dragUndoBatch) dragUndoBatch = { names: [], restores: [] };
   // Label dedupes (first-seen order); every restore still replays — a row
   // dropped twice needs both snapshots to walk back correctly.

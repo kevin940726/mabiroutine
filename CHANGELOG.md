@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
+- Character tabs are reorderable: drag desktop pills by the faint grip (keyboard arrows work too) or drag rows inside any character menu (tab bar, floating pills); drops fire a 復原 undo toast, and the order syncs to linked devices via `meta:charorder`
 - Barter explorer grows 94→107 rows: 13 previously untracked shops exchanges folded in (all 視需求 with hand-written notes, readable get-item ids), 休馬斯 卓越繃帶 twin fixed to ×5 so it pairs with `seumas-finest-bandage`, new 伊比 portrait, and the two 康納魔力石 notes shortened to 依需求再換。
 - Drag reorder is undoable: dropping a row fires a 復原 toast (rapid drops batch into one, repeated rows deduped), and undo glides rows back with an animation
 - Hide control moved off the thumb zone: the eye/⋯ menu now lives in a left rail (mobile: eye over a vertically-centered grip; desktop: grip then eye) instead of stacking over the progress tile, which is centered on the row height; hiding fires a 復原 undo toast so a mis-tap costs one tap instead of a scroll to 已隱藏項目 (user feedback)
