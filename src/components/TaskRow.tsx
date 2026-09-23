@@ -406,7 +406,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         ) : (
           <span className="shrink-0" aria-hidden>{task.icon}</span>
         )}
-        <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
+        <span className={cn("min-w-0 flex-1 break-words")}>{getRes}</span>
         {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
       </div>
       {(task.priority === "must" || task.serverShared === true) && <div className="mt-1 flex flex-wrap gap-1">{badges}</div>}
@@ -415,7 +415,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
     <div>
       <div className="flex items-center gap-1.5 text-sm font-medium">
         <span className="shrink-0" aria-hidden>{task.icon}</span>
-        <span className={cn("min-w-0 flex-1 break-words", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
+        <span className={cn("min-w-0 flex-1 break-words")}>{task.name}</span>
         {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
         {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
       </div>
@@ -708,7 +708,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       {isBarter ? (
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className={cn("text-sm font-bold text-primary truncate", isDone && "line-through decoration-muted-foreground/50")}>{getRes}</span>
+            <span className={cn("text-sm font-bold text-primary truncate")}>{getRes}</span>
             {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
             {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
             {task.serverShared === true && <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] shrink-0">伺服器</span>}
@@ -733,7 +733,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       ) : (
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={cn("text-sm font-medium truncate", isDone && "line-through decoration-muted-foreground/50")}>{task.name}</span>
+          <span className={cn("text-sm font-medium truncate")}>{task.name}</span>
           {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
           {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}

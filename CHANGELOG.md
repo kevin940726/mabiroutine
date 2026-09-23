@@ -19,6 +19,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - Stale doc lines corrected: the `note`-rewrite blocker in `docs/tracker-data.md` (rewrite done in two passes, CC BY-NC stamp shipped in Phase 2) and the duplicate-pair flag in `suggestions/barter-sources.md` (4 `yen-` twins dropped 2026-09-09 with state remapped)
 
 ### Fixes
+- Completed tracker rows no longer strike through the name: the done state still dims the row, but the line-through is gone (user feedback)
 - Hourly notifications missed all of Monday for linked bells: the server fanout read the latest present barrier bucket instead of the current week, so post-reset Mondays looked all-done until the first play landed (reset deletions are memory-only and never reach the server). The fanout now reads the same Taipei week key the client stamps, absent keys undone like local
 - Hidden-tab stand-down no longer assumes server delivery: the local fire carries `serverOwned` and backgrounded pages without a server subscription fire locally instead of standing down into silence
 - Purple subscribe copy now promises the variable lead honestly: `出沒前最多 15 分鐘推播到這台裝置，App 沒開也會響（App 開著是準 15 分鐘；沒開時伺服器每 15 分鐘檢查一次）。` (was `出沒 15 分鐘前推播…`)
