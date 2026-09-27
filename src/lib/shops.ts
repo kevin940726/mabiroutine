@@ -113,8 +113,36 @@ function limitText(limit?: { times?: number; period?: string }, scope?: string):
   return `每${day} ${limit.times} 次${scope === "account" ? "（伺服器）" : ""}`;
 }
 
+/**
+ * Punctuation folding for matching only, never for display.
+ *
+ * The two sources disagree on bracket width for the same item: shops.json writes
+ * 設計圖(3級) with U+0028/U+0029 while barter.json writes 設計圖（3級） with
+ * U+FF08/U+FF09. Eight curated blueprint trades therefore failed to match their
+ * shop row for that reason alone, so they rendered as second-class shop rows
+ * with no material breakdown, no gatherSkill and no 首次必換 badge even though
+ * barter.json carried the complete row for each. Folding both sides to one
+ * width lets the existing curation do its job with no data change.
+ *
+ * `×` is deliberately absent: it is the quantity separator parseItemQty consumes,
+ * so folding it inside a name would risk merging genuinely different items. Any
+ * new disagreement between the sources gets a line here, and the reason.
+ */
+const MATCH_FOLD: Record<string, string> = {
+  "（": "(", // （
+  "）": ")", // ）
+  "＋": "+", // ＋
+  "；": ";", // ；
+  "：": ":", // ：
+  "，": ",", // ，
+};
+
+function fold(text: string): string {
+  return text.replace(/[（）；：，]/g, (c) => MATCH_FOLD[c]);
+}
+
 function matchKey(npc: string, kind: DealKind, costCurrency: string, costAmount: number | null, name: string, outQty: number) {
-  return [npc, kind, costCurrency, costAmount ?? "?", name, outQty].join("::");
+  return [npc, kind, fold(costCurrency), costAmount ?? "?", fold(name), outQty].join("::");
 }
 
 const curatedRows = barterJson as unknown as CuratedRow[];

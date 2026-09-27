@@ -349,14 +349,23 @@ and a fixture come back — and the prune steps must already be calling
 
 ## 4. Data facts this depends on
 
-Measured, not assumed. Re-run the counts if `shops.json` or `barter.json` change.
+Measured, not assumed. Re-run the counts if `shops.json` or `barter.json` change,
+and measure them by having a script write a UTF-8 file rather than printing to the
+console (see the terminal trap in section 0).
 
 - `shops.json`: 192 rows, 36 NPCs, 8 towns. 94 gold (`kind` omitted), 98 barter.
 - 23 NPCs are barter-only, 13 are mixed, 0 are gold-only.
-- Of the 98 barter rows, 90 match a `barter.json` row exactly and 8 do not.
-  17 curated must/extra rows have no `shops.json` entry and are added as
-  `curated-only::` rows, excluded from the 192.
-- All 94 gold rows are unique on `npc::name`; none has a null price.
-- Pin counts as shipped: **all 192 pinnable** — 90 under a `barter.json` id,
-  102 (94 gold + 8 uncurated barter) under a `shop::` id.
+- All 98 barter rows match a `barter.json` row, so every barter row is curated and
+  only the 94 gold rows need a `shop::` pin id. This used to be 90 of 98: eight
+  blueprint trades failed to match on bracket width alone, since `shops.json`
+  writes `設計圖(3級)` and `barter.json` writes `設計圖（3級）`. `matchKey` now
+  folds full-width `（）；：，` to half-width for matching only.
+- Exactly **1** curated must/extra row has no `shops.json` entry and is added as a
+  `curated-only::` row, excluded from the 192. An earlier version of this ledger
+  said 17; that figure was already stale before the fold above, measured against
+  the same commit rather than assumed from it.
+- All 94 gold rows are unique on `npc::name`; none has a null price. This is the
+  invariant that lets the pin id be `shop::<npc>::<name>`.
+- Pin counts as shipped: **all 192 pinnable** — 98 under a `barter.json` id,
+  94 gold rows under a `shop::` id.
 
