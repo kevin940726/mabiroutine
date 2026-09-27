@@ -32,21 +32,14 @@ import { Analytics } from "@vercel/analytics/react";
 const BUILTIN_TASKS = trackerJson as Task[];
 
 // Below-the-fold / on-demand routes, split out of the initial chunk:
-// BarterExplorer (breakdown engine + explorer UI) loads on first tab visit,
-// AddTaskDialog loads on first open.
-const BarterExplorer = lazy(() =>
-  import("@/components/BarterExplorer").then((m) => ({ default: m.BarterExplorer }))
+// MerchantPanel (all 192 shop rows + the barter breakdown engine) loads on
+// first tab visit, AddTaskDialog loads on first open.
+const MerchantPanel = lazy(() =>
+  import("@/components/MerchantPanel").then((m) => ({ default: m.MerchantPanel }))
 );
 const AddTaskDialog = lazy(() =>
   import("@/components/AddTaskDialog").then((m) => ({ default: m.AddTaskDialog }))
 );
-// PROTOTYPE gate (throwaway shop-browser, ?shopproto=a|b|c on the barter tab;
-// uncommitted exploration — remove with src/proto-shop when the verdict lands).
-const ShopProto = lazy(() =>
-  import("@/proto-shop/ShopProto").then((m) => ({ default: m.ShopProto }))
-);
-const shopProtoVariant =
-  typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("shopproto") : null;
 
 export default function App() {
   const chars = useAppStore((s) => s.characters);
@@ -500,8 +493,7 @@ export default function App() {
               </div>
             }
           >
-            {/* PROTOTYPE: ?shopproto=a|b|c swaps the explorer for the shop variants */}
-            {shopProtoVariant ? <ShopProto /> : <BarterExplorer />}
+            <MerchantPanel />
           </Suspense>
         )}
 

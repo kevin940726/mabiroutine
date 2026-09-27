@@ -30,20 +30,36 @@ const PRESENT_PRIORITIES = PRIORITY_ORDER.filter((p) =>
 );
 const TOWNS = [...new Set((barterJson as unknown as typeof barterJson).map((b) => b.town))];
 
-type BarterRow = (typeof barterJson)[number];
+export type BarterJsonRow = (typeof barterJson)[number];
 
 /** Cap text from the shops.json twin leg (SSOT); falls back to the
  *  barter.json display string when no exact twin exists. A matched leg
  *  with no limit means uncapped — the barter string is not consulted. */
-function capText(b: BarterRow): string | undefined {
+function capText(b: BarterJsonRow): string | undefined {
   const { name, qty } = parseItemQty(b.get);
   const twin = twinTradeLeg(b.npc, name, qty);
   return twin ? twin.limit : b.limit;
 }
 
-function PinButton({ barterId }: { barterId: string }) {
-  const toggle = useAppStore((s) => s.toggleBarterPin);
-  const pinned = useAppStore((s) => s.barterPins.includes(barterId));
+type BarterPinProps = {
+  id: string;
+  pinned?: boolean;
+  onTogglePin?: (id: string) => void;
+};
+
+type BarterRowProps = {
+  b: BarterJsonRow;
+  pinned?: boolean;
+  onTogglePin?: (barterId: string) => void;
+  /** Makes the portrait a link to that NPC, e.g. the merchant panel. */
+  onSelectNpc?: (npc: string) => void;
+};
+
+export function BarterPinButton({ id, pinned: pinnedProp, onTogglePin }: BarterPinProps) {
+  const storePinned = useAppStore((s) => s.barterPins.includes(id));
+  const storeToggle = useAppStore((s) => s.toggleBarterPin);
+  const pinned = pinnedProp ?? storePinned;
+  const toggle = onTogglePin ?? storeToggle;
 
   return (
     <div className="flex flex-col items-end gap-1 shrink-0">
@@ -57,7 +73,7 @@ function PinButton({ barterId }: { barterId: string }) {
               ? "bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white"
               : "border-0 outline outline-1 outline-input"
           )}
-          onClick={() => toggle(barterId)}
+          onClick={() => toggle(id)}
         >
           <span className="flex w-full items-center gap-1.5">
             <Pin className="shrink-0" />
@@ -69,13 +85,15 @@ function PinButton({ barterId }: { barterId: string }) {
   );
 }
 
-function MobilePinButton({ barterId }: { barterId: string }) {
-  const toggle = useAppStore((s) => s.toggleBarterPin);
-  const pinned = useAppStore((s) => s.barterPins.includes(barterId));
+function MobilePinButton({ id, pinned: pinnedProp, onTogglePin }: BarterPinProps) {
+  const storePinned = useAppStore((s) => s.barterPins.includes(id));
+  const storeToggle = useAppStore((s) => s.toggleBarterPin);
+  const pinned = pinnedProp ?? storePinned;
+  const toggle = onTogglePin ?? storeToggle;
   return (
     <button
       aria-label={pinned ? "取消釘選" : "釘選"}
-      onClick={() => toggle(barterId)}
+      onClick={() => toggle(id)}
       className={cn(
         "grid h-11 w-11 shrink-0 place-items-center rounded-full",
         pinned ? "bg-emerald-600 text-white" : "text-muted-foreground hover:bg-accent"
@@ -87,8 +105,9 @@ function MobilePinButton({ barterId }: { barterId: string }) {
 }
 
 // desktop row — evolves together with the mobile row; every change considers both
-function BarterRowDesktop({ b }: { b: BarterRow }) {
-  const pinned = useAppStore((s) => s.barterPins.includes(b.id));
+export function BarterRowDesktop({ b, pinned: pinnedProp, onTogglePin, onSelectNpc }: BarterRowProps) {
+  const storePinned = useAppStore((s) => s.barterPins.includes(b.id));
+  const pinned = pinnedProp ?? storePinned;
   const [open, setOpen] = useState(false);
   // No toggle when the breakdown would just echo the give (trivial self-only leaf).
   const hasBreakdown = useMemo(() => giveHasBreakdown(b.give), [b.give]);
@@ -97,6 +116,15 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
   // limit.times, else the row limit string, else 1).
   const get = parseItemQty(b.get);
   const times = dealTimes(b.npc, get.name, get.qty, b.limit);
+  const portrait = (
+    <img
+      src={`/npc/${encodeURIComponent(b.npc)}.png`}
+      alt={b.npc}
+      className="h-10 w-10 shrink-0 rounded-full object-cover border border-border/50 bg-muted"
+      loading="lazy"
+      onError={(e) => ((e.target as HTMLImageElement).src = "/npc/placeholder.png")}
+    />
+  );
   return (
     <div
       className={cn(
@@ -107,13 +135,18 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
       )}
     >
       <div className="flex items-center gap-3">
-      <img
-        src={`/npc/${encodeURIComponent(b.npc)}.png`}
-        alt={b.npc}
-        className="h-10 w-10 shrink-0 rounded-full object-cover border border-border/50 bg-muted"
-        loading="lazy"
-        onError={(e) => ((e.target as HTMLImageElement).src = "/npc/placeholder.png")}
-      />
+      {onSelectNpc ? (
+        <button
+          type="button"
+          onClick={() => onSelectNpc(b.npc)}
+          aria-label={`開啟 ${b.npc} 的商店`}
+          className="shrink-0 rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {portrait}
+        </button>
+      ) : (
+        portrait
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-primary truncate">{b.get.replace(/ ×\d+$/, "")}</span>
@@ -153,7 +186,7 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
           <p className="text-xs leading-snug text-muted-foreground/80 mt-1 italic truncate border-l-2 border-muted pl-1.5">📝 {b.note}</p>
         )}
       </div>
-      <PinButton barterId={b.id} />
+      <BarterPinButton id={b.id} pinned={pinned} onTogglePin={onTogglePin} />
       </div>
       {open && hasBreakdown && <MaterialBreakdown give={b.give} times={times} />}
     </div>
@@ -163,8 +196,9 @@ function BarterRowDesktop({ b }: { b: BarterRow }) {
 // mobile row (B4): tracker TaskRowMobile language — 20px pfp in the title
 // line, priority chip on its own wrapping line, bold NPC · town · limit,
 // bare give → get with zero truncation, 📝 note line, 44px icon pin.
-function BarterRowMobile({ b }: { b: BarterRow }) {
-  const pinned = useAppStore((s) => s.barterPins.includes(b.id));
+export function BarterRowMobile({ b, pinned: pinnedProp, onTogglePin, onSelectNpc }: BarterRowProps) {
+  const storePinned = useAppStore((s) => s.barterPins.includes(b.id));
+  const pinned = pinnedProp ?? storePinned;
   const [imgError, setImgError] = useState(false);
   const [open, setOpen] = useState(false);
   // No toggle when the breakdown would just echo the give (trivial self-only leaf).
@@ -172,6 +206,20 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
   const cap = capText(b);
   const get = parseItemQty(b.get);
   const times = dealTimes(b.npc, get.name, get.qty, b.limit);
+  const portrait = imgError ? (
+    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border/50 bg-muted text-[10px]">
+      {b.npc.slice(0, 1)}
+    </span>
+  ) : (
+    <img
+      src={`/npc/${encodeURIComponent(b.npc)}.png`}
+      alt=""
+      aria-hidden
+      className="h-5 w-5 shrink-0 rounded-full object-cover border border-border/50 bg-muted"
+      loading="lazy"
+      onError={() => setImgError(true)}
+    />
+  );
   return (
     <div
       className={cn(
@@ -184,19 +232,17 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-sm font-bold text-primary">
-            {imgError ? (
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border/50 bg-muted text-[10px]">
-                {b.npc.slice(0, 1)}
-              </span>
+            {onSelectNpc ? (
+              <button
+                type="button"
+                onClick={() => onSelectNpc(b.npc)}
+                aria-label={`開啟 ${b.npc} 的商店`}
+                className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {portrait}
+              </button>
             ) : (
-              <img
-                src={`/npc/${encodeURIComponent(b.npc)}.png`}
-                alt=""
-                aria-hidden
-                className="h-5 w-5 shrink-0 rounded-full object-cover border border-border/50 bg-muted"
-                loading="lazy"
-                onError={() => setImgError(true)}
-              />
+              portrait
             )}
             <span className="min-w-0 flex-1 break-words">{b.get.replace(/ ×\d+$/, "")}</span>
           </div>
@@ -240,7 +286,7 @@ function BarterRowMobile({ b }: { b: BarterRow }) {
           )}
         </div>
         <div className="w-11 shrink-0 flex justify-end">
-          <MobilePinButton barterId={b.id} />
+          <MobilePinButton id={b.id} pinned={pinned} onTogglePin={onTogglePin} />
         </div>
       </div>
       {open && hasBreakdown && <MaterialBreakdown give={b.give} times={times} />}
