@@ -176,7 +176,7 @@ function MerchantGrid({ items }: { items: MerchantItem[] }) {
           <article
             key={item.key}
             data-shop-tile
-            className="flex aspect-square flex-col gap-0.5 rounded-lg border bg-card p-2 transition-colors hover:bg-accent/40"
+            className="flex flex-col gap-0.5 rounded-lg border bg-card p-2 transition-colors hover:bg-accent/40"
           >
             <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{item.title.replace(/ ×\d+$/, "")}</h3>
             <p className="text-xs font-medium leading-snug text-foreground/80">{item.cost}</p>
