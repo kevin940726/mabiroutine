@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, MapPin, Pin, RotateCcw, Search, ShoppingBag, Store } from "lucide-react";
+import { MapPin, RotateCcw, Search, ShoppingBag, Store } from "lucide-react";
 import { MenuSelect } from "@/components/MenuSelect";
-import { BarterPinButton, BarterRowDesktop, BarterRowMobile, type BarterJsonRow } from "@/components/BarterExplorer";
+import { BarterRowDesktop, BarterRowMobile, type BarterJsonRow } from "@/components/BarterExplorer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import { compareTowns } from "@/lib/towns";
+import { useAppStore } from "@/store/useAppStore";
 import { CURATED_LABEL, costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
 import barterJson from "@/data/barter.json";
 
@@ -29,6 +30,8 @@ type MerchantItem = {
   kind: "shop" | "barter";
   /** position in barter.json, or -1 when the deal is not curated */
   curatedIndex: number;
+  /** barter.json id when this deal is curated — the id the tracker pins */
+  barterId: string | null;
   barterRow?: BarterJsonRow;
 };
 
@@ -50,6 +53,7 @@ function toItem(deal: ShopDeal): MerchantItem {
     note: deal.note,
     kind: deal.kind,
     curatedIndex: deal.curatedIndex,
+    barterId: deal.barterId,
     barterRow: deal.barterId ? CURATED_ROWS.get(deal.barterId) : undefined,
   };
 }
@@ -66,6 +70,27 @@ const ALL_SHOP_ITEMS: MerchantItem[] = (() => {
   const rest = items.filter((item) => item.curatedIndex < 0);
   return [...curated, ...rest.filter((item) => item.kind === "barter"), ...rest.filter((item) => item.kind === "shop")];
 })();
+
+/** A pin can point at a curated row that shops.json has no entry for, so build
+ *  the row straight from barter.json — same shape as a shop-derived item. */
+function barterRowToItem(row: BarterJsonRow): MerchantItem {
+  return {
+    key: `curated-only::${row.id}`,
+    npc: row.npc,
+    town: row.town,
+    title: row.get,
+    give: row.give,
+    cost: row.give,
+    limitText: row.limit ?? null,
+    scopeAccount: row.perChar === false,
+    priority: row.priority as CuratedPriority,
+    note: row.note ?? null,
+    kind: "barter",
+    curatedIndex: -1,
+    barterId: row.id,
+    barterRow: row,
+  };
+}
 
 function rowMatches(item: MerchantItem, query: string) {
   const q = query.trim().toLocaleLowerCase("zh-Hant");
@@ -123,29 +148,6 @@ function NpcFace({ npc, size = "size-10" }: { npc: string; size?: string }) {
   );
 }
 
-function PinButton({ item, pinned, onTogglePin, label = false, className }: {
-  item: MerchantItem;
-  pinned: boolean;
-  onTogglePin: (key: string) => void;
-  label?: boolean;
-  className?: string;
-}) {
-  return (
-    <Button
-      type="button"
-      size={label ? "sm" : "icon"}
-      variant={pinned ? "default" : "outline"}
-      aria-label={pinned ? `取消選取 ${item.title}` : `選取 ${item.title}`}
-      aria-pressed={pinned}
-      onClick={() => onTogglePin(item.key)}
-      className={cn(!label && "rounded-full", pinned && "bg-emerald-600 text-white hover:bg-emerald-700", className)}
-    >
-      {pinned ? <Check /> : <Pin />}
-      {label && (pinned ? "已選" : "選取")}
-    </Button>
-  );
-}
-
 function NpcTabToggle({ items, tab, onChange }: { items: MerchantItem[]; tab: NpcTab; onChange: (tab: NpcTab) => void }) {
   const gold = tabCount(items, "gold");
   const barter = tabCount(items, "barter");
@@ -166,60 +168,46 @@ function NpcTabToggle({ items, tab, onChange }: { items: MerchantItem[]; tab: Np
   );
 }
 
-function MerchantGrid({ items, pinned, onTogglePin }: { items: MerchantItem[]; pinned: Set<string>; onTogglePin: (key: string) => void }) {
+function MerchantGrid({ items }: { items: MerchantItem[] }) {
   return (
     <div className="@container">
       <div className="grid grid-cols-2 gap-2 @lg:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-5">
-        {items.map((item) => {
-          const isPinned = pinned.has(item.key);
-          return (
-            <article
-              key={item.key}
-              data-shop-tile
-              className={cn(
-                "relative flex flex-col gap-0.5 rounded-lg border bg-card p-2 transition-colors hover:bg-accent/40",
-                isPinned && "border-emerald-300 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20",
+        {items.map((item) => (
+          <article
+            key={item.key}
+            data-shop-tile
+            className="flex aspect-square flex-col gap-0.5 rounded-lg border bg-card p-2 transition-colors hover:bg-accent/40"
+          >
+            <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{item.title.replace(/ ×\d+$/, "")}</h3>
+            <p className="text-xs font-medium leading-snug text-foreground/80">{item.cost}</p>
+            <div className="mt-auto flex items-center justify-between gap-1.5">
+              <p className="text-[10px] leading-snug text-muted-foreground">{item.limitText ?? "不限次數"}</p>
+              {item.priority && (
+                <Badge
+                  variant={item.priority === "must" ? "default" : "secondary"}
+                  className={cn("shrink-0 text-[10px]", item.priority === "must" && "bg-red-600 text-white hover:bg-red-700")}
+                >
+                  {CURATED_LABEL[item.priority]}
+                </Badge>
               )}
-            >
-              <h3 className="line-clamp-2 pr-5 text-sm font-semibold leading-snug">{item.title.replace(/ ×\d+$/, "")}</h3>
-              <p className="text-xs font-medium leading-snug text-foreground/80">{item.cost}</p>
-              <div className="flex items-center justify-between gap-1.5">
-                <p className="text-[10px] leading-snug text-muted-foreground">{item.limitText ?? "不限次數"}</p>
-                {item.priority && (
-                  <Badge
-                    variant={item.priority === "must" ? "default" : "secondary"}
-                    className={cn("shrink-0 text-[10px]", item.priority === "must" && "bg-red-600 text-white hover:bg-red-700")}
-                  >
-                    {CURATED_LABEL[item.priority]}
-                  </Badge>
-                )}
-              </div>
-              {item.note && <p className="line-clamp-1 text-[10px] leading-snug italic text-muted-foreground">📝 {item.note}</p>}
-              <div className="absolute right-1.5 top-1.5">
-                <PinButton item={item} pinned={isPinned} onTogglePin={onTogglePin} className="size-5" />
-              </div>
-            </article>
-          );
-        })}
+            </div>
+            {item.note && <p className="line-clamp-1 text-[10px] leading-snug italic text-muted-foreground">📝 {item.note}</p>}
+          </article>
+        ))}
       </div>
     </div>
   );
 }
 
 /** Mirrors BarterRowDesktop so gold and uncurated rows read as the same row:
- *  same container, portrait, title + badges, npc · town, 你給 → 你拿, cap, note
- *  and the shared pin button. The one thing it cannot copy is the expandable
- *  material breakdown, which needs a curated barter row. */
-function PlainRow({ item, pinned, onTogglePin, onSelectNpc }: { item: MerchantItem; pinned: boolean; onTogglePin: (key: string) => void; onSelectNpc: (npc: string) => void }) {
+ *  same container, portrait, title + badges, npc · town, 你給 → 你拿, cap and
+ *  note. No pin button: a pin means "this is on my dailies", which only a
+ *  curated barter row can be. The one thing it cannot copy is the expandable
+ *  material breakdown, which needs a curated row too. */
+function PlainRow({ item, onSelectNpc }: { item: MerchantItem; onSelectNpc: (npc: string) => void }) {
   const cap = item.limitText?.replace("（伺服器）", "");
   return (
-    <div
-      className={cn(
-        "rounded-lg border bg-card px-3 py-2.5",
-        "[content-visibility:auto] [contain-intrinsic-size:auto_80px]",
-        pinned && "border-emerald-200 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-950/20",
-      )}
-    >
+    <div className="rounded-lg border bg-card px-3 py-2.5 [content-visibility:auto] [contain-intrinsic-size:auto_80px]">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -257,22 +245,24 @@ function PlainRow({ item, pinned, onTogglePin, onSelectNpc }: { item: MerchantIt
             <p className="text-xs leading-snug text-muted-foreground/80 mt-1 italic truncate border-l-2 border-muted pl-1.5">📝 {item.note}</p>
           )}
         </div>
-        <BarterPinButton id={item.key} pinned={pinned} onTogglePin={onTogglePin} />
       </div>
     </div>
   );
 }
 
-function MerchantRows({ items, pinned, onTogglePin, onSelectNpc }: { items: MerchantItem[]; pinned: Set<string>; onTogglePin: (key: string) => void; onSelectNpc: (npc: string) => void }) {
+/** Curated rows get no pin overrides, so they read and write the tracker's
+ *  `barterPins` directly: one pin per barter id, shared with the tracker tab
+ *  and synced, instead of a second panel-local list. */
+function MerchantRows({ items, onSelectNpc }: { items: MerchantItem[]; onSelectNpc: (npc: string) => void }) {
   const isMobile = useIsMobile();
   return (
     <div className="flex flex-col gap-2">
       {items.map((item) => {
         if (item.barterRow) {
           const Row = isMobile ? BarterRowMobile : BarterRowDesktop;
-          return <Row key={item.key} b={item.barterRow} pinned={pinned.has(item.key)} onTogglePin={() => onTogglePin(item.key)} onSelectNpc={onSelectNpc} />;
+          return <Row key={item.barterId} b={item.barterRow} onSelectNpc={onSelectNpc} />;
         }
-        return <PlainRow key={item.key} item={item} pinned={pinned.has(item.key)} onTogglePin={onTogglePin} onSelectNpc={onSelectNpc} />;
+        return <PlainRow key={item.key} item={item} onSelectNpc={onSelectNpc} />;
       })}
     </div>
   );
@@ -281,10 +271,10 @@ function MerchantRows({ items, pinned, onTogglePin, onSelectNpc }: { items: Merc
 /** Gold is a price comparison, so it reads fine as tiles. Barter is a recipe:
  *  what you hand over and what it costs to make is the point, so it keeps the
  *  full barter row (material chain, NPC, note) instead of a tile. */
-function TabContent({ items, tab, pinned, onTogglePin, onSelectNpc }: { items: MerchantItem[]; tab: NpcTab; pinned: Set<string>; onTogglePin: (key: string) => void; onSelectNpc: (npc: string) => void }) {
+function TabContent({ items, tab, onSelectNpc }: { items: MerchantItem[]; tab: NpcTab; onSelectNpc: (npc: string) => void }) {
   return tab === "gold"
-    ? <MerchantGrid items={items} pinned={pinned} onTogglePin={onTogglePin} />
-    : <MerchantRows items={items} pinned={pinned} onTogglePin={onTogglePin} onSelectNpc={onSelectNpc} />;
+    ? <MerchantGrid items={items} />
+    : <MerchantRows items={items} onSelectNpc={onSelectNpc} />;
 }
 
 function SearchControls({ query, onQueryChange, selectedOnly, onSelectedOnlyChange, selectedCount }: {
@@ -312,9 +302,11 @@ export function MerchantPanel() {
   const [town, setTown] = useState("all");
   const [merchant, setMerchant] = useState("all");
   const [npcTab, setNpcTab] = useState<NpcTab>("gold");
-  const [pinned, setPinned] = useState<Set<string>>(() => new Set());
   const [query, setQuery] = useState("");
   const [selectedOnly, setSelectedOnly] = useState(false);
+  // The tracker's pin list, shared: pinning here and pinning in the tracker are
+  // the same action on the same barter id, and the pins sync with it.
+  const barterPins = useAppStore((s) => s.barterPins);
 
   const towns = useMemo(() => [...new Set(ALL_SHOP_ITEMS.map((item) => item.town))].sort(compareTowns), []);
   const options = useMemo(() => filterItems(ALL_SHOP_ITEMS, town, ""), [town]);
@@ -327,10 +319,17 @@ export function MerchantPanel() {
   const selected = merchant === "all" ? null : groups.find((group) => group.name === merchant) ?? null;
   const npcRows = selected?.rows ?? [];
   const visible = selected ? tabItems(npcRows, npcTab, query) : items;
-  const selectedItems = useMemo(
-    () => ALL_SHOP_ITEMS.filter((item) => pinned.has(item.key)).filter((item) => rowMatches(item, query)),
-    [pinned, query],
-  );
+  // Pinned rows resolve through barter.json, so a pin made in the tracker (or on
+  // another device) shows here even when that row is not in shops.json.
+  const pinnedItems = useMemo(() => {
+    const wanted = new Set(barterPins);
+    const fromShops = ALL_SHOP_ITEMS.filter((item) => item.barterId && wanted.has(item.barterId));
+    const seen = new Set(fromShops.map((item) => item.barterId));
+    const orphans = (barterJson as BarterJsonRow[])
+      .filter((row) => wanted.has(row.id) && !seen.has(row.id))
+      .map((row) => barterRowToItem(row));
+    return [...fromShops, ...orphans].filter((item) => rowMatches(item, query));
+  }, [barterPins, query]);
 
   // ?npc= deep link, same param convention as the reminder links. Kept in the
   // URL (not stripped) so an NPC view is shareable and survives a reload.
@@ -351,15 +350,6 @@ export function MerchantPanel() {
     if (name === "all") url.searchParams.delete("npc");
     else url.searchParams.set("npc", name);
     window.history.replaceState(null, "", url.toString());
-  };
-
-  const togglePin = (key: string) => {
-    setPinned((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
   };
 
   const selectNpc = (name: string) => {
@@ -384,7 +374,7 @@ export function MerchantPanel() {
           <h1 className="text-2xl font-semibold">NPC 商店</h1>
           <p className="mt-1 text-sm text-muted-foreground">選擇 NPC 後，於頁籤內瀏覽完整內容</p>
         </div>
-        <SearchControls query={query} onQueryChange={setQuery} selectedOnly={selectedOnly} onSelectedOnlyChange={setSelectedOnly} selectedCount={pinned.size} />
+        <SearchControls query={query} onQueryChange={setQuery} selectedOnly={selectedOnly} onSelectedOnlyChange={setSelectedOnly} selectedCount={barterPins.length} />
       </header>
 
       {!selectedOnly && (
@@ -420,10 +410,10 @@ export function MerchantPanel() {
               <h2 className="text-lg font-semibold">已選交易</h2>
               <p className="mt-1 text-xs text-muted-foreground">所有來源，依選取順序</p>
             </div>
-            <span className="text-sm text-muted-foreground">{selectedItems.length} 筆</span>
+            <span className="text-sm text-muted-foreground">{pinnedItems.length} 筆</span>
           </div>
-          {selectedItems.length > 0
-            ? <MerchantRows items={selectedItems} pinned={pinned} onTogglePin={togglePin} onSelectNpc={selectNpc} />
+          {pinnedItems.length > 0
+            ? <MerchantRows items={pinnedItems} onSelectNpc={selectNpc} />
             : <div className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">尚無已選交易</div>}
         </section>
       ) : (
@@ -443,8 +433,8 @@ export function MerchantPanel() {
             {selected && <NpcTabToggle items={npcRows} tab={npcTab} onChange={setNpcTab} />}
           </div>
           {selected
-            ? <TabContent items={visible} tab={npcTab} pinned={pinned} onTogglePin={togglePin} onSelectNpc={selectNpc} />
-            : <MerchantRows items={items} pinned={pinned} onTogglePin={togglePin} onSelectNpc={selectNpc} />}
+            ? <TabContent items={visible} tab={npcTab} onSelectNpc={selectNpc} />
+            : <MerchantRows items={items} onSelectNpc={selectNpc} />}
         </section>
       )}
     </div>
