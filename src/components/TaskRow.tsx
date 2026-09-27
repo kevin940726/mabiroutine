@@ -54,7 +54,7 @@ function ScheduleBadges() {
 import { PermissionCoachMark, type CoachMarkKind } from "@/components/PermissionCoachMark";
 import { Tooltip } from "@/components/ui/tooltip";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
-import { dealTimes, parseItemQty } from "@/lib/materials";
+import { dealTimes, displayName, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toastAction } from "@/sync/session";
@@ -378,7 +378,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   const getRes = isBarter ? (task.barterMeta?.get ?? "").replace(/ ×\d+$/, "") : "";
   // A barter row hides the yield in the title because the hover card spells out
   // "give → get". A shop row has no such card, so the quantity stays visible.
-  const tradeTitle = isBarter ? getRes : task.name;
+  const tradeTitle = displayName(isBarter ? getRes : task.name);
 
   // two-line row, no ellipsis: title line (name only, ⋯/👁 top-right) +
   // badge line (always its own line so long names never orphan) + body line
@@ -442,7 +442,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   const body = isBarter ? (
     <div className="min-w-0 flex-1">
       <div className="text-xs text-muted-foreground break-words">
-        {task.npc} · {task.town} · {task.barterMeta?.limit}
+        {task.npc} · {task.town} · {displayName(task.barterMeta?.limit ?? "")}
       </div>
       <div className="text-xs text-muted-foreground break-words">
         <MaterialHoverCard
@@ -663,7 +663,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const [npcImgError, setNpcImgError] = useState(false);
   const showNpc = isTrade && task.npc && !npcImgError;
   const getRes = isBarter ? (task.barterMeta?.get ?? "").replace(/ ×\d+$/, "") : "";
-  const tradeTitle = isBarter ? getRes : task.name;
+  const tradeTitle = displayName(isBarter ? getRes : task.name);
   return (
     <div
       ref={setNodeRef}
@@ -747,7 +747,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
                   times={barterTimes(task)}
                 />
               </span>
-              <span className="ml-auto shrink-0">{task.barterMeta?.limit}</span>
+              <span className="ml-auto shrink-0">{displayName(task.barterMeta?.limit ?? "")}</span>
             </div>
           ) : (
             // No hover card: a purchase has no material chain to trace.

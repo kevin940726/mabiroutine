@@ -12,6 +12,7 @@ import {
   giveHasBreakdown,
 } from "@/components/MaterialBreakdown";
 import { cn } from "@/lib/utils";
+import { displayName } from "@/lib/materials";
 
 type Props = {
   give: string;
@@ -156,7 +157,7 @@ export function MaterialHoverCard({ give, get, compact, times }: Props) {
   if (!hasBreakdown) {
     return (
       <>
-        你給 {give} → 你拿 {get}
+        你給 {displayName(give)} → 你拿 {displayName(get)}
       </>
     );
   }
@@ -188,10 +189,10 @@ export function MaterialHoverCard({ give, get, compact, times }: Props) {
           compact ? "max-w-[65%] align-bottom" : "max-w-full"
         )}
       >
-        <span className={compact ? "truncate" : "break-words"}>{give}</span>
+        <span className={compact ? "truncate" : "break-words"}>{displayName(give)}</span>
         <ReceiptText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>{" "}
-      → 你拿 {get}
+      → 你拿 {displayName(get)}
       {open && pos && (
         // Outer box is transparent but hoverable: its 8px padding bridges the
         // gap between trigger and card, so the pointer path never leaves the

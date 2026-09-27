@@ -156,6 +156,21 @@ export function parseItemQty(s: string): { name: string; qty: number } {
   return m ? { name: m[1].trim(), qty: Number(m[2]) } : { name: s.trim(), qty: 1 };
 }
 
+/**
+ * Parenthesis width for display. The data files keep the game's half-width
+ * spelling, because that is what shops.json records and what a paste from the
+ * game contains; everything the user reads is folded to full-width, which is the
+ * TW convention and what `limitText` already generates for 伺服器.
+ *
+ * Apply this at the render expression, never to a string that is about to be
+ * looked up: `MaterialBreakdown` and `giveHasBreakdown` resolve material names
+ * against the route table by exact key, and the route table is unfolded. Folding
+ * a name before that lookup would silently break the breakdown.
+ */
+export function displayName(s: string): string {
+  return s.replace(/\(/g, "（").replace(/\)/g, "）");
+}
+
 /** Twin trade leg in the merged route table behind a barter-explorer row:
  *  the shops.json option for (npc, received item, outQty). Exact single
  *  match only — ambiguity returns null and the caller falls back to the

@@ -4,7 +4,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MaterialBreakdown, giveHasBreakdown } from "@/components/MaterialBreakdown";
-import { parseItemQty, twinTradeLeg, dealTimes } from "@/lib/materials";
+import { displayName, parseItemQty, twinTradeLeg, dealTimes } from "@/lib/materials";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Pin } from "lucide-react";
@@ -137,7 +137,7 @@ export function BarterRowDesktop({ b, pinned: pinnedProp, onTogglePin, onSelectN
       )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-primary truncate">{b.get.replace(/ ×\d+$/, "")}</span>
+          <span className="text-sm font-bold text-primary truncate">{displayName(b.get).replace(/ ×\d+$/, "")}</span>
           <Badge variant={b.priority === "must" ? "default" : b.priority === "skip" ? "outline" : "secondary"} className={cn("text-[10px] shrink-0", b.priority === "must" && "bg-red-600 hover:bg-red-700")}>
             {PRIORITY_LABEL[b.priority as BarterPriority]}
           </Badge>
@@ -161,12 +161,12 @@ export function BarterRowDesktop({ b, pinned: pinnedProp, onTogglePin, onSelectN
               className="inline-flex max-w-[65%] items-center gap-0.5 align-bottom text-foreground disabled:cursor-default"
               disabled={!hasBreakdown}
             >
-              <span className="truncate font-medium">{b.give}</span>
+              <span className="truncate font-medium">{displayName(b.give)}</span>
               {hasBreakdown && (
                 <ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", open && "rotate-180")} />
               )}
             </button>{" "}
-            → 你拿 {b.get}
+            → 你拿 {displayName(b.get)}
           </span>
           <span className="ml-auto shrink-0">{cap}</span>
         </div>
@@ -232,7 +232,7 @@ export function BarterRowMobile({ b, pinned: pinnedProp, onTogglePin, onSelectNp
             ) : (
               portrait
             )}
-            <span className="min-w-0 flex-1 break-words">{b.get.replace(/ ×\d+$/, "")}</span>
+            <span className="min-w-0 flex-1 break-words">{displayName(b.get).replace(/ ×\d+$/, "")}</span>
           </div>
           <div className="mt-1 flex flex-wrap gap-1">
             <span
@@ -262,12 +262,12 @@ export function BarterRowMobile({ b, pinned: pinnedProp, onTogglePin, onSelectNp
               className="inline-flex max-w-full items-center gap-0.5 text-left font-medium disabled:cursor-default"
               disabled={!hasBreakdown}
             >
-              <span className="break-words">{b.give}</span>
+              <span className="break-words">{displayName(b.give)}</span>
               {hasBreakdown && (
                 <ChevronDown className={cn("h-3 w-3 shrink-0 transition-transform", open && "rotate-180")} />
               )}
             </button>{" "}
-            → {b.get}
+            → {displayName(b.get)}
           </div>
           {b.note && (
             <p className="text-xs leading-snug text-muted-foreground/80 mt-1.5 italic break-words border-l-2 border-muted pl-1.5">📝 {b.note}</p>

@@ -1,6 +1,6 @@
 import barterJson from "@/data/barter.json";
 import shopsJson from "@/data/shops.json";
-import { parseItemQty } from "@/lib/materials";
+import { displayName, parseItemQty } from "@/lib/materials";
 
 export type DealKind = "shop" | "barter";
 export type CuratedPriority = "must" | "extra" | "once" | "situational";
@@ -228,13 +228,15 @@ export function shopDeals(npcs: ShopNpc[]): ShopDeal[] {
   return npcs.flatMap((npc) => npc.deals).filter((deal) => deal.inShopCatalog);
 }
 
+/** Display strings. Folded to full-width parens for the reader; see
+ *  `displayName` in materials.ts for why this happens here and not upstream. */
 export function costText(deal: ShopDeal): string {
   if (deal.costCurrency === "gold") {
     return deal.costAmount == null ? "價格未填" : `${deal.costAmount.toLocaleString()} 金幣`;
   }
-  return `${deal.costCurrency}${deal.costAmount == null ? "" : ` ×${deal.costAmount.toLocaleString()}`}`;
+  return displayName(`${deal.costCurrency}${deal.costAmount == null ? "" : ` ×${deal.costAmount.toLocaleString()}`}`);
 }
 
 export function getText(deal: ShopDeal): string {
-  return `${deal.name}${deal.outQty > 1 ? ` ×${deal.outQty}` : ""}`;
+  return displayName(`${deal.name}${deal.outQty > 1 ? ` ×${deal.outQty}` : ""}`);
 }

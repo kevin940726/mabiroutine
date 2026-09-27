@@ -9,7 +9,7 @@
 // barter.json order. NPC/town/limit names live only in face tooltips
 // (mobile users know their NPCs).
 import { useMemo } from "react";
-import { assumedPlan, hasBreakdown, parseItemQty } from "@/lib/materials";
+import { assumedPlan, displayName, hasBreakdown, parseItemQty } from "@/lib/materials";
 import { Tooltip } from "@/components/ui/tooltip";
 
 /** No toggle when the breakdown would just echo the give (trivial self-only
@@ -27,7 +27,7 @@ function StatusLine({ name, status }: { name: string; status: string }) {
       : status === "unknown"
         ? `${name}：找不到資料`
         : `${name}：循環引用，停止展開`;
-  return <div className="text-xs text-muted-foreground break-words">{text}</div>;
+  return <div className="text-xs text-muted-foreground break-words">{displayName(text)}</div>;
 }
 
 /** Avatar-as-identity: the face IS the source name. NPC · town · limit live
@@ -88,7 +88,7 @@ export function MaterialBreakdown({ give, bare, times }: { give: string; bare?: 
           {plan.directs.map((d, i) => (
             <span key={d.name} className="text-muted-foreground">
               {i > 0 && " "}
-              {d.name}×{d.qty}
+              {displayName(d.name)}×{d.qty}
             </span>
           ))}
         </div>

@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
 import { CURATED_LABEL, costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
+import { displayName } from "@/lib/materials";
 import barterJson from "@/data/barter.json";
 
 type NpcTab = "gold" | "barter";
@@ -97,7 +98,9 @@ function barterRowToItem(row: BarterJsonRow): MerchantItem {
 }
 
 function rowMatches(item: MerchantItem, query: string) {
-  const q = query.trim().toLocaleLowerCase("zh-Hant");
+  // Folded on both sides so a name pasted from the game (half-width parens,
+  // which is how shops.json spells it) still matches the full-width display.
+  const q = displayName(query.trim()).toLocaleLowerCase("zh-Hant");
   if (!q) return true;
   return `${item.title} ${item.give} ${item.npc} ${item.town} ${item.note ?? ""}`
     .toLocaleLowerCase("zh-Hant")
