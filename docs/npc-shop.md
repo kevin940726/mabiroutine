@@ -224,6 +224,12 @@ Worth keeping, because both were reasoned rather than measured.
    unique on `npc::name`. The short id is now correct on its own terms, and the
    currency segment is gone.
 
+   The data was then unified as well, so the fold is defence rather than a
+   necessity: `shops.json` is the checked record of the game's item text and is
+   unanimously half-width (9 of 9), so the 11 full-width rows in `barter.json`
+   were the drift. Prose parens in a `note` are a different thing and stay
+   full-width.
+
    The lesson worth keeping: I reached for a key that was unique across a
    *narrower* set than the one the key had to cover, and the symptom I found
    (9 collisions) was measured on the right set while the fix was reasoned from

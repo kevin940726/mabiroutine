@@ -64,6 +64,20 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 - `perChar` / `limit` / `rec` / `region` come from notebook/yenyen, not invented. `perChar=false` rows (today 8: 麗莎×3, 阿爾米斯 銀合金錠, 康納 魔力石×2, 安黛莉 聖水×10, 梅文 聖水) share one tracker value across every character (store v16, 伺服器 badge) — checking on any character checks all of them.
 - File order is `TOWN_ORDER` (`src/lib/towns.ts`, game-region order) → npc → `shops.json` items order within one npc (twin-less rows keep a stable tail). Priority is not a file-order key — the tracker lists by town, badges show priority. Same-priority ties in the rank engine resolve to the earliest row, so re-sorting can flip assumed plans — check the probe diff when re-sorting.
 - **Default pins are a hand-owned list:** `src/data/defaultPins.json` (`pins` array of barter ids) — NOT derived from `priority==="must"`. Curate it by hand; when checking sources by hand, watch for must-priority drift the same way. Pinned rows with a `每週` limit render under the 每週以物易物 subsection (weekly bucket, Mon 06:00); either barter subsection hides when its cycle has no pins.
+- **Parenthesis width is not freehand.** `shops.json` is the checked record of
+  the game's own item text, and it is unanimously half-width: all 9 parenthesised
+  names there use `(3級)` and none uses `（3級）`. `barter.json` had drifted to
+  full-width in 11 rows, which is why those blueprint trades never matched their
+  shop row. Its item names are now half-width to match. Two things must not be
+  "fixed" the same way: prose punctuation in a `note` stays full-width, because
+  there the parens wrap a clause rather than a name (dungeon-5's
+  `（凱琳/格莉娜 每週 30 次）` is correct as written), and the 伺服器 marker in
+  `limit` is half-width in all 11 barter rows while `limitText` in
+  `src/lib/shops.ts` *generates* it full-width — a separate pre-existing
+  disagreement in generated text, not an item name. Only one level exists
+  (`3級`, 21 occurrences), so the parens never disambiguate anything. Matching
+  folds the width in `matchKey` regardless, so a future disagreement is harmless
+  rather than silent.
 - **Pins are two id namespaces, one list.** `barterPins` is a `string[]` holding curated `barter.json` ids *and* ids for the `shops.json` gold rows. A curated row pins under its barter id (`ShopDeal.pinId === deal.barterId`); a gold row pins under `shop::<npc>::<name>` (`shopPinId` in `src/lib/shops.ts`). That short id is safe because every barter row in `shops.json` matches a curated entry, so the `shop::` namespace is exactly the 94 gold rows, and those are unique on `npc::name` — measured, 0 collisions. The cost is deliberately absent so a price patch does not orphan a pin. Two shapes would break it and neither exists today: a second gold listing for the same NPC and item, or a barter row that stops matching its curated entry. If either appears, give the shop row an explicit `id` rather than widening the key, because the id is persisted in users' pins. Valid ids for pruning and sanitizing come from one helper, `validPinnableIds` in the store, which unions tracker + barter + custom + `shopPinIds()`; a copy of that set that forgets the shop namespace deletes every gold pin on the next version upgrade. Sync needs no change: `pin:<id>` is already id-agnostic, and a dead `shop::` id adopted from a peer stays until a version bump prunes it, which is how dead barter pins have always behaved.
 
 ## Filtering Rules — manual-only, no fetchers
