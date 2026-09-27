@@ -63,20 +63,25 @@ type CuratedRow = {
 };
 
 /**
- * Pin id for a deal that has no barter.json row, so there is no recipe to put
- * on a daily. Content-derived, and deliberately without the amount: a price
- * change in a game patch must not orphan a pin.
+ * Pin id for a deal with no barter.json row, so there is no recipe to put on a
+ * daily. Content-derived, and deliberately without the cost: a price change in a
+ * game patch must not orphan a pin.
  *
- * The currency segment is what makes it unique. `npc::name` alone is not — 9 of
- * the 192 rows collide on it, four of them across kinds (愛麗沙 sells 麵粉 for
- * both 雞蛋 and 薰衣草花, and four NPCs sell the same name for gold and for
- * materials), and `npc::kind::name` still leaves 5. With the currency all 192
- * are distinct, and currency is the stable half: no barter row spends "gold"
- * and no gold row spends a material, so it is a function of the kind, while
- * the amount is exactly the part a patch rewrites.
+ * Only gold rows reach this now. Every barter row in shops.json matches a
+ * curated entry, so the `shop::` namespace is exactly the 94 gold rows, and those
+ * are unique on `npc::name` — measured, 0 collisions. That is what makes the
+ * short id sufficient, and it is why this does not need a currency segment: a
+ * gold row's currency is always `gold`, so the segment would separate nothing.
+ *
+ * Two shapes would break it, and neither exists today: a second gold listing for
+ * the same NPC and item, or a barter row that stops matching its curated entry
+ * (see the punctuation folding in matchKey, which is what previously caused the
+ * second). If either appears, give the shop row an explicit `id` rather than
+ * widening this key — the id is persisted in users' pins, so changing its shape
+ * orphans saved state.
  */
-export function shopPinId(npc: string, name: string, currency: string): string {
-  return `shop::${npc}::${name}::${currency}`;
+export function shopPinId(npc: string, name: string): string {
+  return `shop::${npc}::${name}`;
 }
 
 let pinIdCache: Set<string> | null = null;
@@ -94,11 +99,11 @@ export function shopDealsByPinId(): Map<string, ShopDeal> {
 }
 
 /**
- * The shop-namespace pin ids: the 102 rows with no barter.json entry, which is
- * what a caller validating a pin id needs. Curated rows are excluded because
- * they pin under their barter.json id, which the barter set already covers.
- * Memoized because the store builds this on every load and on every version
- * upgrade.
+ * The shop-namespace pin ids: the gold rows, which are the only deals with no
+ * barter.json entry, and is what a caller validating a pin id needs. Curated rows
+ * are excluded because they pin under their barter.json id, which the barter set
+ * already covers. Memoized because the store builds this on every load and on
+ * every version upgrade.
  */
 export function shopPinIds(): Set<string> {
   if (!pinIdCache) {
@@ -181,7 +186,7 @@ export function loadShopNpcs(): ShopNpc[] {
         scopeAccount: item.scope === "account",
         inShopCatalog: true,
         barterId: exact?.row.id ?? null,
-        pinId: exact?.row.id ?? shopPinId(npc, item.name, costCurrency),
+        pinId: exact?.row.id ?? shopPinId(npc, item.name),
         priority: exact?.row.priority ?? null,
         note: exact?.row.note ?? null,
         curatedIndex: exact?.index ?? -1,

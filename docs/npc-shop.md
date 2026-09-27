@@ -202,21 +202,32 @@ Still deliberately not done: reminder bells (decision 1) and seeded gold pins
 
 Worth keeping, because both were reasoned rather than measured.
 
-1. **The recommended id `shop::<npc>::<name>` collides.** It was justified by
-   `npc::name` being unique across the gold rows. That is true *within gold* and
-   irrelevant, because the namespace also has to be unique against barter rows.
-   Over all 192 rows `npc::name` collides **9 times**, 4 of them across kinds.
-   Verified examples, from `shops.json`:
-   - cross-kind, the case the currency segment exists for: 基利安 sells 四葉草 for
-     750 gold, and also trades 蒜香橄欖油義大利麵 ×1 for it, yielding 8.
-   - same-kind: 愛麗沙 sells 麵粉 for 雞蛋 ×3 and for 薰衣草花 ×1, and 史帝華
-     sells 未加工黃金原石 for two different catalysts.
+1. **The recommended id `shop::<npc>::<name>` collided — and then it didn't.**
+   It was justified by `npc::name` being unique across the gold rows, which is
+   true but irrelevant on its own, because the namespace also covered barter
+   rows nobody had curated. Over all 192 rows `npc::name` collided **9 times**,
+   4 of them across kinds: 基利安 sells 四葉草 for 750 gold and also trades
+   蒜香橄欖油義大利麵 ×1 for it; 艾琳's 銀合金錠 goes for 特殊鋼錠 ×3 *and*
+   合金鋼錠 ×30; 愛麗沙's 麵粉 goes for 雞蛋 ×3 *and* 薰衣草花 ×1.
 
-   `npc::kind::name` still leaves 5 collisions (all the same-kind ones).
-   `shop::<npc>::<name>::<currency>` gives 192 distinct ids. Currency is the
-   stable half of the key: no barter row spends `gold` and no gold row spends a
-   material, so it is a function of the kind, while the amount is exactly what a
-   patch rewrites. Price changes still do not orphan a pin.
+   The first fix was a fourth `::currency` segment, which made all 192 distinct.
+   That turned out to be treating the symptom. Two measurements collapsed it:
+   in all 4 cross-kind pairs the **barter** side was already curated and it was
+   the **gold** side that was not; and in all 5 barter-vs-barter pairs **both**
+   sides were already curated. So no collision sat between two rows that both
+   needed a `shop::` id.
+
+   The real cause was upstream: 8 blueprint barter rows were failing to match on
+   bracket width alone (`(3級)` vs `（3級）`), which is what left them uncurated
+   in the first place. Folding that in `matchKey` made all 98 barter rows
+   curated, the `shop::` namespace became exactly the 94 gold rows, and those are
+   unique on `npc::name`. The short id is now correct on its own terms, and the
+   currency segment is gone.
+
+   The lesson worth keeping: I reached for a key that was unique across a
+   *narrower* set than the one the key had to cover, and the symptom I found
+   (9 collisions) was measured on the right set while the fix was reasoned from
+   the wrong one. Measure the set the key must span, not the set that is handy.
 2. **Sync adoption does not filter dangling ids.** The plan implied a peer could
    not inject an id for a row that no longer exists. It can: the protocol unions
    every `pin:` key into `barterPins` and has no catalog to check against. A dead

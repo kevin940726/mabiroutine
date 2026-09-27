@@ -621,12 +621,12 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
       characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
       activeCharId: "c1",
       customTasks: [],
-      barterPins: [shopPin as string, "shop::nobody::nothing::gold"],
+      barterPins: [shopPin as string, "shop::nobody::nothing"],
     },
     13
   ) as AnyRec;
   assert((withDeadPin.barterPins as string[]).includes(shopPin as string), "T: live shop pin survives the v14 prune");
-  assert(!(withDeadPin.barterPins as string[]).includes("shop::nobody::nothing::gold"), "T: a shop:: id with no live row is still pruned");
+  assert(!(withDeadPin.barterPins as string[]).includes("shop::nobody::nothing"), "T: a shop:: id with no live row is still pruned");
 }
 
 console.log("\nAll migration fixtures passed.");

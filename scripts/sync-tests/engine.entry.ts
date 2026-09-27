@@ -206,7 +206,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
     [`acc:${ACC_WEEKLY}@${THIS_WEEK}`]: true, // current account-weekly
     "pin:tir-f3": true, // persistent (real barter id — v14 prunes dangling pins)
     [`pin:${SHOP_PIN}`]: true, // a shops.json pin: second id namespace, same key
-    "pin:shop::nobody::nothing::gold": true, // right shape, no live row
+    "pin:shop::nobody::nothing": true, // right shape, no live row
     "char:c1:name": "A",
     "meta:active": "c1",
   };
@@ -226,7 +226,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   // steps' job, and that they do it for shop:: ids is proven by fixture T in
   // migration-check. A dead pin adopted here is inert meanwhile — the tracker
   // resolves it to nothing — which is how a dead barter pin has always behaved.
-  ok("E2 protocol adopts any pin: key", st.barterPins.includes("shop::nobody::nothing::gold"), st.barterPins);
+  ok("E2 protocol adopts any pin: key", st.barterPins.includes("shop::nobody::nothing"), st.barterPins);
 }
 
 // E3: legacy untagged value keys are inert — never adopted, never tombstoned.
