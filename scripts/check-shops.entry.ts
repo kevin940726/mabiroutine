@@ -7,6 +7,7 @@ import barterJson from "@/data/barter.json";
 import recipesJson from "@/data/recipes.json";
 import shopsJson from "@/data/shops.json";
 import { parseItemQty, twinTradeLeg } from "@/lib/materials";
+import { loadShopNpcs, shopDeals } from "@/lib/shops";
 
 type Route = { kind: string };
 const recipes = recipesJson as Record<string, { routes?: Route[] }>;
@@ -177,6 +178,51 @@ for (const r of barterJson as unknown as { id?: string; npc?: string; get?: stri
   if ((r.limit ?? "") !== want) {
     fail(`cap divergence ${r.id ?? "?"}: barter ${JSON.stringify(r.limit)} vs shops twin ${JSON.stringify(twin.limit ?? null)}`);
   }
+}
+
+// 6. every barter row in shops.json must be curated in barter.json. An
+// uncurated one renders as a degraded row: no priority badge, no material
+// breakdown, and it pins under a shop:: id instead of a recipe. This check
+// exists because twin cap parity (check 5) pairs rows by name and is therefore
+// blind to a name mismatch, which is exactly how 精靈的痕跡 / 精靈痕跡 slipped
+// through with the suite green.
+//
+// It deliberately reuses the app's matcher rather than reimplementing the
+// match: a second implementation would drift from src/lib/shops.ts, and drift
+// between the check and the code is the failure being fixed here. The matcher's
+// own behaviour is covered by the migration fixtures instead.
+const ALLOWED_UNCURATED_BARTER: string[] = [
+  // Intentionally uncurated shop barter rows, as "<npc>::<name>". Empty today.
+  // Listing a row here accepts the degraded rendering on purpose; anything not
+  // listed must have a barter.json entry, so an accidental name or quantity
+  // typo fails the gate instead of quietly losing the badge and the breakdown.
+];
+
+// A near miss is a name that shares its first two characters with the shop row,
+// or contains it. Length alone is far too loose for CJK: two unrelated four-char
+// item names differ by zero, so a length rule lists the whole merchant's stock
+// and buries the one entry that was meant.
+const nearMiss = (a: string, b: string): boolean =>
+  a.slice(0, 2) === b.slice(0, 2) || a.includes(b) || b.includes(a);
+
+for (const deal of shopDeals(loadShopNpcs())) {
+  if (deal.kind !== "barter" || deal.barterId) continue;
+  const key = `${deal.npc}::${deal.name}`;
+  if (ALLOWED_UNCURATED_BARTER.includes(key)) continue;
+  // Point at the entry that was probably meant, so the fix is a rename rather
+  // than a search. Same NPC only: a name that matches elsewhere is a different
+  // trade and would be a red herring.
+  const sameNpc = (barterJson as unknown as { npc?: string; get?: string; id?: string }[])
+    .filter((r) => r?.npc === deal.npc && typeof r.get === "string")
+    .map((r) => ({ r, name: parseItemQty(r.get).name }))
+    .filter((c) => nearMiss(c.name, deal.name));
+  const hint = sameNpc.length
+    ? ` — closest curated entr${sameNpc.length > 1 ? "ies" : "y"}: ${sameNpc.map((c) => `${JSON.stringify(c.name)} (${c.r.id})`).join(", ")}`
+    : "";
+  fail(
+    `uncurated barter row ${key}: give ${deal.costCurrency} x${deal.costAmount} yields ${deal.outQty}` +
+      ` has no barter.json entry, so it renders without a priority badge or material breakdown${hint}`
+  );
 }
 
 console.log(bad === 0 ? "ALL SHOPS CHECKS PASSED" : `${bad} FAILURES`);
