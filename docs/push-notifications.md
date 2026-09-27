@@ -41,8 +41,9 @@ lane — no silence cutoff (the card stays truthful until the spawn passes; the
 hole persists, so there is no startle boundary). Since 2026-09-18 the purple
 bell also subscribes a server lane (`lane=purple` rows, same triple opt-in):
 unfiltered zone cards (no D1a linkage — zones, never people), skip-past-spawns
-cutoff, KV fire-once guard, and a variable lead — the first 15-min cron tick
-inside the window (1–15 min; observed 8 min for the 2026-09-19 ~14:38 spawn);
+cutoff, KV fire-once guard, and a near-exact lead — the first 1-min cron tick
+inside the window (14–15 min; under the old 15-min tick it was 1–15 min,
+observed 8 min for the 2026-09-19 ~14:38 spawn);
 visibility split and bell/flag-off parity match
 the hourly lane exactly.
 Permission machinery (soft-ask, coach mark, watcher, denied dialog) is
@@ -195,8 +196,8 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   live in separate store lists with separate card tags because their timing,
   copy, and cutoff rules differ; sharing a list would couple unrelated
   behavior. The permission flow stays shared (one implementation, lane
-  parameter). Server-side, both lanes ride one worker tick (flat 15-min cron
-  + arithmetic covers the irregular purple spawns — no irregular crons), and
+  parameter). Server-side, the purple lane rides a 1-min worker tick
+  (flat cron + arithmetic covers the irregular purple spawns — no irregular crons), and
   the worker imports `src/lib/purpleHole.ts` directly: one math module, two
   runtimes. The purple maintenance watcher, `/purple-schedule` feed, and
   `/admin` page live in the same worker; runbook in `docs/operations.md`

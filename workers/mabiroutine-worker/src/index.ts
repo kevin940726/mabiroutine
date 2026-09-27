@@ -9,7 +9,7 @@
 // or corrupt. The 2x/day watcher fetches the Bahamut maintenance search,
 // regexes scheduled windows into KV candidates — never auto-truth. /admin
 // (bearer ADMIN_SECRET) is the graduation editor: verify/state/publish/
-// promote over the same KV docs. Purple server fanout rides the 15-min tick
+// promote over the same KV docs. Purple server fanout rides the 1-min tick
 // (unfiltered lane=purple subs, skip-past-spawns cutoff).
 //
 // Secrets (wrangler secret put, never committed): VAPID_JWK (app P-256 key,
@@ -990,13 +990,13 @@ $("resumeAuto").onclick=async()=>{const r=await fetch("/admin/api/auto",{method:
 
 const ADMIN_NOINDEX = { "Cache-Control": "no-store" };
 
-// ---- Purple server fanout (15-min tick, unfiltered lane) ----
+// ---- Purple server fanout (1-min tick, unfiltered lane) ----
 //
 // Decided: the purple bell subscribes a server lane like hourly
 // (`lane = "purple"` rows); cards name zones, never people, so no D1a
 // linkage — every sub gets the same card (D1-style, opt-in experimental).
 // Cutoff: skip past spawns only (the hole persists, so no startle boundary
-// like the barrier's :02 guard). Lead: the flat 15-min tick fires exactly
+// like the barrier's :02 guard). Lead: the flat 1-min tick fires exactly
 // one tick per spawn inside (now, now+15min]; a KV fire-once guard covers
 // retries and restarts. Tap deep-links task-only (page resolves like a
 // char-less local card); visibility split needs no new code (shared hidden-
@@ -1094,7 +1094,7 @@ export async function runPurpleFanout(env: Env): Promise<PurpleFanoutReport> {
   // Stamp the fire-once guard only when nothing is retryable: at least one
   // card went out, or every sub was terminally dead (pruned above). A fully
   // transient failure (all status -1) leaves the guard clear so the next
-  // */15 tick retries instead of missing a spawn ~36h out.
+  // */1 tick retries instead of missing a spawn ~36h out.
   if (sent.length > 0 || dead.length === subs.length) {
     await env.PURPLE.put("purple:last-fire", JSON.stringify({ spawnMs: spawn }));
   }
@@ -1280,7 +1280,7 @@ export default {
       }
       return;
     }
-    if (event.cron === "*/15 * * * *") {
+    if (event.cron === "* * * * *") {
       try {
         console.log(`purple fanout ${at}: ${JSON.stringify(await runPurpleFanout(env))}`);
       } catch (e) {

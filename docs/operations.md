@@ -29,7 +29,7 @@ file to update when operations change. Design rationale lives in
 | Cron (UTC) | Taipei | Job | Healthy log line |
 |---|---|---|---|
 | `0 * * * *` | :00 hourly | barrier fanout | `barrier fanout … fanned-out` / `past-cutoff` / `no-subs` |
-| `*/15 * * * *` | :00/:15/:30/:45 | purple tick → fanout when a spawn is within 15 min | `purple fanout … fanned-out` / `no-spawn` / `fired-already` |
+| `* * * * *` | every minute | purple tick → fanout when a spawn is within 15 min | `purple fanout … fanned-out` / `no-spawn` / `fired-already` |
 | `17 3,15 * * *` | 11:17 / 23:17 daily | Bahamut watcher → candidates → auto-apply | `purple watch … {"windows": N, "applied": bool}` |
 
 Cron edits take ~15 min to propagate (CF-documented). Tail with
@@ -89,9 +89,9 @@ confirm the row in Turso (`push_subscriptions` — query via dashboard or the
 
 Bell re-tap signature (server lane): the soft-ask names App-closed delivery
 plus server-data deletion (hourly adds the linkage disclosure; purple states
-no linkage). First purple card lands in the first 15-min tick inside the
-lead window — e.g. spawn 14:38 → card 14:30 reading 預計 8 分鐘後出現
-(never exactly 15: tick granularity, documented).
+no linkage). First purple card lands in the first 1-min tick inside the
+lead window, so 14–15 min before spawn — e.g. under the old 15-min tick,
+spawn 14:38 → card 14:30 reading 預計 8 分鐘後出現.
 
 ## 6. Admin workflows (`/admin`, helpers welcome — the page teaches itself)
 

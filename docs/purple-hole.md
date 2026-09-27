@@ -32,7 +32,7 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 - Row visibility: render-only parking in 已隱藏項目 on off-days (no store writes, out of progress). "Spawn day" = 06:00 daily bucket (decided 09-17: the row showing through 09-17 for the 09-18 02:23 spawn is correct — it doubles as heads-up; calendar-day and hours-before variants rejected).
 - Row times: absolute `MM/DD HH:mm` plain text under the title (no 昨日/明日 — lies across midnight); stale spawn shows `已過` + `下次` pair.
 - Timetable: click-toggle calendar popover, past 2 + next 3, frozen at open, follows page scroll. No dialog.
-- Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), local page-timer fires exactly 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 XX 分鐘後出現。` (live minutes: 15 on schedule, fewer on catch-up; no character names — deliberate, decided 09-17, tested end-to-end). Server-lane (closed-app) lead is variable by design: first 15-min cron tick inside the window, so 1–15 min — proven 2026-09-19 with an 8-min card for the ~14:38 spawn.
+- Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), local page-timer fires exactly 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 XX 分鐘後出現。` (live minutes: 15 on schedule, fewer on catch-up; no character names — deliberate, decided 09-17, tested end-to-end). Server-lane (closed-app) lead is near-exact by design: first 1-min cron tick inside the window, so 14–15 min (was 1–15 min on the 15-min tick — the 8-min card for the ~14:38 spawn on 2026-09-19 was that old design working).
 - Maintenance feed + no-commit timetable updates: shipped (phase 2 + 3B) — runbook in `docs/operations.md`.
 - Same local-only rules as the hourly lane: never synced, never sent anywhere, page-open-only.
 
@@ -46,7 +46,7 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
   GNN news pages are fully readable (second source). Routine maintenance is
   Wednesday mornings; same-day emergencies go through a code edit + push like
   all TW data.
-- Cadence locked 2026-09-17: 15-min tick + 15-min lead. The hole despawns
+- Cadence locked 2026-09-17: 15-min lead; server tick later tightened from 15-min to 1-min (worst-case lead 1 min → 14 min). The hole despawns
   ~13 min after spawn, which bounds *lateness*, not lead; early is cheap
   (wait), late is fatal (miss). Revisit only on evidence.
 - Extension gotcha (proven 9/16: announced 06:00–08:30, actually ended
