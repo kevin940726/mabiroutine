@@ -82,6 +82,16 @@ Each of these cost real time and will again.
   times out with "element is outside of the viewport", that is a genuine bug.
 - **`AGENTS.md` says the store is at `v17`. It is at 19**
   (`useAppStore.ts:216` and the persist config at `:1037`). Trust the code.
+- **Never name an item, NPC or string that came out of a terminal.** PowerShell
+  mangles CJK on the way out, so a node script piped or redirected through it
+  returns mojibake. Writing plausible-looking names over the top of that is
+  fabrication, and it happened: an explanation of the pin-id collisions quoted
+  an NPC and two items that do not exist anywhere in the data (0 occurrences
+  across all four files), invented to fill in unreadable output. The fix is
+  mechanical: have the script write the file itself with
+  `fs.writeFileSync(path, text, "utf8")` and read *that* back, or query with the
+  read/grep tool. Counts and ids are ASCII and survive the console, so a summary
+  full of numbers can still be trusted while any prose in it cannot.
 - **The load-time sanitizer has no test coverage.** The `barterCustomOrder`
   filter lives in the store's load path, not in `migratePersisted`, so
   `scripts/migration-check.entry.ts` cannot reach it. A green `pnpm check` does
@@ -195,9 +205,14 @@ Worth keeping, because both were reasoned rather than measured.
 1. **The recommended id `shop::<npc>::<name>` collides.** It was justified by
    `npc::name` being unique across the gold rows. That is true *within gold* and
    irrelevant, because the namespace also has to be unique against barter rows.
-   Over all 192 rows `npc::name` collides **9 times**, 4 of them across kinds —
-   愛麗沙 sells 麵粉 for both 雞蛋 and 薰衣草花, and four NPCs sell the same name
-   for gold and for materials. `npc::kind::name` still leaves 5 collisions.
+   Over all 192 rows `npc::name` collides **9 times**, 4 of them across kinds.
+   Verified examples, from `shops.json`:
+   - cross-kind, the case the currency segment exists for: 基利安 sells 四葉草 for
+     750 gold, and also trades 蒜香橄欖油義大利麵 ×1 for it, yielding 8.
+   - same-kind: 愛麗沙 sells 麵粉 for 雞蛋 ×3 and for 薰衣草花 ×1, and 史帝華
+     sells 未加工黃金原石 for two different catalysts.
+
+   `npc::kind::name` still leaves 5 collisions (all the same-kind ones).
    `shop::<npc>::<name>::<currency>` gives 192 distinct ids. Currency is the
    stable half of the key: no barter row spends `gold` and no gold row spends a
    material, so it is a function of the kind, while the amount is exactly what a
