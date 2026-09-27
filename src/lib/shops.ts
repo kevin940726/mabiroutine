@@ -80,6 +80,18 @@ export function shopPinId(npc: string, name: string, currency: string): string {
 }
 
 let pinIdCache: Set<string> | null = null;
+let byPinCache: Map<string, ShopDeal> | null = null;
+
+/**
+ * Every deal keyed by the id a pin on it uses, so a pin id resolves to its row
+ * without re-deriving the match. Covers both namespaces: a curated deal is
+ * keyed by its barter.json id, an uncurated one by its shop:: id. Memoized —
+ * the store, the tracker and the panel all read it.
+ */
+export function shopDealsByPinId(): Map<string, ShopDeal> {
+  if (!byPinCache) byPinCache = new Map(shopDeals(loadShopNpcs()).map((d) => [d.pinId, d]));
+  return byPinCache;
+}
 
 /**
  * The shop-namespace pin ids: the 102 rows with no barter.json entry, which is

@@ -361,6 +361,10 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
 
   const isCustom = task.source === "custom";
   const isBarter = task.source === "barter";
+  const isShop = task.source === "shop";
+  // Both are NPC trades: portrait, town, limit counter. They differ in what the
+  // body can say — a barter row has a give → get chain, a shop row has a price.
+  const isTrade = isBarter || isShop;
   // Event-reminder bell: only eligible tasks (today just 不祥的召喚結界).
   const reminderEligible = isEligibleReminderId(task.id);
   // Purple lane (timetable + 15-min-early bell): purple-hole only, on spawn
@@ -370,28 +374,32 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
   const [npcImgError, setNpcImgError] = useState(false);
-  const showNpc = isBarter && task.npc && !npcImgError;
+  const showNpc = isTrade && task.npc && !npcImgError;
   const getRes = isBarter ? (task.barterMeta?.get ?? "").replace(/ ×\d+$/, "") : "";
+  // A barter row hides the yield in the title because the hover card spells out
+  // "give → get". A shop row has no such card, so the quantity stays visible.
+  const tradeTitle = isBarter ? getRes : task.name;
 
   // two-line row, no ellipsis: title line (name only, ⋯/👁 top-right) +
   // badge line (always its own line so long names never orphan) + body line
   // (desc block with 44px tile vertically centered). Right column is w-11.
-  const badges = isBarter
-    ? (<>
-      {task.priority === "must" && (
+  const badges = isTrade ? (
+    <>
+      {isBarter && task.priority === "must" && (
         <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必換</span>
       )}
       {task.serverShared === true && (
         <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">伺服器</span>
       )}
-    </>)
-    : (<>
+    </>
+    ) : (
+    <>
       {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必做</span>}
       {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">自訂</span>}
-      {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">{task.town}</span>}
-    </>);
+    </>
+    );
 
-  const title = isBarter ? (
+  const title = isTrade ? (
     <div>
       <div className="flex items-center gap-1.5 text-sm font-bold text-primary">
         {showNpc ? (
@@ -406,7 +414,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         ) : (
           <span className="shrink-0" aria-hidden>{task.icon}</span>
         )}
-        <span className={cn("min-w-0 flex-1 break-words")}>{getRes}</span>
+        <span className={cn("min-w-0 flex-1 break-words")}>{tradeTitle}</span>
         {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
       </div>
       {(task.priority === "must" || task.serverShared === true) && <div className="mt-1 flex flex-wrap gap-1">{badges}</div>}
@@ -425,7 +433,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
           <SchedulePopover taskName={task.name} />
         </div>
       )}
-      {(task.priority === "must" || task.source === "custom" || isBarter) && (
+      {(task.priority === "must" || task.source === "custom") && (
         <div className="mt-1 flex flex-wrap gap-1">{badges}</div>
       )}
     </div>
@@ -442,6 +450,15 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
           get={task.barterMeta?.get ?? ""}
           times={barterTimes(task)}
         />
+      </div>
+      {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
+    </div>
+  ) : isShop ? (
+    // No MaterialHoverCard here on purpose: a gold purchase has no material
+    // chain to trace, so the row states the price and the limit instead.
+    <div className="min-w-0 flex-1">
+      <div className="text-xs text-muted-foreground break-words">
+        {task.npc} · {task.town} · {task.shopMeta?.cost} · {task.shopMeta?.limit}
       </div>
       {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
     </div>
@@ -641,9 +658,12 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
   const isDone = isCheck ? checked : count >= (task.max ?? 0) && (task.max ?? 0) > 0;
 
   const isBarter = task.source === "barter";
+  const isShop = task.source === "shop";
+  const isTrade = isBarter || isShop;
   const [npcImgError, setNpcImgError] = useState(false);
-  const showNpc = isBarter && task.npc && !npcImgError;
+  const showNpc = isTrade && task.npc && !npcImgError;
   const getRes = isBarter ? (task.barterMeta?.get ?? "").replace(/ ×\d+$/, "") : "";
+  const tradeTitle = isBarter ? getRes : task.name;
   return (
     <div
       ref={setNodeRef}
@@ -705,29 +725,37 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           </span>
         )}
       </div>
-      {isBarter ? (
+      {isTrade ? (
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className={cn("text-sm font-bold text-primary truncate")}>{getRes}</span>
+            <span className={cn("text-sm font-bold text-primary truncate")}>{tradeTitle}</span>
             {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
-            {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
+            {isBarter && task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
             {task.serverShared === true && <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] shrink-0">伺服器</span>}
             <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
               <span className="font-medium truncate">{task.npc}</span>
               <span className="text-muted-foreground truncate">· {task.town}</span>
             </span>
           </div>
-          <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
-            <span className="truncate">
-              <MaterialHoverCard
-                give={task.barterMeta?.give ?? ""}
-                get={task.barterMeta?.get ?? ""}
-                compact
-                times={barterTimes(task)}
-              />
-            </span>
-            <span className="ml-auto shrink-0">{task.barterMeta?.limit}</span>
-          </div>
+          {isBarter ? (
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
+              <span className="truncate">
+                <MaterialHoverCard
+                  give={task.barterMeta?.give ?? ""}
+                  get={task.barterMeta?.get ?? ""}
+                  compact
+                  times={barterTimes(task)}
+                />
+              </span>
+              <span className="ml-auto shrink-0">{task.barterMeta?.limit}</span>
+            </div>
+          ) : (
+            // No hover card: a purchase has no material chain to trace.
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
+              <span className="truncate">{task.shopMeta?.cost}</span>
+              <span className="ml-auto shrink-0">{task.shopMeta?.limit}</span>
+            </div>
+          )}
           {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic line-clamp-1">📝 {task.notes}</p>}
         </div>
       ) : (
@@ -738,7 +766,6 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
-          {isBarter && <span className="rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 px-1.5 py-0.5 text-[10px]">{task.town}</span>}
         </div>
         {scheduleEligible && (
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2">

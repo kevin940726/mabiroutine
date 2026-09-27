@@ -4,7 +4,7 @@ import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
 import type { AppState, BarterFilters, Character, Task, BarterPriority } from "@/lib/types";
-import { loadShopNpcs, shopDeals, shopPinIds, costText, getText, type ShopDeal } from "@/lib/shops";
+import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, costText, getText, type ShopDeal } from "@/lib/shops";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 import { cycleBucketFor, isWeeklyTask, isWeeklyLimit } from "@/lib/cycle";
 import { flushStorage, idleStorage } from "@/lib/storage";
@@ -148,7 +148,7 @@ export function isServerSharedBarterId(id: string): boolean {
 // barterJson.find() silently skipped the shop half — including 清除本區, which
 // is why a gold counter would never have been clearable. Deal data is resolved
 // once here instead of at each of those call sites.
-const SHOP_DEALS_BY_PIN = new Map(shopDeals(loadShopNpcs()).map((d) => [d.pinId, d]));
+const SHOP_DEALS_BY_PIN = shopDealsByPinId();
 
 /** Reset cycle of a pinned row, from either namespace. */
 export function pinCycleOf(id: string): "daily" | "weekly" | null {
