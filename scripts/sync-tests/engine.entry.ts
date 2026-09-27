@@ -26,6 +26,12 @@ import {
 } from "@/sync/session";
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
 import { GC_DAYS } from "@/lib/cycle";
+import { loadShopNpcs, shopDeals } from "@/lib/shops";
+
+// A real shops.json pin id, so the adoption test proves the second namespace
+// survives sync rather than assuming it. Recomputed from the catalog so it
+// tracks the data instead of going stale in a fixture.
+const SHOP_PIN = shopDeals(loadShopNpcs()).find((d) => !d.barterId && d.limitText !== null)?.pinId ?? "";
 
 class MemStorage {
   private m = new Map<string, string>();
@@ -199,6 +205,8 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
     [`v:c1:${WEEKLY}@${THIS_WEEK}`]: 3, // current week
     [`acc:${ACC_WEEKLY}@${THIS_WEEK}`]: true, // current account-weekly
     "pin:tir-f3": true, // persistent (real barter id — v14 prunes dangling pins)
+    [`pin:${SHOP_PIN}`]: true, // a shops.json pin: second id namespace, same key
+    "pin:shop::nobody::nothing::gold": true, // right shape, no live row
     "char:c1:name": "A",
     "meta:active": "c1",
   };
@@ -211,6 +219,14 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E2 provenance recorded", st.taskBuckets[DAILY_CHECK] === TODAY && st.taskBuckets[WEEKLY] === THIS_WEEK, st.taskBuckets);
   ok("E2 expired bucket filtered", !(`${OLD}` in st.taskBuckets) && tv[DAILY_CHECK] === true);
   ok("E2 adopts persistent pin", st.barterPins.includes("tir-f3"));
+  ok("E2 adopts a shops.json pin", st.barterPins.includes(SHOP_PIN), st.barterPins);
+  // Adoption is namespace-agnostic on purpose: the protocol unions every pin:
+  // key into barterPins and cannot know which rows are alive, because the
+  // catalog is not in a peer's payload. Dropping dangling ids is the migrate
+  // steps' job, and that they do it for shop:: ids is proven by fixture T in
+  // migration-check. A dead pin adopted here is inert meanwhile — the tracker
+  // resolves it to nothing — which is how a dead barter pin has always behaved.
+  ok("E2 protocol adopts any pin: key", st.barterPins.includes("shop::nobody::nothing::gold"), st.barterPins);
 }
 
 // E3: legacy untagged value keys are inert — never adopted, never tombstoned.

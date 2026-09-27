@@ -27,10 +27,11 @@ handled for you.
   merchant's stock split into 金幣 and 以物易物 tabs. Curated trades lead in their
   hand-written must/extra/once/situational order, gold purchases last. Search by
   what you have or what you need, and tap any NPC portrait to jump to that shop.
-  Pin the good ones and they show up in your dailies. Tap what you hand over to
-  see the base materials squashed to a shopping list (which store, which NPC,
-  weekly limits). Pinned rows show the same list from a hover card that never
-  moves the checklist.
+  Pin the good ones — gold purchases included — and they show up in your dailies,
+  each with what it costs and how many times you can buy it. Tap what you hand
+  over to see the base materials squashed to a shopping list (which store, which
+  NPC, weekly limits). Pinned barter rows show the same list from a hover card
+  that never moves the checklist.
 - ✏️ **Make it yours.** Custom tasks, drag-to-reorder everything, hide what you
   never do, dark mode.
 - 🔗 **Optional sync across devices.** No account, no password — one link joins

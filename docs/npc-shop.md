@@ -34,16 +34,18 @@ Committed, oldest first:
 
 ### What is next, in order
 
+**The gold-pin work is done.** All 192 rows are pinnable, a gold pin shows on the
+dailies with its cost and limit, and it syncs. Section 2 records what shipped,
+the two premises in this ledger that turned out to be wrong, and the id
+namespace rules for whoever adds a third one.
+
+Nothing is queued. If you want more from this branch, the candidates are in
+section 3, and the deliberate "no" answers are in section 2 under "Open
+questions — answered" — reminder bells and seeded gold pins were both declined,
+with reasons, so do not re-open them without new information.
+
 1. **Rebase onto `main`** when the user asks for it. Not before.
-2. **Phase A of section 2**: the `shop::<npc>::<name>` pin id, `shopMeta` on
-   `Task`, `shopDealToTask`, the shared `valid` helper, mixed drag order. No
-   UI in this phase; it exists to prove the id space and the ordering survive a
-   load.
-3. **Phase B**: resolve pins from both sources in `TrackerSection`, render a
-   shop pin as a tracker row without the material-breakdown hover card.
-4. **Phase C**: put the pin button back on the 102 rows that cannot be pinned
-   today.
-5. **Phase D**: sync case, `docs/tracker-data.md` correction, changelog.
+2. Ship it. The remaining work before this reaches users is a rebase, not code.
 
 Deliberately **not** doing, and why:
 
@@ -154,9 +156,10 @@ Layout rules that survived, each one a deliberate call:
   tracker renders it, survives a tab switch and a reload.
 - **The 已選 count is the tracker's count**, so it opens at the seeded default
   pins (9) rather than 0. Intended, but visible.
-- **90 of 192 rows are pinnable.** See section 2.
-- **Deliberately not built:** item icons (see section 0), a version bump (see
-  section 2), removal of `barterFilters` (see section 0).
+- **All 192 rows are pinnable.** Curated barter rows pin under their
+  `barter.json` id; the other 102 pin under a `shop::` id. See section 2.
+- **Deliberately not built:** item icons (see section 0), reminder bells and
+  seeded gold pins (see section 2), removal of `barterFilters` (see section 0).
 
 ### Verified
 
@@ -170,119 +173,89 @@ narrower than its trigger.
 
 ---
 
-## 2. Open work: pinning gold-only purchases
+## 2. Gold pins: shipped
 
-### Why
+Pinning gold-only purchases is **built and merged into this branch**. All 192
+rows are pinnable. Phases A to D each landed as their own commit, in this order:
 
-Some materials are only obtainable by spending gold in a shop. With pins
-limited to `barter.json` ids, those materials cannot go on the dailies at all,
-which is the one thing the tracker is for.
+| Phase | Commit | What |
+|---|---|---|
+| A: ids and model | `Give shops.json rows a pin id, and the store a shared valid set` | `shopPinId`, `ShopDeal.pinId`, `TaskSource` += shop, `shopMeta`, `validPinnableIds`, `shopDealToTask`, mixed ordering, widened load filter |
+| B: tracker rows | `Render a pinned shop purchase on the dailies` | `TrackerSection` resolves both namespaces, `TaskRow` grows a shop case |
+| C: panel affordance | `Put the pin button back on the 102 rows that had none` | `GoldPinButton` on tiles, shared `BarterPinButton` on uncurated rows, `已選交易` matches on `pinId` |
+| D: sync and docs | `Sync a shops.json pin, and say so in the docs` | E2 adoption case, `docs/tracker-data.md`, both READMEs |
 
-### Constraints, with evidence
+Still deliberately not done: reminder bells (decision 1) and seeded gold pins
+(decision 2), both for the reasons recorded under "Open questions — answered".
 
-1. **`barterPins` is an id list, and every consumer assumes barter ids.**
-   `TrackerSection.tsx:139-149` maps each id through
-   `barterJson.find(x => x.id === id)` and drops the ones that miss, so a pin
-   with no `barter.json` row renders nowhere.
-2. **`barterToTask` needs a `BarterJsonItem`** (`useAppStore.ts:164-189`): give,
-   get, gatherSkill, limit, perChar, priority. A gold deal has none of that
-   shape, so there is no conversion to reuse.
-3. **Migration prune steps would delete the new ids.** Each version step
-   rebuilds `valid` from tracker + barter + custom ids and prunes
-   `barterPins` against it (`useAppStore.ts:416-430`, `554-568`, `612-631`).
-   The v4 to v5 step additionally reseeds to the must defaults when it sees
-   unknown ids (`:397-409`). A user migrating from an older version after this
-   feature ships would silently lose their gold pins.
-4. **The drag order is filtered at load.** `barterCustomOrder` keeps only ids
-   that are both in `barter.json` and currently pinned (`:309-311`), so shop
-   ids would drop out of the custom order on every load. `barterPins` itself
-   passes through unfiltered (`:322`).
-5. **Ordering is barter-file-based.** `canonicalBarterOrder` sorts by
-   `BARTER_FILE_INDEX` with unknown ids sinking last (`:150-154`); the explorer
-   mirrors it with priority then town then file index.
-6. **Reminders are barter-only.** `useHourlyReminders.ts:32-37` builds a task
-   map from barter rows and silently skips anything else, so a gold pin would
-   get no hourly bell.
-7. **Sync is already id-agnostic.** `flat.ts:64` writes `pin:<id>` and the
-   merge (`:394-402`) unions every `pin:` key into `barterPins`. A new id space
-   syncs for free. No `sync/session.ts` allowlist change is needed because the
-   list is the same field.
+### Two premises in this ledger were wrong, and the data said so
 
-### The one good piece of news
+Worth keeping, because both were reasoned rather than measured.
 
-Gold rows need a stable, content-derived id, and the obvious candidates are
-collision-free today: across all 94 gold rows, `npc::name` is unique (0
-collisions), as is `npc::name::outQty` and the full cost tuple. No gold row has
-a null price. The barter rows *do* collide on `npc::name` (愛麗沙 sells 麵粉
-twice, for 雞蛋 and for 薰衣草花), which is irrelevant because barter rows
-already carry a `barter.json` id.
+1. **The recommended id `shop::<npc>::<name>` collides.** It was justified by
+   `npc::name` being unique across the gold rows. That is true *within gold* and
+   irrelevant, because the namespace also has to be unique against barter rows.
+   Over all 192 rows `npc::name` collides **9 times**, 4 of them across kinds —
+   愛麗沙 sells 麵粉 for both 雞蛋 and 薰衣草花, and four NPCs sell the same name
+   for gold and for materials. `npc::kind::name` still leaves 5 collisions.
+   `shop::<npc>::<name>::<currency>` gives 192 distinct ids. Currency is the
+   stable half of the key: no barter row spends `gold` and no gold row spends a
+   material, so it is a function of the kind, while the amount is exactly what a
+   patch rewrites. Price changes still do not orphan a pin.
+2. **Sync adoption does not filter dangling ids.** The plan implied a peer could
+   not inject an id for a row that no longer exists. It can: the protocol unions
+   every `pin:` key into `barterPins` and has no catalog to check against. A dead
+   `shop::` id survives until a version bump prunes it, which is exactly how a
+   dead barter pin has always behaved. Proven by the E2 case and by fixture T.
 
-**Recommended id: `shop::<npc>::<name>`.** No index, no cost, no quantity, so a
-price change in a game patch keeps the pin alive. Documented limit: if a future
-`shops.json` ever lists the same item twice for one NPC, the id collides and the
-schema needs an explicit `id`. That has not happened in 94 gold rows.
+### Two things the work list missed, found while building
 
-### Work list
+- **清除本區** resolved pins through `barterJson.find` and skipped anything
+  else, so a gold counter would never have been clearable. `pinCycleOf` and
+  `isServerSharedPinId` now resolve both namespaces.
+- **The load-time `barterCustomOrder` filter** was barter-only, so a shop pin
+  would have dropped out of the drag order on every load. Widened to the shared
+  set. This is the change the ledger had flagged as having no automated
+  coverage, and it still does not: `normalizePersisted` is not exported, so
+  `migration-check` cannot reach it. The migrate-step prune *is* covered, by
+  fixture T.
 
-Ordered so each step is verifiable on its own.
+### Id namespace, for whoever edits this next
 
-1. **`src/lib/shops.ts`**: emit a `pinId` per deal (`deal.barterId ?? shopPinId`),
-   where `shopPinId = "shop::" + npc + "::" + name`. Keep it next to the deal so
-   there is one place that knows how a deal is identified.
-2. **`src/lib/types.ts`**: add `"shop"` to `TaskSource`, and a
-   `shopMeta?: { cost: string; costCurrency: string; outQty: number; npc: string; town: string; limit?: string }`
-   beside `barterMeta`. Reuse `town`, `npc`, `priority`, `serverShared`, `order`.
-3. **`src/store/useAppStore.ts`**
-   - Extract the repeated `valid` set into one helper
-     (`trackerIds ∪ barterIds ∪ customIds ∪ shopPinIds`) and use it in the load
-     sanitizer and every prune step. This removes the trap described above and
-     four copies of the same literal.
-   - `shopDealToTask(deal)` next to `barterToTask` (`:164`): daily or weekly
-     from the limit, `check` or `counter` from the count, `serverShared` from
-     `scopeAccount`, `order` matching the barter convention (daily 80, weekly
-     150) so pins interleave predictably.
-   - `canonicalBarterOrder` (`:150`): keep barter ids in file order, then append
-     shop ids in `shops.json` order. Both sinkers currently go to the end, so
-     today a shop id would already land last, but by accident rather than by
-     rule, and a *barter* id missing from the file index would interleave with
-     them.
-   - `reorderBarterPins` / `barterCustomOrder`: widen the load-time filter
-     (`:309-311`) to the same valid set so a mixed drag order survives, and keep
-     new pins appending at the end of a user's order. This is the one that makes
-   decision 3 real.
-4. **No store version bump.** See "No version bump is needed" above. Nothing here
-   changes the persisted shape, and the branch plus the gold shop are both
-   unreleased, so no user can hold a gold pin yet.
-5. **`src/components/TrackerSection.tsx`**: resolve pins from both sources
-   (`:139-149`) and keep the daily/weekly split that already exists.
-6. **`src/components/TaskRow.tsx`**: `isBarter` is checked in five places
-   (`:363`, `:373-374`, `:379-391`, `:394`, `:428`). A shop pin needs the title,
-   town badge, NPC portrait and limit counter, but **no** `MaterialBreakdown`
-   hover card, because a gold purchase has no material chain. Decide whether to
-   widen `isBarter` or add an `isShop` branch; widening is fewer edits but
-   couples shop rows to barter-only affordances.
-7. **`src/components/MerchantPanel.tsx`**: restore a pin button on the 102
-   currently unpinnable rows. Gold tiles get the compact icon pin back; uncurated
-   barter rows get the shared `BarterPinButton`. Both write through
-   `toggleBarterPin(pinId)`. Unpinning a curated row stays on `barterId`, so the
-   panel and the tracker never disagree about the same trade.
-8. **Reminders: deliberately untouched** (decision 1). `useHourlyReminders.ts:32-37`
-   skips ids it cannot resolve, so a gold pin simply never gets a bell. No code
-   change; do not "fix" it later without revisiting decision 1.
-9. **Sync**: nothing to do (constraint 7). Verify with a `test:sync` case that a
-   `pin:shop::` key merges into `barterPins` and survives the round trip.
-10. **Fixtures and tests**
-    - `pnpm check` must be green. `test:shops` is unaffected: no data file
-      changes.
-    - No migration fixture, because no migrate step is added.
-    - The one uncovered path is the load-time `barterCustomOrder` filter; see the
-      note above. A `test:sync` pin case plus manual reload-and-reorder is the
-      practical coverage.
-11. **Docs**: `docs/tracker-data.md:66` says the store sanitizes pins against
-    `barter.json` ids. That sentence becomes false and must be rewritten in the
-    same commit, per the `AGENTS.md` docs rule. `CHANGELOG.md` gets a Features
-    bullet. Both READMEs say pinning feeds the dailies, which becomes true for
-    gold too, so they need a re-read rather than an edit.
+`barterPins: string[]` holds both `barter.json` ids and `shop::` ids. Valid ids
+come from one helper, `validPinnableIds` in the store, which unions tracker +
+barter + custom + `shopPinIds()`. Every prune step calls it. **If you add a
+third id space, that helper is the only place that learns about it** — a step
+that rebuilds the set by hand is how every gold pin gets deleted on the next
+version upgrade. The v5 step is the one deliberate exception: it treats an
+unknown id as corruption and reseeds, so it stays barter-only.
+
+`ShopDeal.pinId` is the single place a deal's pin identity is decided, and
+`MerchantItem.pinId` carries it into the panel. Do not reuse `MerchantItem.key`
+for this: it includes the row's index within its NPC and is not a stable id.
+
+### Tradeoffs taken, so they are not mistaken for oversights
+
+- A gold tile's pin target is `size-6`, against the row button's 44px. Keeping
+  the grid dense won; the emerald fill matches the row buttons so the action
+  still reads as one thing.
+- A shop row keeps its yield in the title ("紙 ×5") where a barter row strips it,
+  because the barter hover card spells out the full exchange and a shop row has
+  no such card.
+- Shop pins carry no 必換 badge. Uncurated barter rows also pin under a `shop::`
+  id and have no priority, so they would never show one.
+- Ordering is barter.json file order, then shops.json order, both spaces sinking
+  unknown ids to the end so a stale id cannot displace a real one. That is
+  decision 3, and it is why the load-time order filter is load-bearing.
+
+### Verified
+
+`pnpm check` green. 19 migration fixtures including T. E2 proves a real `shop::`
+id is adopted from a peer and a fabricated one is accepted by the protocol.
+In-browser at 1440px: 14 gold tiles and 14 pin buttons on 康納, 已選 9 to 10 on
+pin, the row appears in 已選交易, the tracker shows it under 以物易物已釘選 sorted
+after the barter pins reading "50 金幣 · 不限次數" with no material card, and it
+survives a reload. No console errors.
 
 ### Open questions — answered
 
@@ -301,11 +274,11 @@ Decided by the user 2026-09-27:
 4. **Account-scoped gold rows: yes.** `scope: account` mirrors barter's
    `perChar: false`, keeping value and hide state in the account scope.
 
-### No version bump is needed
+### No version bump was needed, and that is load-bearing
 
-The whole branch is unreleased, and the gold shop is unreleased too, so no user
-can hold a gold pin yet. Checking the store's own trigger for a bump (a changed
-persisted shape: new, renamed or removed field, or removed row ids):
+The whole branch is unreleased and the gold shop is unreleased too, so no user
+could hold a gold pin when this landed. Against the store's own trigger for a
+bump (a changed persisted shape):
 
 - `barterPins` stays `string[]`; only its *values* widen. No shape change.
 - `barterCustomOrder` stays `string[] | null`. No shape change.
@@ -313,35 +286,11 @@ persisted shape: new, renamed or removed field, or removed row ids):
   custom tasks, and `TaskSource` merely gains a member. Neither appears in the
   persisted state object.
 
-So the bump collapses to nothing, and the 19 to 20 step with its no-op migrate
-block is dropped. Two consequences worth keeping:
-
-- **No migration fixture is required**, because no migrate step is added. That
-  is a deliberate consequence of the no-gold-pins-yet state, not an oversight.
-  If this ever ships after users can hold gold pins, both the bump and a fixture
-  come back.
-- **The shared `valid` helper is still worth doing.** It is not needed for
-  correctness today (old prune steps cannot delete pins that cannot exist yet),
-  but leaving three barter-only prune steps in the tree means the next version
-  bump inherits a trap, and anyone restoring an old backup walks into it.
-
-One gap no test covers: the load-time sanitizer that filters `barterCustomOrder`
-is in the store's load path, not in `migratePersisted`, so
-`scripts/migration-check.entry.ts` cannot exercise it. Widening that filter is
-the one change here with no automated coverage. Worth a note in the commit body
-rather than pretending `pnpm check` proves it.
-
-### Phasing
-
-- **Phase A, ids and model**: steps 1-3. No UI. Proves the id space and the
-  mixed drag order survive a load, which is the risky part.
-- **Phase B, tracker rows**: steps 5-6. A shop pin renders in the dailies.
-- **Phase C, panel affordance**: step 7. The button comes back on 102 rows.
-- **Phase D**: steps 9-11, sync case, docs, changelog.
-
-Each phase is its own commit with its own changelog entry, and each ends with
-`pnpm check` green. No phase contains a version bump, so none of them can strand
-a user mid-migration.
+So the 19 to 20 step collapsed to nothing, and no migration fixture is required
+for a migrate step. **This stops being true the moment the branch ships.** If
+gold pins ever ship to users and the persisted shape then changes, both the bump
+and a fixture come back — and the prune steps must already be calling
+`validPinnableIds` by then, which they now are.
 
 ---
 
@@ -393,5 +342,6 @@ Measured, not assumed. Re-run the counts if `shops.json` or `barter.json` change
   17 curated must/extra rows have no `shops.json` entry and are added as
   `curated-only::` rows, excluded from the 192.
 - All 94 gold rows are unique on `npc::name`; none has a null price.
-- Pin counts as shipped: 90 pinnable, 102 not (94 gold + 8 uncurated barter).
+- Pin counts as shipped: **all 192 pinnable** — 90 under a `barter.json` id,
+  102 (94 gold + 8 uncurated barter) under a `shop::` id.
 
