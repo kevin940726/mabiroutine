@@ -276,9 +276,14 @@ a user mid-migration.
    the town back to 全部城鎮, an unknown name is ignored and falls back to 全部商店
    with all 192 rows rather than blanking, and the param survives a tab round
    trip, which is the point of a shareable link. Nothing to fix.
-3. **NPC faces at 20px in the dropdown** are hard to tell apart for some
-   portraits. The fix is grouping the list by town with the town as a section
-   header, which also shortens the scroll.
+3. **NPC faces and the 36-item list: done.** The NPC dropdown is grouped under
+   town headings in `TOWN_ORDER` and the popup is now at least as wide as the
+   trigger that opened it. The original note here blamed the 20px portraits, and
+   that was wrong: inspected at 2x, most faces are distinguishable and only a
+   few pairs are close. The real cost was 36 rows in one flat scroll that was
+   *already* town-ordered while showing nothing about it. Grouping surfaced the
+   ordering that was there and cut the scan. If the faces still read poorly in
+   person, `size-6` is the cheap follow-up, not the fix.
 4. **Gold tiles dropped the limit line** when the kind badges were removed. It is
    back on line 3, but the tile no longer shows which NPC it belongs to, because
    the grid is only used inside a selected merchant. Correct as-is; noting it in

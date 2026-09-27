@@ -392,7 +392,9 @@ export function MerchantPanel() {
             onChange={selectNpc}
             options={[
               { value: "all", label: "全部 NPC", icon: <span className="grid size-5 shrink-0 place-items-center rounded-full border bg-muted"><Store className="size-3" /></span> },
-              ...groups.map((group) => ({ value: group.name, label: group.name, icon: <NpcFace npc={group.name} size="size-5" /> })),
+              // grouped by town: the list is already town-ordered, so headings
+              // make that visible instead of leaving 36 rows to scan
+              ...groups.map((group) => ({ value: group.name, label: group.name, group: group.town, icon: <NpcFace npc={group.name} size="size-5" /> })),
             ]}
             triggerClassName={cn("w-full", merchant !== "all" && "border-primary text-primary")}
           />
