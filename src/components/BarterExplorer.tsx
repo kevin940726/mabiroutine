@@ -1,18 +1,13 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import barterJson from "@/data/barter.json";
-import { useAppStore, barterFileIndex } from "@/store/useAppStore";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MenuSelect } from "@/components/MenuSelect";
 import { MaterialBreakdown, giveHasBreakdown } from "@/components/MaterialBreakdown";
 import { parseItemQty, twinTradeLeg, dealTimes } from "@/lib/materials";
-import { compareTowns } from "@/lib/towns";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/useIsMobile";
-import { ChevronDown, Pin, PinOff, Search } from "lucide-react";
+import { ChevronDown, Pin } from "lucide-react";
 import type { BarterPriority } from "@/lib/types";
 
 const PRIORITY_LABEL: Record<BarterPriority, string> = {
@@ -22,13 +17,6 @@ const PRIORITY_LABEL: Record<BarterPriority, string> = {
   situational: "看情況",
   skip: "別換",
 };
-const PRIORITY_ORDER: BarterPriority[] = ["must", "extra", "once", "situational", "skip"];
-// Options with no rows behind them (currently 別換/skip) are hidden, not
-// selectable into an empty list.
-const PRESENT_PRIORITIES = PRIORITY_ORDER.filter((p) =>
-  (barterJson as unknown as { priority: string }[]).some((b) => b.priority === p)
-);
-const TOWNS = [...new Set((barterJson as unknown as typeof barterJson).map((b) => b.town))];
 
 export type BarterJsonRow = (typeof barterJson)[number];
 
@@ -290,140 +278,6 @@ export function BarterRowMobile({ b, pinned: pinnedProp, onTogglePin, onSelectNp
         </div>
       </div>
       {open && hasBreakdown && <MaterialBreakdown give={b.give} times={times} />}
-    </div>
-  );
-}
-
-export function BarterExplorer() {
-  const isMobile = useIsMobile();
-  const barterPins = useAppStore((s) => s.barterPins);
-  // explorer select filters persist in localStorage via the store; search text stays session-only
-  const filters = useAppStore((s) => s.barterFilters);
-  const setBarterFilters = useAppStore((s) => s.setBarterFilters);
-  const [q, setQ] = useState("");
-  // React 19: keep keystrokes urgent, defer the 98-row filter + card re-render
-  const deferredQ = useDeferredValue(q);
-  const { priority, town, onlyPinned } = filters;
-  // A persisted value with no rows (e.g. 別換 from before it was hidden)
-  // falls back to all instead of trapping the list empty.
-  const effPriority = PRESENT_PRIORITIES.includes(priority as BarterPriority) ? priority : "all";
-  // Same stale-value guard for town (towns derive from data, so this only
-  // trips if barter.json later loses one — falls back instead of trapping).
-  const effTown = town === "all" || TOWNS.includes(town) ? town : "all";
-  const setPriority = (v: BarterPriority | "all") => setBarterFilters({ priority: v });
-  const setTown = (v: string) => setBarterFilters({ town: v });
-  const setOnlyPinned = (v: boolean) => setBarterFilters({ onlyPinned: v });
-  // Any active gate (selects persist per origin; search is session-only):
-  // highlight the engaged controls + offer one-tap reset so a stale filter
-  // never silently hides rows.
-  const isFiltering = effPriority !== "all" || effTown !== "all" || onlyPinned || q !== "";
-  const clearFilters = () => {
-    setPriority("all");
-    setTown("all");
-    setOnlyPinned(false);
-    setQ("");
-  };
-  const activeTriggerClass = "border-emerald-500 ring-1 ring-emerald-500/60 bg-emerald-50/60 dark:bg-emerald-950/30";
-
-  const filtered = useMemo(() => {
-    return (barterJson as unknown as typeof barterJson).filter((b) => {
-      if (effPriority !== "all" && b.priority !== effPriority) return false;
-      if (effTown !== "all" && b.town !== effTown) return false;
-      if (onlyPinned) {
-        if (!barterPins.includes(b.id)) return false;
-      }
-      if (deferredQ) {
-        const hay = `${b.name} ${b.give} ${b.get} ${b.town} ${b.gatherSkill}`.toLowerCase();
-        if (!hay.includes(deferredQ.toLowerCase())) return false;
-      }
-      return true;
-    }).sort((a, b) => {
-      const pa = PRIORITY_ORDER.indexOf(a.priority as BarterPriority);
-      const pb = PRIORITY_ORDER.indexOf(b.priority as BarterPriority);
-      if (pa !== pb) return pa - pb;
-      const pt = compareTowns(a.town, b.town);
-      if (pt !== 0) return pt;
-      return barterFileIndex(a.id) - barterFileIndex(b.id);
-    });
-  }, [deferredQ, effPriority, effTown, onlyPinned, barterPins]);
-
-  // filter controls are one shared const rendered inline on all screens
-  const filterSelects = (
-    <div className="flex flex-wrap gap-2">
-      <MenuSelect
-        value={effPriority}
-        options={[{ value: "all", label: "全部優先度" }, ...PRESENT_PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABEL[p] }))]}
-        onChange={(v) => setPriority(v as BarterPriority | "all")}
-        triggerClassName={effPriority !== "all" ? activeTriggerClass : undefined}
-      />
-      <MenuSelect
-        value={effTown}
-        options={[{ value: "all", label: "全部城鎮" }, ...TOWNS.map((t) => ({ value: t, label: t }))]}
-        onChange={(v) => setTown(v)}
-        triggerClassName={effTown !== "all" ? activeTriggerClass : undefined}
-      />
-      <span className={cn("text-xs self-center", isFiltering ? "font-semibold text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
-        顯示 {filtered.length} / {barterJson.length} 筆{isFiltering ? "（已篩選）" : ""} · 已釘選 {barterPins.length}
-        {isFiltering && (
-          <button onClick={clearFilters} className="ml-1.5 underline underline-offset-2 hover:text-foreground">
-            清除篩選
-          </button>
-        )}
-      </span>
-    </div>
-  );
-
-  const filterLegend = (
-    <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-      <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600" /> 已釘選（綠）會出現在追蹤頁每日區</span>
-      <span className="inline-flex items-center gap-1"><span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1 py-px text-[10px]">伺服器</span> 全角色共用同一進度，任一角色勾選即完成</span>
-    </div>
-  );
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            🔄 以物易物 <Badge variant="secondary">{barterJson.length} 筆</Badge>
-            <span className="text-xs font-normal text-muted-foreground">
-              已釘選 {barterPins.length} 項，所有角色共用
-            </span>
-          </CardTitle>
-          <CardDescription>
-            點擊釘選會套用到所有角色。追蹤頁每日區會列出已釘選項目。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="搜尋" className={cn("pl-9", q !== "" && "border-emerald-500 ring-1 ring-emerald-500/60")} value={q} onChange={(e) => setQ(e.target.value)} />
-            </div>
-            <Button variant={onlyPinned ? "default" : "outline"} size="sm" className="h-9" onClick={() => setOnlyPinned(!onlyPinned)}>
-              {onlyPinned ? <Pin className="h-3 w-3" /> : <PinOff className="h-3 w-3" />}
-              {onlyPinned ? `只看已釘選` : "全部"}
-            </Button>
-          </div>
-
-          {/* filters — always visible on both mobile and desktop (two
-              selects only; the old mobile collapse died with the pill row) */}
-          {filterSelects}
-
-          {/* legend — always visible, inside and outside the collapse */}
-          {filterLegend}
-        </CardContent>
-      </Card>
-
-      {/* list view — desktop: compact single-line cards; mobile: two-line B4 row */}
-      <div className="space-y-2">
-        {filtered.map((b) => (
-          isMobile
-            ? <BarterRowMobile key={b.id} b={b} />
-            : <BarterRowDesktop key={b.id} b={b} />
-        ))}
-      </div>
-      {filtered.length === 0 && <p className="text-center text-sm text-muted-foreground py-8">沒有符合的項目</p>}
     </div>
   );
 }

@@ -255,17 +255,27 @@ a user mid-migration.
 
 ## 4. Other known follow-ups
 
-Not blocking, kept here so they do not get lost.
+1. **Dead code: done.** `BarterExplorer.tsx` lost its 107-row list UI (429 to 283
+   lines) along with the explorer-only `PRIORITY_ORDER` / `PRESENT_PRIORITIES` /
+   `TOWNS` and nine imports. What remains is only what the panel reuses: the two
+   row components, the pin buttons, `BarterJsonRow`, `capText`. The file is now
+   misnamed for what it holds; renaming it to something like `BarterRows.tsx`
+   would be honest, but it churns two import sites for no behavior gain, so it
+   is left alone deliberately.
 
-1. **Dead code**: `BarterExplorer.tsx` still holds the old 107-row list UI, which
-   nothing renders. It also owns the only consumer of the store's
-   `barterFilters` / `setBarterFilters`. Deleting the UI means deciding whether
-   those fields go too, which is a persisted-shape change and therefore a
-   version bump. Cheaper interim: delete the dead UI and leave the now-unused
-   store fields alone.
-2. **`?npc=` is never cleared** when the user navigates back to 全部 NPC by other
-   means, only via 清除篩選. Fine today, but it means a shared link can go stale
-   against a later default.
+   `barterFilters` / `setBarterFilters` in the store are now unreferenced but
+   still persisted. They were left in place on purpose: removing a persisted
+   field is a shape change, which means a store version bump, which is not worth
+   spending on a filter set the new panel does not have. If the old filter
+   concept ever comes back, they are still there and correct.
+
+2. **`?npc=` staleness: checked, no change needed.** This was flagged
+   speculatively and turned out to be wrong. Verified in the browser: selecting an
+   NPC sets the param, choosing 全部 NPC clears it, 清除篩選 clears it, changing
+   town clears it, a cold load of `?npc=佛格斯` selects that merchant and forces
+   the town back to 全部城鎮, an unknown name is ignored and falls back to 全部商店
+   with all 192 rows rather than blanking, and the param survives a tab round
+   trip, which is the point of a shareable link. Nothing to fix.
 3. **NPC faces at 20px in the dropdown** are hard to tell apart for some
    portraits. The fix is grouping the list by town with the town as a section
    header, which also shortens the scroll.
