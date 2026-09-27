@@ -48,8 +48,12 @@ function toItem(deal: ShopDeal): MerchantItem {
     npc: deal.npc,
     town: deal.town,
     title: getText(deal),
+    // costText owns the gold glyph, so `cost` and `give` are the same string
+    // here. They are kept as separate fields because a barter row's give is a
+    // material while a gold row's is a price, and the row layouts read them
+    // differently.
     give: costText(deal),
-    cost: deal.costCurrency === "gold" ? `🪙${deal.costAmount == null ? "價格未填" : deal.costAmount.toLocaleString()}` : costText(deal),
+    cost: costText(deal),
     limitText: deal.limitText,
     scopeAccount: deal.scopeAccount,
     priority: deal.priority,

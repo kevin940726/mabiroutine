@@ -426,6 +426,15 @@ and a fixture come back — and the prune steps must already be calling
    the NPC could not be picked in the town list. The user added the entries.
    Their 精靈的痕跡 row then missed its curated entry by one character, which is
    now fixed and, more usefully, is a failing check rather than a silent gap.
+7. **A gold price was spelled out in one place and glyphed everywhere else:
+   done.** A pinned gold purchase read "1,500 金幣" on the dailies while the shop
+   tile read 🪙1,500. The glyph lived in a ternary inside `toItem`, and
+   `costText` — which feeds both the tracker row and the row layouts — spelled the
+   word. `costText` now owns the glyph and the ternary is gone, so there is one
+   place that formats a price. Worth noting the pattern: the special case was
+   written first and the shared helper was never updated to match, which is the
+   same shape as the "measured one set, reasoned about another" mistake in
+   section 2.
 
 ---
 

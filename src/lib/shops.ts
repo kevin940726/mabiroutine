@@ -229,10 +229,15 @@ export function shopDeals(npcs: ShopNpc[]): ShopDeal[] {
 }
 
 /** Display strings. Folded to full-width parens for the reader; see
- *  `displayName` in materials.ts for why this happens here and not upstream. */
+ *  `displayName` in materials.ts for why this happens here and not upstream.
+ *
+ *  Gold carries the coin glyph rather than the word 金幣, because that is how the
+ *  rest of the app shows a price: the shop tile, the shop row and a pinned gold
+ *  purchase on the dailies all read 🪙1,500. Writing 金幣 here instead left the
+ *  tracker row as the one place that spelled it out. */
 export function costText(deal: ShopDeal): string {
   if (deal.costCurrency === "gold") {
-    return deal.costAmount == null ? "價格未填" : `${deal.costAmount.toLocaleString()} 金幣`;
+    return `🪙${deal.costAmount == null ? "價格未填" : deal.costAmount.toLocaleString()}`;
   }
   return displayName(`${deal.costCurrency}${deal.costAmount == null ? "" : ` ×${deal.costAmount.toLocaleString()}`}`);
 }
