@@ -34,7 +34,7 @@ Committed, oldest first:
 
 ### What is next, in order
 
-**The gold-pin work is done.** All 192 rows are pinnable, a gold pin shows on the
+**The gold-pin work is done.** All 194 rows are pinnable, a gold pin shows on the
 dailies with its cost and limit, and it syncs. Section 2 records what shipped,
 the two premises in this ledger that turned out to be wrong, and the id
 namespace rules for whoever adds a third one.
@@ -133,7 +133,7 @@ Layout rules that survived, each one a deliberate call:
 
 | Rule | Why |
 |---|---|
-| All 192 shop rows, not the 107 curated ones | The old tab hid 85 real trades |
+| All 194 shop rows, not just the curated barter ones | The old tab showed a flat 107-row curated list, hiding most real trades |
 | One `金幣` / `以物易物` tab pair **per NPC**, no page-level toggle | The toggle was page-level friction over 36 NPCs |
 | A tab renders only when that NPC has that kind of trade | 23 of 36 NPCs are barter-only; a dead 金幣 tab is noise |
 | Gold renders as tiles, barter keeps the full row | Gold is a price comparison (tiles scan); barter is a recipe, and the material breakdown is the point |
@@ -166,7 +166,7 @@ Layout rules that survived, each one a deliberate call:
   tracker renders it, survives a tab switch and a reload.
 - **The 已選 count is the tracker's count**, so it opens at the seeded default
   pins (9) rather than 0. Intended, but visible.
-- **All 192 rows are pinnable.** Curated barter rows pin under their
+- **All 194 rows are pinnable.** Curated barter rows pin under their
   `barter.json` id; the other 102 pin under a `shop::` id. See section 2.
 - **Deliberately not built:** item icons (see section 0), reminder bells and
   seeded gold pins (see section 2), removal of `barterFilters` (see section 0).
@@ -185,7 +185,7 @@ narrower than its trigger.
 
 ## 2. Gold pins: shipped
 
-Pinning gold-only purchases is **built and merged into this branch**. All 192
+Pinning gold-only purchases is **built and merged into this branch**. All 194
 rows are pinnable. Phases A to D each landed as their own commit, in this order:
 
 | Phase | Commit | What |
@@ -370,19 +370,23 @@ Measured, not assumed. Re-run the counts if `shops.json` or `barter.json` change
 and measure them by having a script write a UTF-8 file rather than printing to the
 console (see the terminal trap in section 0).
 
-- `shops.json`: 192 rows, 36 NPCs, 8 towns. 94 gold (`kind` omitted), 98 barter.
-- 23 NPCs are barter-only, 13 are mixed, 0 are gold-only.
-- All 98 barter rows match a `barter.json` row, so every barter row is curated and
+- `shops.json`: 194 rows, 37 NPCs, 8 towns. 94 gold (`kind` omitted), 100 barter.
+- 24 NPCs are barter-only, 13 are mixed, 0 are gold-only.
+- All 100 barter rows match a `barter.json` row, so every barter row is curated and
   only the 94 gold rows need a `shop::` pin id. This used to be 90 of 98: eight
   blueprint trades failed to match on bracket width alone, since `shops.json`
-  writes `設計圖(3級)` and `barter.json` writes `設計圖（3級）`. `matchKey` now
+  writes `設計圖(3級)` and `barter.json` wrote `設計圖（3級）`. `matchKey` now
   folds full-width `（）；：，` to half-width for matching only.
-- Exactly **1** curated must/extra row has no `shops.json` entry and is added as a
-  `curated-only::` row, excluded from the 192. An earlier version of this ledger
-  said 17; that figure was already stale before the fold above, measured against
-  the same commit rather than assumed from it.
+- **Zero** curated rows lack a shop entry, and zero shop barter rows lack a
+  curated one, in both directions. The last gap in each direction was closed:
+  阿蘭雯 was absent from `shops.json` entirely, so their two curated trades were
+  injected as curated-only rows and could not be reached by picking the NPC; and
+  their 精靈的痕跡 row then missed on one character, `精靈的痕跡` against
+  `精靈痕跡`, which left a `situational` curated row unreachable anywhere. Note
+  that `pnpm test:shops` passed through both of those, because twin cap parity
+  pairs rows by name and a name mismatch makes it blind.
 - All 94 gold rows are unique on `npc::name`; none has a null price. This is the
   invariant that lets the pin id be `shop::<npc>::<name>`.
-- Pin counts as shipped: **all 192 pinnable** — 98 under a `barter.json` id,
-  94 gold rows under a `shop::` id.
+- Pin counts as shipped: **all 194 pinnable** — 100 under a `barter.json` id,
+  94 gold rows under a `shop::` id. 194 distinct pin ids.
 

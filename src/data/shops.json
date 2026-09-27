@@ -846,6 +846,33 @@
       }
     ]
   },
+  "阿蘭雯": {
+    "town": "杜巴頓",
+    "items": [
+      {
+        "name": "絕招秘藥",
+        "kind": "barter",
+        "cost": {
+          "amount": 2,
+          "currency": "馬鈴薯沙拉"
+        },
+        "limit": {
+          "times": 1
+        }
+      },
+      {
+        "name": "精靈的痕跡",
+        "kind": "barter",
+        "cost": {
+          "amount": 1,
+          "currency": "職業大師勳章"
+        },
+        "get": {
+          "amount": 20
+        }
+      }
+    ]
+  },
   "艾爾文": {
     "town": "杜加德走廊",
     "items": [

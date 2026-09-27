@@ -23,7 +23,7 @@ handled for you.
   draggable into any order;
   each keeps its own progress.
 - 🔄 **A barter explorer that answers "what do I trade today".** Every shop in the
-  game — all 192 gold and barter rows — browsable by town and NPC, with each
+  game — all 194 gold and barter rows — browsable by town and NPC, with each
   merchant's stock split into 金幣 and 以物易物 tabs. Curated trades lead in their
   hand-written must/extra/once/situational order, gold purchases last. Search by
   what you have or what you need, and tap any NPC portrait to jump to that shop.
