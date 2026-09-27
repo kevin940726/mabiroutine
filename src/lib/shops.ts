@@ -27,6 +27,8 @@ export interface ShopDeal {
   note: string | null;
   priority: CuratedPriority | null;
   barterId: string | null;
+  /** the id a pin on this row uses: the curated barter id, or a shop:: id */
+  pinId: string;
   /** position in barter.json, or -1 when the deal is not curated */
   curatedIndex: number;
   /** false for a curated row with no matching entry in shops.json */
@@ -59,6 +61,39 @@ type CuratedRow = {
   limit?: string;
   note?: string;
 };
+
+/**
+ * Pin id for a deal that has no barter.json row, so there is no recipe to put
+ * on a daily. Content-derived, and deliberately without the amount: a price
+ * change in a game patch must not orphan a pin.
+ *
+ * The currency segment is what makes it unique. `npc::name` alone is not — 9 of
+ * the 192 rows collide on it, four of them across kinds (愛麗沙 sells 麵粉 for
+ * both 雞蛋 and 薰衣草花, and four NPCs sell the same name for gold and for
+ * materials), and `npc::kind::name` still leaves 5. With the currency all 192
+ * are distinct, and currency is the stable half: no barter row spends "gold"
+ * and no gold row spends a material, so it is a function of the kind, while
+ * the amount is exactly the part a patch rewrites.
+ */
+export function shopPinId(npc: string, name: string, currency: string): string {
+  return `shop::${npc}::${name}::${currency}`;
+}
+
+let pinIdCache: Set<string> | null = null;
+
+/**
+ * The shop-namespace pin ids: the 102 rows with no barter.json entry, which is
+ * what a caller validating a pin id needs. Curated rows are excluded because
+ * they pin under their barter.json id, which the barter set already covers.
+ * Memoized because the store builds this on every load and on every version
+ * upgrade.
+ */
+export function shopPinIds(): Set<string> {
+  if (!pinIdCache) {
+    pinIdCache = new Set(shopDeals(loadShopNpcs()).filter((d) => !d.barterId).map((d) => d.pinId));
+  }
+  return pinIdCache;
+}
 
 function limitText(limit?: { times?: number; period?: string }, scope?: string): string | null {
   if (limit?.times == null) return null;
@@ -106,6 +141,7 @@ export function loadShopNpcs(): ShopNpc[] {
         scopeAccount: item.scope === "account",
         inShopCatalog: true,
         barterId: exact?.row.id ?? null,
+        pinId: exact?.row.id ?? shopPinId(npc, item.name, costCurrency),
         priority: exact?.row.priority ?? null,
         note: exact?.row.note ?? null,
         curatedIndex: exact?.index ?? -1,
@@ -130,6 +166,7 @@ export function loadShopNpcs(): ShopNpc[] {
       scopeAccount: !row.perChar,
       inShopCatalog: false,
       barterId: row.id,
+      pinId: row.id,
       priority: row.priority,
       note: row.note ?? null,
       curatedIndex: index,

@@ -13,6 +13,7 @@ import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
 import { getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
+import { loadShopNpcs, shopDeals } from "@/lib/shops";
 import { taskKind } from "@/lib/cycle";
 const { migratePersisted, barterToTask } = await import("@/store/useAppStore");
 
@@ -575,6 +576,57 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert(sameSet(out.hourlyReminders as string[], ["parttime"]), "S: hourly lane re-pruned");
   const sc = (out.characters as AnyRec[])[0] as AnyRec;
   assert((sc.taskValues as AnyRec)["purple-hole"] === 1, "S: progress values untouched");
+}
+
+// T: v18 save holding shops.json pins -> v19 keeps them, and keeps their
+// progress, even though no barter.json row has their id. This is the trap the
+// shared validPinnableIds helper exists for: a prune step that rebuilt its set
+// from tracker + barter + custom alone would silently delete every gold pin the
+// first time an older save was loaded.
+{
+  const goldDeal = shopDeals(loadShopNpcs()).find((d) => d.kind === "shop" && d.limitText !== null);
+  const shopPin = goldDeal?.pinId;
+  assert(typeof shopPin === "string" && shopPin.startsWith("shop::"), "T premise: a gold pin id exists (update fixture if shops.json lost its gold rows)");
+  assert(
+    !(barterJson as { id: string }[]).some((b) => b.id === shopPin),
+    "T premise: that id is not a barter.json id"
+  );
+  const out = migratePersisted(
+    {
+      version: 18,
+      characters: [
+        { id: "c1", name: "A", taskValues: { [shopPin as string]: 3 }, hiddenTaskIds: [shopPin as string] },
+        { id: "c2", name: "B", taskValues: {}, hiddenTaskIds: [] },
+      ],
+      activeCharId: "c1",
+      customTasks: [],
+      barterPins: [shopPin as string],
+      accountValues: { [shopPin as string]: 2 },
+    },
+    18
+  ) as AnyRec;
+  assert(out.version === 19, "T: reaches v19");
+  assert((out.barterPins as string[]).includes(shopPin as string), "T: shop pin survives the prune");
+  const c1 = (out.characters as AnyRec[])[0] as AnyRec;
+  assert((c1.taskValues as AnyRec)[shopPin as string] === 3, "T: per-char progress kept");
+  assert((c1.hiddenTaskIds as string[]).includes(shopPin as string), "T: per-char hide kept");
+  assert((out.accountValues as AnyRec)[shopPin as string] === 2, "T: account-scoped progress kept");
+  // The same prune, on a step that actually prunes barterPins (v14 — v19 only
+  // touches the reminder lanes), proves the set is built from the live catalog
+  // and not from the id's shape: the live shop pin survives, a shop:: id whose
+  // row left shops.json does not.
+  const withDeadPin = migratePersisted(
+    {
+      version: 13,
+      characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
+      activeCharId: "c1",
+      customTasks: [],
+      barterPins: [shopPin as string, "shop::nobody::nothing::gold"],
+    },
+    13
+  ) as AnyRec;
+  assert((withDeadPin.barterPins as string[]).includes(shopPin as string), "T: live shop pin survives the v14 prune");
+  assert(!(withDeadPin.barterPins as string[]).includes("shop::nobody::nothing::gold"), "T: a shop:: id with no live row is still pruned");
 }
 
 console.log("\nAll migration fixtures passed.");

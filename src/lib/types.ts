@@ -1,7 +1,7 @@
 export type ResetKind = "daily" | "weekly" | "account-daily" | "account-weekly";
 export type TaskSection = "daily" | "weekly" | "account";
 export type TaskType = "check" | "counter" | "countdown";
-export type TaskSource = "builtin" | "barter" | "custom";
+export type TaskSource = "builtin" | "barter" | "shop" | "custom";
 export type BarterPriority = "must" | "extra" | "once" | "situational" | "skip";
 
 export type BarterFilters = {
@@ -23,15 +23,21 @@ export type Task = {
   type: TaskType;
   max?: number;
   source: TaskSource;
-  // barter only
+  // barter and shop
   town?: string;
+  // barter only
   priority?: BarterPriority;
   npc?: string;
-  // true when the barter row is server-shared (barter.json perChar === false):
-  // value + hide live in the account scope even though the row renders in
-  // the daily/weekly pinned subsections.
+  // true when the barter row is server-shared (barter.json perChar === false),
+  // or the shop row is account-scoped (shops.json scope === "account"): value +
+  // hide live in the account scope even though the row renders in the
+  // daily/weekly pinned subsections.
   serverShared?: boolean;
   barterMeta?: { give: string; get: string; gatherSkill?: string; limit?: string };
+  // a pin on a shops.json row with no barter.json entry, so there is no
+  // give → get chain to show. Reused by the 8 uncurated barter rows too, which
+  // is why it carries both the cost side and the item.
+  shopMeta?: { cost: string; costCurrency: string; outQty: number; npc: string; town: string; limit?: string };
   // custom extras
   notes?: string;
   // ordering
