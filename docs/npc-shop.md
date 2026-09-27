@@ -7,22 +7,106 @@ work left (pinning gold-only shop purchases).
 Data knowledge for the two source files lives in `docs/tracker-data.md`; this
 file is about the UI and the pin model, not about scraping or field meanings.
 
----
-
-## 1. Status
-
-Branch `wip/shop-browser`, unmerged, four commits behind `main`. Three commits
-on top of the prototype baseline:
-
-- `Fix long dropdown menus overflowing the viewport`
-- `Give MenuSelect an accessible name and optional option icons`
-- `Replace the barter tab with the NPC shop panel`
-
-Gold pins are **not** implemented. Everything in section 3 is unbuilt.
+**Read section 0 first.** It is the handoff: what is next, in what order, and
+the traps that cost time on this branch.
 
 ---
 
-## 2. What shipped
+## 0. Start here
+
+### Where the branch stands
+
+`wip/shop-browser`, unmerged, **six commits ahead of the prototype baseline and
+four behind `main`**. Nothing has been pushed. Per `AGENTS.md`, pushing is a
+separate decision from committing and needs explicit approval; a rebase onto
+`main` is required before this could go anywhere, and no conflict is expected
+since the branch touches the barter tab and `main` touched sync and reordering.
+
+Committed, oldest first:
+
+1. `Fix long dropdown menus overflowing the viewport`
+2. `Give MenuSelect an accessible name and optional option icons`
+3. `Replace the barter tab with the NPC shop panel`
+4. `Pin from the shop panel through the tracker's pin list`
+5. `Add the npc-shop ledger`
+6. `Delete the barter list UI the shop panel replaced`
+7. `Group the NPC picker by town and stop the popup being narrower than its trigger`
+
+### What is next, in order
+
+1. **Rebase onto `main`** when the user asks for it. Not before.
+2. **Phase A of section 2**: the `shop::<npc>::<name>` pin id, `shopMeta` on
+   `Task`, `shopDealToTask`, the shared `valid` helper, mixed drag order. No
+   UI in this phase; it exists to prove the id space and the ordering survive a
+   load.
+3. **Phase B**: resolve pins from both sources in `TrackerSection`, render a
+   shop pin as a tracker row without the material-breakdown hover card.
+4. **Phase C**: put the pin button back on the 102 rows that cannot be pinned
+   today.
+5. **Phase D**: sync case, `docs/tracker-data.md` correction, changelog.
+
+Deliberately **not** doing, and why:
+
+- **Item icons.** 167 distinct icons for the shop view. A capture pipeline was
+  built and proven on 11 of them, then deleted: the stock-count pill in the
+  in-game tile overlaps the art and could not be removed without leaving visible
+  notches, and the user called the effort not worth it. Revisit only with a
+  capture method that avoids the pill.
+- **A store version bump for gold pins.** Reasoned out in section 2; it would
+  be wrong to add one.
+- **Removing `barterFilters` from the store.** It is unreferenced but
+  persisted, and removing a persisted field is a shape change that costs a bump.
+
+### Traps on this branch
+
+Each of these cost real time and will again.
+
+- **Never edit a CJK-bearing source file through PowerShell.**
+  `Get-Content -Raw` plus `Set-Content` round-tripped `src/lib/shops.ts` and
+  `src/components/BarterExplorer.tsx` and mangled every Chinese character.
+  Worse, `Set-Content -NoNewline` on an **array** silently collapsed a 429-line
+  file to one line. Use the editor's own edit tool. If a file must be truncated,
+  slice the array and write it **without** `-NoNewline`. After any such edit,
+  `rg` output through PowerShell will look corrupted even when the file is
+  fine; confirm with a real file read or a browser screenshot, not the terminal.
+- **Test harnesses: write CJK literals, never `\uXXXX` escapes.** Escapes written
+  into a `.mjs` file got mangled twice and produced false readings that looked
+  like real bugs (a "missing" 伺服器 badge, a "missing" pin button). Both were
+  harness bugs, not app bugs.
+- **`element.click()` via `page.evaluate` bypasses actionability checks.** Using
+  it to select dropdown items is what let a 37-item menu pass tests while the
+  lower half of the list was physically unclickable: the menu panel was
+  `overflow-hidden` with no max-height. Prefer a real `locator.click()`; if it
+  times out with "element is outside of the viewport", that is a genuine bug.
+- **`AGENTS.md` says the store is at `v17`. It is at 19**
+  (`useAppStore.ts:216` and the persist config at `:1037`). Trust the code.
+- **The load-time sanitizer has no test coverage.** The `barterCustomOrder`
+  filter lives in the store's load path, not in `migratePersisted`, so
+  `scripts/migration-check.entry.ts` cannot reach it. A green `pnpm check` does
+  not prove it. This is the one change in Phase A with that gap.
+- **The dev server is the user's.** It runs on `localhost:5173` and they start
+  it. Do not start, kill, or restart a long-running dev server. A throwaway
+  `pnpm exec vite preview` on another port, started and killed inside one
+  command, is fine when the dev server serves stale modules.
+
+### Running and verifying
+
+- `pnpm check` is the gate: lint, shops, migrations, engine, quota, SQL smoke,
+  fallback, sync, build. The `api-live` and `browser-e2e` sync suites skip
+  loudly without `pnpm dev:api`; they do not cover this code.
+- Browser checks were done with `playwright-core` driving the already-running
+  dev server, in throwaway scripts under
+  `C:\Users\User\AppData\Local\Temp\opencode\pwtest\`. Nothing test-related is
+  committed; the repo has no browser test harness for this.
+- Useful selectors: the NPC field is `getByRole("button", { name: "NPC" })`, the
+  town field `name: "城鎮"`, options are `menuitemradio`, tabs are
+  `[role="tablist"][aria-label="NPC 交易類型"]`, and tiles carry
+  `data-shop-tile`. Barter rows are `<div>`s, not `<article>`s: count them with
+  `[class*="contain-intrinsic"]`.
+
+---
+
+## 1. What shipped
 
 ### The fork, and how it was decided
 
@@ -49,10 +133,12 @@ Layout rules that survived, each one a deliberate call:
 
 | File | Role |
 |---|---|
-| `src/lib/shops.ts` | Adapter over `shops.json` + `barter.json`. Curated matching, `ShopDeal` with `curatedIndex` / `barterId` / `scopeAccount`, `costText`, `getText` |
+| `src/lib/shops.ts` | Adapter over `shops.json` + `barter.json`. Curated matching, `ShopDeal` with `curatedIndex` / `barterId` / `scopeAccount`, `costText`, `getText`. This is where Phase A adds `pinId` |
 | `src/components/MerchantPanel.tsx` | The whole tab. Private helpers, exports one component |
-| `src/components/BarterExplorer.tsx` | Still the home of `BarterRowDesktop` / `BarterRowMobile` / `BarterPinButton`. Its old list UI is now dead code (see 4.1) |
-| `src/App.tsx` | Lazy-loads `MerchantPanel` where `BarterExplorer` used to render |
+| `src/components/BarterExplorer.tsx` | Misnamed now: it holds only `BarterRowDesktop` / `BarterRowMobile` / `BarterPinButton` / `BarterJsonRow` / `capText` after the dead list UI was deleted |
+| `src/components/MenuSelect.tsx` | Shared dropdown-select. Now takes an optional per-option `group` (rendered as a heading), optional `ariaLabel`, optional `contentClassName`, and floors the popup at the trigger width |
+| `src/components/ui/dropdown-menu.tsx` | Capped to Radix's available height and made scrollable. This is what made 36 NPCs reachable |
+| `src/App.tsx` | Lazy-loads `MerchantPanel` where `BarterExplorer` used to render. The `?shopproto` prototype gate is gone, so there is no A/B harness any more |
 
 ### Decisions worth remembering
 
@@ -66,19 +152,25 @@ Layout rules that survived, each one a deliberate call:
   `barterPins` directly. One pin per barter id, shared with the tracker tab,
   synced, and visible from a second device. Verified: pin in the panel, the
   tracker renders it, survives a tab switch and a reload.
-- **90 of 192 rows are pinnable.** See section 3.
+- **The 已選 count is the tracker's count**, so it opens at the seeded default
+  pins (9) rather than 0. Intended, but visible.
+- **90 of 192 rows are pinnable.** See section 2.
+- **Deliberately not built:** item icons (see section 0), a version bump (see
+  section 2), removal of `barterFilters` (see section 0).
 
 ### Verified
 
 `pnpm check` green (shops, migrations, engine 300 iterations, quota, SQL
 smoke, fallback, sync; the `api-live` and `browser-e2e` suites skip loudly
 without `pnpm dev:api` and do not cover this code). In-browser at 1440px and
-390px: no console errors, no horizontal overflow, deep link survives reload,
-every NPC reachable by mouse.
+390px: no console errors, no horizontal overflow, deep link survives reload and
+ignores an unknown name, every NPC reachable by mouse, pin shared with the
+tracker and persisted, grouped NPC list one heading per town, popup never
+narrower than its trigger.
 
 ---
 
-## 3. Open work: pinning gold-only purchases
+## 2. Open work: pinning gold-only purchases
 
 ### Why
 
@@ -253,7 +345,7 @@ a user mid-migration.
 
 ---
 
-## 4. Other known follow-ups
+## 3. Other known follow-ups
 
 1. **Dead code: done.** `BarterExplorer.tsx` lost its 107-row list UI (429 to 283
    lines) along with the explorer-only `PRIORITY_ORDER` / `PRESENT_PRIORITIES` /
@@ -291,7 +383,7 @@ a user mid-migration.
 
 ---
 
-## 5. Data facts this depends on
+## 4. Data facts this depends on
 
 Measured, not assumed. Re-run the counts if `shops.json` or `barter.json` change.
 
@@ -302,3 +394,4 @@ Measured, not assumed. Re-run the counts if `shops.json` or `barter.json` change
   `curated-only::` rows, excluded from the 192.
 - All 94 gold rows are unique on `npc::name`; none has a null price.
 - Pin counts as shipped: 90 pinnable, 102 not (94 gold + 8 uncurated barter).
+
