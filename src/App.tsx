@@ -467,7 +467,7 @@ export default function App() {
             任務追蹤
           </button>
           <button role="tab" aria-selected={tab === "barter"} onClick={() => setTab("barter")} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "barter" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-            以物易物
+            商店 / 以物易物
           </button>
           <div className="ml-auto flex items-center gap-1 pb-1">
             <Button size="sm" onClick={openAdd}>
@@ -569,7 +569,7 @@ export default function App() {
 
         <p className="text-xs text-muted-foreground leading-relaxed">
           ℹ️ 重置時間 06:00 已依台服官方公告驗證。資料為本地儲存，亦可選用跨裝置同步。<br />
-          釘選：<span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600 inline-block" /> 已釘選</span> = 點擊切換，所有角色共用（以物易物頁）。
+          釘選：<span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-600 inline-block" /> 已釘選</span> = 點擊切換，所有角色共用（商店 / 以物易物頁）。
         </p>
 
         <p className="text-xs text-muted-foreground leading-relaxed">

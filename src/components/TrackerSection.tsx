@@ -374,7 +374,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
             >
               <span className="h-4 w-1 rounded-full shrink-0 bg-emerald-500" />
               <span className="text-base">🔄</span>
-              <span className="text-sm font-medium">{cycle === "weekly" ? "每週以物易物 已釘選" : "以物易物 已釘選"}</span>
+              <span className="text-sm font-medium">{cycle === "weekly" ? "每週商店 / 以物易物 已釘選" : "商店 / 以物易物 已釘選"}</span>
               <Tooltip content="釘選對所有角色生效">
                 <Badge className="text-[10px] text-white bg-emerald-600">
                   {barterSubtasksFiltered.length}/{cycleBarter.length}

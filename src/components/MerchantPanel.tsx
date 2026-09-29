@@ -667,7 +667,7 @@ export function MerchantPanel() {
     <div className="flex flex-col gap-5">
       <header className="rounded-2xl border bg-card p-4 sm:p-5">
         <div className="mb-4">
-          <h1 className="text-2xl font-semibold">NPC 商店</h1>
+          <h1 className="text-2xl font-semibold">商店 / 以物易物</h1>
           <p className="mt-1 text-sm text-muted-foreground">選擇 NPC 後，於頁籤內瀏覽完整內容</p>
         </div>
         <SearchControls query={query} onQueryChange={setQuery} selectedOnly={selectedOnly} onSelectedOnlyChange={setSelectedOnly} selectedCount={barterPins.length} />
