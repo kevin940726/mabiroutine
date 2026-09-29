@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-09-30 — Barter explorer, tab reorder, purple push fixes
+
 ### Features
 - The purple-hole timetable keeps itself current on always-open apps: it refetches when the app returns to the foreground, reconnects, every 30 minutes, and when you open the 出沒時刻表 popover (an open table corrects itself once if the feed changed, then stays frozen). Previously the feed was fetched only at load, so a tab left running for days could show a stale schedule
 - Character tabs are reorderable: drag desktop pills by the faint grip (keyboard arrows work too) or drag rows inside any character menu (tab bar, floating pills); drops fire a 復原 undo toast, and the order syncs to linked devices via `meta:charorder`
