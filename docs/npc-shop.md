@@ -146,6 +146,64 @@ Each of these cost real time and will again.
   mixed" was typed from a hunch; measured, it is 24 and 13. Every count in
   section 4 came from a script that wrote a UTF-8 file, and re-running it after a
   data change is the only way these stay true.
+- **Two house rules, both learned the hard way in the grid prototype.**
+  1. **Never truncate; always wrap.** A cost line forced to one line with
+     `truncate` turned 麗莎's two 10-character names into 稀有鍊金術再燃… . A
+     wrapped second line costs height but hides nothing. The one exception is the
+     tile's title, which keeps `line-clamp-2 min-h-[2.7em]`: that reservation is
+     what every tile on the grid aligning its limit row depends on, and the longest
+     real title is 13 characters against 18 that fit, so two lines is never
+     reached by real data.
+  2. **Never use the `title` attribute.** No HTML tooltips anywhere in `src/`.
+     The last one (on the schedule button in `SchedulePopover.tsx`) was removed and
+     it keeps its `aria-label`; the popover it opens carries the same label. React
+     component *props* named `title` (`TrackerSection title=`, `ExpRow title=`) are
+     unaffected — they are props, not attributes.
+- **Fitting text to a width: what was tried, what failed, and the tool that
+  actually does it.** This is the long one; it cost most of a session.
+  - **The problem.** 麗莎 has two barter rows whose cost line, 稀有鍊金術再燃燒催化劑
+    ×50, is 181px at 14px against a 144px content box in a 4-column tile.
+  - **Hardcoding the width fails** as soon as the reader's font differs. A reader
+    with a larger default font changes both the glyph widths AND the tile width
+    (measured: the 4-column content box goes 144px at root ×1, 181px at ×1.25,
+    162px at ×2 at the same viewport).
+  - **A CSS clamp cannot fit text.** `clamp(min, 100cqw / N, max)` needs one
+    divisor to encode "the widest run in em", but the ratio the text needs varies
+    per item and per breakpoint. Measured, `100cqw` also did not track the tile's
+    content box under a scaled root font. There is no CSS `fit-content` for font
+    size; anything that fits text must measure it.
+  - **Measuring + `setState` oscillated at 60Hz.** The hook watched `<html>`
+    attributes with a `MutationObserver`, and its own state write changed the
+    layout it was watching: a two-state flip every frame, `changes=59` in a
+    60-frame sample. Two more mistakes in the same hook: it wrote candidate sizes
+    onto the live element (`scrollWidth` on a truncating block always equals
+    `clientWidth`, so its overflow probe was a false negative), and it searched for
+    "the largest size that fits", which under a large root font returns a size
+    LARGER than the author's.
+  - **What works if you need real fit-to-width: `@chenglou/pretext`.** MIT,
+    v0.0.9, zero runtime deps. `prepare(text, font)` does the one-time canvas
+    measurement and returns an opaque handle; `layout(prepared, maxWidth, lineHeight)`
+    is pure arithmetic after that, no reflow. `measureLineStats(prepared, maxWidth)`
+    returns `{ lineCount, maxLineWidth }`, and `maxLineWidth` is the tightest width
+    that still fits the text — the shrink-wrap primitive CSS lacks. Deferred, not
+    rejected; the deciding factor was that it solves a 2-of-194-tile problem.
+  - **Measured cost of pretext**, because "it should be small" is not a number:
+    raw ESM 145.8 KB over 8 files, **minified 46.4 KB**, **minified+gzip 16.1 KB**
+    for the base entry point. **Not tree-shakeable**: the package has no
+    `sideEffects: false` and `layout.js` statically pulls `analysis.js` (48.6 KB),
+    `line-break.js` (31 KB) and `generated/bidi-data.js` (23.4 KB), so importing
+    just `prepare` + `layout` still gives you the lot, bidi tables included.
+  - **If you adopt it, three obligations, none of which runtime calculation
+    removes:** (a) pass a whole font stack like
+    `-apple-system, BlinkMacSystemFont, "Segoe UI", …` verbatim — that is fine,
+    `ctx.font` takes a family list and resolves it the same way CSS does, so no
+    font-naming change is needed; (b) resolve `rem`/`em` to px yourself and
+    re-`prepare` when the root font changes, since pretext cannot read your CSS;
+    (c) verify on macOS, because pretext's own `PLATFORM_BUGS.md` flags
+    `-apple-system`/`system-ui` as unsafe for `layout()` accuracy there. It also
+    measures the size you pass, so a browser minimum-font-size setting can make it
+    confidently wrong. Prefer whole-pixel sizes;
+    Firefox rounds fractional canvas font sizes, which can wrap differently.
 
 ### Running and verifying
 

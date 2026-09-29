@@ -165,7 +165,6 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
         className="h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
         aria-label={`出沒時刻表：${taskName}`}
         aria-expanded={open}
-        title="出沒時刻表"
       >
         <CalendarDays className="h-3.5 w-3.5" />
       </button>

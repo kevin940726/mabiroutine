@@ -11,11 +11,13 @@ import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
 import { CURATED_LABEL, costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
 import { displayName } from "@/lib/materials";
+// PROTOTYPE (throwaway): see the mount site below. Delete with src/proto-grid/.
+import { ProtoGrid } from "@/proto-grid/ProtoGrid";
 import barterJson from "@/data/barter.json";
 
 type NpcTab = "gold" | "barter";
 
-type MerchantItem = {
+export type MerchantItem = {
   key: string;
   npc: string;
   town: string;
@@ -142,7 +144,7 @@ function firstTab(items: MerchantItem[]): NpcTab {
   return tabCount(items, "gold") > 0 ? "gold" : "barter";
 }
 
-function NpcFace({ npc, size = "size-10" }: { npc: string; size?: string }) {
+export function NpcFace({ npc, size = "size-10" }: { npc: string; size?: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
     return <span className={cn("grid shrink-0 place-items-center rounded-full border bg-muted text-sm font-semibold", size)}>{npc.slice(0, 1)}</span>;
@@ -358,6 +360,16 @@ export function MerchantPanel() {
   // The tracker's pin list, shared: pinning here and pinning in the tracker are
   // the same action on the same barter id, and the pins sync with it.
   const barterPins = useAppStore((s) => s.barterPins);
+  // PROTOTYPE (throwaway): the grid-representation variants, on the real route.
+  // Strict allowlist, so a typo'd ?gridproto=zzz leaves the real UI alone rather
+  // than silently swapping it for a variant.
+  const gridProto = (() => {
+    if (!import.meta.env.DEV) return null;
+    const v = new URLSearchParams(window.location.search).get("gridproto");
+    return v === "a" || v === "b" ? v : null;
+  })();
+  const variant = gridProto ?? "a";
+  const togglePin = useAppStore((s) => s.toggleBarterPin);
 
   const towns = useMemo(() => [...new Set(ALL_SHOP_ITEMS.map((item) => item.town))].sort(compareTowns), []);
   const options = useMemo(() => filterItems(ALL_SHOP_ITEMS, town, ""), [town]);
@@ -467,9 +479,25 @@ export function MerchantPanel() {
             </div>
             <span className="text-sm text-muted-foreground">{pinnedItems.length} 筆</span>
           </div>
-          {pinnedItems.length > 0
-            ? <MerchantRows items={pinnedItems} onSelectNpc={selectNpc} />
-            : <div className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">尚無已選交易</div>}
+          {pinnedItems.length > 0 ? (
+            gridProto ? (
+              // grouped by merchant, in selection order: this view's premise is
+              // that the order you picked things in is the order you want them, so
+              // it deliberately does NOT use the dropdown order
+              <ProtoGrid
+                variant={variant}
+                items={pinnedItems}
+                pinned={new Set(barterPins)}
+                onTogglePin={togglePin}
+                order={[...new Set(pinnedItems.map((i) => i.npc))]}
+                showHeader
+              />
+            ) : (
+              <MerchantRows items={pinnedItems} onSelectNpc={selectNpc} />
+            )
+          ) : (
+            <div className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">尚無已選交易</div>
+          )}
         </section>
       ) : (
         <section>
@@ -485,11 +513,33 @@ export function MerchantPanel() {
                 {selected ? <><MapPin /> {selected.town} · {npcRows.length} 筆</> : `${items.length} 筆 · 以物易物優先，金幣最後`}
               </p>
             </div>
-            {selected && <NpcTabToggle items={npcRows} tab={npcTab} onChange={setNpcTab} />}
+            {/* the variants deliberately drop the 金幣/以物易物 split, so the
+                toggle is hidden rather than left visible and inert */}
+            {selected && !gridProto && <NpcTabToggle items={npcRows} tab={npcTab} onChange={setNpcTab} />}
           </div>
-          {selected
-            ? <TabContent items={visible} tab={npcTab} onSelectNpc={selectNpc} />
-            : <MerchantRows items={items} onSelectNpc={selectNpc} />}
+          {/* PROTOTYPE: ?gridproto=a|b picks the grid representation — a is
+              per-merchant blocks, b is one flat grid with the merchant inside each
+              tile. The question is which structure a trade list should have once
+              barter stops being a special full-width row. Everything above this
+              line — search, dropdowns, data — is the real thing. Delete this block
+              and src/proto-grid/ when the pick is made. */}
+          {gridProto ? (
+            <ProtoGrid
+              variant={variant}
+              items={selected ? npcRows : items}
+              pinned={new Set(barterPins)}
+              onTogglePin={togglePin}
+              // the dropdown's own order, so merchant blocks match the picker
+              order={groups.map((g) => g.name)}
+              // a header per block would repeat one name down the whole page when
+              // the view already holds a single merchant
+              showHeader={!selected}
+            />
+          ) : selected ? (
+            <TabContent items={visible} tab={npcTab} onSelectNpc={selectNpc} />
+          ) : (
+            <MerchantRows items={items} onSelectNpc={selectNpc} />
+          )}
         </section>
       )}
     </div>
