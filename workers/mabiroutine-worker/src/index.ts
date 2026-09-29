@@ -996,11 +996,16 @@ const ADMIN_NOINDEX = { "Cache-Control": "no-store" };
 // (`lane = "purple"` rows); cards name zones, never people, so no D1a
 // linkage — every sub gets the same card (D1-style, opt-in experimental).
 // Cutoff: skip past spawns only (the hole persists, so no startle boundary
-// like the barrier's :02 guard). Lead: the flat 1-min tick fires exactly
-// one tick per spawn inside (now, now+15min]; a KV fire-once guard covers
-// retries and restarts. Tap deep-links task-only (page resolves like a
-// char-less local card); visibility split needs no new code (shared hidden-
-// skip page-side, tag-agnostic suppress SW-side).
+// like the barrier's :02 guard). Lead: the flat 1-min tick fires inside
+// (now, now+15min], paging the lane so one invocation stays inside the plan's
+// subrequest budget (the free plan caps at 50; one fetch per sub overflowed at
+// 58 subs on 2026-09-30, and with the guard stamped only after a completed
+// send the throwing invocation re-sent the first ~48 subs every minute). The
+// `purple:fanout` cursor is the fire-once guard: it records the spawn and the
+// next page offset, advancing one page per tick until done. Tap deep-links
+// task-only (page resolves like a char-less local card); visibility split
+// needs no new code (shared hidden-skip page-side, tag-agnostic suppress
+// SW-side).
 
 export type PurpleFanoutReport = {
   skipped: boolean;
@@ -1034,6 +1039,33 @@ async function writeSendBatch(
   if (batch.length) await tursoPipeline(env, batch);
 }
 
+/**
+ * Paged-send cursor (see the block comment above). One record covers one
+ * spawn: `offset` is the next subscriber row to send, `done` latches when the
+ * lane is exhausted. A new spawn overwrites it, so it needs no expiry.
+ */
+type PurpleFanoutState = { spawnMs: number; offset: number; done: boolean };
+const PURPLE_FANOUT_KEY = "purple:fanout";
+/** Sends per tick: 30 sends + ~5 KV/Turso subrequests stays under the free plan's 50. */
+const PURPLE_FANOUT_BATCH = 30;
+
+async function readPurpleFanoutState(env: Env): Promise<PurpleFanoutState | null> {
+  try {
+    const raw = (await env.PURPLE.get(PURPLE_FANOUT_KEY, "json")) as unknown;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const d = raw as Record<string, unknown>;
+    if (typeof d.spawnMs !== "number" || !Number.isFinite(d.spawnMs)) return null;
+    return {
+      spawnMs: d.spawnMs,
+      offset: typeof d.offset === "number" && Number.isFinite(d.offset) && d.offset >= 0 ? d.offset : 0,
+      done: d.done === true,
+    };
+  } catch {
+    // unreadable cursor reads as a fresh run; the next write overwrites it.
+    return null;
+  }
+}
+
 export async function runPurpleFanout(env: Env): Promise<PurpleFanoutReport> {
   const now = Date.now();
   const sched = await readSchedule(env);
@@ -1051,26 +1083,30 @@ export async function runPurpleFanout(env: Env): Promise<PurpleFanoutReport> {
   if (spawn - now > PURPLE_LEAD_MS) {
     return { skipped: true, reason: "no-spawn", spawn, subs: 0, sent: 0, pruned: 0 };
   }
-  let lastFire: number | null = null;
-  try {
-    const raw = (await env.PURPLE.get("purple:last-fire", "json")) as unknown;
-    const ms = (raw as { spawnMs?: unknown } | null)?.spawnMs;
-    if (typeof ms === "number" && Number.isFinite(ms)) lastFire = ms;
-  } catch {
-    // unreadable guard reads as unfired — the stamp below still converges.
-  }
-  if (lastFire === spawn) {
+  let state = await readPurpleFanoutState(env);
+  if (!state || state.spawnMs !== spawn) state = { spawnMs: spawn, offset: 0, done: false };
+  if (state.done) {
     return { skipped: true, reason: "fired-already", spawn, subs: 0, sent: 0, pruned: 0 };
   }
-  const [listed] = await tursoPipeline(env, [
-    { sql: "SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE lane = ?", args: ["purple"] },
+  // One page per tick. ORDER BY endpoint keeps the offset stable across ticks.
+  const [page] = await tursoPipeline(env, [
+    {
+      sql: "SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE lane = ? ORDER BY endpoint LIMIT ? OFFSET ?",
+      args: ["purple", PURPLE_FANOUT_BATCH, state.offset],
+    },
   ]);
-  const subs = listed.rows
+  const pageLen = page.rows.length;
+  if (pageLen === 0) {
+    await env.PURPLE.put(
+      PURPLE_FANOUT_KEY,
+      JSON.stringify({ spawnMs: spawn, offset: state.offset, done: true })
+    );
+    return { skipped: true, reason: state.offset ? "fired-already" : "no-subs", spawn, subs: 0, sent: 0, pruned: 0 };
+  }
+  const subs = page.rows
     .map((r) => ({ endpoint: textOf(r[0]), p256dh: textOf(r[1]), auth: textOf(r[2]) }))
     .filter((s) => s.endpoint.startsWith("https://") && s.p256dh && s.auth);
-  if (!subs.length) {
-    return { skipped: true, reason: "no-subs", spawn, subs: 0, sent: 0, pruned: 0 };
-  }
+
   const mins = Math.max(1, Math.round((spawn - now) / 60000));
   const body = `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 ${mins} 分鐘後出現。`;
   const jwtCache = new Map<string, string>();
@@ -1088,14 +1124,28 @@ export async function runPurpleFanout(env: Env): Promise<PurpleFanoutReport> {
       return { endpoint: sub.endpoint, status: -1 };
     }
   });
-  const sent = statuses.filter((s) => s.status === 201).map((s) => s.endpoint);
+  // Any 2xx counts as delivered (services answer 200/201/202). Counting only
+  // 201 marked every send failed and, under the old single-page guard, kept
+  // re-firing the whole lane.
+  const sent = statuses.filter((s) => s.status >= 200 && s.status < 300).map((s) => s.endpoint);
   const dead = statuses.filter((s) => s.status === 404 || s.status === 410).map((s) => s.endpoint);
-  await writeSendBatch(env, sent, dead, now, "purple");
-  // Stamp the fire-once guard only when nothing is retryable: at least one
-  // card went out, or every sub was terminally dead (pruned above). A fully
-  // transient failure (all status -1) leaves the guard clear so the next
-  // */1 tick retries instead of missing a spawn ~36h out.
-  if (sent.length > 0 || dead.length === subs.length) {
+
+  // Advance the cursor before the bookkeeping write: this page is delivered,
+  // so a Turso hiccup must not resend it. A throw earlier (the Turso read
+  // above) leaves the cursor put, so the page retries on the next tick. Sends
+  // never throw (per-sub try/catch), so the cursor can't skip a delivered page.
+  const done = pageLen < PURPLE_FANOUT_BATCH;
+  await env.PURPLE.put(
+    PURPLE_FANOUT_KEY,
+    JSON.stringify({ spawnMs: spawn, offset: state.offset + pageLen, done })
+  );
+  try {
+    await writeSendBatch(env, sent, dead, now, "purple");
+  } catch (e) {
+    // last_sent_at / dead-row pruning is best-effort; the cursor already moved.
+    console.log(`purple fanout bookkeeping failed: ${String(e)}`);
+  }
+  if (done) {
     await env.PURPLE.put("purple:last-fire", JSON.stringify({ spawnMs: spawn }));
   }
   return { skipped: false, reason: "fanned-out", spawn, subs: subs.length, sent: sent.length, pruned: dead.length };
