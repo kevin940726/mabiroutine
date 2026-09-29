@@ -1,28 +1,25 @@
 // PROTOTYPE (throwaway): mounts the shop grid on the real 以物易物 route behind
-// ?gridproto=a|b. See Tile.tsx for the tile and shared.tsx for the scaffolding.
+// ?gridproto=1. See Tile.tsx for the tile and shared.tsx for the sectioning.
 //
-//   a  merchant blocks: a header per merchant, 金幣 / 以物易物 sub-labels inside,
-//      tiles carry no merchant of their own
-//   b  one flat grid: no blocks, no split, merchant band inside each tile, rows in
-//      authored order (barter.json, then gold)
+// One design remains: the grid is the unfiltered view, sectioned by town, with the
+// merchant inside each tile. A town or NPC filter switches the sections to merchants
+// with a portrait header. The A/verdict/title/band alternatives were removed after
+// review, so this file no longer takes a variant.
 import type { MerchantItem } from "@/components/MerchantPanel";
-import { ProtoShop, ProtoFlat } from "./Tile";
+import { ProtoShop } from "./Tile";
 
 export function ProtoGrid({
-  variant,
   items,
   pinned,
   onTogglePin,
-  order,
-  showHeader,
+  splitKind,
+  byNpc,
 }: {
-  variant: "a" | "b";
   items: MerchantItem[];
   pinned: Set<string>;
   onTogglePin: (id: string) => void;
-  order: string[];
-  showHeader?: boolean;
+  splitKind?: boolean;
+  byNpc?: boolean;
 }) {
-  const props = { items, pinned, onTogglePin, order, showHeader };
-  return variant === "b" ? <ProtoFlat {...props} /> : <ProtoShop {...props} />;
+  return <ProtoShop items={items} pinned={pinned} onTogglePin={onTogglePin} splitKind={splitKind} byNpc={byNpc} />;
 }

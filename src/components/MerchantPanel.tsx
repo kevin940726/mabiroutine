@@ -365,18 +365,28 @@ export function MerchantPanel() {
   // than silently swapping it for a variant.
   const gridProto = (() => {
     if (!import.meta.env.DEV) return null;
-    const v = new URLSearchParams(window.location.search).get("gridproto");
-    return v === "a" || v === "b" ? v : null;
+    return new URLSearchParams(window.location.search).get("gridproto") === "1" ? "1" : null;
   })();
-  const variant = gridProto ?? "a";
+  // Prototype-local filters: deliberately not persisted, so nothing here leaks into
+  // the store or costs a version bump. The store already carries a persisted
+  // barterFilters with a priority field, but no UI reads it since the old explorer
+  // was deleted; reusing it would make an unshipped prototype drive production state.
+  const [protoPriority, setProtoPriority] = useState<string>("all");
+  const [protoKind, setProtoKind] = useState<string>("all");
   const togglePin = useAppStore((s) => s.toggleBarterPin);
 
   const towns = useMemo(() => [...new Set(ALL_SHOP_ITEMS.map((item) => item.town))].sort(compareTowns), []);
   const options = useMemo(() => filterItems(ALL_SHOP_ITEMS, town, ""), [town]);
   const groups = useMemo(() => groupItems(options), [options]);
   const items = useMemo(
-    () => filterItems(ALL_SHOP_ITEMS, town, query).filter((item) => merchant === "all" || item.npc === merchant),
-    [town, query, merchant],
+    () =>
+      filterItems(ALL_SHOP_ITEMS, town, query)
+        .filter((item) => merchant === "all" || item.npc === merchant)
+        // PROTOTYPE filters. Applied here so every view below (all merchants, one
+        // merchant, and the counts in the header) sees the same list.
+        .filter((item) => protoPriority === "all" || item.priority === protoPriority)
+        .filter((item) => protoKind === "all" || (protoKind === "shop" ? item.kind === "shop" : item.kind === "barter")),
+    [town, query, merchant, protoPriority, protoKind],
   );
 
   const selected = merchant === "all" ? null : groups.find((group) => group.name === merchant) ?? null;
@@ -442,8 +452,17 @@ export function MerchantPanel() {
         <SearchControls query={query} onQueryChange={setQuery} selectedOnly={selectedOnly} onSelectedOnlyChange={setSelectedOnly} selectedCount={barterPins.length} />
       </header>
 
+      {/* 3 fields + the reset button normally; the prototype adds two more, so the
+          template has to widen or the fifth control wraps under the button */}
       {!selectedOnly && (
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+        <div
+          className={cn(
+            "grid gap-2",
+            gridProto
+              ? "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+              : "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+          )}
+        >
           <MenuSelect
             value={town}
             ariaLabel="城鎮"
@@ -463,6 +482,37 @@ export function MerchantPanel() {
             ]}
             triggerClassName={cn("w-full", merchant !== "all" && "border-primary text-primary")}
           />
+          {/* PROTOTYPE filters: local state, so they reset on reload and disappear
+              with src/proto-grid/. The store's own persisted barterFilters is
+              untouched. */}
+          {gridProto && (
+            <>
+              <MenuSelect
+                value={protoPriority}
+                ariaLabel="優先度"
+                onChange={setProtoPriority}
+                options={[
+                  { value: "all", label: "全部優先度" },
+                  { value: "must", label: "必換" },
+                  { value: "extra", label: "推薦" },
+                  { value: "once", label: "一次性" },
+                  { value: "situational", label: "視需求" },
+                ]}
+                triggerClassName={cn("w-full", protoPriority !== "all" && "border-primary text-primary")}
+              />
+              <MenuSelect
+                value={protoKind}
+                ariaLabel="交易類型"
+                onChange={setProtoKind}
+                options={[
+                  { value: "all", label: "全部類型" },
+                  { value: "shop", label: "金幣" },
+                  { value: "barter", label: "以物易物" },
+                ]}
+                triggerClassName={cn("w-full", protoKind !== "all" && "border-primary text-primary")}
+              />
+            </>
+          )}
           <Button type="button" variant="ghost" onClick={clearFilters} disabled={!filtersActive} aria-label="清除城鎮與 NPC 篩選" className="h-9 shrink-0 self-center">
             <RotateCcw />
             清除篩選
@@ -482,15 +532,13 @@ export function MerchantPanel() {
           {pinnedItems.length > 0 ? (
             gridProto ? (
               // grouped by merchant, in selection order: this view's premise is
-              // that the order you picked things in is the order you want them, so
-              // it deliberately does NOT use the dropdown order
+              // that the order you picked things in is the order you want them
               <ProtoGrid
-                variant={variant}
                 items={pinnedItems}
                 pinned={new Set(barterPins)}
                 onTogglePin={togglePin}
-                order={[...new Set(pinnedItems.map((i) => i.npc))]}
-                showHeader
+                byNpc
+                splitKind
               />
             ) : (
               <MerchantRows items={pinnedItems} onSelectNpc={selectNpc} />
@@ -525,15 +573,16 @@ export function MerchantPanel() {
               and src/proto-grid/ when the pick is made. */}
           {gridProto ? (
             <ProtoGrid
-              variant={variant}
+              // Section by NPC whenever the view is narrowed to one town or one NPC:
+              // a town heading would then repeat a single value. Only the fully
+              // unfiltered view sections by town.
+              byNpc={town !== "all" || merchant !== "all"}
+              // The kind split appears where two labelled groups carry information,
+              // which is the narrowed views; the full 194-row list stays unsplit.
+              splitKind={town !== "all" || merchant !== "all"}
               items={selected ? npcRows : items}
               pinned={new Set(barterPins)}
               onTogglePin={togglePin}
-              // the dropdown's own order, so merchant blocks match the picker
-              order={groups.map((g) => g.name)}
-              // a header per block would repeat one name down the whole page when
-              // the view already holds a single merchant
-              showHeader={!selected}
             />
           ) : selected ? (
             <TabContent items={visible} tab={npcTab} onSelectNpc={selectNpc} />
