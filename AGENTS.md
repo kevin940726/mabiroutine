@@ -31,6 +31,24 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 - User-facing changes → `### Features` / `### Fixes`; internal/agent-only changes → `### Chores`.
 - If you spot a past commit with no entry, backfill it in the next commit — never let the gap grow.
 
+## Editing CJK files (agents: PowerShell will lie to you, but mostly it will not corrupt)
+
+Every source file here carries Chinese, so this applies to any edit, not just a shop one.
+Measured on PowerShell 7.6.6, Windows:
+
+- **Terminal output of CJK is unreadable through a pipe.** `"必換 推薦 優先度"` prints as
+  `���� ���� �u����`, and a `rg`/`Get-Content` result containing CJK will look destroyed.
+  **This is the display, not the file.** The file above round-tripped byte-identical (24
+  bytes, no BOM, no `U+FFFD`) while displaying as garbage. So when output looks corrupted:
+  confirm with the editor's own read tool or a `node -e` byte check, do not "fix" the file
+  and do not repeat the mojibake as if it were content.
+- **The genuinely destructive form is `Set-Content -NoNewline` on an ARRAY.** A 3-line file
+  became the single line `必換0推薦1優先度2`. `Get-Content -Raw | Set-Content` (a string,
+  not an array) was byte-identical. So: pass `-Raw`, or don't use `Set-Content` at all.
+- **Prefer the editor's edit/write tools for any file with CJK.** They round-trip exactly.
+  Reach for PowerShell only when a tool cannot do the job, and then never through the
+  array-`-NoNewline` path.
+
 ## Push discipline (agents: never push without explicit approval)
 
 - Every push to `main` deploys to prod immediately — and `pnpm worker:deploy`

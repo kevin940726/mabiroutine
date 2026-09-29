@@ -70,14 +70,13 @@ Deliberately **not** doing, and why:
 
 Each of these cost real time and will again.
 
-- **Never edit a CJK-bearing source file through PowerShell.**
-  `Get-Content -Raw` plus `Set-Content` round-tripped `src/lib/shops.ts` and
-  `src/components/BarterExplorer.tsx` and mangled every Chinese character.
-  Worse, `Set-Content -NoNewline` on an **array** silently collapsed a 429-line
-  file to one line. Use the editor's own edit tool. If a file must be truncated,
-  slice the array and write it **without** `-NoNewline`. After any such edit,
-  `rg` output through PowerShell will look corrupted even when the file is
-  fine; confirm with a real file read or a browser screenshot, not the terminal.
+- **CJK and PowerShell: see `AGENTS.md` § "Editing CJK files" for the measured rules.**
+  Short version, since the original note here overstated it: the *terminal display* of
+  CJK is what gets mangled (`必換` prints as `����`), and that is not file damage — a
+  `Get-Content -Raw | Set-Content` round-trip was byte-identical on PS 7.6.6. The
+  genuinely destructive form is `Set-Content -NoNewline` on an **array**, which silently
+  collapsed a 429-line file to one line. Use the editor's own edit tool; if output looks
+  corrupted, confirm with a real file read, never with the terminal.
 - **Test harnesses: write CJK literals, never `\uXXXX` escapes.** Escapes written
   into a `.mjs` file got mangled twice and produced false readings that looked
   like real bugs (a "missing" 伺服器 badge, a "missing" pin button). Both were
