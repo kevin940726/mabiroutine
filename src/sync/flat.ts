@@ -93,13 +93,6 @@ export function flattenSnapshot(s: SyncSnapshot): FlatMap {
     flat["meta:charorder"] = charOrder.join(",");
   }
   if (s.prefs) flat["pref:hideCompleted"] = s.prefs.hideCompleted === true;
-  const f = s.barterFilters;
-  if (f) {
-    flat["filter:priority"] = f.priority;
-    flat["filter:town"] = f.town;
-    flat["filter:skill"] = f.skill;
-    flat["filter:onlyPinned"] = f.onlyPinned === true;
-  }
   return flat;
 }
 
@@ -378,12 +371,6 @@ export function unflattenReplace(flat: FlatMap, version: number): AppState & { v
     lastDailyReset: currentDailyBucket(now),
     lastWeeklyReset: getTaipeiWeekKey(now),
     prefs: { hideCompleted: flat["pref:hideCompleted"] === true },
-    barterFilters: {
-      priority: pickOne(flat["filter:priority"], ["all", "must", "extra", "once", "situational", "skip"], "all"),
-      town: typeof flat["filter:town"] === "string" ? (flat["filter:town"] as string) : "all",
-      skill: typeof flat["filter:skill"] === "string" ? (flat["filter:skill"] as string) : "all",
-      onlyPinned: flat["filter:onlyPinned"] === true,
-    },
     // NOTE: globalTaskOrder intentionally omitted — ordering is per-device
     // local; applySnapshot keeps the current value when the key is absent.
   } as AppState & { version: number };
@@ -415,10 +402,6 @@ function pickTrue(flat: FlatMap, prefix: string): string[] {
   return Object.entries(flat)
     .filter(([k, v]) => v === true && k.startsWith(prefix))
     .map(([k]) => k.slice(prefix.length));
-}
-
-function pickOne<T extends string>(v: unknown, allowed: T[], fallback: T): T {
-  return typeof v === "string" && (allowed as string[]).includes(v) ? (v as T) : fallback;
 }
 
 // Merge pull: remote values wholesale (caller guarantees local already
@@ -492,12 +475,6 @@ export function unflattenMerge(
     lastDailyReset: local.lastDailyReset ?? null,
     lastWeeklyReset: local.lastWeeklyReset ?? null,
     prefs: { hideCompleted: flat["pref:hideCompleted"] === true },
-    barterFilters: {
-      priority: pickOne(flat["filter:priority"], ["all", "must", "extra", "once", "situational", "skip"], local.barterFilters?.priority ?? "all"),
-      town: typeof flat["filter:town"] === "string" ? (flat["filter:town"] as string) : (local.barterFilters?.town ?? "all"),
-      skill: typeof flat["filter:skill"] === "string" ? (flat["filter:skill"] as string) : (local.barterFilters?.skill ?? "all"),
-      onlyPinned: flat["filter:onlyPinned"] === true,
-    },
     globalTaskOrder: local.globalTaskOrder,
   } as AppState & { version: number };
 }

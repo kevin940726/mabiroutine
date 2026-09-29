@@ -376,9 +376,10 @@ export function MerchantPanel() {
     return new URLSearchParams(window.location.search).get("gridproto") === "1" ? "1" : null;
   })();
   // Prototype-local filters: deliberately not persisted, so nothing here leaks into
-  // the store or costs a version bump. The store already carries a persisted
-  // barterFilters with a priority field, but no UI reads it since the old explorer
-  // was deleted; reusing it would make an unshipped prototype drive production state.
+  // the store or costs a version bump. The store used to carry a persisted
+  // barterFilters with a priority field, but nothing read it after the old explorer
+  // was deleted; it has since been removed outright (store v20), so there is no
+  // production filter state to accidentally drive from an unshipped prototype.
   const [protoPriority, setProtoPriority] = useState<string[]>([]);
   const [protoKind, setProtoKind] = useState<string>("all");
   const togglePin = useAppStore((s) => s.toggleBarterPin);
@@ -499,8 +500,8 @@ export function MerchantPanel() {
             triggerClassName={cn("w-full", merchant !== "all" && "border-primary text-primary")}
           />
           {/* PROTOTYPE filters: local state, so they reset on reload and disappear
-              with src/proto-grid/. The store's own persisted barterFilters is
-              untouched. */}
+              with src/proto-grid/. There is no store-side filter state to touch —
+              barterFilters was removed at store v20. */}
           {gridProto && (
             <>
               <MenuMultiSelect

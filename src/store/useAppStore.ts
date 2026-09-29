@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
-import type { AppState, BarterFilters, Character, Task, BarterPriority } from "@/lib/types";
+import type { AppState, Character, Task, BarterPriority } from "@/lib/types";
 import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, costText, getText, type ShopDeal } from "@/lib/shops";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 import { cycleBucketFor, isWeeklyTask, isWeeklyLimit } from "@/lib/cycle";
@@ -108,7 +108,6 @@ type Store = AppState & {
   isTaskHidden: (taskId: string) => boolean;
   reorderTasks: (orderedIds: string[]) => void;
   reorderBarterPins: (orderedIds: string[]) => void;
-  setBarterFilters: (patch: Partial<BarterFilters>) => void;
   // Event (:00 Taipei fire) reminder subscription toggle. Local-only, never synced.
   toggleHourlyReminder: (taskId: string) => void;
   isHourlyReminded: (taskId: string) => boolean;
@@ -285,25 +284,8 @@ const DEFAULT_MUST_PINS: string[] = [...new Set((defaultPinsJson.pins ?? []) as 
   (barterJson as BarterJsonItem[]).some((b) => b.id === id)
 );
 
-const DEFAULT_BARTER_FILTERS: BarterFilters = { priority: "all", town: "all", skill: "all", onlyPinned: false };
-
-// Drop stale select values (e.g. a town removed from barter.json) back to "all".
-function sanitizeBarterFilters(f: unknown): BarterFilters {
-  const r = (f ?? {}) as Partial<BarterFilters>;
-  const prios = ["all", "must", "extra", "once", "situational", "skip"];
-  const towns = new Set(["all", ...(barterJson as BarterJsonItem[]).map((b) => b.town)]);
-  return {
-    priority: (prios.includes(r.priority as string) ? r.priority : "all") as BarterFilters["priority"],
-    town: towns.has(r.town as string) ? (r.town as string) : "all",
-    // skill filter removed from UI (gatherSkill was source-copied noise):
-    // pin stale saves to "all" so nobody is trapped in a filter with no control
-    skill: "all",
-    onlyPinned: r.onlyPinned === true,
-  };
-}
-
 const initial: AppState = {
-  version: 19,
+  version: 20,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -314,7 +296,6 @@ const initial: AppState = {
   lastDailyReset: null,
   lastWeeklyReset: null,
   prefs: { hideCompleted: false },
-  barterFilters: { ...DEFAULT_BARTER_FILTERS },
   taskBuckets: {},
   hourlyReminders: [],
   purpleHoleReminders: [],
@@ -417,7 +398,6 @@ function normalizePersisted(input: unknown): AppState {
     lastDailyReset: d.lastDailyReset ?? null,
     lastWeeklyReset: d.lastWeeklyReset ?? null,
     prefs: { hideCompleted: d.prefs?.hideCompleted ?? false },
-    barterFilters: sanitizeBarterFilters(d.barterFilters),
     taskBuckets,
     hourlyReminders: Array.isArray(d.hourlyReminders)
       ? [...new Set((d.hourlyReminders as unknown[]).filter((x): x is string => typeof x === "string"))]
@@ -533,13 +513,13 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.version = 7;
   }
   if (from < 8) {
-    // v7 → v8: barter explorer filters persisted (sanitized in normalize) — just stamp.
-    s.barterFilters = sanitizeBarterFilters(s.barterFilters);
+    // v7 → v8: barter explorer filters persisted — just stamp. The field itself is
+    // gone as of v20, so there is nothing to sanitize; the step stays so the chain
+    // is unbroken for a save that old.
     s.version = 8;
   }
   if (from < 9) {
-    // v8 → v9: search text no longer persisted (session-only) — sanitize drops it.
-    s.barterFilters = sanitizeBarterFilters(s.barterFilters);
+    // v8 → v9: search text no longer persisted (session-only) — just stamp.
     s.version = 9;
   }
   if (from < 10) {
@@ -752,6 +732,16 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.hourlyReminders = (s.hourlyReminders ?? []).filter((id) => valid.has(id));
     s.purpleHoleReminders = (s.purpleHoleReminders ?? []).filter((id) => valid.has(id));
     s.version = 19;
+  }
+  if (from < 20) {
+    // v19 → v20: barterFilters removed. It was the old barter explorer's filter
+    // state, left persisted after that UI was deleted, and nothing has read it
+    // since. Progress untouched — the field is dropped, and the sync layer stops
+    // emitting and reading its filter:* keys. Deleting it here (rather than only
+    // omitting it from the shape) means an old save stops carrying the keys on the
+    // next write instead of leaving them in the blob forever.
+    delete (s as Record<string, unknown>).barterFilters;
+    s.version = 20;
   }
   return s as AppState;
 }
@@ -1048,9 +1038,6 @@ export const useAppStore = create<Store>()(
           return { barterCustomOrder: [...ordered, ...missing] };
         }),
 
-      setBarterFilters: (patch) =>
-        set((s) => ({ barterFilters: sanitizeBarterFilters({ ...s.barterFilters, ...patch }) })),
-
       // Local-only: toggling never touches the sync layer (the field is
       // absent from the sync key space, like ordering).
       toggleHourlyReminder: (taskId) => {
@@ -1117,7 +1104,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 19,
+      version: 20,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
@@ -1144,7 +1131,6 @@ export const useAppStore = create<Store>()(
         lastWeeklyReset: s.lastWeeklyReset,
         prefs: s.prefs,
         globalTaskOrder: s.globalTaskOrder,
-        barterFilters: s.barterFilters,
         taskBuckets: s.taskBuckets,
         hourlyReminders: s.hourlyReminders,
         purpleHoleReminders: s.purpleHoleReminders,

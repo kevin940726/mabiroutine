@@ -4,13 +4,6 @@ export type TaskType = "check" | "counter" | "countdown";
 export type TaskSource = "builtin" | "barter" | "shop" | "custom";
 export type BarterPriority = "must" | "extra" | "once" | "situational" | "skip";
 
-export type BarterFilters = {
-  priority: BarterPriority | "all";
-  town: string;
-  skill: string;
-  onlyPinned: boolean;
-};
-
 export type Task = {
   id: string;
   name: string;
@@ -77,7 +70,6 @@ export type AppState = {
     hideCompleted: boolean;
     // future: server toggle, etc
   };
-  barterFilters: BarterFilters;
   // for reorder: global order for builtins + custom
   globalTaskOrder?: Record<string, number>;
   // Cycle provenance: taskId -> the Taipei bucket the value was set in

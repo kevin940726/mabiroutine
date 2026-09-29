@@ -49,7 +49,6 @@ export type SyncSnapshot = Pick<
   | "lastWeeklyReset"
   | "prefs"
   | "globalTaskOrder"
-  | "barterFilters"
   | "taskBuckets"
 >;
 
@@ -70,7 +69,6 @@ export function buildSnapshot(): SyncSnapshot {
     lastWeeklyReset: s.lastWeeklyReset,
     prefs: s.prefs,
     globalTaskOrder: s.globalTaskOrder,
-    barterFilters: s.barterFilters,
     taskBuckets: s.taskBuckets,
   };
 }

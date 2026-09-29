@@ -77,8 +77,10 @@ Deliberately **not** doing, and why:
   capture method that avoids the pill.
 - **Reminder bells for gold pins** and **seeded gold pins** — both declined by the
   user, with reasons in section 2. Do not re-open without new information.
-- **Removing `barterFilters` from the store.** Unreferenced but persisted, and
-  removing a persisted field is a shape change that costs a bump.
+- **Removing `barterFilters` from the store.** Done at store v20. It was left
+  persisted after the old barter explorer was deleted and nothing read it; the
+  v19→v20 step deletes the field and the sync layer no longer emits or reads its
+  `filter:*` keys.
 - **A store version bump for gold pins.** Reasoned out in section 2; adding one
   would be wrong.
 - **Widening the pin id.** `shop::<npc>::<name>` is correct because every barter
@@ -277,7 +279,8 @@ Layout rules that survived, each one a deliberate call:
   half-width spelling, and search accepts either. Owned by `docs/tracker-data.md`;
   recorded here because it touched every screen rather than one.
 - **Deliberately not built:** item icons (see section 0), reminder bells and
-  seeded gold pins (see section 2), removal of `barterFilters` (see section 0).
+  seeded gold pins (see section 2). Removal of `barterFilters` used to be on this
+  list; it shipped at store v20 (see section 0).
 
 ### Verified
 
@@ -465,11 +468,11 @@ and a fixture come back — and the prune steps must already be calling
    would be honest, but it churns two import sites for no behavior gain, so it
    is left alone deliberately.
 
-   `barterFilters` / `setBarterFilters` in the store are now unreferenced but
-   still persisted. They were left in place on purpose: removing a persisted
-   field is a shape change, which means a store version bump, which is not worth
-   spending on a filter set the new panel does not have. If the old filter
-   concept ever comes back, they are still there and correct.
+   `barterFilters` / `setBarterFilters` in the store were unreferenced but still
+   persisted for a while. They are gone as of store v20: the field is deleted by
+   the v19→v20 step and the sync layer no longer carries its `filter:*` keys. The
+   panel's own 優先度 and 類型 filters are prototype-local state, so there is no
+   persisted filter set to keep in sync with them.
 
 2. **`?npc=` staleness: checked, no change needed.** This was flagged
    speculatively and turned out to be wrong. Verified in the browser: selecting an

@@ -36,12 +36,12 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 // A: versionless ancient save -> full chain to v9 with seeded defaults
 {
   const out = migratePersisted({}, 0) as AnyRec;
-  assert(out.version === 19, "A: versionless reaches v19");
+  assert(out.version === 20, "A: versionless reaches v20");
   const chars = out.characters as AnyRec[];
   assert(chars.length === 1 && typeof chars[0].id === "string", "A: one default character");
   assert(sameSet(out.barterPins as string[], mustIds), "A: must pins seeded");
   assert((out.prefs as AnyRec).hideCompleted === false, "A: prefs defaulted");
-  assert(JSON.stringify(out.barterFilters) === JSON.stringify({ priority: "all", town: "all", skill: "all", onlyPinned: false }), "A: filters defaulted");
+  assert(!("barterFilters" in out), "A: retired barterFilters absent from a fresh save");
   assert(JSON.stringify(out.hourlyReminders) === "[]", "A: reminders default off");
   assert(JSON.stringify(out.purpleHoleReminders) === "[]", "A: purple reminders default off");
 }
@@ -59,7 +59,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     4
   ) as AnyRec;
-  assert(out.version === 19, "B: reaches v19");
+  assert(out.version === 20, "B: reaches v20");
   assert(!(out.barterPins as string[]).some((id) => id.startsWith("barter-")), "B: synthetic pins gone");
   assert(sameSet(out.barterPins as string[], mustIds), "B: pins reseeded to must");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
@@ -81,7 +81,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     prefs: { hideCompleted: true },
   };
   const out = migratePersisted(structuredClone(input), 9) as AnyRec;
-  assert(out.version === 19, "C: reaches v19");
+  assert(out.version === 20, "C: reaches v20");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
   assert((c.taskValues as AnyRec).barrier === 7, "C: counter kept");
   assert((c.hiddenTaskIds as string[]).includes("custom1"), "C: custom hidden kept (custom ids are valid)");
@@ -121,7 +121,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     6
   ) as AnyRec;
-  assert(out.version === 19, "E: reaches v19");
+  assert(out.version === 20, "E: reaches v20");
   assert(sameSet(out.barterPins as string[], mustIds), "E: pins reset to must defaults");
   assert(!("barterPinsByChar" in out), "E: fork container dropped");
   assert(!("isBarterForked" in out), "E: fork flag dropped");
@@ -129,24 +129,22 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert((c.taskValues as AnyRec).tower === 3, "E: progress values untouched");
 }
 
-// F: v7 save with filters incl. stale town + legacy search text -> sanitized
+// F: v7 save carrying the retired barterFilters -> pruned at v20
 {
-  const liveTown = (barterJson as AnyRec[])[0].town as string;
-  assert(typeof liveTown === "string" && liveTown.length > 0, "F premise: barter.json has towns");
   const out = migratePersisted(
     {
       version: 7,
       characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
       activeCharId: "c1",
+      // every shape the old field ever had: a stale town, legacy search text,
+      // and values that used to be sanitized rather than dropped
       barterFilters: { q: "皮革", priority: "must", town: "不存在的城鎮", skill: "all", onlyPinned: true },
     },
     7
   ) as AnyRec;
-  assert(out.version === 19, "F: reaches v19");
-  const f = out.barterFilters as AnyRec;
-  assert(f.priority === "must" && f.onlyPinned === true, "F: live filter values kept");
-  assert(f.town === "all", "F: stale town reset to all");
-  assert(!("q" in f), "F: search text dropped (session-only)");
+  assert(out.version === 20, "F: reaches v20");
+  assert(!("barterFilters" in out), "F: retired barterFilters pruned, not sanitized");
+  assert((out.characters as AnyRec[])[0].id === "c1", "F: progress and characters untouched");
 }
 
 // G: v9 save with an account id hidden per-char -> moved to the global list
@@ -163,7 +161,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     9
   ) as AnyRec;
-  assert(out.version === 19, "G: reaches v19");
+  assert(out.version === 20, "G: reaches v20");
   assert(sameSet(out.hiddenAccountTaskIds as string[], ["acc-silver"]), "G: account hide moved global");
   const [g1, g2] = out.characters as AnyRec[];
   assert(sameSet(g1.hiddenTaskIds as string[], ["parttime"]), "G: daily hide stays per-char");
@@ -179,7 +177,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     hiddenAccountTaskIds: ["acc-silver"],
   };
   const out = migratePersisted(structuredClone(input), 10) as AnyRec;
-  assert(out.version === 19, "G2: reaches v19");
+  assert(out.version === 20, "G2: reaches v20");
   assert(sameSet(out.hiddenAccountTaskIds as string[], ["acc-silver"]), "G2: global hide kept");
 }
 
@@ -197,7 +195,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     10
   ) as AnyRec;
-  assert(out.version === 19, "H: reaches v19");
+  assert(out.version === 20, "H: reaches v20");
   const [h1, h2, h3] = out.characters as AnyRec[];
   assert((h1.taskValues as AnyRec).tower === 20, "H: checked tower carried as 20");
   assert((h2.taskValues as AnyRec).tower === 5, "H: numeric tower untouched");
@@ -219,7 +217,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     11
   ) as AnyRec;
-  assert(out.version === 19, "I: reaches v19");
+  assert(out.version === 20, "I: reaches v20");
   const customs = out.customTasks as AnyRec[];
   assert(!("timeGated" in customs[0]), "I: timeGated stripped from custom task");
   assert(customs[0].notes === "keep", "I: other custom fields kept");
@@ -248,7 +246,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     12
   ) as AnyRec;
-  assert(out.version === 19, "J: reaches v19");
+  assert(out.version === 20, "J: reaches v20");
   const buckets = out.taskBuckets as AnyRec;
   const c = (out.characters as AnyRec[])[0] as AnyRec;
   assert(buckets.parttime !== undefined, "J: daily value assigned current day bucket");
@@ -307,7 +305,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     lastWeeklyReset: staleWeek,
   };
   const out = migratePersisted(structuredClone(v12input), 12) as AnyRec;
-  assert(out.version === 19, "K: reaches v19");
+  assert(out.version === 20, "K: reaches v20");
   const c = (out.characters as AnyRec[])[0] as AnyRec;
   assert(!("parttime" in (c.taskValues as AnyRec)), "K: pre-rollover daily dropped, not stamped");
   assert(!("weekly-challenge" in (c.taskValues as AnyRec)), "K: pre-rollover weekly dropped, not stamped");
@@ -352,7 +350,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     13
   ) as AnyRec;
-  assert(out.version === 19, "L: reaches v19");
+  assert(out.version === 20, "L: reaches v20");
   const [l1, l2] = out.characters as AnyRec[];
   assert(!("weekly-challenge" in ((l1.taskValues ?? {}) as AnyRec)), "L: weekly cleared from c1");
   assert(!("weekly-challenge" in ((l2.taskValues ?? {}) as AnyRec)), "L: weekly cleared from c2");
@@ -397,7 +395,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     14
   ) as AnyRec;
-  assert(out.version === 19, "M: reaches v19");
+  assert(out.version === 20, "M: reaches v20");
   const pins = out.barterPins as string[];
   for (const id of removed) assert(!pins.includes(id), `M: removed pin pruned: ${id}`);
   for (const id of ["dun-st6", "col-k1", "dungeon-2", "dun-st7"]) assert(pins.includes(id), `M: state transferred to twin pin: ${id}`);
@@ -441,7 +439,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     14
   ) as AnyRec;
-  assert(out.version === 19, "O: reaches v19");
+  assert(out.version === 20, "O: reaches v20");
   const got = out.barterPins as string[];
   assert(JSON.stringify(got.slice(0, 2)) === JSON.stringify(["dug-t3", "tir-f3"]), "O: stored order kept");
   assert(
@@ -490,7 +488,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     15
   ) as AnyRec;
-  assert(out.version === 19, "P: reaches v19");
+  assert(out.version === 20, "P: reaches v20");
   const acc = out.accountValues as AnyRec;
   assert(acc["tir-l1"] === true, "P: check ORs across chars into account");
   assert(acc["tir-l2"] === true, "P: single-char check moves to account");
@@ -529,7 +527,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     16
   ) as AnyRec;
-  assert(out.version === 19, "Q: reaches v19");
+  assert(out.version === 20, "Q: reaches v20");
   assert(out.barterCustomOrder === null, "Q: display order resets to canonical");
   assert(JSON.stringify(out.barterPins) === JSON.stringify(["tir-l1", "tir-f3"]), "Q: pin membership untouched");
   const qc = (out.characters as AnyRec[])[0] as AnyRec;
@@ -550,7 +548,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     17
   ) as AnyRec;
-  assert(out.version === 19, "R: reaches v19");
+  assert(out.version === 20, "R: reaches v20");
   assert(sameSet(out.hourlyReminders as string[], ["parttime", "custom1"]), "R: live + custom kept, dangling pruned");
   const rc = (out.characters as AnyRec[])[0] as AnyRec;
   assert((rc.taskValues as AnyRec).parttime === true, "R: progress values untouched");
@@ -571,7 +569,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     18
   ) as AnyRec;
-  assert(out.version === 19, "S: reaches v19");
+  assert(out.version === 20, "S: reaches v20");
   assert(sameSet(out.purpleHoleReminders as string[], ["purple-hole", "custom1"]), "S: live + custom kept, dangling pruned");
   assert(sameSet(out.hourlyReminders as string[], ["parttime"]), "S: hourly lane re-pruned");
   const sc = (out.characters as AnyRec[])[0] as AnyRec;
@@ -605,7 +603,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     },
     18
   ) as AnyRec;
-  assert(out.version === 19, "T: reaches v19");
+  assert(out.version === 20, "T: reaches v20");
   assert((out.barterPins as string[]).includes(shopPin as string), "T: shop pin survives the prune");
   const c1 = (out.characters as AnyRec[])[0] as AnyRec;
   assert((c1.taskValues as AnyRec)[shopPin as string] === 3, "T: per-char progress kept");
