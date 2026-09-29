@@ -35,20 +35,29 @@ function taipeiToMs(s) {
 
 async function admin(path, init) {
   if (!SECRET) die("MABI_ADMIN_SECRET is not set (export the admin secret; never commit or print it)");
-  const res = await fetch(BASE + path, {
-    ...init,
-    headers: { Authorization: `Bearer ${SECRET}`, "Content-Type": "application/json" },
-  });
-  const text = await res.text();
-  if (res.status === 401) die(`${path} -> 401 (wrong or missing admin secret)`);
-  if (!res.ok) die(`${path} -> ${res.status}: ${text.slice(0, 300)}`);
-  return text ? JSON.parse(text) : null;
+  try {
+    const res = await fetch(BASE + path, {
+      ...init,
+      headers: { Authorization: `Bearer ${SECRET}`, "Content-Type": "application/json" },
+    });
+    const text = await res.text();
+    if (res.status === 401) die(`${path} -> 401 (wrong or missing admin secret)`);
+    if (!res.ok) die(`${path} -> ${res.status}: ${text.slice(0, 300)}`);
+    return text ? JSON.parse(text) : null;
+  } catch (e) {
+    // die() exits rather than throwing, so this only catches fetch/parse faults.
+    return die(`${path} -> ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 const getState = () => admin("/admin/api/state");
 async function getSchedule() {
-  const res = await fetch(`${BASE}/purple-schedule`, { cache: "no-store" });
-  if (!res.ok) die(`/purple-schedule -> ${res.status}`);
-  return res.json();
+  try {
+    const res = await fetch(`${BASE}/purple-schedule`, { cache: "no-store" });
+    if (!res.ok) die(`/purple-schedule -> ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    return die(`/purple-schedule -> ${e instanceof Error ? e.message : String(e)}`);
+  }
 }
 
 function showState(st) {
@@ -62,6 +71,15 @@ function showState(st) {
   console.log("overrides:");
   for (const o of st.overrides?.overrides ?? []) console.log(`  window  ${fmt(o.startMs)} -> ${fmt(o.endMs)}`);
   for (const t of st.overrides?.tombstones ?? []) console.log(`  ignore  ${fmt(t.startMs)} -> ${fmt(t.endMs)}`);
+}
+
+// The worker only re-resolves on an override save when auto is true, so on a
+// locked doc a no-shift/shift-amount is stored but not applied. Call this out
+// instead of letting a caller report success on a no-op.
+function warnIfLocked(st) {
+  if (st.verified?.auto === false) {
+    console.log("NOTE: the doc is LOCKED (auto=false): the change is stored but NOT applied until you resume (`auto true`).");
+  }
 }
 
 function findByStart(st, startMs) {
@@ -90,6 +108,9 @@ async function predict(n) {
   }
 }
 
+// Full replacement: the caller read the current lists and rewrote them, so this
+// is a read-modify-write (a concurrent /admin save between the read and here
+// would be clobbered; single maintainer, so accepted).
 const saveOverrides = (overrides, tombstones) =>
   admin("/admin/api/overrides", { method: "POST", body: JSON.stringify({ overrides, tombstones }) });
 
@@ -126,7 +147,9 @@ if (cmd === "state") {
   const tombstones = (st.overrides?.tombstones ?? []).filter((t) => t.startMs !== startMs);
   tombstones.push({ startMs: win.startMs, endMs: win.endMs });
   await saveOverrides(overrides, tombstones);
-  showState(await getState());
+  const after = await getState();
+  showState(after);
+  warnIfLocked(after);
   await predict(4);
 } else if (cmd === "shift-amount") {
   if (!args[1]) die("usage: shift-amount <candidate-start Taipei> <effective-end Taipei>");
@@ -140,18 +163,27 @@ if (cmd === "state") {
     .concat([{ startMs, endMs }]);
   const tombstones = (st.overrides?.tombstones ?? []).filter((t) => t.startMs !== startMs);
   await saveOverrides(overrides, tombstones);
-  showState(await getState());
+  const after = await getState();
+  showState(after);
+  warnIfLocked(after);
   await predict(4);
 } else if (cmd === "anchor") {
   if (!args[0]) die("usage: anchor <observed-spawn Taipei>");
   const anchorMs = taipeiToMs(args[0]);
   const st = await getState();
+  const wasLocked = st.verified?.auto === false;
   await admin("/admin/api/publish", {
     method: "POST",
     body: JSON.stringify({ anchorMs, windows: st.verified?.windows ?? [] }),
   });
-  // publish locks auto; resume so the watcher keeps the windows current.
-  await admin("/admin/api/auto", { method: "POST", body: JSON.stringify({ auto: true }) });
+  // publish always locks auto. An unlocked doc is resumed so the watcher keeps
+  // windows current; a doc that was ALREADY locked stays locked, or resuming
+  // would rebuild windows from candidates and drop hand-published ones.
+  if (wasLocked) {
+    console.log("NOTE: the doc was LOCKED; anchor saved with auto left locked so hand-published windows are preserved. Resume from /admin when ready.");
+  } else {
+    await admin("/admin/api/auto", { method: "POST", body: JSON.stringify({ auto: true }) });
+  }
   showState(await getState());
   await predict(4);
 } else if (cmd === "promote") {

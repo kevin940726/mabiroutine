@@ -60,8 +60,8 @@ Times are Taipei wall-clock `YYYY-MM-DD HH:mm` (UTC+8, no DST) or ISO-8601.
    - It paused by a different amount → `shift-amount <start> <effective end>`.
      The override keeps the announced start and changes only the end.
    - Predictions drifted from an observed spawn → `anchor <observed spawn>`.
-     Publishes the observed spawn as the anchor with the current windows, then
-     resumes auto-apply.
+     Publishes the observed spawn with the current windows, then resumes
+     auto-apply if the doc was unlocked (a locked doc stays locked).
    - The whole published set is wrong → use the `/admin` page's full publish
      (that locks auto; resume from the page when done).
 3. **Confirm the target with the maintainer before writing.** The window is
@@ -75,8 +75,12 @@ Times are Taipei wall-clock `YYYY-MM-DD HH:mm` (UTC+8, no DST) or ISO-8601.
 - Never `git push` or `pnpm worker:deploy` for a schedule correction. It is KV
   data, not code.
 - Never print, log, or persist the secret, and never pass it as an argument.
-- `anchor` (and any full publish) locks auto-apply; `anchor` resumes it right
-  after. If it must stay locked, publish from `/admin` instead.
+- `anchor` and any full publish lock auto-apply. `anchor` resumes it right
+  after unless the doc was already locked, in which case it stays locked so
+  hand-published windows survive.
+- On a locked doc the worker stores overrides but does not apply them, so a
+  `no-shift`/`shift-amount` can be a no-op. The wrapper prints a `NOTE` when
+  that happens; resume auto (or use `/admin`) to apply it.
 - Don't invent windows. `no-shift`/`shift-amount` refuse a start that is not a
   candidate or override.
 - Tombstones and overrides match by `startMs`. If the announced start time
