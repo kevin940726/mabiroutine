@@ -182,8 +182,19 @@ export function MaterialHoverCard({ give, get, compact, times, terse, getless }:
   return (
     <span
       ref={wrapRef}
-      onMouseEnter={scheduleOpen}
-      onMouseLeave={scheduleClose}
+      // Pointer events, not mouse events, and only for a pointer that can actually
+      // hover. A touch tap fires an emulated mouseenter AND mouseleave within a few
+      // ms of the click: measured at 390px, click at 38ms then mouseleave at 46ms,
+      // which scheduled the 150ms close and killed the card the tap had just opened.
+      // Asking the pointer what it is avoids guessing — a tap is pointerType
+      // "touch" and neither schedules an open nor a close, so the click handler
+      // owns the card and a second tap closes it. Pen and mouse still hover.
+      onPointerEnter={(e) => {
+        if (e.pointerType !== "touch") scheduleOpen();
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType !== "touch") scheduleClose();
+      }}
     >
       {terse ? null : "你給 "}
       <button
