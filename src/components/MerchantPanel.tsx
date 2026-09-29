@@ -22,6 +22,17 @@ import barterJson from "@/data/barter.json";
  *  first one's timer to cut the second flash short. */
 const FOCUS_FLASH_MS = 1600;
 
+/** The 優先度 a fresh visit opens with: the two tiers worth acting on. 39 of the 194
+ *  shop rows, which is the set the priority stripe already marks, so the shop opens on
+ *  what the tracker actually asks you to do rather than on the whole catalog.
+ *
+ *  A default, not a floor: 清除篩選 empties it to show all 194 rows, and the 優先度
+ *  trigger is highlighted and reads 必換/推薦 from the first paint, so the filter is
+ *  visible state rather than a hidden one. Without that the default would be
+ *  indistinguishable from "no filter", and clearing would look like the only way to
+ *  see rows it had been hiding. */
+const DEFAULT_PRIORITY = ["must", "extra"];
+
 /** Scroll the flashed tile into the middle of the viewport. "center" rather than
  *  "start": the card can sit directly under a tile, and a top-aligned scroll puts
  *  the target under the sticky header on desktop. */
@@ -413,7 +424,7 @@ export function MerchantPanel() {
   // barterFilters with a priority field, but nothing read it after the old explorer
   // was deleted; it has since been removed outright (store v20), so there is no
   // production filter state to accidentally drive from an unshipped prototype.
-  const [protoPriority, setProtoPriority] = useState<string[]>([]);
+  const [protoPriority, setProtoPriority] = useState<string[]>(DEFAULT_PRIORITY);
   const [protoKind, setProtoKind] = useState<string>("all");
   // The tile a jump just landed on, flashed and then cleared. Keyed by pinId, the
   // same id a pin uses: a curated barter row's `key` is the shop deal's key and is
@@ -483,6 +494,24 @@ export function MerchantPanel() {
     []
   );
 
+  /** The view a jump leaves behind, captured BEFORE the setters run: React batches
+   *  them, so reading after would capture the jumped-to view instead. Shared by the
+   *  popover jump and the portrait-band open, so 返回 restores the same shape from
+   *  either entry point. */
+  const snapshotView = useCallback(
+    (): ViewSnapshot => ({
+      town,
+      merchant,
+      npcTab,
+      query,
+      selectedOnly,
+      protoPriority,
+      protoKind,
+      scrollY: typeof window === "undefined" ? 0 : window.scrollY,
+    }),
+    [town, merchant, npcTab, query, selectedOnly, protoPriority, protoKind]
+  );
+
   /** The in-card jump: go to the merchant that PRODUCES the give, not the row being
    *  read. A same-session state transition, not a URL navigation: the panel is
    *  already mounted, and a reload would lose the shop state the jump depends on.
@@ -500,18 +529,7 @@ export function MerchantPanel() {
    *  rather than undo the jump. */
   const viewInShop = useCallback(
     (npc: string, giveName: string) => {
-      // Snapshot BEFORE the setters run: React batches them, so reading after would
-      // capture the jumped-to view instead of the one being left.
-      setPreJump({
-        town,
-        merchant,
-        npcTab,
-        query,
-        selectedOnly,
-        protoPriority,
-        protoKind,
-        scrollY: typeof window === "undefined" ? 0 : window.scrollY,
-      });
+      setPreJump(snapshotView());
       setQuery("");
       setProtoPriority([]);
       setProtoKind("all");
@@ -535,7 +553,7 @@ export function MerchantPanel() {
       const row = ALL_SHOP_ITEMS.find((r) => r.npc === npc && parseItemQty(r.get).name === giveName);
       if (row) focusTile(row.pinId);
     },
-    [focusTile, town, merchant, npcTab, query, selectedOnly, protoPriority, protoKind]
+    [focusTile, snapshotView]
   );
   // One-shot landing for ?npc= and ?item=, the same convention the reminder params
   // use in useHourlyReminders: read once, act, then strip so the URL stops claiming
@@ -585,15 +603,38 @@ export function MerchantPanel() {
     writeNpcParam(name);
   };
 
+  /** Open a merchant's shop from a tile's portrait band. Same destination as the
+   *  popover jump, but reached by browsing rather than by tracing a material, so it
+   *  KEEPS the current filters: someone reading 必換 rows and tapping a merchant wants
+   *  that merchant's 必換 rows, not an unfiltered dump. Only 返回 restores what the
+   *  jump would have cleared, and arming it is the point — the chip is how you get
+   *  back to the list you were scanning. */
+  const openNpc = (npc: string) => {
+    setPreJump(snapshotView());
+    selectNpc(npc);
+  };
+
   // The reset button covers every filter in this row, the two prototype filters
   // included. They were missed when they were added, so the button stayed greyed
   // out while a priority or kind filter was live, and pressing it left them set.
+  //
+  // Priority counts as active whenever it is set at all, the default included: the
+  // shop opens on 必換+推薦, which is hiding 155 of the 194 rows, so there IS something
+  // to clear and the button says so. Treating the default as "not a filter" would leave
+  // the one control that reveals those rows looking disabled on the very screen it
+  // applies to. Pressing it empties the filter to all rows, so the outcome matches the
+  // promise: enabled on load, disabled after it clears.
   const filtersActive = town !== "all" || merchant !== "all" || protoPriority.length > 0 || protoKind !== "all";
 
   const clearFilters = () => {
     setTown("all");
     setMerchant("all");
     setNpcTab("gold");
+    // Empties the priority filter to show all 194 rows, the literal meaning of 清除.
+    // The 必換+推薦 default is a starting view, not a floor: re-ticking the two tiers
+    // in the 優先度 menu is how you get back, and the menu shows its state so that is
+    // discoverable. Restoring the default here instead would make 清除篩選 HIDE 155
+    // rows, which is the opposite of what the words promise.
     setProtoPriority([]);
     setProtoKind("all");
     writeNpcParam("all");
@@ -739,6 +780,7 @@ export function MerchantPanel() {
                 pinned={new Set(barterPins)}
                 onTogglePin={togglePin}
                 onViewInShop={viewInShop}
+                onOpenNpc={openNpc}
                 focusKey={focusKey}
                 byNpc
                 splitKind
@@ -759,7 +801,7 @@ export function MerchantPanel() {
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-lg font-semibold">{selected?.name ?? "全部商店"}</h2>
               <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                {selected ? <><MapPin /> {selected.town} · {npcRows.length} 筆</> : `${items.length} 筆 · 以物易物優先，金幣最後`}
+                {selected ? <><MapPin /> {selected.town} · {npcRows.length} 筆</> : `${items.length} 筆`}
               </p>
             </div>
             {/* the grid drops the 金幣/以物易物 split, so the toggle belongs to the
@@ -785,6 +827,7 @@ export function MerchantPanel() {
               pinned={new Set(barterPins)}
               onTogglePin={togglePin}
               onViewInShop={viewInShop}
+              onOpenNpc={openNpc}
               focusKey={focusKey}
             />
           )}

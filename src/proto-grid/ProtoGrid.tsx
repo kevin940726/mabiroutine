@@ -16,6 +16,7 @@ export function ProtoGrid({
   splitKind,
   byNpc,
   onViewInShop,
+  onOpenNpc,
   focusKey,
 }: {
   items: MerchantItem[];
@@ -28,6 +29,9 @@ export function ProtoGrid({
    *  the tile callback is: the grid widens rows to ProtoItem, and this handler never
    *  needs the row itself. */
   onViewInShop?: (npc: string, giveName: string) => void;
+  /** Opens a merchant's own shop from the tile's portrait band — same destination as
+   *  onViewInShop but no row to flash. */
+  onOpenNpc?: (npc: string) => void;
   focusKey?: string | null;
 }) {
   return (
@@ -38,6 +42,7 @@ export function ProtoGrid({
       splitKind={splitKind}
       byNpc={byNpc}
       onViewInShop={onViewInShop}
+      onOpenNpc={onOpenNpc}
       focusKey={focusKey}
     />
   );

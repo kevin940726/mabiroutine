@@ -23,8 +23,8 @@ handled for you.
   draggable into any order;
   each keeps its own progress.
 - 🔄 **A barter explorer that answers "what do I trade today".** Every shop in the
-  game — all 194 gold and barter rows — browsable by town and NPC. Curated trades
-  lead in their hand-written must/extra/once/situational order, gold purchases last.
+  game — all 194 gold and barter rows — browsable by town and NPC, opening on the
+  必換 and 推薦 tiers you actually act on, ordered by how badly you want them.
   Search by what you have or what you need, and tap any NPC portrait to jump to that
   shop. Pin the good ones — gold purchases included — and they show up in your
   dailies, each with what it costs and how many times you can buy it. Tap a material

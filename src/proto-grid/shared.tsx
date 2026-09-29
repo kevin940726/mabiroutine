@@ -48,6 +48,11 @@ export type ProtoProps = {
    *  plus the material name so the caller can flash the producing row. Absent when
    *  the caller has no shop view to jump to. */
   onViewInShop?: (npc: string, giveName: string) => void;
+  /** Open a merchant's own shop, from the tile's portrait band. Same destination as the
+   *  popover's jump but a different intent: this goes to THAT merchant's section, so
+   *  there is no row to flash. Kept apart from onViewInShop rather than passing an
+   *  empty material name, so each callback says what it does. */
+  onOpenNpc?: (npc: string) => void;
   /** pinId of the tile a jump just landed on — flashed, then cleared by the caller. */
   focusKey?: string | null;
 };
@@ -254,12 +259,16 @@ export function TradeGrid({
   );
 }
 
-/** 3 columns on desktop, 2 at the sm breakpoint, 2 on phones. Wider tiles (232px at
- *  1440) let a two-line name and a two-line trade collapse to one line each, which is
- *  what the 4-column cut was wrapping; the cost is ~25% more page height (68 grid rows
- *  vs 53), which is the trade for it. Gap is 20px where the tile's own rhythm is 8px:
- *  the 2.5:1 ratio is deliberate, so the tiles read as cards rather than a wall. */
-export const GRID = "grid gap-5 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3";
+/** 1 column on phones, 2 from the sm breakpoint (640px), 3 on desktop. One column on
+ *  a phone because two leaves a 154px tile carrying a 15px CJK title: a long name
+ *  like 高級鍊金術再燃燒催化劑 wrapped to three lines, the trade line wrapped with it,
+ *  and the merchant name truncated (迪莉絲 · 堤爾…). The wider tiles are what let the
+ *  text stop wrapping, the same reason desktop went to three columns.
+ *
+ *  The gap is 20px where the tile's own rhythm is 8px: the 2.5:1 ratio is deliberate,
+ *  so the tiles read as cards rather than a wall. Wider tiles cost ~25% more page
+ *  height on desktop (68 grid rows vs 53), which is the trade for it. */
+export const GRID = "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
 
 /**
  * Hover/tap popover for one barter row, carrying the same MaterialBreakdown the

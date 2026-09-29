@@ -37,15 +37,36 @@ const STACK = "flex flex-col gap-2";
  *  earlier two-line version measured 40.3px of the tile's height for the same two
  *  facts, and reading `安黛莉 · 堤爾克那` as a subtitle is what lets the trade name
  *  stay the dominant element. */
-function MerchantBand({ item }: { item: ProtoItem }) {
-  return (
-    <div className="flex items-center gap-1.5 border-b pb-1.5">
+function MerchantBand({ item, onOpen }: { item: ProtoItem; onOpen?: (npc: string) => void }) {
+  const inner = (
+    <>
       <NpcFace npc={item.npc} size="size-5" />
-      <p className="min-w-0 truncate text-[13px] leading-tight">
+      <span className="min-w-0 truncate text-[13px] leading-tight">
         <span className="font-semibold text-foreground">{item.npc}</span>
         <span className="text-muted-foreground"> · {item.town}</span>
-      </p>
-    </div>
+      </span>
+    </>
+  );
+  // A merchant the caller can open is a button, not a div: it is the only in-tile way
+  // to reach that merchant's own shop, and the tile as a whole is not a link. Styled to
+  // look identical to the static band so the grid does not gain a second visual weight;
+  // the hover background and focus ring are the affordance. `-mx-1` lets that background
+  // bleed into the tile's padding so it reads as a full-width row, not a text hitbox.
+  if (!onOpen) return <div className="flex items-center gap-1.5 border-b pb-1.5">{inner}</div>;
+  return (
+    <button
+      type="button"
+      // the tile behind this band is not itself clickable, but a future one might be —
+      // stop propagation so opening the merchant never doubles as a tile action
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(item.npc);
+      }}
+      aria-label={`開啟 ${item.npc} 的商店`}
+      className="-mx-1 flex items-center gap-1.5 rounded px-1 pb-1.5 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-b"
+    >
+      {inner}
+    </button>
   );
 }
 
@@ -98,6 +119,7 @@ function Tile({
   onTogglePin,
   showMerchant,
   onViewInShop,
+  onOpenNpc,
   focused,
 }: {
   item: ProtoItem;
@@ -105,6 +127,7 @@ function Tile({
   onTogglePin: (id: string) => void;
   showMerchant: boolean;
   onViewInShop?: (npc: string, giveName: string) => void;
+  onOpenNpc?: (npc: string) => void;
   focused: boolean;
 }) {
   // the pin button carries its own state; destructuring only what the tile uses
@@ -135,7 +158,7 @@ function Tile({
       <span className="absolute right-1 top-1">{button}</span>
 
       <div className={STACK}>
-        {showMerchant && <MerchantBand item={item} />}
+        {showMerchant && <MerchantBand item={item} onOpen={onOpenNpc} />}
 
         {/* Block-level <p> rows rather than <span>s: these are lines of a description,
             not inline runs, so the block form gets the line boxes right with no extra
@@ -175,7 +198,7 @@ function Tile({
   );
 }
 
-export function ProtoShop({ items, pinned, onTogglePin, splitKind, byNpc, onViewInShop, focusKey }: ProtoProps) {
+export function ProtoShop({ items, pinned, onTogglePin, splitKind, byNpc, onViewInShop, onOpenNpc, focusKey }: ProtoProps) {
   return (
     <TradeGrid
       items={items}
@@ -189,6 +212,7 @@ export function ProtoShop({ items, pinned, onTogglePin, splitKind, byNpc, onView
           onTogglePin={onTogglePin}
           showMerchant={showBand}
           onViewInShop={onViewInShop}
+          onOpenNpc={onOpenNpc}
           focused={focusKey != null && item.pinId === focusKey}
         />
       )}
