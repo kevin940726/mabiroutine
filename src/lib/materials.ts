@@ -344,9 +344,26 @@ export function pillFor(name: string, seen: Set<string> = new Set()): PillSource
 }
 
 /** True when the assumed-path plan would render anything beyond echoing the
- *  give: a make recipe (L1 + ingredient pills), or a non-gather leaf with
- *  more than one assumed route (tie faces). Gather-only and lone non-gather
- *  legs stay shut — vacuous pills. Mirrors assumedPlan's inputs. */
+ *  give.
+ *
+ *  A make recipe counts (L1 + ingredient pills). A non-gather leaf counts when it
+ *  has more than one assumed route (tie faces).
+ *
+ *  A barter leg counts only when the barter is the way in: if the item is also
+ *  sold, rewarded, dropped or disassembled, the barter is one option among several
+ *  and decomposing it would present a guess as the answer. Items reachable only by
+ *  barter are the case worth showing, because the breakdown says what you hand
+ *  over — real information, and the only thing to say about them. 18 of the 76
+ *  barter give names were shut behind the lone-leg rule for this reason.
+ *
+ *  Reward and drop routes are what make this data-driven: 通關獎勵 is a `quest`
+ *  route, 分解 is `disassemble`, and 打怪掉落 is `drop`, so an item the game hands
+ *  out for clearing content is suppressed by the same test as a shop item. Where
+ *  the data is missing that route, this cannot tell, which is why the reward-only
+ *  items are curated in recipes.json rather than special-cased here.
+ *
+ *  Gather-only legs still stay shut: a lone 採集 pill is vacuous and says nothing
+ *  the tile does not already. Mirrors assumedPlan's inputs. */
 export function hasBreakdown(name: string): boolean {
   const entry = RECIPES[name];
   if (!entry || entry.verified === "missing" || entry.routes.length === 0) return false;
@@ -355,6 +372,9 @@ export function hasBreakdown(name: string): boolean {
   if (!leaf) return false;
   if (leaf.kind === "craft") return true;
   if (leaf.routes.some((r) => r.kind === "gather")) return false;
+  if (leaf.routes.some((r) => r.kind === "barter" && (r.components?.length ?? 0) > 0)) {
+    return entry.routes.every((r) => r.kind === "barter");
+  }
   return leaf.routes.length > 1;
 }
 

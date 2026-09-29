@@ -1,4 +1,13 @@
 {
+ "不死粉末": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
  "傷痕花": {
   "verified": "tw",
   "routes": [
@@ -184,6 +193,15 @@
    }
   ]
  },
+ "喵幣": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
  "壯壯蘑菇": {
   "verified": "tw",
   "routes": [
@@ -306,6 +324,15 @@
   "note": "in-game item, no source, no yenyen page — skip squash (per user 2026-09-09)",
   "routes": []
  },
+ "寵物飼料": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
  "專業營火套組": {
   "verified": "tw",
   "routes": [
@@ -401,6 +428,15 @@
    }
   ]
  },
+ "強化再燃燒催化劑": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
  "恢復藥水": {
   "verified": "tw",
   "routes": [
@@ -419,6 +455,15 @@
       "qty": 2
      }
     ]
+   }
+  ]
+ },
+ "愛心幣": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
    }
   ]
  },
@@ -491,6 +536,15 @@
    }
   ]
  },
+ "最高級木材": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
  "木材": {
   "verified": "tw",
   "routes": [
@@ -551,6 +605,15 @@
    }
   ]
  },
+ "毒囊": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
  "沙威瑪": {
   "verified": "tw",
   "routes": [
@@ -584,6 +647,28 @@
     "skill": "料理 Lv.13"
    }
   ]
+ },
+ "泡水的豆子": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物加工設備",
+    "level": "4",
+    "outQty": 5,
+    "components": [
+     {
+      "name": "黃豆",
+      "qty": 30
+     },
+     {
+      "name": "裝水的瓶子",
+      "qty": 3
+     }
+    ]
+   }
+  ],
+  "note": "自行加工約需 20 分鐘"
  },
  "洋蔥": {
   "verified": "tw",
@@ -815,6 +900,15 @@
    }
   ]
  },
+ "生命的魔力石": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
  "白銅礦石": {
   "verified": "tw",
   "routes": [
@@ -899,6 +993,15 @@
     "kind": "gather",
     "station": "採礦",
     "level": "1",
+    "outQty": 1
+   }
+  ]
+ },
+ "稀有鍊金術再燃燒催化劑": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
     "outQty": 1
    }
   ]
@@ -1259,6 +1362,79 @@
    }
   ]
  },
+ "解除詛咒藥水": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
+ "豆乳": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物加工設備",
+    "level": "4",
+    "outQty": 3,
+    "components": [
+     {
+      "name": "泡水的豆子",
+      "qty": 3
+     },
+     {
+      "name": "裝水的瓶子",
+      "qty": 3
+     },
+     {
+      "name": "鹽",
+      "qty": 1
+     },
+     {
+      "name": "食用油",
+      "qty": 1
+     }
+    ]
+   }
+  ],
+  "note": "自行加工約需 55 分鐘"
+ },
+ "豆乳防風草蛋糕": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物製作台",
+    "level": "4",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "豆乳",
+      "qty": 4
+     },
+     {
+      "name": "防風草",
+      "qty": 6
+     },
+     {
+      "name": "鮮奶油",
+      "qty": 2
+     },
+     {
+      "name": "麵粉",
+      "qty": 4
+     },
+     {
+      "name": "糖",
+      "qty": 9
+     }
+    ],
+    "skill": "料理 Lv.13"
+   }
+  ]
+ },
  "貝類": {
   "verified": "tw",
   "routes": [
@@ -1406,6 +1582,17 @@
       "qty": 20
      }
     ]
+   }
+  ]
+ },
+ "防風草": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "鋤地",
+    "level": "10",
+    "outQty": 1
    }
   ]
  },
@@ -1611,6 +1798,15 @@
       "qty": 8
      }
     ]
+   }
+  ]
+ },
+ "高級鍊金術再燃燒催化劑": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
    }
   ]
  },

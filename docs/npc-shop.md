@@ -384,6 +384,25 @@ for this: it includes the row's index within its NPC and is not a stable id.
 - A shop row keeps its yield in the title ("紙 ×5") where a barter row strips it,
   because the barter hover card spells out the full exchange and a shop row has
   no such card.
+- The material breakdown shows for a barter-only item, and stays shut for one
+  that is also sold, handed out as a 通關獎勵, dropped or disassembled. A
+  breakdown that decomposes a trade is worth reading; one that presents a guess
+  between several acquisition routes is not. The earlier "a lone route stays
+  shut" rule hid the barter case along with the shop and gather ones, which is
+  why 凱琳特製全麥麵包 looked broken rather than deliberately suppressed. Eleven
+  items gained a `quest` route in `recipes.json` to express this, since the data
+  recorded no source for them. 愛心幣 and 喵幣 are quest currencies, so `quest` is
+  their real source rather than a stand-in. Five of the eleven had no entry at all
+  and were suppressed only by that absence, which is the fragile form of the same
+  fact: any of them becoming a barter get in `shops.json` would have started
+  showing a breakdown with nothing in the data to stop it.
+- 豆乳防風草蛋糕 was the one item whose own recipe was missing rather than its
+  source. It now carries its 食物製作台 Lv.4 / 料理 Lv.13 recipe, along with the
+  three ingredient rows missing behind it: 豆乳 and 泡水的豆子 at 食物加工設備
+  Lv.4, and 防風草 gathered at 鋤地 Lv.10. Craft time is not a route field, so it
+  rides an entry `note` (自行加工約需 55 分鐘 / 約需 20 分鐘), the form 傷痕花粉末
+  and 銀合金錠 already use; nothing reads it. 食物加工設備 rows carry no `skill`,
+  because that station has none; only 食物製作台 rows do.
 - Shop pins carry no 必換 badge. Uncurated barter rows also pin under a `shop::`
   id and have no priority, so they would never show one.
 - Ordering is barter.json file order, then shops.json order, both spaces sinking

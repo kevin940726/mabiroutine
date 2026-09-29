@@ -14,8 +14,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 
 /** No toggle when the breakdown would just echo the give (trivial self-only
  *  leaf) — or when the assumed path is gather-only (vacuous: a lone skill
- *  pill says nothing). Single non-gather legs stay shut too; make-roots
- *  always keep theirs for the 製作 queue). */
+ *  pill says nothing). A lone non-gather leg usually stays shut, except a
+ *  barter one, where the breakdown names what you hand over and the trade is
+ *  the only way in; make-roots always keep theirs for the 製作 queue). */
 export function giveHasBreakdown(give: string): boolean {
   return hasBreakdown(parseItemQty(give).name);
 }
