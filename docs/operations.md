@@ -102,9 +102,18 @@ spawn 14:38 → card 14:30 reading 預計 8 分鐘後出現.
 3. **Accept all**: 採用候選 (keeps auto on).
 4. **Rewrite everything**: the flap under 已發佈 (locks auto; resume to undo).
 5. **Anchor drift**: edit 錨點, publish — no code push, all devices follow.
+6. **Maintenance that does not shift** (the timer may keep running through a
+   maintenance; learned 2026-09-30, first real test 10/01): 忽略 the window.
+   Tombstoning takes it out of the pause math while the announcement is still
+   a candidate, so the leg is not stretched. If it shifted by a different
+   amount than announced, 修正 its bounds to the effective shift instead. If
+   predictions are already late beyond what the windows explain, re-anchor
+   from an observed spawn (錨點 + 發佈, then 回復自動更新).
 
 Rules of thumb on the page: unsure → don't publish; overstated windows skew
-predictions LATE (miss), understated skew EARLY (wait) — err short.
+predictions LATE (miss), understated skew EARLY (wait) — err short. When a
+maintenance's pause is uncertain, exclude the window: a missed pause costs a
+wait, a kept non-pause costs a miss.
 
 ## 7. Client behavior contracts (for debugging reports)
 
@@ -133,6 +142,12 @@ predictions LATE (miss), understated skew EARLY (wait) — err short.
   window after launch; check `purple:last-fire` + `last_sent_at`).
 - [ ] Freshness label (`預測更新於 …`) in the purple popover — `updatedAt`
   already travels on the feed; UI not built.
+- [ ] Maintenance-shift model (evidence due 10/01): the shift is observationally
+  unconfirmed, and the 10/01 spawn is the first leg that crosses a window (feed
+  says 20:38 if the 9/30 window pauses, ~16:38 if not). Then decide: keep
+  auto-shift, default new candidates to no-shift, or an explicit per-window
+  shift flag. Quick fix until then: 忽略 the window. Details in
+  `docs/purple-hole.md`.
 - [ ] Feed-refresh edge (accepted low-priority 2026-09-30, kept as-is):
   `refreshPurpleFeedThrottled` stamps the attempt at its start, including
   failures, so an `online` recovery (or a popover open) within 60s of a failed
