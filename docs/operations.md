@@ -116,6 +116,12 @@ predictions LATE (miss), understated skew EARLY (wait) — err short. When a
 maintenance's pause is uncertain, exclude the window: a missed pause costs a
 wait, a kept non-pause costs a miss.
 
+Scriptable: the same edits are wrapped for agents in the `purple-schedule`
+skill (`skills/purple-schedule/`, invoked as `/purple-fix`): `state` and
+`predict` are read-only, `no-shift` / `shift-amount` / `anchor` write. It reads
+`MABI_ADMIN_SECRET` from the environment (never an argument or a file) and
+prints the new state and predictions.
+
 ## 7. Client behavior contracts (for debugging reports)
 
 - Feed chain: live fetch > localStorage cache > hardcoded; `__mabiPurpleFeed()`

@@ -53,3 +53,12 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 - `test:sync` runs `scripts/check-sync.mjs`: hermetic engine/property/tab suites (real store+sync code, always) plus live API + real-Edge E2E (SKIP loudly without `pnpm dev:api`/Edge). If you touch sync, reset, or merge code, these must pass for real — not skipped. Sabotage standard: a suppression/marker change must fail T3 (proven 2026-09-06).
 - Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if the premise line fails, update the fixture, not the data.
 - `suggestions/` is gitignored (review scratch only); `src/data/*.json` is hand-edited and needs human review — fetcher scripts stay private-local (gitignored, never committed).
+
+## Purple schedule corrections (agents)
+
+Timing fixes are live KV data on the worker, not code: use the `purple-schedule`
+skill (`skills/purple-schedule/`, invoked as `/purple-fix`), which wraps the
+`/admin` API with `MABI_ADMIN_SECRET` from the environment (never commit, log,
+or pass it as an argument). A schedule correction never needs `git push` or
+`worker:deploy`. Runbook: `docs/operations.md` §6; the pause assumption and why
+excluding a window errs safe: `docs/purple-hole.md`.
