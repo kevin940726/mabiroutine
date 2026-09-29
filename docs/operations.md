@@ -133,6 +133,14 @@ predictions LATE (miss), understated skew EARLY (wait) — err short.
   window after launch; check `purple:last-fire` + `last_sent_at`).
 - [ ] Freshness label (`預測更新於 …`) in the purple popover — `updatedAt`
   already travels on the feed; UI not built.
+- [ ] Feed-refresh edge (accepted low-priority 2026-09-30, kept as-is):
+  `refreshPurpleFeedThrottled` stamps the attempt at its start, including
+  failures, so an `online` recovery (or a popover open) within 60s of a failed
+  fetch is skipped and the timetable stays stale until the next 30-min tick.
+  Fix if it ever bites: call `refreshPurpleFeedThrottled(0)` on connectivity
+  transitions + popover open, or don't count failures toward the gap. Same
+  call never rejects, so `__mabiPurpleRefresh()` cannot distinguish
+  "unchanged" from "failed".
 - [ ] Phase-3C crowd reports — needs frequent drift AND an active reporter
   base plus a privacy review. Not this year on current information.
 
