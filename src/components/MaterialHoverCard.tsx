@@ -22,7 +22,7 @@ type Props = {
   /** Whole-deal multiplier for the 共需 line — the caller resolves it from
    *  the row's exchange limit (default 1). */
   times?: number;
-  /** PROTOTYPE: shorten the trigger line for a narrow column. Drops the 你給/你拿
+  /** Shorten the trigger line for a narrow column. Drops the 你給/你拿
    *  verbs (the arrow already says which side is which) and a trailing ×1, which
    *  says nothing about what you hand over (41 of the 100 barter rows are ×1).
    *  The card is unchanged, so the full 你給 X ×N → 你拿 Y is still there on hover.
@@ -31,12 +31,13 @@ type Props = {
    *  hiding it would leave the total unexplained. It is not added to the card
    *  either, because the total already spells it out as 共需（N次）.
    *
-   *  Off by default — the shipped merchant row has the width for the full line. */
+   *  Off by default: the tracker's row is wide enough for the full line, so only the
+   *  shop tile turns it on. */
   terse?: boolean;
-  /** PROTOTYPE: drop the item you receive from the trigger line, keeping only
-   *  `give →`. Only correct when the caller renders that item elsewhere on screen —
-   *  the shop tile's title is exactly that item, one line above. Off by default, so
-   *  the shipped row still names both ends of the trade. */
+  /** Drop the item you receive from the trigger line, keeping only `give →`. Only
+   *  correct when the caller renders that item elsewhere on screen — the shop tile's
+   *  title is exactly that item, one line above. Off by default, so the tracker's row
+   *  still names both ends of the trade. */
   getless?: boolean;
   /** Optional footer action, e.g. the shop tile's 在商店中查看 link. Rendered only
    *  when the caller passes it, so the tracker's two call sites are unchanged.
@@ -246,8 +247,8 @@ export function MaterialHoverCard({ give, get, compact, times, terse, getless, a
           getless is legitimate when the caller already prints the item you receive:
           the tile's 15px bold title is the same item. The card keeps the full
           你給 X → 你拿 Y, so hovering still names both.
-          Still a prop rather than implied by terse: the shipped row keeps both names,
-          and losing the item from the only place it appeared would be a silent
+          Still a prop rather than implied by terse: the tracker's row keeps both
+          names, and losing the item from the only place it appeared would be a silent
           regression. */}
       {getless ? null : <>{"\u00a0→ "}{terse ? null : "你拿 "}{displayName(get)}</>}
       {open && pos && (

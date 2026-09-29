@@ -1,19 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MapPin, Pin, RotateCcw, Search, ShoppingBag, Store } from "lucide-react";
+import { ArrowLeft, MapPin, RotateCcw, Search, ShoppingBag, Store } from "lucide-react";
 import { MenuSelect, MenuMultiSelect } from "@/components/MenuSelect";
-import { BarterRowDesktop, BarterRowMobile, BarterPinButton, type BarterJsonRow } from "@/components/BarterExplorer";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
-import { CURATED_LABEL, costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
+import { costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
 import { displayName, parseItemQty } from "@/lib/materials";
-// The shop grid (src/proto-grid/), which is the shop view; the old row/tab UI it
-// replaced is kept behind a dev-only ?rows=1 for comparison until the fold-in.
-import { ProtoGrid } from "@/proto-grid/ProtoGrid";
+import { ShopGrid } from "@/components/shop/ShopGrid";
+import { NpcFace } from "@/components/shop/NpcFace";
+import type { ShopRow } from "@/components/shop/types";
 import barterJson from "@/data/barter.json";
 
 /** How long the jumped-to tile stays tinted. Long enough to find by eye after the
@@ -43,8 +40,6 @@ function scrollToFocus(key: string): boolean {
   return true;
 }
 
-type NpcTab = "gold" | "barter";
-
 /** The view state a jump wipes, kept so the 返回 chip can put it back. A jump
  *  clears every filter and switches merchant, which is right for landing on the
  *  producing shop but destroys the context you were reading. Scroll is part of it:
@@ -52,46 +47,16 @@ type NpcTab = "gold" | "barter";
 type ViewSnapshot = {
   town: string;
   merchant: string;
-  npcTab: NpcTab;
   query: string;
   selectedOnly: boolean;
-  protoPriority: string[];
-  protoKind: string;
+  priorityFilter: string[];
+  kindFilter: string;
   scrollY: number;
 };
 
-export type MerchantItem = {
-  key: string;
-  npc: string;
-  town: string;
-  title: string;
-  give: string;
-  /** what the trade yields, i.e. "what you get". Barter only: a gold purchase has
-   *  no get, and the field is "" for it rather than optional, so the type stays
-   *  total and every item is assignable to the prototype's ProtoItem. */
-  get: string;
-  /** display cost: the coin for gold purchases, the material for barter */
-  cost: string;
-  limitText: string | null;
-  /** account-wide rather than per character, i.e. the in-game 伺服器 badge */
-  scopeAccount: boolean;
-  priority: CuratedPriority | null;
-  note: string | null;
-  kind: "shop" | "barter";
-  /** position in barter.json, or -1 when the deal is not curated */
-  curatedIndex: number;
-  /** barter.json id when this deal is curated */
-  barterId: string | null;
-  /** the id a pin on this row uses — barterId when curated, else a shop:: id */
-  pinId: string;
-  barterRow?: BarterJsonRow;
-};
+type MerchantGroup = { name: string; town: string; rows: ShopRow[] };
 
-type MerchantGroup = { name: string; town: string; rows: MerchantItem[] };
-
-const CURATED_ROWS = new Map((barterJson as BarterJsonRow[]).map((row) => [row.id, row]));
-
-function toItem(deal: ShopDeal): MerchantItem {
+function toItem(deal: ShopDeal): ShopRow {
   return {
     key: deal.key,
     npc: deal.npc,
@@ -103,7 +68,7 @@ function toItem(deal: ShopDeal): MerchantItem {
     // differently.
     give: costText(deal),
     // gold has no get: the coin glyph makes the whole trade. Cosmetics, so the
-    // field is total rather than optional — every item is a ProtoItem.
+    // field is total rather than optional.
     get: deal.kind === "barter" ? getText(deal) : "",
     cost: costText(deal),
     limitText: deal.limitText,
@@ -114,7 +79,6 @@ function toItem(deal: ShopDeal): MerchantItem {
     curatedIndex: deal.curatedIndex,
     barterId: deal.barterId,
     pinId: deal.pinId,
-    barterRow: deal.barterId ? CURATED_ROWS.get(deal.barterId) : undefined,
   };
 }
 
@@ -124,7 +88,7 @@ function toItem(deal: ShopDeal): MerchantItem {
  * every gold purchase last. Within each band the source order is kept, so the
  * list is stable instead of reshuffling when data gains rows.
  */
-const ALL_SHOP_ITEMS: MerchantItem[] = (() => {
+const ALL_SHOP_ITEMS: ShopRow[] = (() => {
   const items = shopDeals(loadShopNpcs()).map(toItem);
   const curated = items.filter((item) => item.curatedIndex >= 0).sort((a, b) => a.curatedIndex - b.curatedIndex);
   const rest = items.filter((item) => item.curatedIndex < 0);
@@ -133,7 +97,7 @@ const ALL_SHOP_ITEMS: MerchantItem[] = (() => {
 
 /** A pin can point at a curated row that shops.json has no entry for, so build
  *  the row straight from barter.json — same shape as a shop-derived item. */
-function barterRowToItem(row: BarterJsonRow): MerchantItem {
+function barterRowToItem(row: (typeof barterJson)[number]): ShopRow {
   return {
     key: `curated-only::${row.id}`,
     npc: row.npc,
@@ -150,11 +114,10 @@ function barterRowToItem(row: BarterJsonRow): MerchantItem {
     curatedIndex: -1,
     barterId: row.id,
     pinId: row.id,
-    barterRow: row,
   };
 }
 
-function rowMatches(item: MerchantItem, query: string) {
+function rowMatches(item: ShopRow, query: string) {
   // Folded on both sides so a name pasted from the game (half-width parens,
   // which is how shops.json spells it) still matches the full-width display.
   const q = displayName(query.trim()).toLocaleLowerCase("zh-Hant");
@@ -164,11 +127,11 @@ function rowMatches(item: MerchantItem, query: string) {
     .includes(q);
 }
 
-function filterItems(items: MerchantItem[], town: string, query: string) {
+function filterItems(items: ShopRow[], town: string, query: string) {
   return items.filter((item) => (town === "all" || item.town === town) && rowMatches(item, query));
 }
 
-function groupItems(items: MerchantItem[]) {
+function groupItems(items: ShopRow[]) {
   const groups = new Map<string, MerchantGroup>();
   for (const item of items) {
     const key = `${item.npc}::${item.town}`;
@@ -178,207 +141,6 @@ function groupItems(items: MerchantItem[]) {
   }
   // Town order is the game's region order (TOWN_ORDER), then name inside a town.
   return [...groups.values()].sort((a, b) => compareTowns(a.town, b.town) || a.name.localeCompare(b.name, "zh-Hant"));
-}
-
-function tabItems(items: MerchantItem[], tab: NpcTab, query: string) {
-  const kind = tab === "gold" ? "shop" : "barter";
-  return items.filter((item) => item.kind === kind && rowMatches(item, query));
-}
-
-function tabCount(items: MerchantItem[], tab: NpcTab) {
-  const kind = tab === "gold" ? "shop" : "barter";
-  return items.filter((item) => item.kind === kind).length;
-}
-
-/** Barter-only NPCs have no gold tab, so open on whichever tab exists. */
-function firstTab(items: MerchantItem[]): NpcTab {
-  return tabCount(items, "gold") > 0 ? "gold" : "barter";
-}
-
-export function NpcFace({ npc, size = "size-10" }: { npc: string; size?: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) {
-    return <span className={cn("grid shrink-0 place-items-center rounded-full border bg-muted text-sm font-semibold", size)}>{npc.slice(0, 1)}</span>;
-  }
-  return (
-    <img
-      src={`/npc/${encodeURIComponent(npc)}.png`}
-      alt=""
-      aria-hidden
-      loading="lazy"
-      onError={() => setFailed(true)}
-      className={cn("shrink-0 rounded-full border bg-muted object-cover", size)}
-    />
-  );
-}
-
-function NpcTabToggle({ items, tab, onChange }: { items: MerchantItem[]; tab: NpcTab; onChange: (tab: NpcTab) => void }) {
-  const gold = tabCount(items, "gold");
-  const barter = tabCount(items, "barter");
-  if (gold + barter === 0) return null;
-  return (
-    <div className="inline-flex rounded-xl bg-muted p-1" role="tablist" aria-label="NPC 交易類型">
-      {gold > 0 && (
-        <button type="button" role="tab" aria-selected={tab === "gold"} onClick={() => onChange("gold")} className={cn("inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-medium text-muted-foreground", tab === "gold" && "bg-background text-foreground shadow-sm")}>
-          <Store /> 金幣 {gold}
-        </button>
-      )}
-      {barter > 0 && (
-        <button type="button" role="tab" aria-selected={tab === "barter"} onClick={() => onChange("barter")} className={cn("inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-sm font-medium text-muted-foreground", tab === "barter" && "bg-background text-foreground shadow-sm")}>
-          以物易物 {barter}
-        </button>
-      )}
-    </div>
-  );
-}
-
-/**
- * The tracker's pin on a gold tile, which has no barter.json recipe behind it.
- * Same store field and same toggle the curated rows use, so a gold pin behaves
- * identically everywhere: it shows on the dailies, syncs, and unpinning from
- * either side agrees. Compact and icon-only because a tile has room for one
- * control; the emerald fill matches the row buttons so the two read as the
- * same action. A tile's 44px target is smaller than the row's, which is the
- * tradeoff for keeping the grid dense.
- */
-function GoldPinButton({ item }: { item: MerchantItem }) {
-  const pinned = useAppStore((s) => s.barterPins.includes(item.pinId));
-  const toggle = useAppStore((s) => s.toggleBarterPin);
-  return (
-    <button
-      type="button"
-      aria-label={pinned ? `取消選取 ${item.title}` : `選取 ${item.title}`}
-      aria-pressed={pinned}
-      onClick={() => toggle(item.pinId)}
-      className={cn(
-        "grid size-6 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        pinned ? "bg-emerald-600 text-white" : "text-muted-foreground/60 hover:bg-accent hover:text-foreground"
-      )}
-    >
-      <Pin className="size-3.5" fill={pinned ? "currentColor" : "none"} />
-    </button>
-  );
-}
-
-function MerchantGrid({ items }: { items: MerchantItem[] }) {
-  return (
-    <div className="@container">
-      <div className="grid grid-cols-2 gap-2 @lg:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-5">
-        {items.map((item) => (
-          <article
-            key={item.key}
-            data-shop-tile
-            className="flex flex-col gap-0.5 rounded-lg border bg-card p-2 transition-colors hover:bg-accent/40"
-          >
-            <h3 className="line-clamp-2 text-sm font-semibold leading-snug">{item.title.replace(/ ×\d+$/, "")}</h3>
-            <p className="text-xs font-medium leading-snug text-foreground/80">{item.cost}</p>
-            <div className="mt-auto flex items-center justify-between gap-1.5">
-              <p className="text-[10px] leading-snug text-muted-foreground">{item.limitText ?? "不限次數"}</p>
-              <div className="flex items-center gap-1">
-                {item.priority && (
-                  <Badge
-                    variant={item.priority === "must" ? "default" : "secondary"}
-                    className={cn("shrink-0 text-[10px]", item.priority === "must" && "bg-red-600 text-white hover:bg-red-700")}
-                  >
-                    {CURATED_LABEL[item.priority]}
-                  </Badge>
-                )}
-                <GoldPinButton item={item} />
-              </div>
-            </div>
-            {item.note && <p className="line-clamp-1 text-[10px] leading-snug italic text-muted-foreground">📝 {item.note}</p>}
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** Mirrors BarterRowDesktop so gold and uncurated rows read as the same row:
- *  same container, portrait, title + badges, npc · town, 你給 → 你拿, cap and
- *  note. The pin button writes the tracker's pin under the row's shop:: id.
- *  The one thing it cannot copy is the expandable material breakdown, which
- *  needs a curated row too. */
-function PlainRow({ item, onSelectNpc }: { item: MerchantItem; onSelectNpc: (npc: string) => void }) {
-  const cap = item.limitText?.replace("（伺服器）", "");
-  return (
-    <div className="rounded-lg border bg-card px-3 py-2.5 [content-visibility:auto] [contain-intrinsic-size:auto_80px]">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => onSelectNpc(item.npc)}
-          aria-label={`開啟 ${item.npc} 的商店`}
-          className="shrink-0 rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <NpcFace npc={item.npc} size="size-10" />
-        </button>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-primary truncate">{item.title.replace(/ ×\d+$/, "")}</span>
-            {item.priority && (
-              <Badge variant={item.priority === "must" ? "default" : "secondary"} className={cn("text-[10px] shrink-0", item.priority === "must" && "bg-red-600 hover:bg-red-700")}>
-                {CURATED_LABEL[item.priority]}
-              </Badge>
-            )}
-            {item.scopeAccount && (
-              <Badge variant="secondary" className="text-[10px] shrink-0 bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 hover:bg-sky-100">
-                伺服器
-              </Badge>
-            )}
-            <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
-              <span className="font-medium truncate">{item.npc}</span>
-              <span className="text-muted-foreground truncate">· {item.town}</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
-            <span className="truncate">
-              你給 <span className="font-medium text-foreground">{item.cost}</span> → 你拿 {item.title}
-            </span>
-            <span className="ml-auto shrink-0">{cap}</span>
-          </div>
-          {item.note && (
-            <p className="text-xs leading-snug text-muted-foreground/80 mt-1 italic truncate border-l-2 border-muted pl-1.5">📝 {item.note}</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Curated rows get no pin overrides, so they read and write the tracker's
- *  `barterPins` directly: one pin per barter id, shared with the tracker tab
- *  and synced, instead of a second panel-local list. Uncurated barter rows
- *  reuse the same button under their shop:: id, so a pin looks and behaves the
- *  same whichever of the two it is. */
-function MerchantRows({ items, onSelectNpc }: { items: MerchantItem[]; onSelectNpc: (npc: string) => void }) {
-  const isMobile = useIsMobile();
-  return (
-    <div className="flex flex-col gap-2">
-      {items.map((item) => {
-        if (item.barterRow) {
-          const Row = isMobile ? BarterRowMobile : BarterRowDesktop;
-          return <Row key={item.barterId} b={item.barterRow} onSelectNpc={onSelectNpc} />;
-        }
-        return (
-          <div key={item.key} className="flex items-stretch gap-2">
-            <div className="min-w-0 flex-1">
-              <PlainRow item={item} onSelectNpc={onSelectNpc} />
-            </div>
-            <BarterPinButton id={item.pinId} />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Gold is a price comparison, so it reads fine as tiles. Barter is a recipe:
- *  what you hand over and what it costs to make is the point, so it keeps the
- *  full barter row (material chain, NPC, note) instead of a tile. */
-function TabContent({ items, tab, onSelectNpc }: { items: MerchantItem[]; tab: NpcTab; onSelectNpc: (npc: string) => void }) {
-  return tab === "gold"
-    ? <MerchantGrid items={items} />
-    : <MerchantRows items={items} onSelectNpc={onSelectNpc} />;
 }
 
 function SearchControls({ query, onQueryChange, selectedOnly, onSelectedOnlyChange, selectedCount }: {
@@ -405,27 +167,17 @@ function SearchControls({ query, onQueryChange, selectedOnly, onSelectedOnlyChan
 export function MerchantPanel() {
   const [town, setTown] = useState("all");
   const [merchant, setMerchant] = useState("all");
-  const [npcTab, setNpcTab] = useState<NpcTab>("gold");
   const [query, setQuery] = useState("");
   const [selectedOnly, setSelectedOnly] = useState(false);
   // The tracker's pin list, shared: pinning here and pinning in the tracker are
   // the same action on the same barter id, and the pins sync with it.
   const barterPins = useAppStore((s) => s.barterPins);
-  // The grid is the shop view now, so it needs no param: this is the inverse gate.
-  // The shipped row/tab UI is still reachable at ?rows=1 (DEV only) so the two can
-  // be compared while the grid is polished. Both this param and that UI are deleted
-  // in the fold-in, which is why the row components below are still compiled.
-  const showRows = (() => {
-    if (!import.meta.env.DEV) return false;
-    return new URLSearchParams(window.location.search).get("rows") === "1";
-  })();
-  // Prototype-local filters: deliberately not persisted, so nothing here leaks into
+  // Panel-local filters: deliberately not persisted, so nothing here leaks into
   // the store or costs a version bump. The store used to carry a persisted
   // barterFilters with a priority field, but nothing read it after the old explorer
-  // was deleted; it has since been removed outright (store v20), so there is no
-  // production filter state to accidentally drive from an unshipped prototype.
-  const [protoPriority, setProtoPriority] = useState<string[]>(DEFAULT_PRIORITY);
-  const [protoKind, setProtoKind] = useState<string>("all");
+  // was deleted; it has since been removed outright (store v20).
+  const [priorityFilter, setPriorityFilter] = useState<string[]>(DEFAULT_PRIORITY);
+  const [kindFilter, setKindFilter] = useState<string>("all");
   // The tile a jump just landed on, flashed and then cleared. Keyed by pinId, the
   // same id a pin uses: a curated barter row's `key` is the shop deal's key and is
   // absent when the row came from barter.json alone, while pinId is total.
@@ -443,19 +195,18 @@ export function MerchantPanel() {
     () =>
       filterItems(ALL_SHOP_ITEMS, town, query)
         .filter((item) => merchant === "all" || item.npc === merchant)
-        // PROTOTYPE filters. Applied here so every view below (all merchants, one
-        // merchant, and the counts in the header) sees the same list.
+        // Applied here so every view below (all merchants, one merchant, and the
+        // counts in the header) sees the same list.
         // Priority is multi-select: an empty set is unfiltered, otherwise a row
         // passes on any of the ticked tiers. Ticking several tiers widens the list
         // (union), which is what a filter is for.
-        .filter((item) => protoPriority.length === 0 || (item.priority != null && protoPriority.includes(item.priority)))
-        .filter((item) => protoKind === "all" || (protoKind === "shop" ? item.kind === "shop" : item.kind === "barter")),
-    [town, query, merchant, protoPriority, protoKind],
+        .filter((item) => priorityFilter.length === 0 || (item.priority != null && priorityFilter.includes(item.priority)))
+        .filter((item) => kindFilter === "all" || (kindFilter === "shop" ? item.kind === "shop" : item.kind === "barter")),
+    [town, query, merchant, priorityFilter, kindFilter],
   );
 
   const selected = merchant === "all" ? null : groups.find((group) => group.name === merchant) ?? null;
   const npcRows = selected?.rows ?? [];
-  const visible = selected ? tabItems(npcRows, npcTab, query) : items;
   // Pinned rows resolve through barter.json, so a pin made in the tracker (or on
   // another device) shows here even when that row is not in shops.json. Matched
   // on pinId, not barterId: a gold pin has no barter.json id and would be
@@ -464,7 +215,7 @@ export function MerchantPanel() {
     const wanted = new Set(barterPins);
     const fromShops = ALL_SHOP_ITEMS.filter((item) => wanted.has(item.pinId));
     const seen = new Set(fromShops.map((item) => item.pinId));
-    const orphans = (barterJson as BarterJsonRow[])
+    const orphans = (barterJson as (typeof barterJson)[number][])
       .filter((row) => wanted.has(row.id) && !seen.has(row.id))
       .map((row) => barterRowToItem(row));
     return [...fromShops, ...orphans].filter((item) => rowMatches(item, query));
@@ -502,14 +253,13 @@ export function MerchantPanel() {
     (): ViewSnapshot => ({
       town,
       merchant,
-      npcTab,
       query,
       selectedOnly,
-      protoPriority,
-      protoKind,
+      priorityFilter,
+      kindFilter,
       scrollY: typeof window === "undefined" ? 0 : window.scrollY,
     }),
-    [town, merchant, npcTab, query, selectedOnly, protoPriority, protoKind]
+    [town, merchant, query, selectedOnly, priorityFilter, kindFilter]
   );
 
   /** The in-card jump: go to the merchant that PRODUCES the give, not the row being
@@ -531,12 +281,11 @@ export function MerchantPanel() {
     (npc: string, giveName: string) => {
       setPreJump(snapshotView());
       setQuery("");
-      setProtoPriority([]);
-      setProtoKind("all");
+      setPriorityFilter([]);
+      setKindFilter("all");
       setSelectedOnly(false);
       setTown("all");
       setMerchant(npc);
-      setNpcTab(firstTab(ALL_SHOP_ITEMS.filter((row) => row.npc === npc)));
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.searchParams.set("npc", npc);
@@ -576,7 +325,6 @@ export function MerchantPanel() {
     if (target) {
       setTown("all");
       setMerchant(target.npc);
-      setNpcTab(firstTab(ALL_SHOP_ITEMS.filter((row) => row.npc === target.npc)));
       focusTile(target.pinId);
       return;
     }
@@ -586,7 +334,6 @@ export function MerchantPanel() {
     if (!group) return;
     setTown("all");
     setMerchant(npc!);
-    setNpcTab(firstTab(group.rows));
   }, [focusTile]);
 
   const writeNpcParam = (name: string) => {
@@ -599,7 +346,6 @@ export function MerchantPanel() {
 
   const selectNpc = (name: string) => {
     setMerchant(name);
-    setNpcTab(name === "all" ? "gold" : firstTab(groups.find((group) => group.name === name)?.rows ?? []));
     writeNpcParam(name);
   };
 
@@ -614,7 +360,7 @@ export function MerchantPanel() {
     selectNpc(npc);
   };
 
-  // The reset button covers every filter in this row, the two prototype filters
+  // The reset button covers every filter in this row, the two grid filters
   // included. They were missed when they were added, so the button stayed greyed
   // out while a priority or kind filter was live, and pressing it left them set.
   //
@@ -624,19 +370,18 @@ export function MerchantPanel() {
   // the one control that reveals those rows looking disabled on the very screen it
   // applies to. Pressing it empties the filter to all rows, so the outcome matches the
   // promise: enabled on load, disabled after it clears.
-  const filtersActive = town !== "all" || merchant !== "all" || protoPriority.length > 0 || protoKind !== "all";
+  const filtersActive = town !== "all" || merchant !== "all" || priorityFilter.length > 0 || kindFilter !== "all";
 
   const clearFilters = () => {
     setTown("all");
     setMerchant("all");
-    setNpcTab("gold");
     // Empties the priority filter to show all 194 rows, the literal meaning of 清除.
     // The 必換+推薦 default is a starting view, not a floor: re-ticking the two tiers
     // in the 優先度 menu is how you get back, and the menu shows its state so that is
     // discoverable. Restoring the default here instead would make 清除篩選 HIDE 155
     // rows, which is the opposite of what the words promise.
-    setProtoPriority([]);
-    setProtoKind("all");
+    setPriorityFilter([]);
+    setKindFilter("all");
     writeNpcParam("all");
   };
 
@@ -648,11 +393,10 @@ export function MerchantPanel() {
     if (!snap) return;
     setTown(snap.town);
     setMerchant(snap.merchant);
-    setNpcTab(snap.npcTab);
     setQuery(snap.query);
     setSelectedOnly(snap.selectedOnly);
-    setProtoPriority(snap.protoPriority);
-    setProtoKind(snap.protoKind);
+    setPriorityFilter(snap.priorityFilter);
+    setKindFilter(snap.kindFilter);
     writeNpcParam(snap.merchant);
     setPreJump(null);
     // After the restore commits, put the viewport back where it was. The rAF lets
@@ -676,9 +420,8 @@ export function MerchantPanel() {
       {/* Armed by a jump, discharged here. Sits above the filters rather than in the
           toolbar grid: the jump clears the filters and switches merchant, so this is
           the one control that undoes the whole transition, and it would wrap the
-          5-column grid if it were one more cell. Hidden on the ?rows=1 dev view,
-          which predates the jump. */}
-      {preJump && !showRows && (
+          5-column grid if it were one more cell. */}
+      {preJump && (
         <div className="-mt-1">
           <button
             type="button"
@@ -691,18 +434,10 @@ export function MerchantPanel() {
         </div>
       )}
 
-      {/* 3 fields + the reset button on the row view; the grid adds 優先度 and
-          類型, so the template has to widen or the fifth control wraps under the
-          button */}
+      {/* 優先度 and 類型 are grid filters, so the template needs five columns or the
+          reset button wraps under the last control */}
       {!selectedOnly && (
-        <div
-          className={cn(
-            "grid gap-2",
-            showRows
-              ? "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
-              : "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
-          )}
-        >
+        <div className={cn("grid gap-2", "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]")}>
           <MenuSelect
             value={town}
             ariaLabel="城鎮"
@@ -722,37 +457,29 @@ export function MerchantPanel() {
             ]}
             triggerClassName={cn("w-full", merchant !== "all" && "border-primary text-primary")}
           />
-          {/* Grid-only filters: local state, so they reset on reload. They are
-              hidden on the ?rows=1 comparison view, which has its own tabs. There
-              is no store-side filter state to touch — barterFilters was removed at
-              store v20. */}
-          {!showRows && (
-            <>
-              <MenuMultiSelect
-                values={protoPriority}
-                ariaLabel="優先度"
-                onChange={setProtoPriority}
-                options={[
-                  { value: "must", label: "必換" },
-                  { value: "extra", label: "推薦" },
-                  { value: "once", label: "一次性" },
-                  { value: "situational", label: "視需求" },
-                ]}
-                triggerClassName={cn("w-full", protoPriority.length > 0 && "border-primary text-primary")}
-              />
-              <MenuSelect
-                value={protoKind}
-                ariaLabel="交易類型"
-                onChange={setProtoKind}
-                options={[
-                  { value: "all", label: "全部類型" },
-                  { value: "shop", label: "金幣" },
-                  { value: "barter", label: "以物易物" },
-                ]}
-                triggerClassName={cn("w-full", protoKind !== "all" && "border-primary text-primary")}
-              />
-            </>
-          )}
+          <MenuMultiSelect
+            values={priorityFilter}
+            ariaLabel="優先度"
+            onChange={setPriorityFilter}
+            options={[
+              { value: "must", label: "必換" },
+              { value: "extra", label: "推薦" },
+              { value: "once", label: "一次性" },
+              { value: "situational", label: "視需求" },
+            ]}
+            triggerClassName={cn("w-full", priorityFilter.length > 0 && "border-primary text-primary")}
+          />
+          <MenuSelect
+            value={kindFilter}
+            ariaLabel="交易類型"
+            onChange={setKindFilter}
+            options={[
+              { value: "all", label: "全部類型" },
+              { value: "shop", label: "金幣" },
+              { value: "barter", label: "以物易物" },
+            ]}
+            triggerClassName={cn("w-full", kindFilter !== "all" && "border-primary text-primary")}
+          />
           <Button type="button" variant="ghost" onClick={clearFilters} disabled={!filtersActive} aria-label="清除全部篩選" className="h-9 shrink-0 self-center">
             <RotateCcw />
             清除篩選
@@ -770,22 +497,18 @@ export function MerchantPanel() {
             <span className="text-sm text-muted-foreground">{pinnedItems.length} 筆</span>
           </div>
           {pinnedItems.length > 0 ? (
-            showRows ? (
-              <MerchantRows items={pinnedItems} onSelectNpc={selectNpc} />
-            ) : (
-              // grouped by merchant, in selection order: this view's premise is
-              // that the order you picked things in is the order you want them
-              <ProtoGrid
-                items={pinnedItems}
-                pinned={new Set(barterPins)}
-                onTogglePin={togglePin}
-                onViewInShop={viewInShop}
-                onOpenNpc={openNpc}
-                focusKey={focusKey}
-                byNpc
-                splitKind
-              />
-            )
+            // grouped by merchant, in selection order: this view's premise is
+            // that the order you picked things in is the order you want them
+            <ShopGrid
+              items={pinnedItems}
+              pinned={new Set(barterPins)}
+              onTogglePin={togglePin}
+              onViewInShop={viewInShop}
+              onOpenNpc={openNpc}
+              focusKey={focusKey}
+              byNpc
+              splitKind
+            />
           ) : (
             <div className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">尚無已選交易</div>
           )}
@@ -804,33 +527,20 @@ export function MerchantPanel() {
                 {selected ? <><MapPin /> {selected.town} · {npcRows.length} 筆</> : `${items.length} 筆`}
               </p>
             </div>
-            {/* the grid drops the 金幣/以物易物 split, so the toggle belongs to the
-                ?rows=1 comparison view only */}
-            {selected && showRows && <NpcTabToggle items={npcRows} tab={npcTab} onChange={setNpcTab} />}
           </div>
-          {/* The grid is the shop view. It sections by town when the list is
-              unfiltered and by merchant once a town or NPC filter narrows it, since
-              a town heading would then repeat a single value. ?rows=1 (DEV only)
-              still shows the old row/tab UI for comparison; both that param and
-              src/proto-grid/'s name are cleaned up in the fold-in. */}
-          {showRows ? (
-            selected ? (
-              <TabContent items={visible} tab={npcTab} onSelectNpc={selectNpc} />
-            ) : (
-              <MerchantRows items={items} onSelectNpc={selectNpc} />
-            )
-          ) : (
-            <ProtoGrid
-              byNpc={town !== "all" || merchant !== "all"}
-              splitKind={town !== "all" || merchant !== "all"}
-              items={selected ? npcRows : items}
-              pinned={new Set(barterPins)}
-              onTogglePin={togglePin}
-              onViewInShop={viewInShop}
-              onOpenNpc={openNpc}
-              focusKey={focusKey}
-            />
-          )}
+          {/* The grid sections by town when the list is unfiltered and by merchant
+              once a town or NPC filter narrows it, since a town heading would then
+              repeat a single value. */}
+          <ShopGrid
+            byNpc={town !== "all" || merchant !== "all"}
+            splitKind={town !== "all" || merchant !== "all"}
+            items={selected ? npcRows : items}
+            pinned={new Set(barterPins)}
+            onTogglePin={togglePin}
+            onViewInShop={viewInShop}
+            onOpenNpc={openNpc}
+            focusKey={focusKey}
+          />
         </section>
       )}
     </div>

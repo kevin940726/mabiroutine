@@ -1,8 +1,7 @@
-// PROTOTYPE (throwaway). The shop tile.
+// The shop tile.
 //
-// One design, kept from the reviewed set: the tight density (dense=all), which was
-// the shortest of the five variants measured and the only one with three full grid
-// rows visible in a 1100px viewport.
+// The tight density: the shortest of the five variants measured and the only one with
+// three full grid rows visible in a 1100px viewport.
 //
 // Vertical stack: merchant band, name, priority verdict, limit, price. Rules that hold
 // it together:
@@ -25,8 +24,9 @@
 //      title never reaches. 20px left clears the 4px priority stripe, 16px right and
 //      bottom match each other.
 import { cn } from "@/lib/utils";
-import { NpcFace } from "@/components/MerchantPanel";
-import { TradeGrid, TradeLine, limitOf, pinButton, priorityEdge, priorityText, priorityTint, type ProtoItem, type ProtoProps } from "./shared";
+import { NpcFace } from "./NpcFace";
+import { TradeLine, limitOf, pinButton, priorityEdge, priorityText, priorityTint } from "./shared";
+import type { ShopRow } from "./types";
 
 /** The tile's vertical rhythm: one value for every gap between rows. */
 const STACK = "flex flex-col gap-2";
@@ -37,7 +37,7 @@ const STACK = "flex flex-col gap-2";
  *  earlier two-line version measured 40.3px of the tile's height for the same two
  *  facts, and reading `安黛莉 · 堤爾克那` as a subtitle is what lets the trade name
  *  stay the dominant element. */
-function MerchantBand({ item, onOpen }: { item: ProtoItem; onOpen?: (npc: string) => void }) {
+function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string) => void }) {
   const inner = (
     <>
       <NpcFace npc={item.npc} size="size-5" />
@@ -98,7 +98,7 @@ function MerchantBand({ item, onOpen }: { item: ProtoItem; onOpen?: (npc: string
  * Gold stays a bare number: a price is a price, and a purchase has no material chain
  * to trace.
  */
-function Price({ item, onViewInShop }: { item: ProtoItem; onViewInShop?: (npc: string, giveName: string) => void }) {
+function Price({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: string, giveName: string) => void }) {
   if (item.kind === "shop") {
     return (
       <span className="text-[14px] font-semibold tabular-nums text-foreground">
@@ -113,7 +113,7 @@ function Price({ item, onViewInShop }: { item: ProtoItem; onViewInShop?: (npc: s
   );
 }
 
-function Tile({
+export function Tile({
   item,
   pinned,
   onTogglePin,
@@ -122,7 +122,7 @@ function Tile({
   onOpenNpc,
   focused,
 }: {
-  item: ProtoItem;
+  item: ShopRow;
   pinned: Set<string>;
   onTogglePin: (id: string) => void;
   showMerchant: boolean;
@@ -135,7 +135,7 @@ function Tile({
   const verdict = priorityText(item.priority);
   return (
     <div
-      data-proto-tile
+      data-shop-tile
       // the scroll target for a jump: keyed by pinId, the same id the flash uses.
       // data-*, not an id: 194 tiles would flood the id namespace for a lookup that
       // is always a querySelector against a handful of rows.
@@ -198,24 +198,3 @@ function Tile({
   );
 }
 
-export function ProtoShop({ items, pinned, onTogglePin, splitKind, byNpc, onViewInShop, onOpenNpc, focusKey }: ProtoProps) {
-  return (
-    <TradeGrid
-      items={items}
-      byNpc={byNpc}
-      splitKind={splitKind}
-      renderTile={(item, showBand) => (
-        <Tile
-          key={item.key}
-          item={item}
-          pinned={pinned}
-          onTogglePin={onTogglePin}
-          showMerchant={showBand}
-          onViewInShop={onViewInShop}
-          onOpenNpc={onOpenNpc}
-          focused={focusKey != null && item.pinId === focusKey}
-        />
-      )}
-    />
-  );
-}

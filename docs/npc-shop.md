@@ -25,48 +25,26 @@ stood on the branch.
 
 ### Where the branch stands
 
-`wip/shop-browser`, unmerged, **21 commits ahead of the prototype baseline and
-4 behind `main`**. Nothing has been pushed. Per `AGENTS.md`, pushing is a separate
-decision from committing and needs explicit approval; a rebase onto `main` is
-required before this could go anywhere, and no conflict is expected since the
-branch touches the barter tab and `main` touched sync and reordering.
+`wip/shop-browser`, unmerged, **0 behind `main`** (rebased 2026-09-30), nothing
+pushed. Per `AGENTS.md`, pushing is a separate decision from committing and needs
+explicit approval.
 
-All 21, oldest first. Commit 1 is the discarded prototype; 2-8 are the shop
-browser; 9-15 are the gold-pin work; 16-21 are the data and test work.
+The prototype era is over: the `?shopproto=` / `?gridproto=` / `?rows=1` gates are
+gone, `src/proto-grid/` no longer exists, and the grid is the only shop view. See
+section 5 for the fold-in that did it and the proto-era commit list it replaced.
 
-| # | Commit |
-|---|---|
-| 1 | `WIP: shops.json browser prototype, 3 variants behind ?shopproto=` (discarded) |
-| 2 | `Fix long dropdown menus overflowing the viewport` |
-| 3 | `Give MenuSelect an accessible name and optional option icons` |
-| 4 | `Replace the barter tab with the NPC shop panel` |
-| 5 | `Pin from the shop panel through the tracker's pin list` |
-| 6 | `Add the npc-shop ledger` |
-| 7 | `Delete the barter list UI the shop panel replaced` |
-| 8 | `Group the NPC picker by town and stop the popup being narrower than its trigger` |
-| 9 | `Give the npc-shop ledger a handoff section` |
-| 10 | `Restore compact gold tiles` |
-| 11 | `Give shops.json rows a pin id, and the store a shared valid set` (phase A) |
-| 12 | `Render a pinned shop purchase on the dailies` (phase B) |
-| 13 | `Put the pin button back on the 102 rows that had none` (phase C) |
-| 14 | `Sync a shops.json pin, and say so in the docs` (phase D) |
-| 15 | `Record real collision examples, and a trap about terminal output` |
-| 16 | `Fold full-width punctuation when matching a shop row to barter.json` |
-| 17 | `Shorten the shop pin id to shop::<npc>::<name>` |
-| 18 | `Spell the blueprint trades the same way in both data files` |
-| 19 | `Show full-width parentheses everywhere, and let search take both` |
-| 20 | `Close the last shop/barter gap in both directions` |
-| 21 | `Fail the shops check on an uncurated barter shop row` |
+Historical note, since the ledger was written as the work happened: commit 1 was a
+discarded prototype, 2-8 the shop browser, 9-15 the gold-pin work, 16-21 the data
+and test work, and the commits after that were the grid rebuild.
 
 ### What is next, in order
 
 **No code work is left.** Every open item from this ledger is closed: gold pins
-shipped, the panel shipped, shop and barter coverage now agrees in both
-directions, and the `test:shops` blind spot that let two data defects through is
-closed. What remains before this reaches users is a rebase, not code.
+shipped, the panel shipped, the grid folded in, shop and barter coverage agrees in
+both directions, and the `test:shops` blind spot that let two data defects through
+is closed. What remains before this reaches users is a push, not code.
 
-1. **Rebase onto `main`** when the user asks. Not before.
-2. Push, as a separate decision.
+1. Push, as a separate decision.
 
 Deliberately **not** doing, and why:
 
@@ -217,10 +195,13 @@ Each of these cost real time and will again.
   `C:\Users\User\AppData\Local\Temp\opencode\pwtest\`. Nothing test-related is
   committed; the repo has no browser test harness for this.
 - Useful selectors: the NPC field is `getByRole("button", { name: "NPC" })`, the
-  town field `name: "城鎮"`, options are `menuitemradio`, tabs are
-  `[role="tablist"][aria-label="NPC 交易類型"]`, and tiles carry
-  `data-shop-tile`. Barter rows are `<div>`s, not `<article>`s: count them with
-  `[class*="contain-intrinsic"]`.
+  town field `name: "城鎮"`, the multi-select `name: "優先度"` (options are
+  `menuitemcheckbox`), the kind field `name: "交易類型"` (options are
+  `menuitemradio`), and every tile carries `data-shop-tile`. The tile a jump
+  focuses carries `data-tile-key="<pinId>"`.
+- **Tab count trap.** Since both tabs stay mounted (`<Activity>`), the shop tab's
+  `h1` and its `getByText` matches are in the DOM even while the tracker is shown.
+  Scope a locator to the visible region or you will count hidden nodes.
 
 ---
 
@@ -235,28 +216,31 @@ was that once a direction is chosen, the remaining work is polish, and polish
 done in a prototype shell gets written twice because the shell reimplements
 search, pin, and selection state.
 
-Layout rules that survived, each one a deliberate call:
+These layout rules were kept when the grid replaced the row layout; the one about
+the per-NPC `金幣` / `以物易物` tab pair was retired by the grid, which does not
+need a toggle because both kinds render as tiles and 類型 filters them.
 
 | Rule | Why |
 |---|---|
 | All 194 shop rows, not just the curated barter ones | The old tab showed a flat 107-row curated list, hiding most real trades |
-| One `金幣` / `以物易物` tab pair **per NPC**, no page-level toggle | The toggle was page-level friction over 36 NPCs |
 | A tab renders only when that NPC has that kind of trade | 23 of 36 NPCs are barter-only; a dead 金幣 tab is noise |
-| Gold renders as tiles, barter keeps the full row | Gold is a price comparison (tiles scan); barter is a recipe, and the material breakdown is the point |
 | Default order is `barter.json`, gold last | The curated order is hand-written intent; `shops.json` order is not |
-| Curated and uncurated rows share one row style | A plainer "gold row" read as a different kind of object |
 | No item icons | 167 distinct icons for the shop view; not worth the capture |
 
 ### Files
 
 | File | Role |
 |---|---|
-| `src/lib/shops.ts` | Adapter over `shops.json` + `barter.json`. Curated matching, `ShopDeal` with `curatedIndex` / `barterId` / `scopeAccount`, `costText`, `getText`. This is where Phase A adds `pinId` |
-| `src/components/MerchantPanel.tsx` | The whole tab. Private helpers, exports one component |
-| `src/components/BarterExplorer.tsx` | Misnamed now: it holds only `BarterRowDesktop` / `BarterRowMobile` / `BarterPinButton` / `BarterJsonRow` / `capText` after the dead list UI was deleted |
-| `src/components/MenuSelect.tsx` | Shared dropdown-select. Now takes an optional per-option `group` (rendered as a heading), optional `ariaLabel`, optional `contentClassName`, and floors the popup at the trigger width |
+| `src/lib/shops.ts` | Adapter over `shops.json` + `barter.json`. Curated matching, `ShopDeal` with `curatedIndex` / `barterId` / `scopeAccount`, `costText`, `getText`, `pinId` |
+| `src/components/MerchantPanel.tsx` | The whole tab: filters, search, jump/返回, pin resolution and the header. Exports one component |
+| `src/components/shop/types.ts` | `ShopRow`, the one row type the grid and the panel both name. Lives here so neither imports the other |
+| `src/components/shop/NpcFace.tsx` | The NPC portrait with its initial fallback. Moved out of the panel for the same reason |
+| `src/components/shop/shared.tsx` | Grid pieces: `TradeGrid` (sectioning), `TradeLine` (the trade popover), `compareRows`, `PRIORITY`, `limitOf`, `pinButton`, `GRID` |
+| `src/components/shop/Tile.tsx` | The tile, its merchant band and the price line |
+| `src/components/shop/ShopGrid.tsx` | The grid entry point the panel mounts |
+| `src/components/MenuSelect.tsx` | Shared dropdown-select. Takes an optional per-option `group` (rendered as a heading), optional `ariaLabel`, optional `contentClassName`, and floors the popup at the trigger width |
 | `src/components/ui/dropdown-menu.tsx` | Capped to Radix's available height and made scrollable. This is what made 36 NPCs reachable |
-| `src/App.tsx` | Lazy-loads `MerchantPanel` where `BarterExplorer` used to render. The `?shopproto` prototype gate is gone, so there is no A/B harness any more |
+| `src/App.tsx` | Lazy-loads `MerchantPanel` on the 商店 / 以物易物 tab. There is no A/B harness any more |
 
 ### Decisions worth remembering
 
@@ -265,11 +249,10 @@ Layout rules that survived, each one a deliberate call:
   stripped after use, unlike those, so an NPC view is shareable and survives a
   reload. The panel reads it once on mount and forces `town` back to `all` so a
   stale town can never hide the deep-linked merchant.
-- **Pins are the tracker's pins.** The panel passes no `pinned` / `onTogglePin`
-  overrides to `BarterRow*`, so those rows read and write the store's
-  `barterPins` directly. One pin per barter id, shared with the tracker tab,
-  synced, and visible from a second device. Verified: pin in the panel, the
-  tracker renders it, survives a tab switch and a reload.
+- **Pins are the tracker's pins.** The grid's `pinButton` writes the store's
+  `barterPins` directly, with no panel-local list. One pin per barter id, shared
+  with the tracker tab, synced, and visible from a second device. Verified: pin in
+  the panel, the tracker renders it, survives a tab switch and a reload.
 - **The 已選 count is the tracker's count**, so it opens at the seeded default
   pins (9) rather than 0. Intended, but visible.
 - **All 194 rows are pinnable.** The 100 curated barter rows pin under their
@@ -303,7 +286,7 @@ rows are pinnable. Phases A to D each landed as their own commit, in this order:
 |---|---|---|
 | A: ids and model | `Give shops.json rows a pin id, and the store a shared valid set` | `shopPinId`, `ShopDeal.pinId`, `TaskSource` += shop, `shopMeta`, `validPinnableIds`, `shopDealToTask`, mixed ordering, widened load filter |
 | B: tracker rows | `Render a pinned shop purchase on the dailies` | `TrackerSection` resolves both namespaces, `TaskRow` grows a shop case |
-| C: panel affordance | `Put the pin button back on the 102 rows that had none` | `GoldPinButton` on tiles, shared `BarterPinButton` on uncurated rows, `已選交易` matches on `pinId` |
+| C: panel affordance | `Put the pin button back on the 102 rows that had none` | A pin on tiles and on uncurated rows, one shared button, `已選交易` matches on `pinId` (the tile and row components it used were later replaced by the grid; see section 5) |
 | D: sync and docs | `Sync a shops.json pin, and say so in the docs` | E2 adoption case, `docs/tracker-data.md`, both READMEs |
 
 Still deliberately not done: reminder bells (decision 1) and seeded gold pins
@@ -376,14 +359,15 @@ version upgrade. The v5 step is the one deliberate exception: it treats an
 unknown id as corruption and reseeds, so it stays barter-only.
 
 `ShopDeal.pinId` is the single place a deal's pin identity is decided, and
-`MerchantItem.pinId` carries it into the panel. Do not reuse `MerchantItem.key`
-for this: it includes the row's index within its NPC and is not a stable id.
+`ShopRow.pinId` carries it into the panel. Do not reuse `ShopRow.key` for this: it
+includes the row's index within its NPC and is not a stable id.
 
 ### Tradeoffs taken, so they are not mistaken for oversights
 
-- A gold tile's pin target is `size-6`, against the row button's 44px. Keeping
-  the grid dense won; the emerald fill matches the row buttons so the action
-  still reads as one thing.
+- A tile's pin target is `size-6`. It was measured against the shipped row button's
+  44px, and the grid kept the denser target: a tile has room for one control and the
+  emerald fill makes the action read as the same one the tracker uses. The row
+  buttons are gone now (section 5), so the compact target is the only one.
 - A shop row keeps its yield in the title ("紙 ×5") where a barter row strips it,
   because the barter hover card spells out the full exchange and a shop row has
   no such card.
@@ -460,18 +444,19 @@ and a fixture come back — and the prune steps must already be calling
 
 ## 3. Other known follow-ups
 
-1. **Dead code: done.** `BarterExplorer.tsx` lost its 107-row list UI (429 to 283
-   lines) along with the explorer-only `PRIORITY_ORDER` / `PRESENT_PRIORITIES` /
-   `TOWNS` and nine imports. What remains is only what the panel reuses: the two
-   row components, the pin buttons, `BarterJsonRow`, `capText`. The file is now
-   misnamed for what it holds; renaming it to something like `BarterRows.tsx`
-   would be honest, but it churns two import sites for no behavior gain, so it
-   is left alone deliberately.
+1. **Dead code: fully resolved.** `BarterExplorer.tsx` lost its 107-row list UI
+   (429 to 283 lines) along with the explorer-only `PRIORITY_ORDER` /
+   `PRESENT_PRIORITIES` / `TOWNS` and nine imports. What remained was only what the
+   panel reused: the two row components, the pin buttons, `BarterJsonRow`,
+   `capText`. The file was misnamed for what it held and a rename to something like
+   `BarterRows.tsx` was considered and rejected as churn. **The fold-in then deleted
+   the file outright**: those row components existed only for the `?rows=1` view the
+   grid replaced, so there was nothing left to rename. See section 5.
 
    `barterFilters` / `setBarterFilters` in the store were unreferenced but still
    persisted for a while. They are gone as of store v20: the field is deleted by
    the v19→v20 step and the sync layer no longer carries its `filter:*` keys. The
-   panel's own 優先度 and 類型 filters are prototype-local state, so there is no
+   panel's own 優先度 and 類型 filters are panel-local state, so there is no
    persisted filter set to keep in sync with them.
 
 2. **`?npc=` staleness: checked, no change needed.** This was flagged
@@ -547,4 +532,62 @@ console (see the terminal trap in section 0).
   invariant that lets the pin id be `shop::<npc>::<name>`.
 - Pin counts as shipped: **all 194 pinnable** — 100 under a `barter.json` id,
   94 gold rows under a `shop::` id. 194 distinct pin ids.
+
+---
+
+## 5. The grid, folded in
+
+The shop view is a grid of tiles. It began as a throwaway prototype behind
+`?gridproto=`, was reviewed and polished, then the gate was inverted so the grid
+became the shop and the old row/tab UI moved behind a dev-only `?rows=1`. This
+section records the finish: the prototype names, the `?rows=1` view and the
+`BarterExplorer` row components are all deleted.
+
+### What the prototype cost while it lived
+
+The prototype shell reimplemented the panel's filters and selection state. That
+was the known trap from the first fork (section 1: polish in a shell gets written
+twice), and it held again here — the grid's filters lived in `protoPriority` /
+`protoKind` and had to be threaded through every jump and 返回. Both are now the
+shop's own `priorityFilter` / `kindFilter`, applied in `MerchantPanel` so every
+view and count sees the same list.
+
+### The fold-in, in order
+
+1. `src/proto-grid/` → `src/components/shop/`; `ProtoGrid.tsx` → `ShopGrid.tsx`,
+   `ProtoShop` → `ShopTiles`, `ProtoItem` → `ShopRow`, `ProtoProps` → `ShopProps`.
+   `ShopGrid` then absorbed `ShopTiles` outright, since a `ShopGrid` that only
+   forwarded eight props to `ShopTiles` was a second place the prop shape could
+   drift. `ShopProps` stayed in `shared.tsx` and `ShopGrid` takes it directly.
+2. **The circular import is gone.** It was `MerchantPanel` → `proto-grid` →
+   `MerchantPanel`, on `NpcFace` and the row type. `ShopRow` now lives in
+   `shop/types.ts` and `NpcFace` in `shop/NpcFace.tsx`, so both sides import a leaf
+   module instead of each other.
+3. The `?rows=1` view and its components are deleted: `MerchantRows`,
+   `MerchantGrid`, `PlainRow`, `NpcTabToggle`, `TabContent`, the `NpcTab` type and
+   the `npcTab` state. The row type's `barterRow` field went with them — its only
+   consumer was the row UI, so `ShopRow` no longer reaches into `barter.json`.
+4. `BarterExplorer.tsx` is deleted. `BarterRowDesktop` / `BarterRowMobile` /
+   `BarterPinButton` / `MobilePinButton` / `capText` existed only for the row view;
+   the grid pins through `shared.tsx`'s `pinButton` and states the cap inline in
+   the deal card. `BarterJsonRow` was only a cast alias and is inlined.
+5. `data-proto-tile` → `data-shop-tile`.
+
+### Why `ShopRow` instead of widening per component
+
+`MerchantItem` and `ProtoItem` were the same shape, one a structural superset of
+the other, and the grid accepted `MerchantItem[]` while rendering `ProtoItem`. That
+worked by structural typing and cost nothing at runtime, but it meant two names for
+one thing and a type whose home was the module that consumed it. One type, in a
+leaf module, is what let the cycle go.
+
+### Verified
+
+`pnpm check` green. In-browser at 1440px: `商店 / 以物易物` header, 39 tiles on the
+`必換、推薦` default, 47 with 一次性 ticked, 194 after 清除篩選, 94 with 金幣 and 100
+with 以物易物 (sum 194), 194 merchant-band buttons on the unfiltered view, band click
+opens 安黛莉's shop with filters kept and a 返回 chip, 返回 restores the full list,
+and a town filter sections by merchant with portrait headers. Zero console errors,
+and zero `[contain-intrinsic-size]` nodes — proof the row UI is not merely hidden.
+
 

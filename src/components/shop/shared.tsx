@@ -1,39 +1,14 @@
-// PROTOTYPE (throwaway). Props and the pieces the shop grid shares.
-//
-// There is one design now: variant B with the tight density. The A/verdict/title/band
-// alternatives were removed after review, so nothing here branches on which one to
-// use. The tile lives in Tile.tsx.
+// Props and the pieces the shop grid shares: the sort, the priority signalling, the
+// town/merchant sectioning and the trade popover. The tile lives in Tile.tsx.
 import { Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { barterProducers, dealTimes, hasBarterOnlyRoute, hasBreakdown, parseItemQty } from "@/lib/materials";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
-import { NpcFace } from "@/components/MerchantPanel";
+import { NpcFace } from "./NpcFace";
+import type { ShopRow } from "./types";
 
-export type ProtoItem = {
-  key: string;
-  pinId: string;
-  npc: string;
-  town: string;
-  title: string;
-  /** Exactly as authored: a gold row carries the coin glyph here, a barter row carries
-   *  "name xN". The tile shows a stripped name plus qty instead (see Price). */
-  give: string;
-  /** What the trade yields. Needed only by the hover card, which reads "你給 X → 你拿 Y". */
-  get: string;
-  cost: string;
-  limitText: string | null;
-  scopeAccount: boolean;
-  priority: "must" | "extra" | "once" | "situational" | null;
-  note: string | null;
-  kind: "shop" | "barter";
-  /** Position in barter.json, or -1 for a row with no curated entry (every gold
-   *  row, plus barter rows the curation skipped). Used as the tiebreak inside a
-   *  priority tier, so -1 sorts last rather than first. */
-  curatedIndex: number;
-};
-
-export type ProtoProps = {
-  items: ProtoItem[];
+export type ShopProps = {
+  items: ShopRow[];
   pinned: Set<string>;
   onTogglePin: (id: string) => void;
   /** Show the 金幣 / 以物易物 split inside each section. Set when a town or NPC filter
@@ -89,16 +64,16 @@ const PRIORITY = {
  *
  *  The edge marks the two tiers that render a word, in one colour. It is intentionally
  *  NOT a per-tier colour: see the PRIORITY comment — the tier is the word's job. */
-export const priorityEdge = (p: ProtoItem["priority"]) =>
+export const priorityEdge = (p: ShopRow["priority"]) =>
   p === "must" || p === "extra" ? PRIORITY[p].edge : "bg-border";
-export const priorityText = (p: ProtoItem["priority"]) =>
+export const priorityText = (p: ShopRow["priority"]) =>
   p === "must" || p === "extra" ? PRIORITY[p].label : null;
-export const priorityTint = (p: ProtoItem["priority"]) => (p ? PRIORITY[p].text : "");
+export const priorityTint = (p: ShopRow["priority"]) => (p ? PRIORITY[p].text : "");
 
 /** Not a hook — it reads a Set and returns JSX. Named as a plain function on
  *  purpose: it is called inside a .map, and a `use*` name there trips
  *  rules-of-hooks for no reason. */
-export function pinButton(item: ProtoItem, pinned: Set<string>, onTogglePin: (id: string) => void) {
+export function pinButton(item: ShopRow, pinned: Set<string>, onTogglePin: (id: string) => void) {
   const isPinned = pinned.has(item.pinId);
   return {
     button: (
@@ -133,7 +108,7 @@ export function pinButton(item: ProtoItem, pinned: Set<string>, onTogglePin: (id
  * This mirrors MerchantPanel.tsx, which does the same strip for the production row
  * (and both should go away together if limitText ever stops embedding scope).
  */
-export const limitOf = (i: ProtoItem) => (i.limitText ?? "不限次數").replace("（伺服器）", "");
+export const limitOf = (i: ShopRow) => (i.limitText ?? "不限次數").replace("（伺服器）", "");
 
 /**
  * The merchant header used by every NPC-sectioned view: portrait, name, town and that
@@ -164,7 +139,7 @@ export function NpcHeader({ npc, town, count }: { npc: string; town: string; cou
  */
 const PRIORITY_RANK: Record<string, number> = { must: 0, extra: 1, once: 2, situational: 3 };
 
-export function compareRows(a: ProtoItem, b: ProtoItem) {
+export function compareRows(a: ShopRow, b: ShopRow) {
   const pa = a.priority ? (PRIORITY_RANK[a.priority] ?? 4) : 4;
   const pb = b.priority ? (PRIORITY_RANK[b.priority] ?? 4) : 4;
   if (pa !== pb) return pa - pb;
@@ -194,14 +169,14 @@ export function TradeGrid({
   splitKind,
   renderTile,
 }: {
-  items: ProtoItem[];
+  items: ShopRow[];
   byNpc?: boolean;
   splitKind?: boolean;
-  renderTile: (item: ProtoItem, showBand: boolean) => React.ReactNode;
+  renderTile: (item: ShopRow, showBand: boolean) => React.ReactNode;
 }) {
   const sorted = [...items].sort(compareRows);
 
-  const keyed = new Map<string, ProtoItem[]>();
+  const keyed = new Map<string, ShopRow[]>();
   for (const i of sorted) {
     const key = byNpc ? i.npc : i.town;
     const bucket = keyed.get(key);
@@ -212,7 +187,7 @@ export function TradeGrid({
   const single = keyed.size === 1;
   const showBandInGroup = !byNpc || single;
 
-  const kindGroup = (rows: ProtoItem[]) => {
+  const kindGroup = (rows: ShopRow[]) => {
     const gold = rows.filter((r) => r.kind === "shop");
     const barter = rows.filter((r) => r.kind === "barter");
     // a section with only one kind gets no labels: there is nothing to tell apart, and
@@ -220,7 +195,7 @@ export function TradeGrid({
     if (!splitKind || gold.length === 0 || barter.length === 0) {
       return <div className={GRID}>{rows.map((r) => renderTile(r, showBandInGroup))}</div>;
     }
-    const groups: { label: string; rows: ProtoItem[] }[] = [
+    const groups: { label: string; rows: ShopRow[] }[] = [
       { label: "金幣", rows: gold },
       { label: "以物易物", rows: barter },
     ];
@@ -271,8 +246,8 @@ export function TradeGrid({
 export const GRID = "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
 
 /**
- * Hover/tap popover for one barter row, carrying the same MaterialBreakdown the
- * shipped rows expand inline.
+ * Hover/tap popover for one barter row, carrying the same MaterialBreakdown the old
+ * row layout used to expand inline.
  *
  * It renders as the tile's WHOLE trade line, not just the give. MaterialHoverCard
  * draws its own `你給 X → 你拿 Y` line around the trigger, so wrapping only the give
@@ -288,15 +263,14 @@ export const GRID = "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
  * resize, Escape or an outside tap. It had no call site after the old explorer was
  * deleted, so this is what it was kept for.
  *
- * `times` comes from the row's own limit, resolved the way the shipped row does
- * (dealTimes: a twin leg's times, else the limit string, else 1). The breakdown
- * multiplies its 共需 total by it, so passing 1 unconditionally would under-report
- * every multi-per-day trade.
+ * `times` comes from the row's own limit, resolved through dealTimes (a twin leg's
+ * times, else the limit string, else 1). The breakdown multiplies its 共需 total by
+ * it, so passing 1 unconditionally would under-report every multi-per-day trade.
  *
  * Renders the plain line with no hover when the give has no recipe, which is the
  * common case: hasBreakdown excludes trivial self-only leaves and gather-only paths.
  */
-export function TradeLine({ item, onViewInShop }: { item: ProtoItem; onViewInShop?: (npc: string, giveName: string) => void }) {
+export function TradeLine({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: string, giveName: string) => void }) {
   const { name, qty } = parseItemQty(item.give);
   const times = dealTimes(item.npc, name, qty, item.limitText ?? undefined);
   if (!hasBreakdown(name)) {
