@@ -1046,7 +1046,12 @@ async function writeSendBatch(
  */
 type PurpleFanoutState = { spawnMs: number; offset: number; done: boolean };
 const PURPLE_FANOUT_KEY = "purple:fanout";
-/** Sends per tick: 30 sends + ~5 KV/Turso subrequests stays under the free plan's 50. */
+/**
+ * Sends per tick: 30 sends + ~5 KV/Turso subrequests stays under the free
+ * plan's 50. One tick per minute and a 15-min lead fit ~15 pages, so a lane
+ * past ~450 subs cannot finish inside one lead window; its tail is left for the
+ * next spawn (the cursor resets when the spawn changes).
+ */
 const PURPLE_FANOUT_BATCH = 30;
 
 async function readPurpleFanoutState(env: Env): Promise<PurpleFanoutState | null> {
@@ -1130,25 +1135,40 @@ export async function runPurpleFanout(env: Env): Promise<PurpleFanoutReport> {
   const sent = statuses.filter((s) => s.status >= 200 && s.status < 300).map((s) => s.endpoint);
   const dead = statuses.filter((s) => s.status === 404 || s.status === 410).map((s) => s.endpoint);
 
-  // Advance the cursor before the bookkeeping write: this page is delivered,
-  // so a Turso hiccup must not resend it. A throw earlier (the Turso read
-  // above) leaves the cursor put, so the page retries on the next tick. Sends
-  // never throw (per-sub try/catch), so the cursor can't skip a delivered page.
-  const done = pageLen < PURPLE_FANOUT_BATCH;
-  await env.PURPLE.put(
-    PURPLE_FANOUT_KEY,
-    JSON.stringify({ spawnMs: spawn, offset: state.offset + pageLen, done })
-  );
-  try {
-    await writeSendBatch(env, sent, dead, now, "purple");
-  } catch (e) {
-    // last_sent_at / dead-row pruning is best-effort; the cursor already moved.
-    console.log(`purple fanout bookkeeping failed: ${String(e)}`);
+  // Every attempted send failed transiently (a push-service blip, or sendPush
+  // throwing for all of them): hold the cursor so the next tick retries this
+  // page instead of silently skipping it for the whole spawn. Bounded by the
+  // lead window (<=15 ticks) and nothing was delivered, so a retry cannot
+  // duplicate a card. A page with nothing sendable (every row filtered out) is
+  // NOT stalled — it must advance, or the lane would stall behind it forever.
+  const stalled = subs.length > 0 && sent.length === 0 && dead.length === 0;
+  if (!stalled) {
+    // Advance before the bookkeeping write: this page is delivered, so a Turso
+    // hiccup must not resend it. A throw earlier (the Turso read above) leaves
+    // the cursor put, so the page retries on the next tick.
+    const done = pageLen < PURPLE_FANOUT_BATCH;
+    await env.PURPLE.put(
+      PURPLE_FANOUT_KEY,
+      JSON.stringify({ spawnMs: spawn, offset: state.offset + pageLen, done })
+    );
+    try {
+      await writeSendBatch(env, sent, dead, now, "purple");
+    } catch (e) {
+      // last_sent_at / dead-row pruning is best-effort; the cursor already moved.
+      console.log(`purple fanout bookkeeping failed: ${String(e)}`);
+    }
+    if (done) {
+      await env.PURPLE.put("purple:last-fire", JSON.stringify({ spawnMs: spawn }));
+    }
   }
-  if (done) {
-    await env.PURPLE.put("purple:last-fire", JSON.stringify({ spawnMs: spawn }));
-  }
-  return { skipped: false, reason: "fanned-out", spawn, subs: subs.length, sent: sent.length, pruned: dead.length };
+  return {
+    skipped: false,
+    reason: stalled ? "retry-pending" : "fanned-out",
+    spawn,
+    subs: subs.length,
+    sent: sent.length,
+    pruned: dead.length,
+  };
 }
 
 export default {

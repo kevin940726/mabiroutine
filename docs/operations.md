@@ -29,7 +29,7 @@ file to update when operations change. Design rationale lives in
 | Cron (UTC) | Taipei | Job | Healthy log line |
 |---|---|---|---|
 | `0 * * * *` | :00 hourly | barrier fanout | `barrier fanout … fanned-out` / `past-cutoff` / `no-subs` |
-| `* * * * *` | every minute | purple tick → fanout when a spawn is within 15 min (pages the lane, ~30 sends/tick) | `purple fanout … fanned-out` / `no-spawn` / `fired-already` |
+| `* * * * *` | every minute | purple tick → fanout when a spawn is within 15 min (pages the lane, ~30 sends/tick) | `purple fanout … fanned-out` / `retry-pending` (page had zero deliveries, held for the next tick) / `no-spawn` / `fired-already` |
 | `17 3,15 * * *` | 11:17 / 23:17 daily | Bahamut watcher → candidates → auto-apply | `purple watch … {"windows": N, "applied": bool}` |
 
 Cron edits take ~15 min to propagate (CF-documented). Tail with
@@ -43,7 +43,7 @@ Cron edits take ~15 min to propagate (CF-documented). Tail with
 | `purple:candidates` | `{windows[], observedAt, sources[]}` | watcher only, every run |
 | `purple:overrides` | `{overrides[], tombstones[], updatedAt, updatedBy}` | `/admin` overrides save only |
 | `purple:last-fire` | `{spawnMs}` | purple fanout (stamped when a run finishes the lane) |
-| `purple:fanout` | `{spawnMs, offset, done}` | purple fanout paging cursor, also its fire-once guard. The free plan caps subrequests at 50, so one page (~30 sends) goes per tick; a bad page is retried, a delivered page advances and is never resent |
+| `purple:fanout` | `{spawnMs, offset, done}` | purple fanout paging cursor, also its fire-once guard. The free plan caps subrequests at 50, so one page (~30 sends) goes per tick; a page that throws on read, or whose every send fails transiently (zero delivered, zero dead), is retried the next tick; a page that made progress advances and is never resent |
 
 Resolve rule (one path, three triggers): candidates base → same-`startMs`
 override replaces → unmatched overrides append → tombstoned starts vanish →
