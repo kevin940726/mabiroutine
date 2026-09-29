@@ -25,9 +25,8 @@
 //      title never reaches. 20px left clears the 4px priority stripe, 16px right and
 //      bottom match each other.
 import { cn } from "@/lib/utils";
-import { parseItemQty } from "@/lib/materials";
 import { NpcFace } from "@/components/MerchantPanel";
-import { TradeGrid, limitOf, pinButton, priorityEdge, priorityText, priorityTint, type ProtoItem, type ProtoProps } from "./shared";
+import { TradeGrid, TradeLine, limitOf, pinButton, priorityEdge, priorityText, priorityTint, type ProtoItem, type ProtoProps } from "./shared";
 
 /** The tile's vertical rhythm: one value for every gap between rows. */
 const STACK = "flex flex-col gap-2";
@@ -68,16 +67,27 @@ function MerchantBand({ item }: { item: ProtoItem }) {
  *
  * The cost line is deliberately NOT height-reserved, so 麗莎's two longest names push
  * their own tile taller rather than being cut.
+ *
+ * Barter goes through TradeLine, which renders the whole trade line — the give with
+ * a dotted underline and a popover when there is a recipe, and the get after an
+ * arrow. The tile therefore carries no separate qty suffix: `give` already has the
+ * ×N and MaterialHoverCard prints it, so a suffix here would print it twice and
+ * would also resurrect the ×1 that was dropped on purpose (41 of 100 barter rows).
+ *
+ * Gold stays a bare number: a price is a price, and a purchase has no material chain
+ * to trace.
  */
 function Price({ item }: { item: ProtoItem }) {
   if (item.kind === "shop") {
-    return <span className="text-[14px] font-semibold tabular-nums text-foreground">{item.cost}</span>;
+    return (
+      <span className="text-[14px] font-semibold tabular-nums text-foreground">
+        {item.cost}
+      </span>
+    );
   }
-  const { name, qty } = parseItemQty(item.give);
   return (
-    <div className="text-[14px] leading-tight break-words">
-      <span className="font-semibold text-foreground">{name}</span>
-      {qty > 1 && <span className="ml-1 text-[11px] whitespace-nowrap tabular-nums text-muted-foreground">×{qty}</span>}
+    <div className="break-words">
+      <TradeLine item={item} />
     </div>
   );
 }

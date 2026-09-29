@@ -1,4 +1,4 @@
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -59,5 +59,80 @@ function OptionRow({ option, showGroup }: { option: MenuOption; showGroup: boole
         <span className="truncate">{option.label}</span>
       </DropdownMenuRadioItem>
     </>
+  );
+}
+
+const TRIGGER_CLASS =
+  "flex h-9 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+/**
+ * The same field and popup as MenuSelect, for a filter that takes any number of
+ * values.
+ *
+ * Differences from the single-select: the popup lists the selected labels rather
+ * than one active label, no option is "all" (an empty set means unfiltered, which
+ * the trigger names 全部), every option is a checkbox, and the popup stays open
+ * after a tick so a second value can be added without reopening it.
+ *
+ * An explicit 全部 row is offered because checkboxes have no other way back to
+ * "no filter" — with a radio you pick the all option, with checkboxes you would
+ * either tick everything or have to know that unticking the last one clears it.
+ */
+export function MenuMultiSelect({ values, options, onChange, triggerClassName, ariaLabel, contentClassName }: {
+  values: string[];
+  options: MenuOption[];
+  onChange: (v: string[]) => void;
+  triggerClassName?: string;
+  ariaLabel?: string;
+  contentClassName?: string;
+}) {
+  const selected = options.filter((o) => values.includes(o.value));
+  const toggle = (value: string) =>
+    onChange(values.includes(value) ? values.filter((v) => v !== value) : [...values, value]);
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button
+          aria-label={ariaLabel}
+          className={cn(TRIGGER_CLASS, triggerClassName)}
+        >
+          <span className="truncate">
+            {selected.length === 0 ? "全部優先度" : selected.map((o) => o.label).join("、")}
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className={cn("min-w-[max(9rem,var(--radix-dropdown-menu-trigger-width))]", contentClassName)}>
+        <DropdownMenuCheckboxItem
+          checked={values.length === 0}
+          onSelect={(e) => {
+            // keep the popup open: this row is a state, not a dismissal
+            e.preventDefault();
+            onChange([]);
+          }}
+          className="text-sm"
+        >
+          全部優先度
+        </DropdownMenuCheckboxItem>
+        {options.map((o, i) => (
+          <div key={o.value}>
+            {o.group != null && o.group !== options[i - 1]?.group && (
+              <DropdownMenuLabel className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{o.group}</DropdownMenuLabel>
+            )}
+            <DropdownMenuCheckboxItem
+              checked={values.includes(o.value)}
+              onSelect={(e) => {
+                e.preventDefault();
+                toggle(o.value);
+              }}
+              className={cn("text-sm", o.icon && "gap-2")}
+            >
+              {o.icon}
+              <span className="truncate">{o.label}</span>
+            </DropdownMenuCheckboxItem>
+          </div>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

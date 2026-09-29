@@ -5,6 +5,8 @@
 // use. The tile lives in Tile.tsx.
 import { Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { dealTimes, hasBreakdown, parseItemQty } from "@/lib/materials";
+import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { NpcFace } from "@/components/MerchantPanel";
 
 export type ProtoItem = {
@@ -13,7 +15,11 @@ export type ProtoItem = {
   npc: string;
   town: string;
   title: string;
+  /** Exactly as authored: a gold row carries the coin glyph here, a barter row carries
+   *  "name xN". The tile shows a stripped name plus qty instead (see Price). */
   give: string;
+  /** What the trade yields. Needed only by the hover card, which reads "你給 X → 你拿 Y". */
+  get: string;
   cost: string;
   limitText: string | null;
   scopeAccount: boolean;
@@ -230,3 +236,51 @@ export function TradeGrid({
 
 /** 4 columns on desktop, 3 at the sm breakpoint, 2 on phones. */
 export const GRID = "grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
+
+/**
+ * Hover/tap popover for one barter row, carrying the same MaterialBreakdown the
+ * shipped rows expand inline.
+ *
+ * It renders as the tile's WHOLE trade line, not just the give. MaterialHoverCard
+ * draws its own `你給 X → 你拿 Y` line around the trigger, so wrapping only the give
+ * printed the trade twice — measured on the first build: the tile read
+ * `你給 | 鋼錠 | ×2 | → | 你拿 | 合金鋼錠×2` with the give named once by the trigger,
+ * once by the row, and the qty stranded between them. Making the trigger the whole
+ * line means the card's own line IS the tile's line, so nothing repeats and the
+ * click target is the full trade instead of one word of it.
+ *
+ * Uses MaterialHoverCard rather than assembling a card here: it already has the
+ * measured natural height, the flip-above / clamp-and-scroll, the 150ms
+ * open-and-close forgiveness for a diagonal pointer path, and dismissal on scroll,
+ * resize, Escape or an outside tap. It had no call site after the old explorer was
+ * deleted, so this is what it was kept for.
+ *
+ * `times` comes from the row's own limit, resolved the way the shipped row does
+ * (dealTimes: a twin leg's times, else the limit string, else 1). The breakdown
+ * multiplies its 共需 total by it, so passing 1 unconditionally would under-report
+ * every multi-per-day trade.
+ *
+ * Renders the plain line with no hover when the give has no recipe, which is the
+ * common case: hasBreakdown excludes trivial self-only leaves and gather-only paths.
+ */
+export function TradeLine({ item }: { item: ProtoItem }) {
+  const { name, qty } = parseItemQty(item.give);
+  const times = dealTimes(item.npc, name, qty, item.limitText ?? undefined);
+  if (!hasBreakdown(name)) {
+    return (
+      <span className="text-[14px] font-semibold text-foreground">
+        {name}
+        {qty > 1 && <span className="ml-1 text-[11px] whitespace-nowrap tabular-nums text-muted-foreground">×{qty}</span>}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="text-[14px] leading-tight break-words"
+      // the tile is a whole-tile target; a tap on this line must only open the card
+      onClick={(e) => e.stopPropagation()}
+    >
+      <MaterialHoverCard give={item.give} get={item.get} times={times} terse getless />
+    </span>
+  );
+}

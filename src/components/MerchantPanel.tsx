@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Pin, RotateCcw, Search, ShoppingBag, Store } from "lucide-react";
-import { MenuSelect } from "@/components/MenuSelect";
+import { MenuSelect, MenuMultiSelect } from "@/components/MenuSelect";
 import { BarterRowDesktop, BarterRowMobile, BarterPinButton, type BarterJsonRow } from "@/components/BarterExplorer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,10 @@ export type MerchantItem = {
   town: string;
   title: string;
   give: string;
+  /** what the trade yields, i.e. "what you get". Barter only: a gold purchase has
+   *  no get, and the field is "" for it rather than optional, so the type stays
+   *  total and every item is assignable to the prototype's ProtoItem. */
+  get: string;
   /** display cost: the coin for gold purchases, the material for barter */
   cost: string;
   limitText: string | null;
@@ -55,6 +59,9 @@ function toItem(deal: ShopDeal): MerchantItem {
     // material while a gold row's is a price, and the row layouts read them
     // differently.
     give: costText(deal),
+    // gold has no get: the coin glyph makes the whole trade. Cosmetics, so the
+    // field is total rather than optional — every item is a ProtoItem.
+    get: deal.kind === "barter" ? getText(deal) : "",
     cost: costText(deal),
     limitText: deal.limitText,
     scopeAccount: deal.scopeAccount,
@@ -90,6 +97,7 @@ function barterRowToItem(row: BarterJsonRow): MerchantItem {
     town: row.town,
     title: row.get,
     give: row.give,
+    get: row.get,
     cost: row.give,
     limitText: row.limit ?? null,
     scopeAccount: row.perChar === false,
@@ -371,7 +379,7 @@ export function MerchantPanel() {
   // the store or costs a version bump. The store already carries a persisted
   // barterFilters with a priority field, but no UI reads it since the old explorer
   // was deleted; reusing it would make an unshipped prototype drive production state.
-  const [protoPriority, setProtoPriority] = useState<string>("all");
+  const [protoPriority, setProtoPriority] = useState<string[]>([]);
   const [protoKind, setProtoKind] = useState<string>("all");
   const togglePin = useAppStore((s) => s.toggleBarterPin);
 
@@ -384,7 +392,10 @@ export function MerchantPanel() {
         .filter((item) => merchant === "all" || item.npc === merchant)
         // PROTOTYPE filters. Applied here so every view below (all merchants, one
         // merchant, and the counts in the header) sees the same list.
-        .filter((item) => protoPriority === "all" || item.priority === protoPriority)
+        // Priority is multi-select: an empty set is unfiltered, otherwise a row
+        // passes on any of the ticked tiers. Ticking several tiers widens the list
+        // (union), which is what a filter is for.
+        .filter((item) => protoPriority.length === 0 || (item.priority != null && protoPriority.includes(item.priority)))
         .filter((item) => protoKind === "all" || (protoKind === "shop" ? item.kind === "shop" : item.kind === "barter")),
     [town, query, merchant, protoPriority, protoKind],
   );
@@ -433,12 +444,17 @@ export function MerchantPanel() {
     writeNpcParam(name);
   };
 
-  const filtersActive = town !== "all" || merchant !== "all";
+  // The reset button covers every filter in this row, the two prototype filters
+  // included. They were missed when they were added, so the button stayed greyed
+  // out while a priority or kind filter was live, and pressing it left them set.
+  const filtersActive = town !== "all" || merchant !== "all" || protoPriority.length > 0 || protoKind !== "all";
 
   const clearFilters = () => {
     setTown("all");
     setMerchant("all");
     setNpcTab("gold");
+    setProtoPriority([]);
+    setProtoKind("all");
     writeNpcParam("all");
   };
 
@@ -487,18 +503,17 @@ export function MerchantPanel() {
               untouched. */}
           {gridProto && (
             <>
-              <MenuSelect
-                value={protoPriority}
+              <MenuMultiSelect
+                values={protoPriority}
                 ariaLabel="優先度"
                 onChange={setProtoPriority}
                 options={[
-                  { value: "all", label: "全部優先度" },
                   { value: "must", label: "必換" },
                   { value: "extra", label: "推薦" },
                   { value: "once", label: "一次性" },
                   { value: "situational", label: "視需求" },
                 ]}
-                triggerClassName={cn("w-full", protoPriority !== "all" && "border-primary text-primary")}
+                triggerClassName={cn("w-full", protoPriority.length > 0 && "border-primary text-primary")}
               />
               <MenuSelect
                 value={protoKind}
@@ -513,7 +528,7 @@ export function MerchantPanel() {
               />
             </>
           )}
-          <Button type="button" variant="ghost" onClick={clearFilters} disabled={!filtersActive} aria-label="清除城鎮與 NPC 篩選" className="h-9 shrink-0 self-center">
+          <Button type="button" variant="ghost" onClick={clearFilters} disabled={!filtersActive} aria-label="清除全部篩選" className="h-9 shrink-0 self-center">
             <RotateCcw />
             清除篩選
           </Button>

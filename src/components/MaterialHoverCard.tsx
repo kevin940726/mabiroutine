@@ -12,7 +12,7 @@ import {
   giveHasBreakdown,
 } from "@/components/MaterialBreakdown";
 import { cn } from "@/lib/utils";
-import { displayName } from "@/lib/materials";
+import { displayName, parseItemQty } from "@/lib/materials";
 
 type Props = {
   give: string;
@@ -22,9 +22,25 @@ type Props = {
   /** Whole-deal multiplier for the 共需 line — the caller resolves it from
    *  the row's exchange limit (default 1). */
   times?: number;
+  /** PROTOTYPE: shorten the trigger line for a narrow column. Drops the 你給/你拿
+   *  verbs (the arrow already says which side is which) and a trailing ×1, which
+   *  says nothing about what you hand over (41 of the 100 barter rows are ×1).
+   *  The card is unchanged, so the full 你給 X ×N → 你拿 Y is still there on hover.
+   *
+   *  A whole-deal ×N is NOT dropped: dealTimes multiplies the 共需 total by it, so
+   *  hiding it would leave the total unexplained. It is not added to the card
+   *  either, because the total already spells it out as 共需（N次）.
+   *
+   *  Off by default — the shipped merchant row has the width for the full line. */
+  terse?: boolean;
+  /** PROTOTYPE: drop the item you receive from the trigger line, keeping only
+   *  `give →`. Only correct when the caller renders that item elsewhere on screen —
+   *  the shop tile's title is exactly that item, one line above. Off by default, so
+   *  the shipped row still names both ends of the trade. */
+  getless?: boolean;
 };
 
-export function MaterialHoverCard({ give, get, compact, times }: Props) {
+export function MaterialHoverCard({ give, get, compact, times, terse, getless }: Props) {
   const hasBreakdown = useMemo(() => giveHasBreakdown(give), [give]);
 
   const [open, setOpen] = useState(false);
@@ -157,7 +173,9 @@ export function MaterialHoverCard({ give, get, compact, times }: Props) {
   if (!hasBreakdown) {
     return (
       <>
-        你給 {displayName(give)} → 你拿 {displayName(get)}
+        {terse ? "" : "你給 "}
+        {displayName(give)}
+        {getless ? null : <>{"\u00a0→ "}{terse ? "" : "你拿 "}{displayName(get)}</>}
       </>
     );
   }
@@ -167,7 +185,7 @@ export function MaterialHoverCard({ give, get, compact, times }: Props) {
       onMouseEnter={scheduleOpen}
       onMouseLeave={scheduleClose}
     >
-      你給{" "}
+      {terse ? null : "你給 "}
       <button
         ref={triggerRef}
         onClick={() => {
@@ -183,7 +201,7 @@ export function MaterialHoverCard({ give, get, compact, times }: Props) {
         onBlur={(e) => {
           if (!(e.relatedTarget instanceof Node && wrapRef.current?.contains(e.relatedTarget))) closeCard();
         }}
-        aria-label={`查看${give}的材料`}
+        aria-label={`查看${parseItemQty(give).name}的材料`}
         className={cn(
           "inline-flex items-center gap-1 text-left font-medium text-foreground underline decoration-dotted underline-offset-4",
           compact ? "max-w-[65%] align-bottom" : "max-w-full"
@@ -192,7 +210,16 @@ export function MaterialHoverCard({ give, get, compact, times }: Props) {
         <span className={compact ? "truncate" : "break-words"}>{displayName(give)}</span>
         <ReceiptText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>{" "}
-      → 你拿 {displayName(get)}
+      {/* One separator for both sides, so getless can drop the separator with the
+          item it introduced instead of leaving a dangling arrow. A no-break space on
+          each side is what the literal " → " was giving, so nothing else changes.
+          getless is legitimate when the caller already prints the item you receive:
+          the tile's 15px bold title is the same item. The card keeps the full
+          你給 X → 你拿 Y, so hovering still names both.
+          Still a prop rather than implied by terse: the shipped row keeps both names,
+          and losing the item from the only place it appeared would be a silent
+          regression. */}
+      {getless ? null : <>{"\u00a0→ "}{terse ? null : "你拿 "}{displayName(get)}</>}
       {open && pos && (
         // Outer box is transparent but hoverable: its 8px padding bridges the
         // gap between trigger and card, so the pointer path never leaves the
