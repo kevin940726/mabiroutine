@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Activity, lazy, Suspense, useEffect, useState } from "react";
 import { useAppStore, barterToTask } from "@/store/useAppStore";
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
@@ -477,13 +477,29 @@ export default function App() {
           </div>
         </div>
 
-        {tab === "tracker" ? (
+        {/* Both tabs stay MOUNTED; only one is visible. Switching used to unmount the
+            inactive one, so returning to 以物易物 remounted MerchantPanel and lost
+            everything it owns: the 優先度/類型 filters reset to their defaults, and the
+            selected merchant only reappeared because ?npc= was still in the URL. The
+            remount also repainted a reset view for a frame, which read as a flash.
+
+            <Activity> is the fix rather than a CSS `hidden`, because it also tears down
+            the hidden subtree's effects (timers, listeners) while keeping its state and
+            DOM. A hidden-but-running shop panel would keep its focus timer alive for a
+            tab nobody is looking at. React 19.2; exported as a stable name.
+
+            Window scroll is NOT preserved, and does not need to be: the tab bar is in
+            flow well down the page, so reaching it means scrolling back up (measured:
+            172px from the top at load, -1828px when scrolled 2000px), and there is
+            nothing meaningful to restore. */}
+        <Activity mode={tab === "tracker" ? "visible" : "hidden"}>
           <div className="grid gap-6 grid-cols-1">
             <TrackerSection title="每日任務" icon="☀️" tasks={dailyWithCustom} isAccount={false} onEditTask={openEdit} />
             <TrackerSection title="每週任務" icon="🗓️" tasks={weeklyWithCustom} isAccount={false} onEditTask={openEdit} />
             <TrackerSection title="帳號共通" icon="👥" tasks={accountWithCustom} isAccount={true} onEditTask={openEdit} />
           </div>
-        ) : (
+        </Activity>
+        <Activity mode={tab === "barter" ? "visible" : "hidden"}>
           <Suspense
             fallback={
               <div className="grid gap-6 grid-cols-1" role="status" aria-label="載入中">
@@ -495,7 +511,7 @@ export default function App() {
           >
             <MerchantPanel />
           </Suspense>
-        )}
+        </Activity>
 
         {/* footer actions */}
         <Separator />
