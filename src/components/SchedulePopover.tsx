@@ -2,14 +2,20 @@
 // next 3 predicted spawns. Positioning + dismiss (scroll-follow, resize,
 // Escape, outside-tap) follow the MaterialHoverCard pattern — the repo has no
 // popover dep. Content is frozen at open time (a ticking clock adds nothing;
-// reopening refreshes). Outside-tap dismisses on click, NOT pointerdown: a
+// opening refetches the feed and may correct the table once). Outside-tap
+// dismisses on click, NOT pointerdown: a
 // touch-scroll opens with a pointerdown on page content, so pointerdown would
 // dismiss before any scrolling happens (iOS bug); browsers suppress click
 // after a scroll gesture, so taps still dismiss and scrolls don't.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatTaipei, occurrencesAround } from "@/lib/purpleHole";
+import {
+  formatTaipei,
+  occurrencesAround,
+  purpleFeedVersion,
+  refreshPurpleFeedThrottled,
+} from "@/lib/purpleHole";
 
 export function SchedulePopover({ taskName }: { taskName: string }) {
   const [open, setOpen] = useState(false);
@@ -39,11 +45,21 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
   }, []);
 
   const openCard = useCallback(() => {
-    const now = Date.now();
-    const times = occurrencesAround(now, 2, 3);
-    setRows({ times, nextIdx: times.findIndex((t) => t > now) });
+    const computeRows = () => {
+      const now = Date.now();
+      const times = occurrencesAround(now, 2, 3);
+      setRows({ times, nextIdx: times.findIndex((t) => t > now) });
+    };
+    computeRows();
     placeInitial();
     setOpen(true);
+    // Opening is also a refresh trigger: a long-open app may be on an old
+    // timetable, so pull the feed and correct this table once if it changed
+    // (still frozen afterwards, so the reader never sees it re-sort twice).
+    const v = purpleFeedVersion();
+    void refreshPurpleFeedThrottled().then(() => {
+      if (purpleFeedVersion() !== v) computeRows();
+    });
   }, [placeInitial]);
 
   // Follow the trigger on scroll/resize (rAF-throttled) instead of

@@ -109,7 +109,12 @@ predictions LATE (miss), understated skew EARLY (wait) — err short.
 ## 7. Client behavior contracts (for debugging reports)
 
 - Feed chain: live fetch > localStorage cache > hardcoded; `__mabiPurpleFeed()`
-  reports `{source, updatedAt, fetchedAtMs}` in DevTools.
+  reports `{source, updatedAt, fetchedAtMs}` in DevTools,
+  `__mabiPurpleRefresh()` forces one round.
+- Feed refresh: `refreshPurpleFeedThrottled` (one in flight, 60s minimum gap)
+  runs at boot, every 30 min, on foreground return, on reconnect, and when the
+  timetable popover opens (an open table is corrected once if the feed
+  changed, then stays frozen). A no-change response notifies nobody.
 - Visibility split (both lanes): visible tab → local card (SW suppresses
   server); hidden/closed → server card (page skips). Same collapse tag per
   lane, `renotify`, no stacking by design.
@@ -126,15 +131,6 @@ predictions LATE (miss), understated skew EARLY (wait) — err short.
 
 - [ ] First server purple card — confirm body + closed-app delivery (first
   window after launch; check `purple:last-fire` + `last_sent_at`).
-- [ ] 9/23 predicted window: dropped from verified by auto-apply until the
-  announcement is parsed (accepted 2026-09-18). Why it's bounded: auto-apply
-  resolves from candidates + overrides and never consults verified, so the
-  hand-seeded 9/23 window vanishes at the next watcher fire — but legs tile
-  forward from the anchor, so only spawns whose leg crosses 9/23 morning
-  shift (the 9/24 one; 9/19–9/22 don't overlap it), and the announcement
-  lands 9/22 at the latest fire before it. If hand-held future windows become
-  routine, teach auto-apply to preserve published not-yet-passed windows
-  candidates don't contradict.
 - [ ] Freshness label (`預測更新於 …`) in the purple popover — `updatedAt`
   already travels on the feed; UI not built.
 - [ ] Phase-3C crowd reports — needs frequent drift AND an active reporter

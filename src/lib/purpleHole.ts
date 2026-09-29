@@ -40,13 +40,15 @@ export function taipeiWall(y: number, mo: number, d: number, h: number, mi: numb
  * canonical source).
  */
 export const MAINTENANCE_WINDOWS: MaintenanceWindow[] = [
-  // 2026-09-23 (Wed) routine, PREDICTED — last routine ran 06:00–08:30
-  // announced (actually 09:00; extend by editing this entry, not by
-  // appending an overlapping one — normalizeWindows merges overlaps, but
-  // one truthful entry beats two). VERIFY against the announcement on 9/22;
-  // delete after passing. Errs short on purpose: an overstated window skews
-  // predictions LATE (miss), an understated one skews EARLY (wait).
-  { startMs: taipeiWall(2026, 9, 23, 6, 0), endMs: taipeiWall(2026, 9, 23, 8, 30) },
+  // 2026-09-30 (Wed) routine, mirrored from the watcher feed (KV
+  // `purple:schedule`, updatedBy "watcher"): 06:00–10:00 Taipei, a 4h window,
+  // longer than the usual 2.5–3h. The feed owns the full verified list and
+  // the app prefers it; this dated entry only keeps the empty-KV/offline
+  // baseline truthful for the current routine. Spent entries are pruned in
+  // the same commit that adds new ones — the spent 9/23 prediction is gone.
+  // Errs short on purpose: an overstated window skews predictions LATE
+  // (miss), an understated one skews EARLY (wait).
+  { startMs: taipeiWall(2026, 9, 30, 6, 0), endMs: taipeiWall(2026, 9, 30, 10, 0) },
 ];
 
 /**
@@ -475,8 +477,9 @@ function applyFeedDoc(doc: PurpleScheduleDoc, source: "live" | "cache"): boolean
 
 /**
  * Boot entry: apply the cache synchronously (no network wait), then refresh
- * in the background. Consumers already re-render on their own ticks; the
- * reminder hook re-arms via subscribePurpleFeed. Resolves — never rejects.
+ * in the background and arm the ongoing refresh triggers. Consumers already
+ * re-render on their own ticks; the reminder hook re-arms via
+ * subscribePurpleFeed. Resolves — never rejects.
  */
 export function initPurpleFeed(): void {
   if (typeof window === "undefined") return;
@@ -489,9 +492,8 @@ export function initPurpleFeed(): void {
   } catch {
     // no (or corrupt) cache: hardcoded stands until the refresh lands.
   }
-  void refreshPurpleFeed().catch(() => {
-    // offline / worker down: cache-or-hardcoded stands, status says so.
-  });
+  void refreshPurpleFeedThrottled(0);
+  startPurpleFeedAutoRefresh();
 }
 
 /**
@@ -515,4 +517,57 @@ export async function refreshPurpleFeed(): Promise<PurpleFeedStatus> {
   }
   applyFeedDoc(doc, "live");
   return purpleFeedStatus();
+}
+
+/** Minimum gap between opportunistic refreshes; every trigger shares it. */
+export const PURPLE_REFRESH_MIN_GAP_MS = 60 * 1000;
+
+/**
+ * Interval refresh while the page is open. The feed changes at most ~twice a
+ * day (the watcher fires 11:17/23:17 Taipei), so 30 min bounds staleness for
+ * always-open tabs at trivial cost (the worker serves a 60s edge cache, and a
+ * no-change response is a no-op apply that notifies nobody).
+ */
+export const PURPLE_REFRESH_INTERVAL_MS = 30 * 60 * 1000;
+
+let refreshInFlight: Promise<PurpleFeedStatus> | null = null;
+let lastRefreshAttemptMs = 0;
+
+/**
+ * One refresh at a time, throttled: boot / foreground / reconnect / popover
+ * triggers coalesce onto the in-flight request, and a refresh younger than
+ * `minGapMs` is skipped (a failed attempt still counts, so offline spam
+ * can't hammer the worker). Never rejects — a failure resolves to the current
+ * (stale) status, so callers can fire-and-forget.
+ */
+export function refreshPurpleFeedThrottled(
+  minGapMs: number = PURPLE_REFRESH_MIN_GAP_MS
+): Promise<PurpleFeedStatus> {
+  if (refreshInFlight) return refreshInFlight;
+  if (Date.now() - lastRefreshAttemptMs < minGapMs) return Promise.resolve(purpleFeedStatus());
+  lastRefreshAttemptMs = Date.now();
+  refreshInFlight = refreshPurpleFeed()
+    .catch(() => purpleFeedStatus())
+    .finally(() => {
+      refreshInFlight = null;
+    });
+  return refreshInFlight;
+}
+
+let autoRefreshStarted = false;
+
+/**
+ * Keep the timetable current for pages that never close: refresh on foreground
+ * returns, on reconnect, and on the fixed interval. Idempotent. The reminder
+ * hook re-arms on the resulting feed change; badges re-render on their own
+ * ticks. Popover-open is a separate trigger in SchedulePopover.
+ */
+export function startPurpleFeedAutoRefresh(): void {
+  if (typeof window === "undefined" || autoRefreshStarted) return;
+  autoRefreshStarted = true;
+  window.setInterval(() => void refreshPurpleFeedThrottled(), PURPLE_REFRESH_INTERVAL_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") void refreshPurpleFeedThrottled();
+  });
+  window.addEventListener("online", () => void refreshPurpleFeedThrottled());
 }

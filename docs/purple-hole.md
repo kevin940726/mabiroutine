@@ -7,7 +7,9 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 
 - Cycle 36h15m, timer pauses during maintenance; windows come from the worker
   feed (`/purple-schedule`, KV `purple:schedule`), hardcoded list is the
-  empty-KV/offline baseline.
+  empty-KV/offline baseline. Client refresh: boot, every 30 min, foreground
+  return, reconnect, popover open, through one throttled single-flight call
+  (see `docs/operations.md` §7).
 - Spawns: one each in 女神庭園, 冰霜峽谷, 雲海曠野 (row desc, per user 2026-09-17).
 - Anchor (observed in-game): 2026-09-16 14:08 Taipei; now published via the
   worker feed — edit it on `/admin` (錨點 field), no code push. Moving
@@ -31,9 +33,10 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 - Daily per-char counter ×3 (`tracker.json` `purple-hole`, order 55), 06:00 reset with everything else. No store change for progress.
 - Row visibility: render-only parking in 已隱藏項目 on off-days (no store writes, out of progress). "Spawn day" = 06:00 daily bucket (decided 09-17: the row showing through 09-17 for the 09-18 02:23 spawn is correct — it doubles as heads-up; calendar-day and hours-before variants rejected).
 - Row times: absolute `MM/DD HH:mm` plain text under the title (no 昨日/明日 — lies across midnight); stale spawn shows `已過` + `下次` pair.
-- Timetable: click-toggle calendar popover, past 2 + next 3, frozen at open, follows page scroll. No dialog.
+- Timetable: click-toggle calendar popover, past 2 + next 3, frozen at open (opening refetches the feed and may correct the table once), follows page scroll. No dialog.
 - Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), local page-timer fires exactly 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 XX 分鐘後出現。` (live minutes: 15 on schedule, fewer on catch-up; no character names — deliberate, decided 09-17, tested end-to-end). Server-lane (closed-app) lead is near-exact by design: first 1-min cron tick inside the window, so 14–15 min (was 1–15 min on the 15-min tick — the 8-min card for the ~14:38 spawn on 2026-09-19 was that old design working).
 - Maintenance feed + no-commit timetable updates: shipped (phase 2 + 3B) — runbook in `docs/operations.md`.
+- Feed refresh (2026-09-30): boot-only was the gap for always-open apps (the app is never closed, so a long-lived tab could sit on an indefinitely stale timetable). Now refreshed at boot + every 30 min + foreground return + reconnect + popover open, all coalesced through one throttled (60s gap) single-flight call. A no-change response is a no-op apply that notifies nobody.
 - Same local-only rules as the hourly lane: never synced, never sent anywhere, page-open-only.
 
 ## History & past decisions (day-by-day log in git history, ex-`docs/ledger/`)
@@ -85,10 +88,11 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 - [x] Phase 3B shipped: anchor published through the feed/admin (2026-09-18)
 - [x] Purple server lane live: `lane=purple` subs, fanout on the 15-min tick
 - [x] First server purple card observed 2026-09-19 (~14:38 spawn, 8-min lead — closed-app proof, variable lead confirmed by design)
+- [x] Client auto-refresh: boot + 30 min + foreground + reconnect + popover open (2026-09-30)
+- [x] Maintenance fallback pruned to the current routine: spent 9/23 prediction dropped, 9/30 watcher-verified window (06:00–10:00) mirrored (2026-09-30)
 
 ## Todos
 
-- [ ] Verify the 9/23 predicted window against the 09/22 announcement (auto-apply may drop it until announced — see the phase-2 gap note)
 - [ ] Optional: surface `updatedAt` freshness (`預測更新於 …`) in the popover — data already travels on the feed
 - [ ] Phase 3C crowd reports — evidence-gated, not started
 

@@ -12,7 +12,7 @@ import {
   reminderPermission,
   upcomingEventLabel,
 } from './lib/hourlyReminders.ts'
-import { PURPLE_HOLE_ID, PURPLE_TAG, formatTaipei, initPurpleFeed, msUntilPurpleFire, nextOccurrence, purpleFeedStatus } from './lib/purpleHole.ts'
+import { PURPLE_HOLE_ID, PURPLE_TAG, formatTaipei, initPurpleFeed, msUntilPurpleFire, nextOccurrence, purpleFeedStatus, refreshPurpleFeedThrottled } from './lib/purpleHole.ts'
 
 // Quota telemetry reader (quota §, docs/sync.md): run
 // __mabiSyncStats() in DevTools for per-day request/command estimates.
@@ -20,13 +20,19 @@ if (typeof window !== 'undefined') {
   (window as unknown as { __mabiSyncStats?: () => string }).__mabiSyncStats = statsSummary;
 }
 
-// Purple schedule feed (phase 2B): apply the cached doc now, refresh in the
-// background — badges follow on their own ticks, the reminder hook re-arms
-// on feed change. __mabiPurpleFeed() reports live/cache/hardcoded.
+// Purple schedule feed (phase 2B): apply the cached doc now, then refresh at
+// boot and arm the ongoing triggers (foreground, reconnect, 30-min interval,
+// popover open) — badges follow on their own ticks, the reminder hook re-arms
+// on feed change. __mabiPurpleFeed() reports live/cache/hardcoded;
+// __mabiPurpleRefresh() forces one round now (bypasses the 60s throttle).
 if (typeof window !== 'undefined') {
   initPurpleFeed();
-  (window as unknown as { __mabiPurpleFeed?: () => string }).__mabiPurpleFeed = () =>
-    JSON.stringify(purpleFeedStatus());
+  const w = window as unknown as {
+    __mabiPurpleFeed?: () => string;
+    __mabiPurpleRefresh?: () => Promise<string>;
+  };
+  w.__mabiPurpleFeed = () => JSON.stringify(purpleFeedStatus());
+  w.__mabiPurpleRefresh = () => refreshPurpleFeedThrottled(0).then((s) => JSON.stringify(s));
 }
 
 // Event-reminder debug handles (same pattern, always on): run

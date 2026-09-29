@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
+- The purple-hole timetable keeps itself current on always-open apps: it refetches when the app returns to the foreground, reconnects, every 30 minutes, and when you open the 出沒時刻表 popover (an open table corrects itself once if the feed changed, then stays frozen). Previously the feed was fetched only at load, so a tab left running for days could show a stale schedule
 - Character tabs are reorderable: drag desktop pills by the faint grip (keyboard arrows work too) or drag rows inside any character menu (tab bar, floating pills); drops fire a 復原 undo toast, and the order syncs to linked devices via `meta:charorder`
 - Barter explorer grows 94→107 rows: 13 previously untracked shops exchanges folded in (all 視需求 with hand-written notes, readable get-item ids), 休馬斯 卓越繃帶 twin fixed to ×5 so it pairs with `seumas-finest-bandage`, new 伊比 portrait, and the two 康納魔力石 notes shortened to 依需求再換。
 - Drag reorder is undoable: dropping a row fires a 復原 toast (rapid drops batch into one, repeated rows deduped), and undo glides rows back with an animation
@@ -13,6 +14,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - Release copy: both READMEs now disclose the full server-side push footprint (endpoint + keys, linked session id, roster snapshot, live done-state reads — unsubscribe deletes all) and carry OS-level night-silencing guidance (iOS Focus / per-PWA settings, Android per-site toggles); checks off the last §8 doc todos
 
 ### Chores
+- Purple maintenance fallback pruned to the current routine: the spent 9/23 prediction is dropped and the watcher-verified 9/30 window (06:00–10:00 Taipei) mirrored into `MAINTENANCE_WINDOWS`; the resolved 9/23 todo is removed from the ops runbook
 - Redis layer decommissioned (fallback window closed 2026-09-21): `api/_db/fallback.ts` and its `getDb()` wiring, the `SessionImport`/`importSession` seam it alone used, `scripts/sync-tests/fallback.entry.ts`, the one-shot `scripts/migrate-upstash-to-sql.mjs`, and the Redis branches in `api-live.mjs`/`backend.mjs` deleted; `@upstash/redis` dropped. `api-live` now inspects the SQL backend only (Turso credentials). Remember to unset `SYNC_MIGRATION_FALLBACK`, remove the Upstash/KV env keys, and decommission the Redis database.
 - Migration fixture P follows the data: server-shared premise 8→11 rows (the three new `perChar=false` swaps)
 - Agent runbook: explicit push discipline — never `git push` / `worker:deploy` without the user's explicit approval; commit and push are separate decisions, especially for new features
