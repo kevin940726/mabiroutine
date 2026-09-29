@@ -15,12 +15,30 @@ export function ProtoGrid({
   onTogglePin,
   splitKind,
   byNpc,
+  onViewInShop,
+  focusKey,
 }: {
   items: MerchantItem[];
   pinned: Set<string>;
   onTogglePin: (id: string) => void;
   splitKind?: boolean;
   byNpc?: boolean;
+  /** Targets the producing merchant for the give, plus the material name so the
+   *  caller can flash the producing row. Typed to plain values for the same reason
+   *  the tile callback is: the grid widens rows to ProtoItem, and this handler never
+   *  needs the row itself. */
+  onViewInShop?: (npc: string, giveName: string) => void;
+  focusKey?: string | null;
 }) {
-  return <ProtoShop items={items} pinned={pinned} onTogglePin={onTogglePin} splitKind={splitKind} byNpc={byNpc} />;
+  return (
+    <ProtoShop
+      items={items}
+      pinned={pinned}
+      onTogglePin={onTogglePin}
+      splitKind={splitKind}
+      byNpc={byNpc}
+      onViewInShop={onViewInShop}
+      focusKey={focusKey}
+    />
+  );
 }

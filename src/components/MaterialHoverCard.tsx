@@ -6,7 +6,7 @@
 // and the built-in Tooltip is pointer-events-none label-only. Known limits:
 // no screen-reader wiring, dismisses on scroll instead of repositioning.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ReceiptText } from "lucide-react";
+import { ArrowUpRight, ReceiptText } from "lucide-react";
 import {
   MaterialBreakdown,
   giveHasBreakdown,
@@ -38,9 +38,28 @@ type Props = {
    *  the shop tile's title is exactly that item, one line above. Off by default, so
    *  the shipped row still names both ends of the trade. */
   getless?: boolean;
+  /** Optional footer action, e.g. the shop tile's 在商店中查看 link. Rendered only
+   *  when the caller passes it, so the tracker's two call sites are unchanged.
+   *
+   *  A plain <button>, not an <a href>: the jump is a state transition inside a
+   *  mounted panel (a URL click would reload the app and lose the very state the
+   *  jump needs). The caller owns what happens — the card only draws the control
+   *  and closes itself first. */
+  action?: { label: string; onClick: () => void };
+  /** Barter framing for the breakdown: the producer, the exchange, and the cap. Passed
+   *  straight through so the card shows the real deal instead of echoing the hovered
+   *  item's name. */
+  barter?: {
+    exclusive: boolean;
+    limit?: string;
+    npc?: string;
+    town?: string;
+    cost?: { name: string; qty: number };
+    out?: { name: string; qty: number };
+  };
 };
 
-export function MaterialHoverCard({ give, get, compact, times, terse, getless }: Props) {
+export function MaterialHoverCard({ give, get, compact, times, terse, getless, action, barter }: Props) {
   const hasBreakdown = useMemo(() => giveHasBreakdown(give), [give]);
 
   const [open, setOpen] = useState(false);
@@ -261,7 +280,24 @@ export function MaterialHoverCard({ give, get, compact, times, terse, getless }:
             style={{ maxHeight: maxH ?? undefined }}
             className="overflow-y-auto rounded-xl border bg-popover p-3 shadow-lg"
           >
-            <MaterialBreakdown give={give} bare times={times} />
+            <MaterialBreakdown give={give} bare times={times} barter={barter} />
+            {action && (
+              // Inside the scroll box, below the breakdown, so a clamped card
+              // scrolls to reach it. Closing first matters: the jump scrolls the
+              // page, and an open card dismisses itself on scroll anyway — doing it
+              // here keeps the two from racing and leaves no orphan card behind.
+              <button
+                type="button"
+                onClick={() => {
+                  closeCard();
+                  action.onClick();
+                }}
+                className="mt-2 flex w-full items-center justify-center gap-1 rounded-md border py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                {action.label}
+                <ArrowUpRight className="size-3.5" />
+              </button>
+            )}
           </div>
         </div>
       )}

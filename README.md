@@ -23,15 +23,15 @@ handled for you.
   draggable into any order;
   each keeps its own progress.
 - 🔄 **A barter explorer that answers "what do I trade today".** Every shop in the
-  game — all 194 gold and barter rows — browsable by town and NPC, with each
-  merchant's stock split into 金幣 and 以物易物 tabs. Curated trades lead in their
-  hand-written must/extra/once/situational order, gold purchases last. Search by
-  what you have or what you need, and tap any NPC portrait to jump to that shop.
-  Pin the good ones — gold purchases included — and they show up in your dailies,
-  each with what it costs and how many times you can buy it. Tap what you hand
-  over to see the base materials squashed to a shopping list (which store, which
-  NPC, weekly limits). Pinned barter rows show the same list from a hover card
-  that never moves the checklist.
+  game — all 194 gold and barter rows — browsable by town and NPC. Curated trades
+  lead in their hand-written must/extra/once/situational order, gold purchases last.
+  Search by what you have or what you need, and tap any NPC portrait to jump to that
+  shop. Pin the good ones — gold purchases included — and they show up in your
+  dailies, each with what it costs and how many times you can buy it. Tap a material
+  you hand over to see the deal behind it: who makes it, what they take and give in
+  the exchange, the total you need and how often you may trade, with a link straight
+  to that merchant's row. Pinned barter rows show the same breakdown from a hover
+  card that never moves the checklist.
 - ✏️ **Make it yours.** Custom tasks, drag-to-reorder everything, hide what you
   never do, dark mode.
 - 🔗 **Optional sync across devices.** No account, no password — one link joins

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { MapPin, Pin, RotateCcw, Search, ShoppingBag, Store } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, MapPin, Pin, RotateCcw, Search, ShoppingBag, Store } from "lucide-react";
 import { MenuSelect, MenuMultiSelect } from "@/components/MenuSelect";
 import { BarterRowDesktop, BarterRowMobile, BarterPinButton, type BarterJsonRow } from "@/components/BarterExplorer";
 import { Badge } from "@/components/ui/badge";
@@ -10,13 +10,44 @@ import { cn } from "@/lib/utils";
 import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
 import { CURATED_LABEL, costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
-import { displayName } from "@/lib/materials";
+import { displayName, parseItemQty } from "@/lib/materials";
 // The shop grid (src/proto-grid/), which is the shop view; the old row/tab UI it
 // replaced is kept behind a dev-only ?rows=1 for comparison until the fold-in.
 import { ProtoGrid } from "@/proto-grid/ProtoGrid";
 import barterJson from "@/data/barter.json";
 
+/** How long the jumped-to tile stays tinted. Long enough to find by eye after the
+ *  scroll settles, short enough that it stops reading as a selected row. The timer
+ *  is cleared on unmount and on a second jump so two quick jumps cannot leave the
+ *  first one's timer to cut the second flash short. */
+const FOCUS_FLASH_MS = 1600;
+
+/** Scroll the flashed tile into the middle of the viewport. "center" rather than
+ *  "start": the card can sit directly under a tile, and a top-aligned scroll puts
+ *  the target under the sticky header on desktop. */
+function scrollToFocus(key: string): boolean {
+  const el = document.querySelector(`[data-tile-key="${CSS.escape(key)}"]`);
+  if (!(el instanceof HTMLElement)) return false;
+  el.scrollIntoView({ block: "center", behavior: "smooth" });
+  return true;
+}
+
 type NpcTab = "gold" | "barter";
+
+/** The view state a jump wipes, kept so the 返回 chip can put it back. A jump
+ *  clears every filter and switches merchant, which is right for landing on the
+ *  producing shop but destroys the context you were reading. Scroll is part of it:
+ *  the whole point is to return to the row you left, not just its filters. */
+type ViewSnapshot = {
+  town: string;
+  merchant: string;
+  npcTab: NpcTab;
+  query: string;
+  selectedOnly: boolean;
+  protoPriority: string[];
+  protoKind: string;
+  scrollY: number;
+};
 
 export type MerchantItem = {
   key: string;
@@ -384,6 +415,14 @@ export function MerchantPanel() {
   // production filter state to accidentally drive from an unshipped prototype.
   const [protoPriority, setProtoPriority] = useState<string[]>([]);
   const [protoKind, setProtoKind] = useState<string>("all");
+  // The tile a jump just landed on, flashed and then cleared. Keyed by pinId, the
+  // same id a pin uses: a curated barter row's `key` is the shop deal's key and is
+  // absent when the row came from barter.json alone, while pinId is total.
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const focusTimer = useRef<number | null>(null);
+  // The view to return to, armed by a jump and discharged by the 返回 chip. Null
+  // when there is nothing to go back to, which is what hides the chip.
+  const [preJump, setPreJump] = useState<ViewSnapshot | null>(null);
   const togglePin = useAppStore((s) => s.toggleBarterPin);
 
   const towns = useMemo(() => [...new Set(ALL_SHOP_ITEMS.map((item) => item.town))].sort(compareTowns), []);
@@ -420,18 +459,117 @@ export function MerchantPanel() {
     return [...fromShops, ...orphans].filter((item) => rowMatches(item, query));
   }, [barterPins, query]);
 
-  // ?npc= deep link, same param convention as the reminder links. Kept in the
-  // URL (not stripped) so an NPC view is shareable and survives a reload.
+  /** Flash a tile and scroll to it. Shared by the in-card 在商店中查看 jump and the
+   *  ?item= landing, so a shared link and a click land identically. */
+  const focusTile = useCallback((key: string) => {
+    setFocusKey(key);
+    if (focusTimer.current) window.clearTimeout(focusTimer.current);
+    focusTimer.current = window.setTimeout(() => setFocusKey(null), FOCUS_FLASH_MS);
+  }, []);
+  // Scroll to the flashed tile from here, not from focusTile: a jump switches merchant
+  // in the same handler, so at call time the list still renders the OLD merchant and
+  // the target is not mounted. This effect runs after the commit that mounts it. The
+  // rAF waits one frame for layout, since scrollIntoView on a not-yet-laid-out node
+  // lands nowhere.
+  useEffect(() => {
+    if (!focusKey) return;
+    const raf = requestAnimationFrame(() => scrollToFocus(focusKey));
+    return () => cancelAnimationFrame(raf);
+  }, [focusKey]);
+  useEffect(
+    () => () => {
+      if (focusTimer.current) window.clearTimeout(focusTimer.current);
+    },
+    []
+  );
+
+  /** The in-card jump: go to the merchant that PRODUCES the give, not the row being
+   *  read. A same-session state transition, not a URL navigation: the panel is
+   *  already mounted, and a reload would lose the shop state the jump depends on.
+   *  The URL is rewritten as a shareable byproduct and never read back — an
+   *  installed PWA that only gets focused never sees a param, which is why this is
+   *  state and the URL is not the mechanism.
+   *
+   *  Clears every filter that could hide the target: the 優先度/類型 selects and the
+   *  search box all sit between the lander and the tile, and a hidden target scrolls
+   *  nowhere. Town/merchant are set from the producer instead of cleared, so the
+   *  landed view is that merchant's section.
+   *
+   *  replaceState, not pushState: there is no in-app history to walk (the tab bar is
+   *  useState in App.tsx), so a pushed entry would make Back leave the shop entirely
+   *  rather than undo the jump. */
+  const viewInShop = useCallback(
+    (npc: string, giveName: string) => {
+      // Snapshot BEFORE the setters run: React batches them, so reading after would
+      // capture the jumped-to view instead of the one being left.
+      setPreJump({
+        town,
+        merchant,
+        npcTab,
+        query,
+        selectedOnly,
+        protoPriority,
+        protoKind,
+        scrollY: typeof window === "undefined" ? 0 : window.scrollY,
+      });
+      setQuery("");
+      setProtoPriority([]);
+      setProtoKind("all");
+      setSelectedOnly(false);
+      setTown("all");
+      setMerchant(npc);
+      setNpcTab(firstTab(ALL_SHOP_ITEMS.filter((row) => row.npc === npc)));
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("npc", npc);
+        url.searchParams.delete("item");
+        window.history.replaceState(null, "", url.toString());
+      }
+      // Flash the row that produces the material: the producing merchant trades it as
+      // the GET of one of its deals. Matched on get-name within that merchant, since
+      // the producer leg is a shops.json entry with no barter-row pinId of its own.
+      // get is the display string ("凱琳特製全麥麵包 ×3"), so compare the parsed name.
+      // ALL_SHOP_ITEMS is module-level data, so the row resolves synchronously — the
+      // only thing that has to wait is the DOM, which the focusKey effect handles.
+      // Not found (a curation gap) still lands on the section, minus the flash.
+      const row = ALL_SHOP_ITEMS.find((r) => r.npc === npc && parseItemQty(r.get).name === giveName);
+      if (row) focusTile(row.pinId);
+    },
+    [focusTile, town, merchant, npcTab, query, selectedOnly, protoPriority, protoKind]
+  );
+  // One-shot landing for ?npc= and ?item=, the same convention the reminder params
+  // use in useHourlyReminders: read once, act, then strip so the URL stops claiming
+  // to be navigation state. A param is only reachable on a cold load anyway (an
+  // installed PWA that gets focused never sees one), so keeping it around adds
+  // nothing a reload would honour.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const npc = new URLSearchParams(window.location.search).get("npc");
-    if (!npc) return;
+    const q = new URLSearchParams(window.location.search);
+    const npc = q.get("npc");
+    const item = q.get("item");
+    if (!npc && !item) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("npc");
+    url.searchParams.delete("item");
+    window.history.replaceState(null, "", url.toString());
+    if (!npc && !item) return;
+    // ?item= wins: it names an exact row, and knows its own NPC.
+    const target = item ? ALL_SHOP_ITEMS.find((row) => row.pinId === item) : undefined;
+    if (target) {
+      setTown("all");
+      setMerchant(target.npc);
+      setNpcTab(firstTab(ALL_SHOP_ITEMS.filter((row) => row.npc === target.npc)));
+      focusTile(target.pinId);
+      return;
+    }
+    // Bare ?npc= (or an ?item= that no longer resolves — a data edit retires row
+    // ids), which degrades to the merchant's section rather than a blank view.
     const group = groupItems(ALL_SHOP_ITEMS).find((entry) => entry.name === npc);
     if (!group) return;
     setTown("all");
-    setMerchant(npc);
+    setMerchant(npc!);
     setNpcTab(firstTab(group.rows));
-  }, []);
+  }, [focusTile]);
 
   const writeNpcParam = (name: string) => {
     if (typeof window === "undefined") return;
@@ -461,6 +599,29 @@ export function MerchantPanel() {
     writeNpcParam("all");
   };
 
+  /** Discharge the 返回 chip: put back the filters and scroll a jump wiped. Runs as
+   *  a same-session state restore, symmetric with the jump — the URL is rewritten to
+   *  match so a shared link stops claiming the jumped-to merchant. */
+  const goBack = () => {
+    const snap = preJump;
+    if (!snap) return;
+    setTown(snap.town);
+    setMerchant(snap.merchant);
+    setNpcTab(snap.npcTab);
+    setQuery(snap.query);
+    setSelectedOnly(snap.selectedOnly);
+    setProtoPriority(snap.protoPriority);
+    setProtoKind(snap.protoKind);
+    writeNpcParam(snap.merchant);
+    setPreJump(null);
+    // After the restore commits, put the viewport back where it was. The rAF lets
+    // the restored list lay out first; without it the scroll lands on the wrong
+    // height (the pre-jump scrollY measured against a different list).
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => window.scrollTo({ top: snap.scrollY, behavior: "auto" }));
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5">
       <header className="rounded-2xl border bg-card p-4 sm:p-5">
@@ -470,6 +631,24 @@ export function MerchantPanel() {
         </div>
         <SearchControls query={query} onQueryChange={setQuery} selectedOnly={selectedOnly} onSelectedOnlyChange={setSelectedOnly} selectedCount={barterPins.length} />
       </header>
+
+      {/* Armed by a jump, discharged here. Sits above the filters rather than in the
+          toolbar grid: the jump clears the filters and switches merchant, so this is
+          the one control that undoes the whole transition, and it would wrap the
+          5-column grid if it were one more cell. Hidden on the ?rows=1 dev view,
+          which predates the jump. */}
+      {preJump && !showRows && (
+        <div className="-mt-1">
+          <button
+            type="button"
+            onClick={goBack}
+            className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft className="size-3.5" />
+            返回{preJump.merchant !== "all" ? ` ${preJump.merchant}` : preJump.town !== "all" ? ` ${preJump.town}` : "全部商店"}
+          </button>
+        </div>
+      )}
 
       {/* 3 fields + the reset button on the row view; the grid adds 優先度 and
           類型, so the template has to widen or the fifth control wraps under the
@@ -559,6 +738,8 @@ export function MerchantPanel() {
                 items={pinnedItems}
                 pinned={new Set(barterPins)}
                 onTogglePin={togglePin}
+                onViewInShop={viewInShop}
+                focusKey={focusKey}
                 byNpc
                 splitKind
               />
@@ -603,6 +784,8 @@ export function MerchantPanel() {
               items={selected ? npcRows : items}
               pinned={new Set(barterPins)}
               onTogglePin={togglePin}
+              onViewInShop={viewInShop}
+              focusKey={focusKey}
             />
           )}
         </section>

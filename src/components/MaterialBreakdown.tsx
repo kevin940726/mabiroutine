@@ -76,8 +76,36 @@ function Pfp({ npc, town, limit, price }: { npc: string; town?: string; limit?: 
   );
 }
 
-export function MaterialBreakdown({ give, bare, times }: { give: string; bare?: boolean; times?: number }) {
+export function MaterialBreakdown({
+  give,
+  bare,
+  times,
+  barter,
+}: {
+  give: string;
+  bare?: boolean;
+  times?: number;
+  /** Set when the give is obtainable ONLY by barter. The card swaps its name pill for
+   *  the deal itself: the pill echoed the tile being hovered, so it answered a
+   *  question nobody asked, while the card exists to answer "what does this take, and
+   *  from whom". So the barter layout is `producer face + name` / `cost → get` /
+   *  `共需 · limit`, with no pill repeating the hovered item.
+   *
+   *  `limit` keeps its scope tag (per-char vs account-wide is a real planning fact).
+   *  `cost`/`out` are the producer's own exchange (牛奶×10 → 麵包×3); `out` carries the
+   *  qty the leg yields, which is what makes the deal readable without a second lookup.
+   *  Absent when the data has no producer leg, in which case the normal pill row shows. */
+  barter?: {
+    exclusive: boolean;
+    limit?: string;
+    npc?: string;
+    town?: string;
+    cost?: { name: string; qty: number };
+    out?: { name: string; qty: number };
+  };
+}) {
   const plan = useMemo(() => assumedPlan(give, times ?? 1), [give, times]);
+  const barterDeal = barter?.exclusive && barter.npc && barter.cost && barter.out;
   // Boxed (default): the muted panel separates the breakdown from a
   // surrounding row (explorer). Bare: inside the hover card, which is
   // already a distinct panel — a box-in-a-box adds nothing.
@@ -94,33 +122,56 @@ export function MaterialBreakdown({ give, bare, times }: { give: string; bare?: 
           ))}
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-1">
-        {plan.pills.map((p) => (
-          <span
-            key={p.item}
-            className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-xs"
-          >
-            <span className="font-semibold">{p.item}</span>
-            {p.pill.faces.length > 0 && (
-              <span className="inline-flex items-center -space-x-0.5">
-                {p.pill.faces.map((f) => (
-                  <Pfp key={`${f.npc}|${f.town ?? ""}|${f.limit ?? ""}|${f.price ?? ""}`} npc={f.npc} town={f.town} limit={f.limit} price={f.price} />
-                ))}
-              </span>
-            )}
-            {p.pill.skills.map((s) => (
-              <span key={s} className="text-muted-foreground">
-                {s}
-              </span>
-            ))}
-            {p.pill.labels.map((l) => (
-              <span key={l} className="text-muted-foreground">
-                {l}
-              </span>
-            ))}
-          </span>
-        ))}
-      </div>
+      {barterDeal ? (
+        // Barter: the producer, then the exchange. No pill — the hovered item's name
+        // is already on screen, and repeating it here pushed the deal down a line.
+        <>
+          <div className="flex items-center gap-1.5">
+            {/* No limit in the face tooltip: the deal line states it inline now, so
+                repeating it on hover would say the same thing twice. town stays — the
+                tooltip is the only place the face names where it is. */}
+            <Pfp npc={barter!.npc!} town={barter!.town} />
+            <span className="text-xs font-semibold">{barter!.npc}</span>
+            {barter!.town && <span className="text-[11px] text-muted-foreground">· {barter!.town}</span>}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {displayName(barter!.cost!.name)} × {barter!.cost!.qty}
+            {" → "}
+            {displayName(barter!.out!.name)} × {barter!.out!.qty}
+            {/* The cap rides the deal, not the cost: it gates THIS exchange, and on the
+                共需 line the "·" made it read like one more item to gather. */}
+            {barter!.limit ? `（${displayName(barter!.limit)}）` : ""}
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1">
+          {plan.pills.map((p) => (
+            <span
+              key={p.item}
+              className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2 py-0.5 text-xs"
+            >
+              <span className="font-semibold">{p.item}</span>
+              {p.pill.faces.length > 0 && (
+                <span className="inline-flex items-center -space-x-0.5">
+                  {p.pill.faces.map((f) => (
+                    <Pfp key={`${f.npc}|${f.town ?? ""}|${f.limit ?? ""}|${f.price ?? ""}`} npc={f.npc} town={f.town} limit={f.limit} price={f.price} />
+                  ))}
+                </span>
+              )}
+              {p.pill.skills.map((s) => (
+                <span key={s} className="text-muted-foreground">
+                  {s}
+                </span>
+              ))}
+              {p.pill.labels.map((l) => (
+                <span key={l} className="text-muted-foreground">
+                  {l}
+                </span>
+              ))}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="text-xs">
         <span className="font-semibold">共需{(times ?? 1) > 1 ? `（${times}次）` : ""}：</span>
         <span className="text-muted-foreground">

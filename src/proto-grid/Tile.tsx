@@ -77,7 +77,7 @@ function MerchantBand({ item }: { item: ProtoItem }) {
  * Gold stays a bare number: a price is a price, and a purchase has no material chain
  * to trace.
  */
-function Price({ item }: { item: ProtoItem }) {
+function Price({ item, onViewInShop }: { item: ProtoItem; onViewInShop?: (npc: string, giveName: string) => void }) {
   if (item.kind === "shop") {
     return (
       <span className="text-[14px] font-semibold tabular-nums text-foreground">
@@ -87,23 +87,47 @@ function Price({ item }: { item: ProtoItem }) {
   }
   return (
     <div className="break-words">
-      <TradeLine item={item} />
+      <TradeLine item={item} onViewInShop={onViewInShop} />
     </div>
   );
 }
 
-function Tile({ item, pinned, onTogglePin, showMerchant }: { item: ProtoItem; pinned: Set<string>; onTogglePin: (id: string) => void; showMerchant: boolean }) {
+function Tile({
+  item,
+  pinned,
+  onTogglePin,
+  showMerchant,
+  onViewInShop,
+  focused,
+}: {
+  item: ProtoItem;
+  pinned: Set<string>;
+  onTogglePin: (id: string) => void;
+  showMerchant: boolean;
+  onViewInShop?: (npc: string, giveName: string) => void;
+  focused: boolean;
+}) {
   // the pin button carries its own state; destructuring only what the tile uses
   const { button } = pinButton(item, pinned, onTogglePin);
   const verdict = priorityText(item.priority);
   return (
     <div
       data-proto-tile
+      // the scroll target for a jump: keyed by pinId, the same id the flash uses.
+      // data-*, not an id: 194 tiles would flood the id namespace for a lookup that
+      // is always a querySelector against a handful of rows.
+      data-tile-key={item.pinId}
       // no pinned-specific styling: the pin button carries that state on its own. An
       // emerald border plus a bottom rule read as a second, louder signal for something
       // the filled pin already says, and the tile's edges were competing with the
       // priority stripe on the left.
-      className="relative flex flex-col overflow-hidden rounded-lg border bg-card pt-7 pr-4 pb-4 pl-5 transition-colors hover:bg-accent/40"
+      className={cn(
+        "relative flex flex-col overflow-hidden rounded-lg border bg-card pt-7 pr-4 pb-4 pl-5 transition-colors hover:bg-accent/40",
+        // the landed-on tile: a ring, not a border colour, so the priority stripe on
+        // the left edge and the pin's own state both stay readable underneath. The
+        // transition is on the base class, so it fades both in and out.
+        focused && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+      )}
     >
       <span className={cn("absolute inset-y-0 left-0 w-1", priorityEdge(item.priority))} aria-hidden />
       {/* 28px of top padding is exactly the 24px button plus its 4px offset, so the pin
@@ -118,10 +142,20 @@ function Tile({ item, pinned, onTogglePin, showMerchant }: { item: ProtoItem; pi
             wrappers. */}
         <p className="line-clamp-2 text-[15px] font-bold leading-snug text-foreground">{item.title}</p>
 
-        {/* drawn only where there is a verdict: 必換 and 推薦 only (see priorityText) */}
-        {verdict && (
-          <p className={cn("text-[12px] font-semibold leading-tight", priorityTint(item.priority))}>{verdict}</p>
-        )}
+        {/* Always rendered, even without a verdict. Reserving the row is what keeps
+            the limit and price lines aligned across a grid row: when it was
+            conditional, an unmarked tile pulled both up 23px (measured 1249 vs 1272),
+            so three tiles side by side read as three different layouts. `min-h` on
+            12px/leading-tight holds the same 15px the text takes, so the reserved
+            space is exactly the text's, not a guess. */}
+        <p
+          className={cn(
+            "min-h-[15px] text-[12px] font-semibold leading-tight",
+            verdict ? priorityTint(item.priority) : ""
+          )}
+        >
+          {verdict}
+        </p>
 
         <p className="flex items-center gap-1.5 text-[12px] leading-tight">
           <span className="text-muted-foreground">{limitOf(item)}</span>
@@ -134,14 +168,14 @@ function Tile({ item, pinned, onTogglePin, showMerchant }: { item: ProtoItem; pi
         </p>
 
         <div className="leading-tight">
-          <Price item={item} />
+          <Price item={item} onViewInShop={onViewInShop} />
         </div>
       </div>
     </div>
   );
 }
 
-export function ProtoShop({ items, pinned, onTogglePin, splitKind, byNpc }: ProtoProps) {
+export function ProtoShop({ items, pinned, onTogglePin, splitKind, byNpc, onViewInShop, focusKey }: ProtoProps) {
   return (
     <TradeGrid
       items={items}
@@ -154,6 +188,8 @@ export function ProtoShop({ items, pinned, onTogglePin, splitKind, byNpc }: Prot
           pinned={pinned}
           onTogglePin={onTogglePin}
           showMerchant={showBand}
+          onViewInShop={onViewInShop}
+          focused={focusKey != null && item.pinId === focusKey}
         />
       )}
     />

@@ -378,6 +378,68 @@ export function hasBreakdown(name: string): boolean {
   return leaf.routes.length > 1;
 }
 
+/**
+ * Narrower than hasBreakdown: barter is the ONLY way in, so the row's own tile is
+ * the place the item is obtained.
+ *
+ * hasBreakdown is a union — a plain `make` recipe passes it on line 370, which is
+ * most items — so it says "there is a breakdown worth showing", not "this item is
+ * a barter". The distinction matters for anything that offers to *navigate* to the
+ * item's shop row: on a craftable item that link points back at the tile you are
+ * already on. Confirmed on 蘋果汁 (a `make` route, so no link) vs 凱琳特製全麥麵包
+ * (synthesized from shops.json with barter-only legs, so the link is the way in).
+ *
+ * The test is hasBreakdown's own barter branch (line 376), lifted out so both read
+ * the same rule. It stays a subset by construction: reaching it requires the
+ * barter-with-components guard, so hasBarterOnlyRoute can never be true where
+ * hasBreakdown is false.
+ */
+export function hasBarterOnlyRoute(name: string): boolean {
+  const entry = RECIPES[name];
+  if (!entry || entry.verified === "missing" || entry.routes.length === 0) return false;
+  const leaf = assumeLeaf(name);
+  if (!leaf) return false;
+  // a make-roots item is a craft, never a barter-only one — the same guard
+  // hasBreakdown applies before reading leaf.routes
+  if (leaf.kind === "craft") return false;
+  if (!leaf.routes.some((r) => r.kind === "barter" && (r.components?.length ?? 0) > 0)) return false;
+  return entry.routes.every((r) => r.kind === "barter");
+}
+
+/**
+ * The single barter leg that PRODUCES an item — "where can I get this".
+ *
+ * Distinct from hasBarterOnlyRoute, which only answers yes/no. A tile's trade line is
+ * `give → get` on the reading row, so the item you want a shop link for is the GIVE,
+ * and the leg that produces it belongs to a different merchant than the row you are
+ * on.
+ *
+ * Returns at most one leg, and in the real data always exactly one: once
+ * hasBarterOnlyRoute has filtered out anything with a gold route, no item has a
+ * second producer (verified across the whole dataset with barterProducers over every
+ * shops.json barter get-name — the multi-producer case does not occur). A list API
+ * would be dead shape, so the caller reads [0] or gets nothing.
+ *
+ * Empty when the item is not barter-only, so the caller's "does this need a link"
+ * question and its "where does it go" question are the same call.
+ */
+export function barterProducers(name: string): RecipeRoute[] {
+  if (!hasBarterOnlyRoute(name)) return [];
+  const leaf = assumeLeaf(name);
+  if (!leaf || leaf.kind === "craft") return [];
+  // bestBarter ranks by barter.json standing (must/extra before once/situational, then
+  // authored order), so if the data ever grows a second leg the best still wins.
+  const legs = leaf.routes.filter((r) => r.kind === "barter" && r.npc);
+  return [...legs].sort((a, b) => {
+    const sa = barterStanding(name, a.npc);
+    const sb = barterStanding(name, b.npc);
+    const ra = sa?.rank ?? PRIORITY_RANK.extra;
+    const rb = sb?.rank ?? PRIORITY_RANK.extra;
+    if (ra !== rb) return rb - ra;
+    return (sa?.index ?? Number.MAX_SAFE_INTEGER) - (sb?.index ?? Number.MAX_SAFE_INTEGER);
+  });
+}
+
 export type AssumedPlan = {
   title: string;
   directs: { name: string; qty: number }[];

@@ -5,7 +5,7 @@
 // use. The tile lives in Tile.tsx.
 import { Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { dealTimes, hasBreakdown, parseItemQty } from "@/lib/materials";
+import { barterProducers, dealTimes, hasBarterOnlyRoute, hasBreakdown, parseItemQty } from "@/lib/materials";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { NpcFace } from "@/components/MerchantPanel";
 
@@ -43,29 +43,49 @@ export type ProtoProps = {
   /** Section by NPC rather than town. Set when a town or NPC filter narrows the view,
    *  so a town heading would repeat a single value. */
   byNpc?: boolean;
+  /** The in-card 在商店中查看 jump, offered on each tile's trade popover. It targets
+   *  the merchant that PRODUCES the give (a different shop than the tile being read),
+   *  plus the material name so the caller can flash the producing row. Absent when
+   *  the caller has no shop view to jump to. */
+  onViewInShop?: (npc: string, giveName: string) => void;
+  /** pinId of the tile a jump just landed on — flashed, then cleared by the caller. */
+  focusKey?: string | null;
 };
 
 /**
- * Priority reads once, on the two tiers worth acting on: the stripe down the left
- * edge of the tile, and the word above the limit. They share a colour so the stripe
- * stops being decoration.
+ * Priority reads as two facts: WHICH tier (the word, 必換 vs 推薦) and WHETHER the row
+ * is marked at all (the stripe down the left edge).
+ *
+ * Those are deliberately different channels. The stripe used to carry the tier in its
+ * colour too (red for 必換, amber for 推薦), which made it invisible to a red-green
+ * colour-blind reader: red and amber collapse toward each other under deuteranopia and
+ * protanopia, and no shade choice fixes that. So the stripe marks only "this row is
+ * worth acting on", in one colour, and the tier lives in the WORD, which needs no
+ * colour vision. `tint` is the word's colour — kept per-tier because it is a redundant
+ * reinforcement of a distinction the word already makes in text, not the only signal.
  *
  * 視需求, 一次性 and no-priority rows get the normal border, not a colour. Measured:
- * 94 rows have no priority, 53 are 視需求 and 8 are 一次性, so 155 of 194 (80%) were
- * carrying one of five stripe colours that said nothing. Decoding five colours to
- * find the two that matter is what made a grid of tiles read as noise.
+ * 94 rows have no priority, 53 are 視需求 and 8 are 一次性, so 155 of 194 (80%) carried
+ * one of five stripe colours that said nothing.
  */
 const PRIORITY = {
-  must: { edge: "bg-red-500", text: "text-red-600 dark:text-red-400", label: "必換" },
-  extra: { edge: "bg-amber-500", text: "text-amber-600 dark:text-amber-400", label: "推薦" },
+  // One marker colour for every marked tier. Chosen on LIGHTNESS against the card
+  // (light card is near-white, dark card near-black), since lightness survives
+  // colour-blindness where hue does not: red-500 on light, red-600 on dark.
+  must: { edge: "bg-red-500 dark:bg-red-600", text: "text-red-600 dark:text-red-400", label: "必換" },
+  extra: { edge: "bg-red-500 dark:bg-red-600", text: "text-amber-600 dark:text-amber-400", label: "推薦" },
   once: { edge: "bg-border", text: "text-sky-600 dark:text-sky-400", label: "一次性" },
   situational: { edge: "bg-border", text: "text-zinc-500 dark:text-zinc-400", label: "視需求" },
 } as const;
 
 /** Only 必換 and 推薦 render a word. 視需求 is the true default (53 rows) so naming
  *  it says nothing, and 一次性 reads as a warning but behaves like 推薦 for planning.
- *  Labels stay on the tiers that never render, so the map is total. */
-export const priorityEdge = (p: ProtoItem["priority"]) => (p ? PRIORITY[p].edge : "bg-border");
+ *  Labels stay on the tiers that never render, so the map is total.
+ *
+ *  The edge marks the two tiers that render a word, in one colour. It is intentionally
+ *  NOT a per-tier colour: see the PRIORITY comment — the tier is the word's job. */
+export const priorityEdge = (p: ProtoItem["priority"]) =>
+  p === "must" || p === "extra" ? PRIORITY[p].edge : "bg-border";
 export const priorityText = (p: ProtoItem["priority"]) =>
   p === "must" || p === "extra" ? PRIORITY[p].label : null;
 export const priorityTint = (p: ProtoItem["priority"]) => (p ? PRIORITY[p].text : "");
@@ -234,8 +254,12 @@ export function TradeGrid({
   );
 }
 
-/** 4 columns on desktop, 3 at the sm breakpoint, 2 on phones. */
-export const GRID = "grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
+/** 3 columns on desktop, 2 at the sm breakpoint, 2 on phones. Wider tiles (232px at
+ *  1440) let a two-line name and a two-line trade collapse to one line each, which is
+ *  what the 4-column cut was wrapping; the cost is ~25% more page height (68 grid rows
+ *  vs 53), which is the trade for it. Gap is 20px where the tile's own rhythm is 8px:
+ *  the 2.5:1 ratio is deliberate, so the tiles read as cards rather than a wall. */
+export const GRID = "grid gap-5 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3";
 
 /**
  * Hover/tap popover for one barter row, carrying the same MaterialBreakdown the
@@ -263,7 +287,7 @@ export const GRID = "grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
  * Renders the plain line with no hover when the give has no recipe, which is the
  * common case: hasBreakdown excludes trivial self-only leaves and gather-only paths.
  */
-export function TradeLine({ item }: { item: ProtoItem }) {
+export function TradeLine({ item, onViewInShop }: { item: ProtoItem; onViewInShop?: (npc: string, giveName: string) => void }) {
   const { name, qty } = parseItemQty(item.give);
   const times = dealTimes(item.npc, name, qty, item.limitText ?? undefined);
   if (!hasBreakdown(name)) {
@@ -274,13 +298,52 @@ export function TradeLine({ item }: { item: ProtoItem }) {
       </span>
     );
   }
+  // The footer jumps to where the GIVE is obtained, which is a different merchant
+  // than the row being read: a tile is `give → get`, so the row that produces the
+  // give is not this tile. barterProducers resolves that leg.
+  //
+  // Resolved even when there is no jump target (onViewInShop absent): the producer and
+  // the deal describe the item, not the link, so they must not vanish with it.
+  const producers = barterProducers(name);
+  const primary = producers[0];
+  // The producer's own exchange, for the card's deal line. components[0] is what the
+  // leg hands over (牛奶×10) and outQty is what the deal yields (麵包×3) — the qty is
+  // on the leg, not in the component list, so it has to be read from both.
+  const cost = primary?.components?.[0];
+  const barter = {
+    exclusive: hasBarterOnlyRoute(name),
+    // Kept intact, scope tag included: the tile's limitOf strips （伺服器） because it
+    // renders the scope as a separate tag, but the card has no such tag and the card is
+    // where the deal gets planned — dropping per-char vs account-wide there loses a real
+    // constraint. So the card spells 每日 1 次（伺服器） out in full.
+    limit: primary?.limit,
+    npc: primary?.npc,
+    town: primary?.town,
+    cost: cost ? { name: cost.name, qty: cost.qty } : undefined,
+    out: primary?.npc ? { name, qty: primary.outQty ?? 1 } : undefined,
+  };
   return (
     <span
       className="text-[14px] leading-tight break-words"
       // the tile is a whole-tile target; a tap on this line must only open the card
       onClick={(e) => e.stopPropagation()}
     >
-      <MaterialHoverCard give={item.give} get={item.get} times={times} terse getless />
+      <MaterialHoverCard
+        give={item.give}
+        get={item.get}
+        times={times}
+        terse
+        getless
+        barter={barter}
+        action={
+          onViewInShop && primary?.npc
+            ? {
+                label: `在 ${primary.npc} 查看`,
+                onClick: () => onViewInShop(primary.npc!, name),
+              }
+            : undefined
+        }
+      />
     </span>
   );
 }

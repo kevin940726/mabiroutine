@@ -4,11 +4,21 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- The barter material popover now shows the deal instead of echoing the tile: the producer's portrait, name and town, the exchange itself (牛奶 × 10 → 凱琳特製全麥麵包 × 3), the total you need (共需), and the exchange cap (每日 1 次), plus a 在 <merchant> 查看 button that jumps to that merchant's shop row and flashes it. It previously led with a pill repeating the item you were already hovering, which pushed the actual trade out of sight
+- A jump into a merchant's shop offers a 返回 chip that puts back exactly what you were looking at before: the town, NPC, search, 優先度 and 類型 filters, and your scroll position. It names where it returns to (返回 堤爾克那 / 返回 凱琳), appears only after a jump, and clears itself once used
+
+### Fixes
+- The priority stripe is no longer unreadable to a colour-blind reader: 必換 and 推薦 shared a red-vs-amber stripe, the pair that collapses under red-green colour blindness, so the two tiers looked identical. The stripe now marks only "this row is worth acting on" in one colour, and the tier reads from the 必換 / 推薦 word on the tile, which needs no colour vision. Marked vs unmarked is a difference in lightness, which survives colour blindness where hue does not
+- Shop grid tiles line up across a row again: the 必換 / 推薦 line was drawn only where it existed, so an unmarked tile pulled its limit and cost up 23px (measured 1249 vs 1272) and three tiles side by side read as three different layouts. The row is now always present at the same height, so every tile's limit and cost sit at the same point
+- Shop grid tiles are no longer cramped: three columns instead of four and a 20px gap instead of 8px, so a long name like 高級鍊金術再燃燒催化劑 and a two-line trade each fit on one line instead of wrapping. Wider tiles cost about a quarter more page height, which is the trade
+
 ### Chores
 - Where the purple-schedule admin secret lives is now written down: the skill, `docs/operations.md` §6 and `AGENTS.md` record that the wrapper reads `MABI_ADMIN_SECRET` from the process environment, that the conventional local copy is the gitignored `.env.admin.local` at the repo root loaded with `node --env-file=.env.admin.local …`, and that the root `.env.local` is the wrong home for it because `vercel env pull` regenerates that file and would wipe the value. A deployed Worker secret cannot be read back from Wrangler or the dashboard, so the plaintext has to live somewhere local
 - `docs/purple-hole.md` now records that a maintenance's effect on the next spawn is not predictable from the window: the first leg to cross one (the 2026-09-30 06:00–10:00 routine) ended at the maintainer's confirmed post-maintenance spawn of 17:44:35 Taipei, not the 20:38 (paused) or 16:38 (not paused) the leg math offered, so the anchor is re-set by hand when the schedule drifts. The old 10/01 falsification note is replaced by that evidence
 - Shop item icons land as static assets: 165 `public/items/<TW name>.webp` files (128px, ~0.8 MB total) covering the `shops.json` item names, documented in `docs/item-icons.md`. Nothing renders them yet — UI wiring follows. 愛心幣 and 喵幣 have no icon yet and fall back to text
 - 26 more item icons land in `public/items/` (now 191 files): barter give/get names and additional shop names, same 128px WebP — including 精靈的痕跡, 絕招秘藥, 完美繃帶, 幽靈螢火蟲, 羊毛, 職業大師勳章, 雕琢橄欖石 S, 馬鈴薯沙拉, 高級羊毛, 染色劑基底, 空白樂譜 and the facility blueprints. Still no art for the two currency gaps (愛心幣, 喵幣)
+- The shop's jump-to-producer lookup is now one rule instead of two: `hasBarterOnlyRoute` (barter is the only way in) gates both the 在商店中查看 link and the deal card, and `barterProducers` returns the producing leg. The multi-producer case the list API was written for does not occur in the data — every barter-only item has exactly one producer once the gold-route filter applies — so the second-producer list and its 也可在 line were removed rather than kept as dead shape
 
 ## 2026-09-30 — Barter explorer, tab reorder, purple push fixes
 
