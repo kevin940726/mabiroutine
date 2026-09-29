@@ -1,10 +1,11 @@
-// PROTOTYPE (throwaway): mounts the shop grid on the real 以物易物 route behind
-// ?gridproto=1. See Tile.tsx for the tile and shared.tsx for the sectioning.
+// The shop grid, mounted on the real 以物易物 route. This is the shop view now, not
+// a variant behind a param: the old row/tab UI is the one kept behind a dev-only
+// ?rows=1 for comparison. See Tile.tsx for the tile and shared.tsx for the sectioning.
 //
-// One design remains: the grid is the unfiltered view, sectioned by town, with the
-// merchant inside each tile. A town or NPC filter switches the sections to merchants
-// with a portrait header. The A/verdict/title/band alternatives were removed after
-// review, so this file no longer takes a variant.
+// The grid is the unfiltered view, sectioned by town, with the merchant inside each
+// tile. A town or NPC filter switches the sections to merchants with a portrait
+// header. The A/verdict/title/band alternatives were removed after review, so this
+// file takes no variant. The Proto* naming and the ?rows=1 param go in the fold-in.
 import type { MerchantItem } from "@/components/MerchantPanel";
 import { ProtoShop } from "./Tile";
 

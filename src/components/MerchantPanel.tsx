@@ -11,7 +11,8 @@ import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
 import { CURATED_LABEL, costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
 import { displayName } from "@/lib/materials";
-// PROTOTYPE (throwaway): see the mount site below. Delete with src/proto-grid/.
+// The shop grid (src/proto-grid/), which is the shop view; the old row/tab UI it
+// replaced is kept behind a dev-only ?rows=1 for comparison until the fold-in.
 import { ProtoGrid } from "@/proto-grid/ProtoGrid";
 import barterJson from "@/data/barter.json";
 
@@ -368,12 +369,13 @@ export function MerchantPanel() {
   // The tracker's pin list, shared: pinning here and pinning in the tracker are
   // the same action on the same barter id, and the pins sync with it.
   const barterPins = useAppStore((s) => s.barterPins);
-  // PROTOTYPE (throwaway): the grid-representation variants, on the real route.
-  // Strict allowlist, so a typo'd ?gridproto=zzz leaves the real UI alone rather
-  // than silently swapping it for a variant.
-  const gridProto = (() => {
-    if (!import.meta.env.DEV) return null;
-    return new URLSearchParams(window.location.search).get("gridproto") === "1" ? "1" : null;
+  // The grid is the shop view now, so it needs no param: this is the inverse gate.
+  // The shipped row/tab UI is still reachable at ?rows=1 (DEV only) so the two can
+  // be compared while the grid is polished. Both this param and that UI are deleted
+  // in the fold-in, which is why the row components below are still compiled.
+  const showRows = (() => {
+    if (!import.meta.env.DEV) return false;
+    return new URLSearchParams(window.location.search).get("rows") === "1";
   })();
   // Prototype-local filters: deliberately not persisted, so nothing here leaks into
   // the store or costs a version bump. The store used to carry a persisted
@@ -469,15 +471,16 @@ export function MerchantPanel() {
         <SearchControls query={query} onQueryChange={setQuery} selectedOnly={selectedOnly} onSelectedOnlyChange={setSelectedOnly} selectedCount={barterPins.length} />
       </header>
 
-      {/* 3 fields + the reset button normally; the prototype adds two more, so the
-          template has to widen or the fifth control wraps under the button */}
+      {/* 3 fields + the reset button on the row view; the grid adds 優先度 and
+          類型, so the template has to widen or the fifth control wraps under the
+          button */}
       {!selectedOnly && (
         <div
           className={cn(
             "grid gap-2",
-            gridProto
-              ? "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
-              : "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+            showRows
+              ? "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+              : "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
           )}
         >
           <MenuSelect
@@ -499,10 +502,11 @@ export function MerchantPanel() {
             ]}
             triggerClassName={cn("w-full", merchant !== "all" && "border-primary text-primary")}
           />
-          {/* PROTOTYPE filters: local state, so they reset on reload and disappear
-              with src/proto-grid/. There is no store-side filter state to touch —
-              barterFilters was removed at store v20. */}
-          {gridProto && (
+          {/* Grid-only filters: local state, so they reset on reload. They are
+              hidden on the ?rows=1 comparison view, which has its own tabs. There
+              is no store-side filter state to touch — barterFilters was removed at
+              store v20. */}
+          {!showRows && (
             <>
               <MenuMultiSelect
                 values={protoPriority}
@@ -546,7 +550,9 @@ export function MerchantPanel() {
             <span className="text-sm text-muted-foreground">{pinnedItems.length} 筆</span>
           </div>
           {pinnedItems.length > 0 ? (
-            gridProto ? (
+            showRows ? (
+              <MerchantRows items={pinnedItems} onSelectNpc={selectNpc} />
+            ) : (
               // grouped by merchant, in selection order: this view's premise is
               // that the order you picked things in is the order you want them
               <ProtoGrid
@@ -556,8 +562,6 @@ export function MerchantPanel() {
                 byNpc
                 splitKind
               />
-            ) : (
-              <MerchantRows items={pinnedItems} onSelectNpc={selectNpc} />
             )
           ) : (
             <div className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">尚無已選交易</div>
@@ -577,33 +581,29 @@ export function MerchantPanel() {
                 {selected ? <><MapPin /> {selected.town} · {npcRows.length} 筆</> : `${items.length} 筆 · 以物易物優先，金幣最後`}
               </p>
             </div>
-            {/* the variants deliberately drop the 金幣/以物易物 split, so the
-                toggle is hidden rather than left visible and inert */}
-            {selected && !gridProto && <NpcTabToggle items={npcRows} tab={npcTab} onChange={setNpcTab} />}
+            {/* the grid drops the 金幣/以物易物 split, so the toggle belongs to the
+                ?rows=1 comparison view only */}
+            {selected && showRows && <NpcTabToggle items={npcRows} tab={npcTab} onChange={setNpcTab} />}
           </div>
-          {/* PROTOTYPE: ?gridproto=a|b picks the grid representation — a is
-              per-merchant blocks, b is one flat grid with the merchant inside each
-              tile. The question is which structure a trade list should have once
-              barter stops being a special full-width row. Everything above this
-              line — search, dropdowns, data — is the real thing. Delete this block
-              and src/proto-grid/ when the pick is made. */}
-          {gridProto ? (
+          {/* The grid is the shop view. It sections by town when the list is
+              unfiltered and by merchant once a town or NPC filter narrows it, since
+              a town heading would then repeat a single value. ?rows=1 (DEV only)
+              still shows the old row/tab UI for comparison; both that param and
+              src/proto-grid/'s name are cleaned up in the fold-in. */}
+          {showRows ? (
+            selected ? (
+              <TabContent items={visible} tab={npcTab} onSelectNpc={selectNpc} />
+            ) : (
+              <MerchantRows items={items} onSelectNpc={selectNpc} />
+            )
+          ) : (
             <ProtoGrid
-              // Section by NPC whenever the view is narrowed to one town or one NPC:
-              // a town heading would then repeat a single value. Only the fully
-              // unfiltered view sections by town.
               byNpc={town !== "all" || merchant !== "all"}
-              // The kind split appears where two labelled groups carry information,
-              // which is the narrowed views; the full 194-row list stays unsplit.
               splitKind={town !== "all" || merchant !== "all"}
               items={selected ? npcRows : items}
               pinned={new Set(barterPins)}
               onTogglePin={togglePin}
             />
-          ) : selected ? (
-            <TabContent items={visible} tab={npcTab} onSelectNpc={selectNpc} />
-          ) : (
-            <MerchantRows items={items} onSelectNpc={selectNpc} />
           )}
         </section>
       )}
