@@ -15,9 +15,13 @@ no build, no deploy.
 
 ## Prereqs
 
-- `MABI_ADMIN_SECRET` exported in the environment (the worker's `ADMIN_SECRET`).
-  Never write it into the repo, an `.env` file, `opencode.json`, or a command
-  argument (that lands in shell history). Never echo it.
+- `MABI_ADMIN_SECRET` in the process environment (the worker's `ADMIN_SECRET`).
+  Export it, or keep the conventional local copy at `.env.admin.local` (repo
+  root, gitignored via `.env*`) and load it per command with
+  `node --env-file=.env.admin.local …`. Never pass it as a command argument
+  (that lands in shell history), never commit it, never echo it. Do not use the
+  root `.env.local`: `vercel env pull` regenerates that file and would wipe the
+  value.
 - Optional `MABI_WORKER_URL` to point at a non-default worker.
 - Node on PATH (the wrapper's `predict` imports the real math module, which
   needs Node 22.6+ type stripping; it degrades to "predict unavailable" below
@@ -47,6 +51,10 @@ node skills/purple-schedule/scripts/purple-admin.mjs auto true
 ```
 
 Times are Taipei wall-clock `YYYY-MM-DD HH:mm` (UTC+8, no DST) or ISO-8601.
+
+If the secret lives in `.env.admin.local`, prefix every command with
+`node --env-file=.env.admin.local` (the flag goes before the script path), e.g.
+`node --env-file=.env.admin.local skills/purple-schedule/scripts/purple-admin.mjs state`.
 
 ## Workflow
 

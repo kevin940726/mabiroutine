@@ -58,7 +58,10 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 
 Timing fixes are live KV data on the worker, not code: use the `purple-schedule`
 skill (`skills/purple-schedule/`, invoked as `/purple-fix`), which wraps the
-`/admin` API with `MABI_ADMIN_SECRET` from the environment (never commit, log,
-or pass it as an argument). A schedule correction never needs `git push` or
-`worker:deploy`. Runbook: `docs/operations.md` §6; the pause assumption and why
-excluding a window errs safe: `docs/purple-hole.md`.
+`/admin` API with `MABI_ADMIN_SECRET` from the process environment. Export it,
+or keep the gitignored `.env.admin.local` at the repo root and load it per
+command with `node --env-file=.env.admin.local …` (never commit, log, or pass it
+as an argument; not the root `.env.local`, which `vercel env pull` overwrites).
+A schedule correction never needs `git push` or `worker:deploy`. Runbook:
+`docs/operations.md` §6; the pause assumption and why excluding a window errs
+safe: `docs/purple-hole.md`.

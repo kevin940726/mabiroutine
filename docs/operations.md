@@ -119,8 +119,12 @@ wait, a kept non-pause costs a miss.
 Scriptable: the same edits are wrapped for agents in the `purple-schedule`
 skill (`skills/purple-schedule/`, invoked as `/purple-fix`): `state` and
 `predict` are read-only, `no-shift` / `shift-amount` / `anchor` write. It reads
-`MABI_ADMIN_SECRET` from the environment (never an argument or a file) and
-prints the new state and predictions.
+`MABI_ADMIN_SECRET` from the process environment and prints the new state and
+predictions. Supply it by exporting it, or keep the conventional local copy at
+`.env.admin.local` (repo root, gitignored via `.env*`) and load it with
+`node --env-file=.env.admin.local …`. Never pass it as an argument (shell
+history) and never commit it. Do not use the root `.env.local`: `vercel env
+pull` regenerates that file and would wipe the value.
 
 ## 7. Client behavior contracts (for debugging reports)
 

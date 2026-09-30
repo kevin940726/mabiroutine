@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- Where the purple-schedule admin secret lives is now written down: the skill, `docs/operations.md` §6 and `AGENTS.md` record that the wrapper reads `MABI_ADMIN_SECRET` from the process environment, that the conventional local copy is the gitignored `.env.admin.local` at the repo root loaded with `node --env-file=.env.admin.local …`, and that the root `.env.local` is the wrong home for it because `vercel env pull` regenerates that file and would wipe the value. A deployed Worker secret cannot be read back from Wrangler or the dashboard, so the plaintext has to live somewhere local
+
 ## 2026-09-30 — Barter explorer, tab reorder, purple push fixes
 
 ### Features
