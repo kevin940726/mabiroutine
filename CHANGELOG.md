@@ -6,6 +6,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ### Chores
 - Where the purple-schedule admin secret lives is now written down: the skill, `docs/operations.md` §6 and `AGENTS.md` record that the wrapper reads `MABI_ADMIN_SECRET` from the process environment, that the conventional local copy is the gitignored `.env.admin.local` at the repo root loaded with `node --env-file=.env.admin.local …`, and that the root `.env.local` is the wrong home for it because `vercel env pull` regenerates that file and would wipe the value. A deployed Worker secret cannot be read back from Wrangler or the dashboard, so the plaintext has to live somewhere local
+- `docs/purple-hole.md` now records that a maintenance's effect on the next spawn is not predictable from the window: the first leg to cross one (the 2026-09-30 06:00–10:00 routine) ended at the maintainer's confirmed post-maintenance spawn of 17:44:35 Taipei, not the 20:38 (paused) or 16:38 (not paused) the leg math offered, so the anchor is re-set by hand when the schedule drifts. The old 10/01 falsification note is replaced by that evidence
 
 ## 2026-09-30 — Barter explorer, tab reorder, purple push fixes
 
