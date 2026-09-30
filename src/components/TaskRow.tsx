@@ -58,6 +58,7 @@ import { dealTimes, displayName, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toastAction } from "@/sync/session";
+import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE } from "@/components/rowStyle";
 
 /**
  * Hide with an undo toast (user feedback 2026-09-21: the eye sits next to
@@ -407,9 +408,9 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
             src={`/npc/${encodeURIComponent(task.npc!)}.png`}
             alt=""
             aria-hidden
-            className="h-5 w-5 shrink-0 rounded-full object-cover border border-border/50 bg-muted"
             loading="lazy"
             onError={() => setNpcImgError(true)}
+            className={PFP_MOBILE}
           />
         ) : (
           <span className="shrink-0" aria-hidden>{task.icon}</span>
@@ -481,7 +482,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
         // No background transition: Chrome's "Auto Dark Mode for Web Contents"
         // re-darkens every painted frame, so an animated translucent hover
         // strobes. Solid hover without transition is stable there.
-        "rounded-lg border bg-card p-3 relative",
+        ROW_SHELL_MOBILE,
         isDone ? "bg-muted/50 border-muted" : "hover:bg-accent",
         isHidden ? "opacity-50" : ""
       )}
@@ -522,7 +523,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
           <div className="mt-1">{body}</div>
         </div>
         {/* Tile owns the right column alone now — centered on the row height. */}
-        <div className="w-11 shrink-0 self-stretch flex items-center justify-center">
+        <div className={TICKER_BOX_MOBILE}>
           {isCheck ? (
             <button
               className={cn(
@@ -677,7 +678,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
         // frame and flashes on hover otherwise.
         // Control order on desktop: grip, eye/menu, icon, content, tile
         // (mobile rail stacks eye over grip instead).
-        "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 min-h-[88px]",
+        ROW_SHELL_DESKTOP,
         isDone ? "bg-muted/50 border-muted" : "bg-card hover:bg-accent",
         isHidden ? "opacity-50" : ""
       )}
@@ -712,7 +713,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
           <img
             src={`/npc/${encodeURIComponent(task.npc!)}.png`}
             alt={task.npc!}
-            className="h-[50px] w-[50px] rounded-full object-cover shrink-0 border border-border/50 bg-muted"
+            className={PFP_DESKTOP}
             loading="lazy"
             onError={(e) => {
               (e.target as HTMLImageElement).src = "/npc/placeholder.png";
@@ -780,8 +781,8 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
       </div>
       )}
 
-      {/* action slot hugs the 56px tile — identical box for check and counter */}
-      <div className="flex items-center justify-center shrink-0 w-14 self-center">
+      {/* action slot hugs the 56px tile — identical box for check and counter. */}
+      <div className={TICKER_BOX_DESKTOP}>
         {isCheck ? (
           <button
             className={cn(

@@ -68,7 +68,11 @@ export type AppState = {
   lastWeeklyReset: string | null;
   prefs: {
     hideCompleted: boolean;
-    // future: server toggle, etc
+    /** Whether each 商店 / 以物易物 已釘選 section is folded shut. Per section,
+     *  per DEVICE: a fold is about how much room the screen has, and the pinned
+     *  list itself is global, so this is deliberately NOT synced (same call as
+     *  globalTaskOrder). Defaults open. */
+    pinnedCollapsed: { daily: boolean; weekly: boolean };
   };
   // for reorder: global order for builtins + custom
   globalTaskOrder?: Record<string, number>;

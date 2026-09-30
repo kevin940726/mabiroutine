@@ -1,0 +1,43 @@
+// The visual language of a task row, as class strings.
+//
+// One source of truth for the chrome that every row-shaped thing shares: the
+// card shell and the ticker box. TaskRow imports these, and so does anything else
+// that wants to look like a row without being one — the grouped-pins parent, which
+// is a container of trades rather than a trade.
+//
+// Why strings rather than a shared component: the parent's BODY is not a row's
+// body (it summarizes N children instead of showing one trade), so a component
+// would need a body slot that only one caller ever uses. Sharing the classes gets
+// the same guarantee — a change here moves both — without inventing production
+// surface for a single consumer.
+//
+// The failure this prevents is real and happened: a hand-copied shell drifted
+// within one session, rendering the desktop tile size (h-14) inside the mobile
+// row (whose tiles are h-11). Nothing here can drift, because there is only one
+// copy.
+
+/** The row card, mobile. Padding and radius are what the eye reads as "a row". */
+export const ROW_SHELL_MOBILE = "rounded-lg border bg-card p-3 relative hover:bg-accent";
+
+/** The row card, desktop. Taller and wider, with its own control order.
+ *  Carries `flex` and the background: a caller that re-declares the display mode
+ *  still gets the card's own look, which a stripped constant lost once already. */
+export const ROW_SHELL_DESKTOP =
+  "group relative flex items-center gap-3 rounded-lg border px-3 py-2.5 min-h-[88px] bg-card hover:bg-accent";
+
+/** The right-hand column that owns the ticker, mobile. Declares `--tile`. */
+export const TICKER_BOX_MOBILE = "w-11 shrink-0 self-stretch flex items-center justify-center [--tile:2.75rem]";
+
+/** The same column, desktop. */
+export const TICKER_BOX_DESKTOP = "flex items-center justify-center shrink-0 w-14 self-center [--tile:3.5rem]";
+
+/** The ticker box a caller renders inside: fills whatever `--tile` is, so it can
+ *  never come out the wrong size for the variant it landed in. */
+export const TICKER_FILL = "h-[var(--tile)] w-[var(--tile)]";
+
+/** Portrait sizes, per variant. Mobile keeps a small inline pfp on the title
+ *  line; desktop puts a large one in the leading cluster. Sharing these keeps a
+ *  group's pfp the same weight as the rows it sits among, which a bare `h-5 w-5`
+ *  did not: the desktop group had no portrait at all. */
+export const PFP_MOBILE = "h-5 w-5 shrink-0 rounded-full object-cover border border-border/50 bg-muted";
+export const PFP_DESKTOP = "h-[50px] w-[50px] rounded-full object-cover shrink-0 border border-border/50 bg-muted";

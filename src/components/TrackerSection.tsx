@@ -16,6 +16,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { useNow } from "@/hooks/useNow";
 import { toastAction } from "@/sync/session";
+import { PinnedGroups } from "@/components/PinnedGroups";
 
 // Batched drag-undo: rapid successive drops coalesce into one toast
 // (已移動 A、B、C) whose undo replays every snapshot in order — so the
@@ -130,7 +131,13 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     [char, hiddenAccountTaskIds]
   );
   const [collapsed, setCollapsed] = useState(false);
-  const [barterExpanded, setBarterExpanded] = useState(true);
+  // The pinned band's fold, per section, remembered per device: see the
+  // pref's comment in types.ts for why this is not per character and not synced.
+  // Read from the cycle later on; the setter writes both.
+  const pinnedCollapsed = useAppStore((s) => s.prefs.pinnedCollapsed);
+  const setPinnedCollapsed = useCallback((cycleName: "daily" | "weekly", value: boolean) => {
+    useAppStore.setState((s) => ({ prefs: { ...s.prefs, pinnedCollapsed: { ...s.prefs.pinnedCollapsed, [cycleName]: value } } }));
+  }, []);
   const [hiddenExpanded, setHiddenExpanded] = useState(false);
 
   // pinned subtasks, split by cycle: daily-limit pins render under 每日,
@@ -364,12 +371,18 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
         </DndContext>
 
         {/* 以物易物 subtasks as collapsable sub-category (only its own cycle; hides when empty) */}
-        {cycle !== null && cycleBarter.length > 0 && (
+        {cycle !== null && cycleBarter.length > 0 && (() => {
+          // Two pinned sections (daily/weekly) fold independently, and the choice
+          // is remembered: it used to be plain useState(true), so every reload
+          // reopened a list the user had folded.
+          const barterExpanded = !pinnedCollapsed[cycle];
+          return (
           // bleed band: wrapper stretches past the rows (-mx-2) so rows stay
           // pixel-equal to top-level items; header is w-full in the same box
           <div className="-mx-2 rounded-xl px-2 py-2 bg-emerald-500/10 dark:bg-emerald-400/[0.12]">
             <button
-              onClick={() => setBarterExpanded((v) => !v)}
+              onClick={() => setPinnedCollapsed(cycle, barterExpanded)}
+              aria-expanded={barterExpanded}
               className="flex w-full items-center gap-2 px-[5px] py-2.5 text-left rounded-md hover:bg-accent"
             >
               <span className="h-4 w-1 rounded-full shrink-0 bg-emerald-500" />
@@ -389,16 +402,19 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
                 {barterSubtasksFiltered.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-3">已全部完成或已隱藏</p>
                 ) : (
+                  // Pinned rows are grouped by merchant: one collapsible parent per
+                  // NPC holding that NPC's pins, a lone pin left as a plain row. The
+                  // group grip drags by its first child's id, so the existing
+                  // reorder handler orders groups without change.
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleBarterDragEnd}>
                     <SortableContext items={barterSubtasksFiltered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-                      {barterSubtasksFiltered.map((bt) => (
-                        <TaskRow
-                          key={bt.id}
-                          task={bt}
-                          value={bt.serverShared === true ? accountValues[bt.id] : char?.taskValues[bt.id]}
-                          isAccount={bt.serverShared === true}
-                        />
-                      ))}
+                      <PinnedGroups
+                        rows={barterSubtasksFiltered.map((bt) => ({
+                          task: bt,
+                          value: bt.serverShared === true ? accountValues[bt.id] : char?.taskValues[bt.id],
+                          isAccount: bt.serverShared === true,
+                        }))}
+                      />
                     </SortableContext>
                   </DndContext>
                 )}
@@ -410,7 +426,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* 已隱藏項目 — same primitive, dimmed + bottom, undo via Eye */}
         {hiddenAll.length > 0 && (

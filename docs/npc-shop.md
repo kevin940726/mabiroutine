@@ -59,6 +59,11 @@ Deliberately **not** doing, and why:
   persisted after the old barter explorer was deleted and nothing read it; the
   v19→v20 step deletes the field and the sync layer no longer emits or reads its
   `filter:*` keys.
+- **The pinned-list fold (`prefs.pinnedCollapsed`).** Also store v20, in the same
+  step as the `barterFilters` removal — the step only fills defaults and prunes,
+  so the two changes share one version. Per device, not synced (how much room the
+  screen has is a property of the device), and it defaults open, so an existing
+  save behaves as before until the user folds a section.
 - **A store version bump for gold pins.** Reasoned out in section 2; adding one
   would be wrong.
 - **Widening the pin id.** `shop::<npc>::<name>` is correct because every barter

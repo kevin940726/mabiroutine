@@ -5,7 +5,7 @@ Data knowledge lives in `docs/` (read it before touching data or sync):
   Hard rule: **never seed KR rows into `src/data/*`**.
 - `docs/sync.md` — sync protocol, key space, decisions, quota.
 
-## Store Version Bumps (persist schema `useAppStore.ts`, current `v17`)
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v20`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
 User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.
@@ -16,6 +16,10 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 3. Removing row ids → extend the v6 prune pattern (add the new dangling container, or it generalizes already via the `valid` set of tracker+barter+custom ids).
 4. Renaming a row id → add an explicit id-remap in the new step (prune would drop the old progress otherwise); tell the user first.
 5. `pnpm build` must pass; user-facing impact goes in `CHANGELOG.md` + READMEs (`README.md` / `README-zh_TW.md`) or `docs/storage.md` as appropriate.
+
+**Fold a bump that has not shipped — do not stack one.** `main` is what users have, so compare against it before spending a number: `git show main:src/store/useAppStore.ts | rg 'version: '`. If the current version was bumped only on your unmerged branch, no save exists at it, so two unreleased changes belong in **one** step at the same number. Add to the existing step rather than adding `N → N+1`, and say in the comment why the changes share a version. Bumping anyway is not fatal, it is just a step that can never run for anyone, kept forever by rule 2.
+
+The reverse also holds: never fold away a number that **did** ship, because a real user's save carries it.
 
 ## Changelog + docs — pre-commit rule (agents: update before every commit)
 

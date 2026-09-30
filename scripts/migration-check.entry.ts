@@ -627,5 +627,55 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert(!(withDeadPin.barterPins as string[]).includes("shop::nobody::nothing"), "T: a shop:: id with no live row is still pruned");
 }
 
+// U: v19 save -> v20 fills the collapsible-pin preference. Both new sections
+// default open (the previous behaviour), an existing hideCompleted survives, and
+// a save that already carries a fold keeps it — the step must not stomp a value
+// it is only there to backfill.
+{
+  const fresh = migratePersisted(
+    {
+      version: 19,
+      characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
+      activeCharId: "c1",
+      customTasks: [],
+      prefs: { hideCompleted: true },
+    },
+    19
+  ) as AnyRec;
+  assert(fresh.version === 20, "U: reaches v20");
+  const fp = fresh.prefs as AnyRec;
+  assert(fp.hideCompleted === true, "U: existing hideCompleted survives");
+  const pc = fp.pinnedCollapsed as AnyRec;
+  assert(pc.daily === false && pc.weekly === false, "U: both pinned sections default open");
+
+  // A save already holding the flag (a dev build, or a re-run) keeps it.
+  const kept = migratePersisted(
+    {
+      version: 19,
+      characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
+      activeCharId: "c1",
+      customTasks: [],
+      prefs: { hideCompleted: false, pinnedCollapsed: { daily: true, weekly: false } },
+    },
+    19
+  ) as AnyRec;
+  const kp = (kept.prefs as AnyRec).pinnedCollapsed as AnyRec;
+  assert(kp.daily === true && kp.weekly === false, "U: an existing fold is preserved, not reset");
+
+  // barterFilters still gets deleted in the same step it was deleted in before
+  // the fold-in, so folding the version number did not lose that work.
+  const dropped = migratePersisted(
+    {
+      version: 19,
+      characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
+      activeCharId: "c1",
+      customTasks: [],
+      barterFilters: { priority: ["must"] },
+    },
+    19
+  ) as AnyRec;
+  assert(!("barterFilters" in dropped), "U: barterFilters is still deleted by the folded v20 step");
+}
+
 console.log("\nAll migration fixtures passed.");
 

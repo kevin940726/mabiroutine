@@ -295,7 +295,7 @@ const initial: AppState = {
   customTasks: [],
   lastDailyReset: null,
   lastWeeklyReset: null,
-  prefs: { hideCompleted: false },
+  prefs: { hideCompleted: false, pinnedCollapsed: { daily: false, weekly: false } },
   taskBuckets: {},
   hourlyReminders: [],
   purpleHoleReminders: [],
@@ -397,7 +397,16 @@ function normalizePersisted(input: unknown): AppState {
     customTasks,
     lastDailyReset: d.lastDailyReset ?? null,
     lastWeeklyReset: d.lastWeeklyReset ?? null,
-    prefs: { hideCompleted: d.prefs?.hideCompleted ?? false },
+    prefs: {
+      hideCompleted: d.prefs?.hideCompleted ?? false,
+      // Nested object: a save from before this field, or a hand-edited one, must
+      // get both sections back rather than an undefined that the UI would read as
+      // "expanded" for one cycle and then write back as missing.
+      pinnedCollapsed: {
+        daily: d.prefs?.pinnedCollapsed?.daily ?? false,
+        weekly: d.prefs?.pinnedCollapsed?.weekly ?? false,
+      },
+    },
     taskBuckets,
     hourlyReminders: Array.isArray(d.hourlyReminders)
       ? [...new Set((d.hourlyReminders as unknown[]).filter((x): x is string => typeof x === "string"))]
@@ -734,13 +743,28 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.version = 19;
   }
   if (from < 20) {
-    // v19 → v20: barterFilters removed. It was the old barter explorer's filter
-    // state, left persisted after that UI was deleted, and nothing has read it
-    // since. Progress untouched — the field is dropped, and the sync layer stops
-    // emitting and reading its filter:* keys. Deleting it here (rather than only
-    // omitting it from the shape) means an old save stops carrying the keys on the
-    // next write instead of leaving them in the blob forever.
+    // v19 → v20: two changes that ship together, since neither is released —
+    // this branch's work is unmerged, so no save exists at v20 and there is no
+    // reason to spend a version on one of them.
+    //
+    // (a) barterFilters removed. It was the old barter explorer's filter state,
+    // left persisted after that UI was deleted, and nothing has read it since.
+    // Deleting it here (rather than only omitting it from the shape) means an old
+    // save stops carrying the keys on the next write instead of leaving them in
+    // the blob forever. Progress untouched, and the sync layer stops emitting and
+    // reading its filter:* keys.
     delete (s as Record<string, unknown>).barterFilters;
+    // (b) the 已釘選 sections became collapsible and the fold is remembered.
+    // Additive: prefs.hideCompleted survives and an old save grows both sections
+    // open, which is the previous behaviour exactly. No prune and no id remap —
+    // this touches no task id and no progress value, so nothing can be dropped.
+    s.prefs = {
+      hideCompleted: s.prefs?.hideCompleted ?? false,
+      pinnedCollapsed: {
+        daily: s.prefs?.pinnedCollapsed?.daily ?? false,
+        weekly: s.prefs?.pinnedCollapsed?.weekly ?? false,
+      },
+    };
     s.version = 20;
   }
   return s as AppState;
