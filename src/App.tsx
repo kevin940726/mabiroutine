@@ -463,10 +463,10 @@ export default function App() {
 
         {/* tabs */}
         <div className="flex items-center gap-2 border-b" role="tablist" aria-label="主分頁">
-          <button role="tab" aria-selected={tab === "tracker"} onClick={() => setTab("tracker")} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "tracker" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+          <button role="tab" aria-selected={tab === "tracker"} onClick={() => setTab("tracker")} className={`whitespace-nowrap px-3 py-2 text-sm font-medium border-b-2 -mb-px sm:px-4 ${tab === "tracker" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             任務追蹤
           </button>
-          <button role="tab" aria-selected={tab === "barter"} onClick={() => setTab("barter")} className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${tab === "barter" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+          <button role="tab" aria-selected={tab === "barter"} onClick={() => setTab("barter")} className={`whitespace-nowrap px-3 py-2 text-sm font-medium border-b-2 -mb-px sm:px-4 ${tab === "barter" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             商店 / 以物易物
           </button>
           <div className="ml-auto flex items-center gap-1 pb-1">

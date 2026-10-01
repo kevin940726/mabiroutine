@@ -460,9 +460,17 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless 
     </div>
   ) : (
     <div>
-      <div className="flex items-center gap-1.5 text-sm font-medium">
+      <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
         <span className="shrink-0" aria-hidden>{task.icon}</span>
         <span className={cn("min-w-0 flex-1 break-words")}>{task.name}</span>
+        {/* 必做 / 自訂 ride the TITLE line, as a trade row's 必換 / 伺服器 do. They
+            used to sit on a `mt-1` line of their own, which is the same reserved-line
+            cost the trade row's badges were moved off: it is 24px of a 100px row for
+            two small marks. `flex-wrap` is the safety valve, so a title too long to
+            share the line wraps the badge down rather than truncating it away. */}
+        {(task.priority === "must" || task.source === "custom") && (
+          <div className="flex shrink-0 items-center gap-1">{badges}</div>
+        )}
         {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
         {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
       </div>
@@ -471,9 +479,6 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless 
           <ScheduleBadges />
           <SchedulePopover taskName={task.name} />
         </div>
-      )}
-      {(task.priority === "must" || task.source === "custom") && (
-        <div className="mt-1 flex flex-wrap gap-1">{badges}</div>
       )}
     </div>
   );
