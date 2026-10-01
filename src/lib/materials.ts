@@ -157,18 +157,34 @@ export function parseItemQty(s: string): { name: string; qty: number } {
 }
 
 /**
- * Parenthesis width for display. The data files keep the game's half-width
- * spelling, because that is what shops.json records and what a paste from the
- * game contains; everything the user reads is folded to full-width, which is the
- * TW convention and what `limitText` already generates for 伺服器.
+ * Parenthesis width for display: half-width `( )`, which is the form the data already
+ * carries, the form the icon files are named in, and the NARROWER of the two.
  *
- * Apply this at the render expression, never to a string that is about to be
- * looked up: `MaterialBreakdown` and `giveHasBreakdown` resolve material names
- * against the route table by exact key, and the route table is unfolded. Folding
- * a name before that lookup would silently break the breakdown.
+ * This used to fold the other way, to full-width `（ ）`, on the reasoning that full
+ * width is the TW convention. It was reversed because the width is the thing that
+ * costs a layout: measured in the app's own font, one paren pair is 8.7px wider at the
+ * tile name's 13px and 10.7px at the cost line's 16px, so a 12-character blueprint name
+ * gains 17px back — 15% of the 116px box a two-column phone tile gives it. That is the
+ * difference between one line and two on the longest names, and those wraps are what
+ * make the mobile grid's tile heights vary.
+ *
+ * It also removes a disagreement instead of adding one: every source is half-width
+ * (`shops.json`, `barter.json` and all 12 `公共/items/*(3級).webp` files, audited), so
+ * folding for display was the only thing producing the wide form. The `MATCH_FOLD` note
+ * in `shops.ts` that describes barter.json as full-width is out of date — the data was
+ * normalised after it was written.
+ *
+ * `limitText` in `shops.ts` still GENERATES full-width `（伺服器）`; this function is
+ * what now narrows it, so limits read half-width too. If that ever wants to differ, it
+ * needs its own helper rather than this one.
+ *
+ * Apply this at the render expression, never to a string that is about to be looked
+ * up: `MaterialBreakdown` and `giveHasBreakdown` resolve material names against the
+ * route table by exact key, and the route table is unfolded. Transforming a name
+ * before that lookup would silently break the breakdown.
  */
 export function displayName(s: string): string {
-  return s.replace(/\(/g, "（").replace(/\)/g, "）");
+  return s.replace(/（/g, "(").replace(/）/g, ")");
 }
 
 /** Twin trade leg in the merged route table behind a barter-explorer row:

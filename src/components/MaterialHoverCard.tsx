@@ -6,7 +6,7 @@
 // and the built-in Tooltip is pointer-events-none label-only. Known limits:
 // no screen-reader wiring, dismisses on scroll instead of repositioning.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, ReceiptText } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import {
   MaterialBreakdown,
   giveHasBreakdown,
@@ -262,13 +262,22 @@ export function MaterialHoverCard({ give, get, compact, times, terse, getless, a
           if (!(e.relatedTarget instanceof Node && wrapRef.current?.contains(e.relatedTarget))) closeCard();
         }}
         aria-label={`查看${parseItemQty(give).name}的材料`}
+        // The dotted underline is the ONLY affordance now, so it must stay: the
+        // small receipt icon that used to follow the give is gone. It was removed
+        // because it cost 14px plus a 4px gap on a line that measures 120px wide at
+        // 360px — 15% of the line — and cost bands were wrapping to buy that space
+        // (measured: removing it took the 360px wraps from 10 to 8, and the 390px
+        // wraps from 7 to 4). The underline marks the same "this opens something"
+        // the icon did, the wording is unchanged, and the `aria-label` above names
+        // the action for a screen reader, so nothing is lost but the glyph.
+        // `gap-1` and `items-center` are kept for the single child: they cost
+        // nothing and the element stays a flex box if a second child ever returns.
         className={cn(
           "inline-flex items-center gap-1 text-left font-medium text-foreground underline decoration-dotted underline-offset-4",
           compact ? "max-w-[65%] align-bottom" : "max-w-full"
         )}
       >
         <span className={compact ? "truncate" : "break-words"}><QtyName text={give} /></span>
-        <ReceiptText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>{" "}
       {/* One separator for both sides, so getless can drop the separator with the
           item it introduced instead of leaving a dangling arrow. A no-break space on

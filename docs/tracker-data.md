@@ -70,24 +70,29 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
   full-width in 11 rows, which is why those blueprint trades never matched their
   shop row. Its item names are now half-width to match, so the two files agree and
   `matchKey` no longer has to carry the disagreement.
-- **But display is full-width everywhere.** `displayName` in `materials.ts` folds
-  half-width to full-width, and it is applied at the render expression, never to a
-  string that is about to be looked up: `MaterialBreakdown` and
-  `giveHasBreakdown` resolve material names against the route table by exact key,
-  and the route table is unfolded, so folding earlier would silently break the
-  breakdown. The rule covers the shop panel, the barter rows, the tracker, the
-  hover card, the breakdown, the exported task names, and the barter limit text.
-  A user's own custom task name is never folded — that is their text.
-- **Search folds both sides.** `rowMatches` folds the query as well as the haystack
-  is folded by the display helpers, so a name pasted from the game in half-width
-  still matches. Without that, normalising display would have moved the mismatch
-  rather than removed it, which is the same class of bug as the 伺服器 one.
+- **Display is half-width too, and that is a reversal.** `displayName` in `materials.ts`
+  used to widen to full-width; it now narrows to half-width, so what renders matches the
+  data and the icon files. The width was the reason: measured in the app's font, one
+  paren pair is 8.7px wider at the tile name's 13px and 10.7px at the cost line's 16px, so
+  a 12-character blueprint name gets 17px back — 15% of the 116px box a two-column phone
+  tile gives it. That removed 2 name wraps at 360px, 4 at 390px and all 5 at 430px
+  (measured across all 194 rows), and the wraps are what made the mobile tile heights
+  vary. It still runs at the render expression, never on a string about to be looked up:
+  `MaterialBreakdown` and `giveHasBreakdown` resolve material names against the route
+  table by exact key, and transforming a name earlier would silently break the breakdown.
+  The rule covers the shop panel, the barter rows, the tracker, the hover card, the
+  breakdown, the exported task names, and the barter limit text. A user's own custom task
+  name is never transformed — that is their text.
+- **Search folds both sides.** `rowMatches` runs `displayName` over the query AND the
+  haystack, so a name pasted from the game in either paren width matches a row spelled in
+  the other. Without that, changing display would have moved the mismatch rather than
+  removed it, which is the same class of bug as the 伺服器 one.
 - Two things must not be "fixed" by a blanket width swap: prose punctuation in a
-  `note` stays full-width, because there the parens wrap a clause rather than a
-  name (dungeon-5's `（凱琳/格莉娜 每週 30 次）` is correct as written), and only
+  `note` stays as written, because there the parens wrap a clause rather than a name
+  (dungeon-5's `（凱琳/格莉娜 每週 30 次）` is correct as written), and only
   one level exists (`3級`, 21 occurrences) so the parens never disambiguate
-  anything. The 伺服器 marker is now full-width in both files, because display
-  folding covers it.
+  anything. The 伺服器 marker is still GENERATED full-width by `limitText` and narrowed
+  by `displayName` on the way out, so it reads half-width with everything else.
 - **Pins are two id namespaces, one list.** `barterPins` is a `string[]` holding curated `barter.json` ids *and* ids for the `shops.json` gold rows. A curated row pins under its barter id (`ShopDeal.pinId === deal.barterId`); a gold row pins under `shop::<npc>::<name>` (`shopPinId` in `src/lib/shops.ts`). That short id is safe because every barter row in `shops.json` matches a curated entry, so the `shop::` namespace is exactly the 94 gold rows, and those are unique on `npc::name` — measured, 0 collisions. The cost is deliberately absent so a price patch does not orphan a pin. Two shapes would break it and neither exists today: a second gold listing for the same NPC and item, or a barter row that stops matching its curated entry. If either appears, give the shop row an explicit `id` rather than widening the key, because the id is persisted in users' pins. Valid ids for pruning and sanitizing come from one helper, `validPinnableIds` in the store, which unions tracker + barter + custom + `shopPinIds()`; a copy of that set that forgets the shop namespace deletes every gold pin on the next version upgrade. Sync needs no change: `pin:<id>` is already id-agnostic, and a dead `shop::` id adopted from a peer stays until a version bump prunes it, which is how dead barter pins have always behaved.
 
 ## Filtering Rules — manual-only, no fetchers

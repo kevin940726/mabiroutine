@@ -308,12 +308,41 @@ export function TradeGrid({
   );
 }
 
-/** The grid: 1 column on phones, 2 from the sm breakpoint (640px), 3 from lg, 4 from
- *  xl (1280px).
+/** The grid: 2 columns on phones, 3 from lg (1024px), 4 from xl (1280px).
  *
- *  One column on a phone because two leaves a 154px tile carrying a 15px CJK title: a
- *  long name like 高級鍊金術再燃燒催化劑 wrapped to three lines, the trade line wrapped
- *  with it, and the merchant name truncated (迪莉絲 · 堤爾…).
+ *  Two columns on a phone, which REVERSES an earlier decision. The old note read
+ *  "one column because two leaves a 154px tile carrying a 15px CJK title: 高級鍊金術再
+ *  燃燒催化劑 wrapped to three lines, the trade line wrapped with it, and the merchant
+ *  name truncated". That was measured before the tile was re-cut around the item art and
+ *  before the name band reserved its second line, and neither part still holds. Forced
+ *  to two columns across all 194 real rows:
+ *
+ *  | viewport | tile  | names wrapping | costs wrapping | most lines |
+ *  |---|---|---|---|---|
+ *  | 360px | 158px | 14 | 12 | 2 |
+ *  | 390px | 173px | 12 |  8 | 2 |
+ *  | 430px | 193px |  5 |  4 | 2 |
+ *
+ *  (Those tile widths are with the `gap-3` below `sm`; at `gap-5` they are 154 / 169 /
+ *  189px and the wrap counts are the same.)
+ *
+ *  Nothing exceeds two lines at any phone width, which is the case the name band already
+ *  reserves for (`xl:min-h-[2lh]` is `xl`-gated, but 14 of 194 is small enough that the
+ *  wrap costs the row it happens in and nothing else — `items-start` keeps it from
+ *  stretching the tile beside it). The merchant band was the one band that could be made
+ *  to stop wrapping entirely, and that is what keeps the phone grid near-uniform: its
+ *  common label needed 101px against a 90px box, so 46 of 194 rows wrapped to a second
+ *  line and the grid had TEN distinct tile heights. Hiding the town below `sm` (see
+ *  `MerchantBand`) takes that to zero wraps, and with the tighter `gap-3` and `STACK`
+ *  gaps the grid ends at SIX heights with 172 of 194 rows on the same 214/215px. The
+ *  rest are the genuinely long strings (`稀有鍊金術再燃燒催化劑` plus a 13-character cost)
+ *  and no readable font size fits those: measured, they would need 9-10px.
+ *
+ *  What it buys is height, and the ratio is lopsided: the same 194 rows go from a 9976px
+ *  page to 4667px at 360px, versus 5264px with the town shown and the wider gaps.
+ *
+ *  The town is still shown from `sm`, in the section header when grouped by NPC, and in
+ *  the material popover regardless.
  *
  *  Four columns from 1280px is the widest the tile has been cut, and it costs page
  *  height for width: at 1440px a tile is 169px against 232px at three columns, and the
@@ -322,7 +351,10 @@ export function TradeGrid({
  *  third column is still 232px and the name still fits on one.
  *
  *  The gap is 20px where the tile's own rhythm is 8px: the 2.5:1 ratio is deliberate,
- *  so the tiles read as cards rather than a wall.
+ *  so the tiles read as cards rather than a wall. It is 12px below `sm` instead, where
+ *  the width is the scarce resource: 20px of a 328px row is 6% of the space, and at
+ *  12px a two-column tile is 158px against 154px — every band gains 4px, which is 4% of
+ *  a name's box. The 20px ratio resumes from `sm`, where the trade is no longer forced.
  *
  *  `items-start` so a tile is its OWN content height instead of being stretched to its
  *  row's tallest. Grid items stretch by default, and four trade lines wrap to a second
@@ -334,7 +366,7 @@ export function TradeGrid({
  *  With `items-start` each tile keeps its own height, so a one-line tile is never taller
  *  than its content and a wrapped row is simply a taller row. */
 export const GRID =
-  "grid gap-5 items-start grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+  "grid gap-3 sm:gap-5 items-start grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
 /**
  * Hover/tap popover for one barter row, carrying the same MaterialBreakdown the old

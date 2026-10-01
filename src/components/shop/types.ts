@@ -12,18 +12,19 @@ export type ShopRow = {
   key: string;
   npc: string;
   town: string;
-  /** The item name folded for display (full-width parens), with any ` ×N` for a
-   *  barter yield still inline. Folded at construction by `getText`; the ICON must
-   *  not use this one — see `rawName`. */
+  /** The item name as the reader sees it, shaped by `getText` (which runs
+   *  `displayName`), with any ` ×N` for a barter yield still inline. The ICON must not
+   *  use this one — see `rawName`. */
   title: string;
-  /** The item name exactly as the data spells it: half-width parens, no ` ×N`.
+  /** The item name exactly as the data spells it, no ` ×N`.
    *
-   *  The icon lookup needs this and NOT `title`. `displayName` folds `(` to `（`
-   *  for reading, and the files on disk keep the data's half-width spelling, so a
-   *  path built from the folded title misses every `設計圖(3級)` file — measured:
-   *  nine shop rows resolved to `/items/...%EF%BC%883%E7%B4%9A%EF%BC%89.webp`
-   *  (full-width) against a half-width `(3級)` on disk, which answers `index.html`
-   *  at 200 and fails to decode. This is the trap `lib/itemIcon.ts` describes, kept
+   *  The icon lookup needs this and NOT `title`. The files are named from the data, and
+   *  `displayName` rewrites the parens for reading, so a path built from the display
+   *  title can miss the file — measured when it widened them: nine shop rows resolved to
+   *  `/items/...%EF%BC%883%E7%B4%9A%EF%BC%89.webp` against a half-width `(3級)` on disk,
+   *  which answers `index.html` at 200 and fails to decode. The direction `displayName`
+   *  rewrites in is incidental to the rule: the lookup always takes the data's spelling.
+   *  This is the trap `lib/itemIcon.ts` describes, kept
    *  here as a named field so no call site has to remember it. */
   rawName: string;
   /** Exactly as authored: a gold row carries the coin glyph here, a barter row

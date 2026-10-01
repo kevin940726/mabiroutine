@@ -86,17 +86,17 @@ function itemName(t: Task): string {
   return displayName(t.name);
 }
 
-/** The same item, UNFOLDED, for the icon lookup.
+/** The same item, as the DATA spells it, for the icon lookup.
  *
- *  Deliberately NOT `itemName`: `displayName` folds half-width parens for reading
- *  and the icon files keep the data's own spelling, so 9 blueprint names match
- *  only in this form. Keeping the two side by side is the point — one is for the
- *  eye, one is for the filesystem, and folding the wrong one is silent. See
- *  `src/lib/itemIcon.ts`. */
+ *  Deliberately NOT `itemName`: `displayName` rewrites the parens for reading and the
+ *  icon files keep the data's own spelling, so the nine blueprint names matched only in
+ *  this form when the display helper widened them. Keeping the two side by side is the
+ *  point — one is for the eye, one is for the filesystem, and transforming the wrong one
+ *  is silent. See `src/lib/itemIcon.ts`. */
 function itemArtName(t: Task): string {
   if (t.source === "barter") return (t.barterMeta?.get ?? "").replace(/ ×\d+$/, "");
-  // A shop pin's `name` is folded (`getText`), so prefer the raw spelling carried
-  // on shopMeta. The fallback keeps older persisted pins working: a save written
+  // A shop pin's `name` is `getText`, rewritten for display, so prefer the raw spelling
+  // carried on shopMeta. The fallback keeps older persisted pins working: a save written
   // before rawName existed has no shopMeta.rawName, and `t.name` is all it has.
   return t.shopMeta?.rawName ?? t.name;
 }

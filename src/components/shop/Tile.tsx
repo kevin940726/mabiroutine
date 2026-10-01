@@ -43,27 +43,46 @@ import { ItemIcon } from "./ItemIcon";
 import { Cost, TradeLine, limitOf, pinButton, priorityChip, priorityEdge, priorityText } from "./shared";
 import type { ShopRow } from "./types";
 
-/** The tile's vertical rhythm: one value for every gap between rows. */
-const STACK = "flex flex-col gap-2";
+/** The tile's vertical rhythm: one value for every gap between rows.
+ *
+ *  4px on a phone, 8px from `sm`. The stack has five bands and therefore four gaps, so
+ *  the tighter value takes 16px off every tile at once — measured across all 194 rows,
+ *  which is a bigger saving than it sounds: the grid drops from 5139px to 4667px at
+ *  360px on top of the town being hidden. The 8px value stays from `sm`, where there is
+ *  room for the bands to breathe and the tile is not the scarce resource. */
+const STACK = "flex flex-col gap-1 sm:gap-2";
 
-/** The merchant band: portrait, name and town on one line, as a FOOTER.
+/** The merchant band: portrait and the merchant's name as a FOOTER.
  *
  *  A footer rather than the old header so the item's own facts stay contiguous
  *  (name → icon → limit → verdict → cost) and the merchant closes the card. It
  *  draws its one rule on the TOP edge, since that is the side separating it from
- *  the item. The two facts still share a line with a `·`: the earlier two-line
- *  version measured 40.3px of tile height for the same information. */
+ *  the item.
+ *
+ *  THE TOWN IS HIDDEN BELOW `sm`, and that is what keeps the tile one uniform height
+ *  on a phone. At two columns the band's text box is 90px at 360px, and the common
+ *  label `安黛莉 · 堤爾克那` needs 101px — the +11px overflow repeated across 46 of the
+ * 194 rows, which wrapped them to a second line and left the mobile grid with ten
+ *  distinct tile heights. The NPC name alone fits comfortably (`安黛莉` is 39px), so
+ *  dropping the town takes the wraps to ZERO and the distinct heights from ten to six.
+ *  Shrinking the font was measured as the alternative and does nothing once the town
+ *  is gone, so the text keeps its 13px.
+ *
+ *  Nothing is lost: the town is on the section header when the grid is grouped by NPC,
+ *  it is in this band on desktop, and the material popover names `npc · town` in full.
+ *  Below `sm` the merchant is still identified — by name here and by portrait — while
+ *  the row stops paying 17px of height for the town. */
 function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string) => void }) {
   const inner = (
     <>
       <NpcFace npc={item.npc} size="size-5" />
-      <span className="min-w-0 truncate text-[13px] leading-tight">
+      <span className="min-w-0 text-[13px] leading-tight">
         <span className="font-semibold text-foreground">{item.npc}</span>
-        <span className="text-muted-foreground"> · {item.town}</span>
+        <span className="hidden text-muted-foreground sm:inline"> · {item.town}</span>
       </span>
     </>
   );
-  if (!onOpen) return <div className="flex items-center gap-1.5 border-t pt-1.5">{inner}</div>;
+  if (!onOpen) return <div className="flex items-center justify-center gap-1.5 border-t border-transparent pt-1.5 sm:border-border">{inner}</div>;
   return (
     <button
       type="button"
@@ -72,7 +91,24 @@ function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string) 
         onOpen(item.npc);
       }}
       aria-label={`開啟 ${item.npc} 的商店`}
-      className="-mx-1 flex items-center gap-1.5 rounded border-t px-1 pt-1.5 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      // `justify-center` because every other band in the tile is centred — the name, the
+      // art, the limit and the cost — and the merchant band was the one thing starting at
+      // the tile's left content edge, so the portrait and name sat hard left while the
+      // rest of the tile read down a centre line. The button stays `flex` and therefore
+      // full-width, so the tap target is unchanged and only the CONTENT moves; `-mx-1
+      // px-1` still bleeds the hover tint a little past the rule.
+      // `text-left` is dropped with it: it would have no effect on a single non-wrapping
+      // span, and leaving it on a centred row is the kind of contradiction that reads as
+      // a bug later.
+      // The rule is hidden on a phone and the footer keeps the plain 4px stack gap. The
+      // separator was tried as the thing to keep (see the +4px version of this line) and
+      // it read worse: a hairline drawn across an already-tight seam calls attention to
+      // the tightness instead of resolving it, and the gap it was protecting is 4px
+      // whether the line is there or not. So on a phone the cost and the merchant are
+      // separated by space alone, the same 4px every other band pair gets, and the
+      // border returns from `sm` where there is room for it to read as a rule rather
+      // than a pinch. Nothing else depends on it: it was decorative, never a hit area.
+      className="-mx-1 flex items-center justify-center gap-1.5 rounded border-t border-transparent px-1 pt-1.5 transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:border-border"
     >
       {inner}
     </button>
@@ -149,7 +185,15 @@ export function Tile({
         focused && "ring-2 ring-primary ring-offset-2 ring-offset-background"
       )}
     >
-      <span className={cn("absolute inset-y-0 left-0 w-1", priorityEdge(item.priority))} aria-hidden />
+      {/* The stripe: HIDDEN below `sm`, because on a phone the chip below already names
+          the tier in words and the stripe is the same fact in colour only. Measured: the
+          two appear on exactly the same 39 tiles, so the stripe never marks something the
+          chip does not, and on a 158px phone tile a 4px edge is a smaller share of the
+          border than on desktop. The chip's WORD is the accessible carrier anyway — see
+          the colour-blind note on `priorityEdge`, where the stripe's lightness difference
+          exists to survive scanning without reading, which a phone's shorter rows make
+          less necessary. From `sm` the stripe is unchanged. */}
+      <span className={cn("absolute inset-y-0 left-0 hidden w-1 sm:block", priorityEdge(item.priority))} aria-hidden />
       {/* 28px of top padding is exactly the 24px button plus its 4px offset, so the pin
           keeps a band to itself and never meets the name */}
       <span className="absolute right-1 top-1">{button}</span>

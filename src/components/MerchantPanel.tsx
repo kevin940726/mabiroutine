@@ -128,11 +128,14 @@ function barterRowToItem(row: (typeof barterJson)[number]): ShopRow {
 }
 
 function rowMatches(item: ShopRow, query: string) {
-  // Folded on both sides so a name pasted from the game (half-width parens,
-  // which is how shops.json spells it) still matches the full-width display.
+  // Fold BOTH sides, so a query typed or pasted in either paren width matches a row
+  // whose text carries the other. `displayName` narrows to half-width, and the fields
+  // below are not uniformly spelled (a `note` is free text), so folding only the query
+  // would still miss a full-width `（` sitting inside a note. Folding the haystack too
+  // makes the two comparable regardless of which width either side happens to use.
   const q = displayName(query.trim()).toLocaleLowerCase("zh-Hant");
   if (!q) return true;
-  return `${item.title} ${item.give} ${item.npc} ${item.town} ${item.note ?? ""}`
+  return displayName(`${item.title} ${item.give} ${item.npc} ${item.town} ${item.note ?? ""}`)
     .toLocaleLowerCase("zh-Hant")
     .includes(q);
 }

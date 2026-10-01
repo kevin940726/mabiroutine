@@ -121,17 +121,14 @@ function limitText(limit?: { times?: number; period?: string }, scope?: string):
 /**
  * Punctuation folding for matching only, never for display.
  *
- * The two sources disagree on bracket width for the same item: shops.json writes
- * 設計圖(3級) with U+0028/U+0029 while barter.json writes 設計圖（3級） with
- * U+FF08/U+FF09. Eight curated blueprint trades therefore failed to match their
- * shop row for that reason alone, so they rendered as second-class shop rows
- * with no material breakdown, no gatherSkill and no 首次必換 badge even though
- * barter.json carried the complete row for each. Folding both sides to one
- * width lets the existing curation do its job with no data change.
- *
- * `×` is deliberately absent: it is the quantity separator parseItemQty consumes,
- * so folding it inside a name would risk merging genuinely different items. Any
- * new disagreement between the sources gets a line here, and the reason.
+ * Both sources now spell `設計圖(3級)` with half-width U+0028/U+0029, so this no longer
+ * has anything to do for those names — but it exists because they once disagreed (the
+ * note here read that barter.json wrote U+FF08/U+FF09), and eight curated blueprint
+ * trades matched their shop row only after folding, so keeping it costs nothing and
+ * guards the next disagreement. `×` is deliberately absent: it is the quantity separator
+ * `parseItemQty` consumes, so folding it inside a name would risk merging genuinely
+ * different items. Any new disagreement between the sources gets a line here, and the
+ * reason.
  */
 const MATCH_FOLD: Record<string, string> = {
   "（": "(", // （
@@ -228,8 +225,10 @@ export function shopDeals(npcs: ShopNpc[]): ShopDeal[] {
   return npcs.flatMap((npc) => npc.deals).filter((deal) => deal.inShopCatalog);
 }
 
-/** Display strings. Folded to full-width parens for the reader; see
- *  `displayName` in materials.ts for why this happens here and not upstream.
+/** Display strings, passed through `displayName` so every surface shapes the parens the
+ *  same way; see that function in materials.ts for what it does now and why the
+ *  direction changed. It runs here and not upstream because the DATA keeps the game's
+ *  own spelling and lookups resolve against it.
  *
  *  Gold carries the coin glyph rather than the word 金幣, because that is how the
  *  rest of the app shows a price: the shop tile, the shop row and a pinned gold

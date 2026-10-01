@@ -261,10 +261,13 @@ need a toggle because both kinds render as tiles and 類型 filters them.
   pins (9) rather than 0. Intended, but visible.
 - **All 194 rows are pinnable.** The 100 curated barter rows pin under their
   `barter.json` id; the 94 gold rows pin under a `shop::` id. See section 2.
-- **Item names are spelled one way on screen.** Parenthesis width is full-width
-  everywhere the user reads, on every screen, while the data files keep the game's
-  half-width spelling, and search accepts either. Owned by `docs/tracker-data.md`;
-  recorded here because it touched every screen rather than one.
+- **Item names are spelled one way on screen.** Parenthesis width is half-width
+  everywhere the user reads, on every screen, matching the data files and the icon
+  file names, and search accepts either width. Owned by `docs/tracker-data.md`;
+  recorded here because it touched every screen rather than one, and because the
+  direction was reversed late: full-width was the original choice and half-width
+  won on width (a paren pair is 8.7px at 13px, which is the difference between one
+  line and two on the longest blueprint names).
 - **Deliberately not built:** item icons (see section 0), reminder bells and
   seeded gold pins (see section 2). Removal of `barterFilters` used to be on this
   list; it shipped at store v20 (see section 0).
@@ -326,9 +329,9 @@ Worth keeping, because both were reasoned rather than measured.
 
    The data was then unified as well, so the fold is defence rather than a
    necessity: `shops.json` is the checked record of the game's item text and is
-   unanimously half-width (9 of 9), so the 11 full-width rows in `barter.json`
-   were the drift. Prose parens in a `note` are a different thing and stay
-   full-width.
+   unanimously half-width (9 of 9), and the 11 full-width rows in `barter.json`
+   were the drift. Prose parens in a `note` are a different thing and stay as
+   written rather than being swapped.
 
    The lesson worth keeping: I reached for a key that was unique across a
    *narrower* set than the one the key had to cover, and the symptom I found
@@ -486,10 +489,13 @@ and a fixture come back — and the prune steps must already be calling
    case a future all-shops grid is wanted.
 5. **Gold tiles went square and were caught late: done.** Commit 10 in section 0
    was reached by making the tile reachable again without a screenshot of it, so
-   the fix was to pin the invariant instead: a browser check asserts no visible
-   text anywhere contains a half-width paren, which is a measurable rule rather
-   than a remembered preference. Compactness itself is still only verified by
-   measuring — 72px tall at 178px wide.
+   the fix was to pin the invariant: the check then was a browser scan asserting no
+   visible text contained a half-width paren, which was the right test while the
+   display helper widened them. It has since been inverted at the source —
+   half-width IS the display form now — so that scan would assert the opposite and
+   is no longer in the repo; what replaced the rule is `displayName` itself, one
+   function every surface passes through. Compactness itself is still only verified
+   by measuring — 72px tall at 178px wide.
 6. **A curated NPC missing from the shop catalog: done.** 阿蘭雯 had two curated
    trades and no `shops.json` entry, so both were injected as fallback rows and
    the NPC could not be picked in the town list. The user added the entries.
@@ -518,8 +524,9 @@ console (see the terminal trap in section 0).
 - All 100 barter rows match a `barter.json` row, so every barter row is curated and
   only the 94 gold rows need a `shop::` pin id. This used to be 90 of 98: eight
   blueprint trades failed to match on bracket width alone, since `shops.json`
-  writes `設計圖(3級)` and `barter.json` wrote `設計圖（3級）`. `matchKey` now
-  folds full-width `（）；：，` to half-width for matching only.
+  writes `設計圖(3級)` and `barter.json` wrote `設計圖（3級）`. `matchKey` folds
+  full-width `（）；：，` to half-width for matching only; the data has since been
+  unified to half-width as well, so that fold is now defence.
 - **Zero** curated rows lack a shop entry, and zero shop barter rows lack a
   curated one, in both directions. The last gap in each direction was closed:
   阿蘭雯 was absent from `shops.json` entirely, so their two curated trades were
@@ -668,8 +675,34 @@ art is a rounded rectangle whose radius the component owns.
   against cost bands 37/20/20/20, where the grid's default stretch had given 265/265/265/265.
   Reserving a second cost line was tried and rejected — it equalised every row at 268px but
   put 20px of empty band under 35 of 39 tiles to tidy 4.
-- **Column counts**: 1 / 2 / 3 / 4 at 390 / 768 / 1024 / 1280+.
+- **Column counts**: 2 / 2 / 3 / 4 at 390 / 768 / 1024 / 1280+. The phone count was 1
+  until the tile was re-cut: the old rejection ("a 154px tile wrapped a long name to
+  three lines and truncated the merchant") was measured before that re-cut and before
+  the name band reserved its second line, and forcing two columns across all 194 rows
+  now tops out at two lines for both name and cost at every phone width. Measured
+  320 / 360 / 390 / 414 / 430 / 640 / 768px, all with 0 truncated labels and 0 bands
+  over two lines.
+- **The phone tile's height is near-uniform**: 172 of 194 rows are the same 214/215px,
+  with six distinct heights in total and the rest the genuinely long strings
+  (`稀有鍊金術再燃燒催化劑` plus a 13-character cost, which would need a 9-10px font to
+  fit). Getting there needed three things, and the first two are the ones that matter:
+  two columns instead of one, the merchant band dropping its ` · town` below 640px
+  (its common label needed 101px in a 90px box, so 46 rows wrapped and there were TEN
+  distinct heights), and tighter phone gaps — 12px on the grid and 4px inside the tile,
+  against 20px and 8px from `sm`. The town is still shown from 640px, in the section
+  header when grouped by NPC, and in the material popover at any width.
+  Grid height for all 194 rows at 360px: 4667px, against 9976px at one column.
 - **The chip** at `(21, 11)` in light and dark, no collision with the name or the pin.
+  **On a phone the chip is the only priority mark**: the left stripe is `hidden sm:block`,
+  because the stripe and the chip appear on exactly the same 39 rows and the stripe was
+  therefore the same fact in colour only. The chip's WORD is what carries the tier without
+  colour vision, so dropping the stripe below 640px loses nothing for a colour-blind
+  reader. From `sm` both render, unchanged.
+- **The material trigger carries no icon**: `MaterialHoverCard` shows the give as a
+  dotted-underlined button and nothing else. A small receipt glyph used to follow it, at
+  14px plus a 4px gap on a 120px line at 360px (15% of the line), and removing it took the
+  wrapping cost bands from 10 to 8 at 360px and 7 to 4 at 390px. The underline is the
+  affordance, the tap still opens the card, and `aria-label` names the action.
 - **The art**: native 128px inside a 72px frame, `object-contain`, no crop.
 - **The placeholder**: a designed state the current data no longer reaches — every one
   of the 181 names the app looks up has a file (see `docs/item-icons.md`). The frame is
