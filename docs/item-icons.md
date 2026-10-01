@@ -2,7 +2,7 @@
 
 Item art lives in `public/items/`, one file per item named after its Traditional
 Chinese item name: `public/items/鹽.webp`. There is no manifest to update — the
-filename is the lookup. 191 files today (128×128 WebP, transparency kept).
+filename is the lookup. 182 files today (128×128 WebP, transparency kept).
 
 ## Resolving a name to a path
 
@@ -34,31 +34,33 @@ never a string about to be looked up. `PinnedGroups.tsx` keeps `itemName` (folde
 for the eye) and `itemArtName` (raw, for the filesystem) side by side for exactly
 this reason.
 
-## Missing art is a normal state
+## Art coverage
 
 The set lags the data, so `ItemIcon` ALWAYS renders a frame and swaps only the
 contents: the art, or a quiet dashed placeholder box. A tile with art and one
 without must keep the same height, or the grid's row alignment breaks — the same
 invariant that made a conditional verdict row pull two tiles up 23px once.
 
-Sixteen names have no art today, and they are the ones to add first. Counted by
-reading the 165 filenames against every name the app looks up: `items[].name` in
-`shops.json` (126 distinct) plus `give` / `get` in `barter.json` with the ` ×N`
-suffix stripped as `parseItemQty` does (81 + 89). Union 181 names, 165 covered.
+**Every name the app looks up now has art**, so the placeholder is a state the
+current data no longer reaches. It stays as the designed fallback for the next
+name a data update adds before its file lands, which is why the frame is sized
+unconditionally above.
 
-| name | where it appears |
-|---|---|
-| `愛心幣`, `精靈的痕跡`, `絕招秘藥` | `shops.json` tiles (and barter `give`/`get` for 愛心幣) |
-| `喵幣`, `完美繃帶`, `幽靈螢火蟲`, `羊毛`, `職業大師勳章`, `雕琢橄欖石 S`, `馬鈴薯沙拉` | barter give-lines only |
-| `高級羊毛`, `染色劑基底`, `空白樂譜`, `木材加工設備設計圖(3級)`, `布料加工設備設計圖(3級)`, `防具製作台設計圖(3級)` | barter get-lines only |
+Counted over the names themselves: `items[].name` in `shops.json` (126 distinct)
+plus `give` / `get` in `barter.json` with the ` ×N` suffix stripped as
+`parseItemQty` does (81 + 89). Union 181 names, 181 covered. There is one spare
+file beyond that union, so the directory holds 182.
 
-Only the first three reach a tile, so they are the visible gap; the other thirteen
-live inside barter deal text, which renders as plain text today and shows no
-placeholder at all. They still need files the moment a trade line gains art.
+This section used to list sixteen names as missing. That list went stale in two
+steps — 26 icons landed in one batch, then the remainder arrived — and the count
+below the line is now zero rather than fourteen. The history is worth keeping
+because the two facts it shows are still live: only names in `shops.json` reach a
+tile, and a name inside barter deal text renders as plain text, so a gap there has
+no visible placeholder until a trade line gains art.
 
-The three `(3級)` blueprints are the leftover end of the raw-name trap above: the
+The three `(3級)` blueprints were the leftover end of the raw-name trap above: the
 data spells them with half-width parens like the nine that DO have files, so they
-are simply absent rather than mismatched.
+were simply absent rather than mismatched. They have files now.
 
 There is no runtime existence check beyond the `<img>`'s own `onError`, which is
 how `/npc/<name>.png` has always worked: the browser cannot know a file is absent
