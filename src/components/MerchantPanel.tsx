@@ -133,11 +133,16 @@ function rowMatches(item: ShopRow, query: string) {
   // below are not uniformly spelled (a `note` is free text), so folding only the query
   // would still miss a full-width `（` sitting inside a note. Folding the haystack too
   // makes the two comparable regardless of which width either side happens to use.
-  const q = displayName(query.trim()).toLocaleLowerCase("zh-Hant");
+  //
+  // The thin space `displayName` inserts before a suffix is STRIPPED here, on both
+  // sides, because it is typography rather than content: a name pasted from the game
+  // arrives as `設計圖(3級)` with no space, and it has to match the spaced display form
+  // `設計圖 (3級)`. Without this the search would fail on exactly the paste it exists
+  // to serve, and it would fail quietly.
+  const fold = (v: string) => displayName(v).replace(/\u2009/g, "").toLocaleLowerCase("zh-Hant");
+  const q = fold(query.trim());
   if (!q) return true;
-  return displayName(`${item.title} ${item.give} ${item.npc} ${item.town} ${item.note ?? ""}`)
-    .toLocaleLowerCase("zh-Hant")
-    .includes(q);
+  return fold(`${item.title} ${item.give} ${item.npc} ${item.town} ${item.note ?? ""}`).includes(q);
 }
 
 function filterItems(items: ShopRow[], town: string, query: string) {

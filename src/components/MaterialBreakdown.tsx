@@ -140,7 +140,11 @@ export function MaterialBreakdown({
             {displayName(barter!.out!.name)} × {barter!.out!.qty}
             {/* The cap rides the deal, not the cost: it gates THIS exchange, and on the
                 共需 line the "·" made it read like one more item to gather. */}
-            {barter!.limit ? `（${displayName(barter!.limit)}）` : ""}
+            {/* Half-width brackets, to match the half-width parens `displayName` narrows to
+                everywhere else. This wrapper used to be full-width, which read as a
+                mismatched pair the moment the display direction was reversed — `（每日 1 次
+                (伺服器)）` has an outer bracket unlike every bracket inside it. */}
+            {barter!.limit ? `(${displayName(barter!.limit)})` : ""}
           </div>
         </>
       ) : (

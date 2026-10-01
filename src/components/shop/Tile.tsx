@@ -177,8 +177,13 @@ export function Tile({
       // emerald border plus a bottom rule read as a second, louder signal for something
       // the filled pin already says, and the tile's edges were competing with the
       // priority stripe on the left.
+      // `pl-4 sm:pl-5`: the 20px left padding exists to clear the 4px priority stripe, and
+      // the stripe is hidden below `sm` (see it below), so a phone was paying 4px of dead
+      // gutter on a 158px tile — left 20px against right 16px, for a stripe that is not
+      // drawn. Below `sm` the two sides are equal; from `sm` the gutter comes back with the
+      // stripe it is there for, and the content line starts where the stripe ends.
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-lg border bg-card pt-7 pr-4 pb-4 pl-5 transition-colors hover:bg-accent/40",
+        "relative flex flex-col overflow-hidden rounded-lg border bg-card pt-7 pr-4 pb-4 pl-4 transition-colors hover:bg-accent/40 sm:pl-5",
         // the landed-on tile: a ring, not a border colour, so the priority stripe on
         // the left edge and the pin's own state both stay readable underneath. The
         // transition is on the base class, so it fades both in and out.
@@ -198,16 +203,18 @@ export function Tile({
           keeps a band to itself and never meets the name */}
       <span className="absolute right-1 top-1">{button}</span>
       {/* The verdict, as a chip on the top-LEFT, aligned with the tile's own content.
-          `left-5 top-2.5` are the spacing scale's 20px/10px — the same token the tile's
-          `pl-5` uses, so the chip starts on the line the name and art below it share
-          rather than outboard of them (at `left-3` it hung 8px over the padding, and at
-          `left-2` it read as stuck to the edge).
+          `left-4 sm:left-5` tracks the tile's own `pl-4 sm:pl-5` so the chip starts on the
+          line the name and art below it share rather than outboard of them. It matches the
+          padding at BOTH breakpoints deliberately: the two used to be a single value and a
+          change to one would silently put the chip 4px off the content line it is supposed
+          to sit on. (At `left-3` it hung 8px over the padding, and at `left-2` it read as
+          stuck to the edge.)
           The stripe marks the same fact in colour; the chip's WORD carries it without
           colour vision — see the colour-blind note in CHANGELOG. */}
       {verdict && (
         <span
           className={cn(
-            "absolute left-5 top-2.5 rounded px-1.5 py-px text-[10px] font-semibold leading-none ring-1 ring-inset",
+            "absolute left-4 top-2.5 rounded px-1.5 py-px text-[10px] font-semibold leading-none ring-1 ring-inset sm:left-5",
             priorityChip(item.priority)
           )}
         >

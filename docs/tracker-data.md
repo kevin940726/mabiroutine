@@ -83,10 +83,22 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
   The rule covers the shop panel, the barter rows, the tracker, the hover card, the
   breakdown, the exported task names, and the barter limit text. A user's own custom task
   name is never transformed — that is their text.
+- **It also inserts a thin space (`\u2009`) before a name's own suffix.** `皮革加工設備設計圖`
+  followed by `(3級)` has nothing between the ideograph and the bracket, so the two read as
+  one stacked block; the thin space is ~2.7px at 13px. It is deliberately not a normal
+  space (~4.5px and, worse, a wrap opportunity at a point that is not a word boundary,
+  which could start breaking names that fit today). It is display-only, so it is in
+  neither the data nor the icon file names, and the `(?<=\S)\((?=\S)` condition is what
+  keeps it off the limit text: in `每日 1 次(伺服器)` the character before the bracket is
+  already a space, so no space is added between a count and its own qualifier. This is the
+  second thing about the helper that a lookup must never see, after the width.
 - **Search folds both sides.** `rowMatches` runs `displayName` over the query AND the
   haystack, so a name pasted from the game in either paren width matches a row spelled in
-  the other. Without that, changing display would have moved the mismatch rather than
-  removed it, which is the same class of bug as the 伺服器 one.
+  the other. It then STRIPS the thin space from both sides before comparing, because that
+  space is typography rather than content: a paste from the game arrives as `設計圖(3級)`
+  with no space and has to match the spaced display form. Without that strip the search
+  would fail on exactly the paste it exists to serve, and silently. The same class of bug
+  as the 伺服器 one: a display transform leaking into a comparison.
 - Two things must not be "fixed" by a blanket width swap: prose punctuation in a
   `note` stays as written, because there the parens wrap a clause rather than a name
   (dungeon-5's `（凱琳/格莉娜 每週 30 次）` is correct as written), and only

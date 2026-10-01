@@ -157,16 +157,25 @@ export function parseItemQty(s: string): { name: string; qty: number } {
 }
 
 /**
- * Parenthesis width for display: half-width `( )`, which is the form the data already
- * carries, the form the icon files are named in, and the NARROWER of the two.
+ * Parenthesis width and spacing for display: half-width `( )` with a thin space before an
+ * opening paren, which is the form the data already carries, the form the icon files are
+ * named in, and the NARROWER of the two.
  *
  * This used to fold the other way, to full-width `（ ）`, on the reasoning that full
  * width is the TW convention. It was reversed because the width is the thing that
  * costs a layout: measured in the app's own font, one paren pair is 8.7px wider at the
  * tile name's 13px and 10.7px at the cost line's 16px, so a 12-character blueprint name
- * gains 17px back — 15% of the 116px box a two-column phone tile gives it. That is the
+ * gains 17px back — 15% of the box a two-column phone tile gives it. That is the
  * difference between one line and two on the longest names, and those wraps are what
  * make the mobile grid's tile heights vary.
+ *
+ * The THIN SPACE (`\u2009`, ~2.7px at 13px) is the second half of the same read: a CJK
+ * name runs straight into its `(3級)` with nothing between the ideograph and the bracket,
+ * so `皮革加工設備設計圖(3級)` reads as one stacked block. A regular space is the wrong
+ * token — it is ~4.5px and it creates a wrap opportunity at a point that is not a word
+ * boundary, which is how a name that fits today starts breaking tomorrow. The thin space
+ * is display-only and is NOT part of the data or the icon file names; see the lookup
+ * rule below.
  *
  * It also removes a disagreement instead of adding one: every source is half-width
  * (`shops.json`, `barter.json` and all 12 `公共/items/*(3級).webp` files, audited), so
@@ -175,16 +184,26 @@ export function parseItemQty(s: string): { name: string; qty: number } {
  * normalised after it was written.
  *
  * `limitText` in `shops.ts` still GENERATES full-width `（伺服器）`; this function is
- * what now narrows it, so limits read half-width too. If that ever wants to differ, it
- * needs its own helper rather than this one.
+ * what now narrows it, so limits read half-width too. Limits take NO thin space, because
+ * their parens wrap a trailing clause rather than suffixing a name (`每日 1 次(伺服器)`),
+ * and a space there would push the count off its own qualifier. The rule below is what
+ * keeps the two apart: the space needs a non-space character on both sides.
  *
  * Apply this at the render expression, never to a string that is about to be looked
  * up: `MaterialBreakdown` and `giveHasBreakdown` resolve material names against the
  * route table by exact key, and the route table is unfolded. Transforming a name
- * before that lookup would silently break the breakdown.
+ * before that lookup would silently break the breakdown. The shop search runs BOTH
+ * sides through here and then strips the thin space before comparing, so a name pasted
+ * straight from the game — which has no space in it — still matches what is displayed.
  */
 export function displayName(s: string): string {
-  return s.replace(/（/g, "(").replace(/）/g, ")");
+  return s
+    .replace(/（/g, "(")
+    .replace(/）/g, ")")
+    // A thin space only where a name meets its own suffix: something non-space before,
+    // something non-space after, and no existing spacing to double up. This deliberately
+    // leaves `每日 1 次(伺服器)` alone, because the character before that `(` is a space.
+    .replace(/(?<=\S)\((?=\S)/g, "\u2009(");
 }
 
 /** Twin trade leg in the merged route table behind a barter-explorer row:

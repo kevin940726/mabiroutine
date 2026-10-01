@@ -263,7 +263,8 @@ need a toggle because both kinds render as tiles and 類型 filters them.
   `barter.json` id; the 94 gold rows pin under a `shop::` id. See section 2.
 - **Item names are spelled one way on screen.** Parenthesis width is half-width
   everywhere the user reads, on every screen, matching the data files and the icon
-  file names, and search accepts either width. Owned by `docs/tracker-data.md`;
+  file names, with a thin space before a name's own `(3級)` suffix, and search
+  accepts either width and either spacing. Owned by `docs/tracker-data.md`;
   recorded here because it touched every screen rather than one, and because the
   direction was reversed late: full-width was the original choice and half-width
   won on width (a paren pair is 8.7px at 13px, which is the difference between one
