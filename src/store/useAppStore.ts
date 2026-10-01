@@ -458,6 +458,18 @@ function absorbSharedBarter(s: AppState): void {
 // saves), then run every step newer than the stored version. Used by zustand
 // persist on load AND by importJson on backup import — single source of truth.
 // Exported for scripts/check-migrations.mjs (agent pre-push gate).
+//
+// TRAP: this only runs when the STORED version differs from the CONFIGURED one,
+// because zustand persist skips `migrate` when the two are equal. Folding a new
+// change into an unshipped step is right (see "Fold a bump that has not
+// shipped" in AGENTS.md), but it means a save that already carries that version
+// number skips the step entirely — which is routine on a dev machine, where an
+// earlier revision of the same branch already wrote the new number. Editing an
+// unshipped step therefore does NOT re-run it for those saves.
+//
+// The safety net is the persist `merge` option, which runs on EVERY rehydration:
+// it repairs shape that a skipped step would have fixed (see the `prefs` merge
+// below), so the UI is not left reading a key that never got backfilled.
 export function migratePersisted(persisted: unknown, version: number): AppState {
   const s = normalizePersisted(persisted) as AppState & { version?: number };
   const from = typeof version === "number" ? version : 0;
@@ -1130,6 +1142,30 @@ export const useAppStore = create<Store>()(
       storage: createJSONStorage(() => idleStorage),
       version: 20,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
+      // `merge` runs on EVERY rehydration, where `migrate` runs only when the
+      // stored version differs from the configured one. That difference is the
+      // whole reason this exists: `prefs` is persisted as one object, so any key
+      // added to it after a save was written is absent from that save, and a save
+      // already sitting at the current version skips the step that would have
+      // backfilled it. Repairing here means `s.prefs` is never null and both keys
+      // are always booleans, so components can read `s.prefs.hideCompleted` and
+      // `s.prefs.pinnedCollapsed[cycle]` directly instead of guarding in four
+      // places. Individual keys keep the persisted value where present.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AppState>;
+        const pref = (p.prefs ?? {}) as Partial<AppState["prefs"]>;
+        return {
+          ...current,
+          ...p,
+          prefs: {
+            hideCompleted: pref.hideCompleted ?? current.prefs.hideCompleted,
+            pinnedCollapsed: {
+              daily: pref.pinnedCollapsed?.daily ?? current.prefs.pinnedCollapsed.daily,
+              weekly: pref.pinnedCollapsed?.weekly ?? current.prefs.pinnedCollapsed.weekly,
+            },
+          },
+        };
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
         // fix activeCharId if missing

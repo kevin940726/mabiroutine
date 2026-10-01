@@ -23,6 +23,11 @@ MabiRoutine's design principle: static game data ships with the app;
    then the save's schema `version` is compared and missing steps run in order
    before stamping. Your checks/pins/custom tasks are never overwritten — only
    default fields are filled and dangling keys pruned.
+   Two halves, and the order matters: defaults are filled on EVERY load, while
+   the version steps only run when the save's number differs from the app's. A
+   save already at the current number skips the steps entirely, so anything a
+   step would have backfilled is filled by the every-load pass instead — a
+   missing key falls back to its default and a present one keeps your value.
 2. If upstream deletes a row (e.g. an `id` rename): leftover checks/hides/order
    for that row are cleared. Rename = delete + add, old progress does not carry
    over — back up important progress via footer 匯出 JSON (Export JSON) first.
