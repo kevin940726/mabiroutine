@@ -21,6 +21,9 @@ scripts/__pycache__/
 # fetch suggestions are local references (regenerable, never committed)
 suggestions/
 
+# machine-local agent notes (never committed; see .agents/README.md)
+.agents/
+
 # fetcher scripts are private-local only (never committed, never published)
 scripts/suggest-tracker.mjs
 scripts/update-barter.mjs
