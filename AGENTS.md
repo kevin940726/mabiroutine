@@ -69,9 +69,10 @@ Measured on PowerShell 7.6.6, Windows:
 
 ## Pre-push Gate (agents: run this before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:migrations` + `test:sync` + `build`. All five must pass:
+`pnpm check` = `lint` + `test:shops` + `test:drag` + `test:migrations` + `test:sync` + `build`. All six must pass:
 - `test:shops` bundles `scripts/check-shops.entry.ts` (real recipes/shops/barter data): strict shape, currency validity, dup options, no-trade-routes-in-recipes, shop-gold-only, twin cap parity, and every barter shop row curated in `barter.json`. Run after touching any of the three data files.
 - `test:migrations` bundles the real `migratePersisted` and runs fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic barter ids, removed-id prune, passthrough, filter sanitize). If you add a migrate step, add a fixture block (A/B/C/D/E/F pattern) proving old data survives.
+- `test:drag` bundles `src/lib/dragRules.ts` and asserts the drag hierarchy in `scripts/check-drag-rules.entry.ts`: a pinned child reorders only inside its own merchant group (a drop outside it lands at the end of that group), a top-level row cannot cross sections, and a grouped pin cannot swap into the plain-row list. Cross-LIST moves need no rule — each list has its own drag context, so a drop cannot resolve outside it. Run after touching `dragRules.ts` or a drag handler.
 - `test:sync` runs `scripts/check-sync.mjs`: hermetic engine/property/tab suites (real store+sync code, always) plus live API + real-Edge E2E (SKIP loudly without `pnpm dev:api`/Edge). If you touch sync, reset, or merge code, these must pass for real — not skipped. Sabotage standard: a suppression/marker change must fail T3 (proven 2026-09-06).
 - Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if the premise line fails, update the fixture, not the data.
 - `suggestions/` is gitignored (review scratch only); `src/data/*.json` is hand-edited and needs human review — fetcher scripts stay private-local (gitignored, never committed).

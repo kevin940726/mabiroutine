@@ -28,9 +28,11 @@ import { displayName } from "@/lib/materials";
 import { TaskRow } from "@/components/TaskRow";
 import { ItemIcon } from "@/components/shop/ItemIcon";
 import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, ITEM_ART_DESKTOP, ITEM_ART_MOBILE } from "@/components/rowStyle";
-import { useSortable } from "@dnd-kit/sortable";
+import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { bandId } from "@/lib/dragRules";
 import { CSS } from "@dnd-kit/utilities";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, canonicalBarterOrder } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 import { parentState, parentFillPct, progressOf, type PinRow } from "@/lib/pinGroup";
@@ -132,10 +134,33 @@ function Group({
     for (const r of rows) if (isHiddenTask(r.task) !== !allHidden) toggleHidden(r.task.id);
   };
 
-  // Grip: the band reorders pins by id and its SortableContext lists the CHILD
-  // ids, so dragging the header moves the whole group in the pin order.
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: first.id });
+  // Grip: the band drags as its OWN id, not the first child's. Using first.id
+  // meant the band and that child's row both registered one id (each calls
+  // useSortable), and dnd-kit cannot tell them apart — dragging the child moved
+  // the parent, and a drop snapped back. `bandId` is namespaced so it can never
+  // collide with a real pin id.
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: bandId(title) });
   const gripStyle: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
+
+  // Children reorder among THEMSELVES: the nested context above contains only
+  // this group's children, so `over` cannot name anything else. The write goes
+  // through the same flat pin order as a band drag, so the two stay consistent.
+  const reorderBarterPins = useAppStore((s) => s.reorderBarterPins);
+  const onChildDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const cur = useAppStore.getState();
+    // The current display order, custom or canonical — the same base the store's
+    // own reorder uses, so a first-ever child drag snapshots the right order.
+    const full = cur.barterCustomOrder ?? canonicalBarterOrder(cur.barterPins);
+    const from = full.indexOf(String(active.id));
+    const to = full.indexOf(String(over.id));
+    if (from === -1 || to === -1) return;
+    const next = [...full];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    reorderBarterPins(next);
+  };
 
   // The tile: literally a row's tile. Empty box when untouched, a ✓ when every
   // child is done, and a − while some but not all are. The − is the standard
@@ -279,11 +304,19 @@ function Group({
   );
 
   return (
-    <div ref={setNodeRef} style={gripStyle} data-pin-group={title} data-pin-group-state={state}>
+    <div data-pin-group={title} data-pin-group-state={state}>
       {/* The parent IS a row: the row's own shell, untinted. Violet appears only on
           the strip and, when open, the children block — so a parent is
-          indistinguishable from a row except for its bottom capsule. */}
-      <div className={cn(isMobile ? ROW_SHELL_MOBILE : ROW_SHELL_DESKTOP)}>
+          indistinguishable from a row except for its bottom capsule.
+
+          The sortable ref sits on THIS div, not the wrapper around it: the wrapper
+          also contains the expanded children block, so measuring it made the
+          sortable item 296px (an 88px band plus 208px of children) while what you
+          grab is the 88px band — the strategy shifted a block three times the size
+          of the thing being dragged, which is what made the preview look squashed.
+          Keeping the children outside the measured node lets them ride along
+          untouched. */}
+      <div ref={setNodeRef} style={gripStyle} className={cn(isMobile ? ROW_SHELL_MOBILE : ROW_SHELL_DESKTOP)}>
         {fullRowTarget}
         {isMobile ? (
           <div className="flex items-start gap-2">
@@ -305,21 +338,42 @@ function Group({
       </div>
       {/* children: plain rows, one step in, so the parent's own card stays a row.
           The block carries the violet tint so an OPEN group reads as one unit: the
-          colour the parent card gave up lives here, wrapping the children. */}
-      {open && (
+          colour the parent card gave up lives here, wrapping the children.
+
+          Its OWN DndContext + SortableContext, so a child reorders only among its
+          siblings: `over` cannot resolve to a row in another group or to a slot,
+          because they are not in this context. That is what keeps a drag inside
+          its merchant, with no cross-group rule to write. */}
+      {open && rows.length > 1 && (
+        <DndContext collisionDetection={closestCenter} onDragEnd={onChildDragEnd}>
+          <SortableContext items={rows.map((r) => r.task.id)} strategy={verticalListSortingStrategy}>
+            <div className={cn("mt-2 space-y-2 rounded-lg p-2 pl-3", VIOLET_BODY)}>
+              {rows.map((r) => (
+                <TaskRow
+                  key={r.task.id}
+                  task={r.task}
+                  value={r.value}
+                  isAccount={r.isAccount}
+                  // The parent names the merchant, so the child's face is redundant
+                  // here and shows the ITEM instead. Sized with the row's own portrait
+                  // constants, so the swap cannot change the row's height or alignment.
+                  portrait={<ItemIcon name={itemArtName(r.task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
+      {/* A group of one has nothing to reorder inside it, so it stays a plain
+          block with no drag context — the row is inert rather than a target. */}
+      {open && rows.length === 1 && (
         <div className={cn("mt-2 space-y-2 rounded-lg p-2 pl-3", VIOLET_BODY)}>
-          {rows.map((r) => (
-            <TaskRow
-              key={r.task.id}
-              task={r.task}
-              value={r.value}
-              isAccount={r.isAccount}
-              // The parent names the merchant, so the child's face is redundant
-              // here and shows the ITEM instead. Sized with the row's own portrait
-              // constants, so the swap cannot change the row's height or alignment.
-              portrait={<ItemIcon name={itemArtName(r.task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />}
-            />
-          ))}
+          <TaskRow
+            task={rows[0].task}
+            value={rows[0].value}
+            isAccount={rows[0].isAccount}
+            portrait={<ItemIcon name={itemArtName(rows[0].task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />}
+          />
         </div>
       )}
     </div>

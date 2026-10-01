@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,9 @@ import { shopDealsByPinId } from "@/lib/shops";
 import { confirmClearSection } from "@/components/ConfirmDialog";
 import { PURPLE_HOLE_ID, isScheduledToday, nextBadgeLabel } from "@/lib/purpleHole";
 import barterJson from "@/data/barter.json";
-import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, closestCenter, type DragEndEvent, type Modifier } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { decideDrop, bandId, clampToRange, type DropTarget } from "@/lib/dragRules";
 import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { useNow } from "@/hooks/useNow";
 import { toastAction } from "@/sync/session";
@@ -84,6 +85,43 @@ function flipRestore(restore: () => void): void {
   );
 }
 
+/** A dnd-kit modifier that stops the dragged chip at the edge of its own list, so
+ *  a top-level row cannot be dragged visually over the pinned block below it.
+ *
+ *  The drop was already correct without this — `over` cannot resolve outside the
+ *  active context, so the row lands at the end of its own list — but the chip
+ *  following the pointer down past the boundary read as "this will land down
+ *  there". This makes the gesture match the outcome.
+ *
+ *  Bounds come from the list's LAST ROW, not the wrapper's padding box: the
+ *  wrapper's bottom sits a gap below the final row (the rows are spaced), so
+ *  clamping to it let the chip travel one gap past where it could actually land,
+ *  which measured 10px short of the pinned block — legal, but visually it still
+ *  read as reaching for the pins. Reading the last row's bottom puts the limit
+ *  exactly at the last place the chip can land.
+ *
+ *  The bound is FROZEN at drag start via `bounds.current`. Reading the last row's
+ *  live rect every frame made the clamp fight the sort strategy: the strategy
+ *  displaces that very row while you drag, so the clamp's ceiling moved as the
+ *  chip approached it, the chip snapped back, the strategy re-measured — a
+ *  feedback loop that showed up as a flicker near the END of the list, where the
+ *  last row has been displaced the most. A bound that does not move cannot chase
+ *  itself. */
+function clampToOwnList(
+  ref: React.RefObject<HTMLElement | null>,
+  bounds: React.RefObject<{ top: number; bottom: number } | null>,
+): Modifier {
+  return ({ transform, activeNodeRect }) => {
+    if (!activeNodeRect) return transform;
+    const box = bounds.current ?? ref.current?.getBoundingClientRect();
+    if (!box) return transform;
+    return {
+      ...transform,
+      y: clampToRange(transform.y, box.top, box.bottom, activeNodeRect.top, activeNodeRect.height),
+    };
+  };
+}
+
 export function batchedDragUndo(name: string, restore: () => void): void {
   if (!dragUndoBatch) dragUndoBatch = { names: [], restores: [] };
   // Label dedupes (first-seen order); every restore still replays — a row
@@ -134,11 +172,18 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
   // The pinned band's fold, per section, remembered per device: see the
   // pref's comment in types.ts for why this is not per character and not synced.
   // Read from the cycle later on; the setter writes both.
-  const pinnedCollapsed = useAppStore((s) => s.prefs.pinnedCollapsed);
+  const pinnedCollapsed = useAppStore((s) => s.prefs?.pinnedCollapsed);
   const setPinnedCollapsed = useCallback((cycleName: "daily" | "weekly", value: boolean) => {
-    useAppStore.setState((s) => ({ prefs: { ...s.prefs, pinnedCollapsed: { ...s.prefs.pinnedCollapsed, [cycleName]: value } } }));
+    useAppStore.setState((s) => ({ prefs: { ...s.prefs, pinnedCollapsed: { ...s.prefs?.pinnedCollapsed, [cycleName]: value } } }));
   }, []);
   const [hiddenExpanded, setHiddenExpanded] = useState(false);
+  // The top-level rows' container: the clamp modifier reads its rect so a chip
+  // cannot be dragged visually past the pinned block below it.
+  const topListRef = useRef<HTMLDivElement>(null);
+  // Frozen at drag start. Must NOT be recomputed during the drag: the sort
+  // strategy displaces the last row while the chip approaches it, so a live
+  // measurement makes the clamp chase a moving ceiling and the chip snaps.
+  const dragBounds = useRef<{ top: number; bottom: number } | null>(null);
 
   // pinned subtasks, split by cycle: daily-limit pins render under 每日,
   // weekly-limit pins (每週 N 次) under 每週. Either subsection hides
@@ -274,9 +319,37 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     );
   }, [baseTasks, barterBase, char, accountValues, isAccount]);
 
+  // Each list is its own DndContext, so `over` only ever names a row in the SAME
+  // list as the dragged row: a top-level row cannot resolve to a pin and vice
+  // versa. What the contexts cannot express is section and merchant-group
+  // legality WITHIN a list, so that is what dragRules.ts decides.
+  const dragTarget = useCallback((id: string): DropTarget | null => {
+    const t = allTasks.find((x) => x.id === id);
+    if (!t) return null;
+    return { id, section: t.section };
+  }, [allTasks]);
+
+  const handleDragStart = () => {
+    const rows = topListRef.current?.querySelectorAll("[data-task-row]");
+    const box = topListRef.current?.getBoundingClientRect();
+    if (!box) {
+      dragBounds.current = null;
+      return;
+    }
+    // Capture ONCE, before the strategy displaces anything, so the clamp has a
+    // ceiling that cannot move with the very geometry it is bounding.
+    const last = rows && rows.length > 0 ? rows[rows.length - 1].getBoundingClientRect() : null;
+    dragBounds.current = { top: box.top, bottom: last ? last.bottom : box.bottom };
+  };
+
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
+    dragBounds.current = null;
     if (!over || active.id === over.id) return;
+    const a = dragTarget(String(active.id));
+    const o = dragTarget(String(over.id));
+    if (!a || !o) return;
+    if (decideDrop(a, o).kind !== "reorder") return;
     const oldIndex = allTasks.findIndex((t) => t.id === active.id);
     const newIndex = allTasks.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
@@ -293,21 +366,54 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     );
   };
 
+  // The pinned list is a sequence of SLOTS: one band per multi-pin merchant, one
+  // row per lone pin. Children live INSIDE a group, so they are not slots, and
+  // registering them here let a child drag shift a neighbouring group — and made
+  // the band collide with its first child, since both registered one id.
+  const pinSlots = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of cycleBarter) {
+      const npc = t.npc ?? "其他";
+      counts.set(npc, (counts.get(npc) ?? 0) + 1);
+    }
+    const slotOf = (t: Task) => {
+      const npc = t.npc ?? "其他";
+      return (counts.get(npc) ?? 0) > 1 ? bandId(npc) : t.id;
+    };
+    // One entry per slot, in first-seen order, deduped.
+    const seen = new Set<string>();
+    const slots: string[] = [];
+    for (const t of cycleBarter) {
+      const s = slotOf(t);
+      if (!seen.has(s)) {
+        seen.add(s);
+        slots.push(s);
+      }
+    }
+    return { slots, slotOf };
+  }, [cycleBarter]);
+
   const handleBarterDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    // Reorder within the FULL cycle list: the visible list may hide
-    // completed/manually-hidden rows, and splicing the filtered view would
-    // silently reshuffle those too (now permanent, as the custom order).
-    const oldIndex = cycleBarter.findIndex((t) => t.id === active.id);
-    const newIndex = cycleBarter.findIndex((t) => t.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const newOrder = [...cycleBarter];
-    const [moved] = newOrder.splice(oldIndex, 1);
-    newOrder.splice(newIndex, 0, moved);
+    // Only SLOT drags reach this handler. A child drag is resolved inside its own
+    // group's nested context (see PinnedGroups), which is what keeps a child in
+    // its merchant — and why no cross-group rule is needed here.
+    const order = [...pinSlots.slots];
+    const from = order.indexOf(String(active.id));
+    const to = order.indexOf(String(over.id));
+    if (from === -1 || to === -1) return;
+    const [moved] = order.splice(from, 1);
+    order.splice(to, 0, moved);
+    // Flatten back to the one flat pin order the rest of the app reads: slots in
+    // their new sequence, each contributing its own pins in their existing order.
+    const newOrder: Task[] = [];
+    for (const slot of order) {
+      for (const t of cycleBarter) if (pinSlots.slotOf(t) === slot) newOrder.push(t);
+    }
     const prev = useAppStore.getState().barterCustomOrder;
     reorderBarter(newOrder.map((t) => t.id));
-    batchedDragUndo(moved.name, () => useAppStore.setState({ barterCustomOrder: prev }));
+    batchedDragUndo("", () => useAppStore.setState({ barterCustomOrder: prev }));
   };
 
   // section key for clear
@@ -356,7 +462,26 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
         </CardContent>
       ) : (
         <CardContent className="space-y-2 px-3 sm:px-6">
-        <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        {/* One DndContext per LIST, which is what bounds a drag: `over` can only
+            resolve to a droppable inside the active context, so a top-level row
+            has no way to reach a pinned row and vice versa — the restriction is
+            structural rather than a check that could be forgotten. The 已隱藏
+            block sits outside every context, so it is not a drop target at all
+            (hiding is the 👁 button's job, not a drag).
+            What the contexts do NOT separate is rows within one list, so
+            dragRules.ts still decides section and merchant-group legality. */}
+        <DndContext
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          modifiers={[clampToOwnList(topListRef, dragBounds)]}
+        >
+          {/* `space-y-2` lives HERE, on the rows' own wrapper, not only on the
+              CardContent above it: this div became a direct child when the clamp
+              modifier needed a ref around the rows, and CardContent's space-y-2
+              only spaces its DIRECT children — so the rows inside this div lost
+              their gap and stacked flush. */}
+          <div ref={topListRef} className="space-y-2">
           <SortableContext items={allTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
             {allTasks.map((t) => (
               <TaskRow
@@ -368,6 +493,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
               />
             ))}
           </SortableContext>
+          </div>
         </DndContext>
 
         {/* 以物易物 subtasks as collapsable sub-category (only its own cycle; hides when empty) */}
@@ -375,7 +501,15 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
           // Two pinned sections (daily/weekly) fold independently, and the choice
           // is remembered: it used to be plain useState(true), so every reload
           // reopened a list the user had folded.
-          const barterExpanded = !pinnedCollapsed[cycle];
+          //
+          // Optional chain, deliberately: a save written before this field existed
+          // carries `prefs` WITHOUT `pinnedCollapsed`, and the v20 step that
+          // backfills it only runs when the stored version DIFFERS from the
+          // configured one. A save already sitting at v20 skips `migrate`
+          // entirely, so the field can still be undefined here and the plain
+          // index threw. Reading it as missing degrades to "expanded", which is
+          // what an absent pref means, instead of blanking the app.
+          const barterExpanded = !pinnedCollapsed?.[cycle];
           return (
           // bleed band: wrapper stretches past the rows (-mx-2) so rows stay
           // pixel-equal to top-level items; header is w-full in the same box
@@ -407,7 +541,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
                   // group grip drags by its first child's id, so the existing
                   // reorder handler orders groups without change.
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleBarterDragEnd}>
-                    <SortableContext items={barterSubtasksFiltered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                    <SortableContext items={pinSlots.slots} strategy={verticalListSortingStrategy}>
                       <PinnedGroups
                         rows={barterSubtasksFiltered.map((bt) => ({
                           task: bt,
@@ -448,6 +582,9 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
               </span>
             </button>
             {hiddenExpanded && (
+              // Deliberately NOT inside a SortableContext: a hidden row is out
+              // of the reorderable list, so it is neither draggable nor a drop
+              // target. Un-hiding is the 👁 button, which says so out loud.
               <div className="space-y-2">
                 {hiddenTasks.map((t) => (
                   <div key={t.id} className="opacity-60">

@@ -387,7 +387,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait }: Props) {
   // days. Same gate shape, separate subscription list.
   const scheduleEligible = task.id === PURPLE_HOLE_ID;
   const purpleReminderEligible = scheduleEligible;
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
   const [npcImgError, setNpcImgError] = useState(false);
   const showNpc = isTrade && task.npc && !npcImgError;
@@ -501,7 +501,14 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait }: Props) {
         // strobes. Solid hover without transition is stable there.
         ROW_SHELL_MOBILE,
         isDone ? "bg-muted/50 border-muted" : "hover:bg-accent",
-        isHidden ? "opacity-50" : ""
+        isHidden ? "opacity-50" : "",
+        // While dragging, this row must not hit-test: dnd-kit displaces the drag
+        // source IN PLACE (shouldDisplaceDragSource), so the row stays in the
+        // layout under the pointer and kept winning its own collisions — the
+        // resolved target flickered back to the dragged row for a few frames
+        // after every move before jumping to the next real row. No pointer
+        // events means the rows beneath decide the target instead.
+        isDragging ? "pointer-events-none" : ""
       )}
      >
       <div className="flex items-start gap-2">
@@ -667,7 +674,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait }: Props) {
   const scheduleEligible = task.id === PURPLE_HOLE_ID;
   const purpleReminderEligible = scheduleEligible;
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
 
   const isCheck = task.type === "check";
@@ -697,7 +704,10 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait }: Props) {
         // (mobile rail stacks eye over grip instead).
         ROW_SHELL_DESKTOP,
         isDone ? "bg-muted/50 border-muted" : "bg-card hover:bg-accent",
-        isHidden ? "opacity-50" : ""
+        isHidden ? "opacity-50" : "",
+        // See the mobile note: the displaced drag source must not hit-test, or
+        // it wins its own collisions and the target flickers back to it.
+        isDragging ? "pointer-events-none" : ""
       )}
      >
       {/* Leading cluster: grip + eye/menu + icon ride tight (gap-1); the
@@ -786,13 +796,23 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait }: Props) {
           {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
+          {/* The schedule marks ride the TITLE line, at desktop only. They used to
+              have a band of their own, which made 深淵的黑色坑洞 the one 107px row in
+              an otherwise uniform 88px list — and a height outlier destabilises the
+              sort strategy's boundary maths, so drags near it flickered. The title
+              line already wraps and carries the same class of small status marks
+              (必做, 自訂), so they belong here.
+
+              Desktop ONLY: mobile's title line is `nowrap` with ~55px spare, and the
+              badge needs ~90px, so folding it in there would truncate the task name.
+              Mobile keeps its own band. */}
+          {scheduleEligible && (
+            <>
+              <ScheduleBadges />
+              <SchedulePopover taskName={task.name} />
+            </>
+          )}
         </div>
-        {scheduleEligible && (
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
-            <ScheduleBadges />
-            <SchedulePopover taskName={task.name} />
-          </div>
-        )}
         <p className="text-xs text-muted-foreground leading-snug break-words whitespace-pre-wrap mt-0.5 line-clamp-2 min-h-[32px] md:min-h-[32px] md:line-clamp-2">
           {task.desc || "\u00A0"}
         </p>

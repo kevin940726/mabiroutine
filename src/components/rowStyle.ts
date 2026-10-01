@@ -16,8 +16,17 @@
 // row (whose tiles are h-11). Nothing here can drift, because there is only one
 // copy.
 
-/** The row card, mobile. Padding and radius are what the eye reads as "a row". */
-export const ROW_SHELL_MOBILE = "rounded-lg border bg-card p-3 relative hover:bg-accent";
+/** The row card, mobile. Padding and radius are what the eye reads as "a row".
+ *
+ *  `min-h-[100px]` is a FLOOR, not a fixed height: mobile rows size to content and
+ *  came out at 76 / 83 / 87 / 100 / 105 / 130 — six heights in one list, because a
+ *  desc line or a badge line each add one. A spread that wide destabilises the
+ *  sort strategy, which assumes comparable items, so drags near a boundary
+ *  flickered. 100 is the value that absorbs the common cases (the title-only rows
+ *  at 76-87 and the two-line rows at 100) and leaves the genuinely taller ones
+ *  (a barter row at 105, the schedule row at 130) alone rather than padding every
+ *  row to the worst case. */
+export const ROW_SHELL_MOBILE = "rounded-lg border bg-card p-3 relative min-h-[100px] hover:bg-accent";
 
 /** The row card, desktop. Taller and wider, with its own control order.
  *  Carries `flex` and the background: a caller that re-declares the display mode

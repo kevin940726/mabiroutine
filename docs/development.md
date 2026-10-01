@@ -84,11 +84,17 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:migrations` + `test:sync` + `build`. All five must pass.
+`pnpm check` = `lint` + `test:shops` + `test:drag` + `test:migrations` + `test:sync` + `build`. All six must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
 `barter.json` (shape + currency + dup + no-trade-routes + shop-gold-only + twin cap parity).
+Drag rule: `pnpm test:drag` after touching `src/lib/dragRules.ts` or a drag
+handler. It asserts the hierarchy (`scripts/check-drag-rules.entry.ts`, bundled
+like the others): children reorder only within their own merchant group, rows
+only within their own section, and a grouped pin cannot swap into the plain-row
+list. Cross-list moves are enforced by structure instead — one drag context per
+list — so they need no rule of their own.
 
 ## Gotchas
 
