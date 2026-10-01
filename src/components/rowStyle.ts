@@ -63,3 +63,40 @@ export const PFP_DESKTOP = "h-[50px] w-[50px] rounded-full object-cover shrink-0
  *  heavier than a circle does. */
 export const ITEM_ART_MOBILE = "h-5 w-5 shrink-0";
 export const ITEM_ART_DESKTOP = "h-10 w-10 shrink-0";
+
+/** The tracker's meta vocabulary: the small facts under a title, each with ONE
+ *  treatment wherever it appears — a trade row, a shop row, a grouped parent, mobile
+ *  and desktop alike.
+ *
+ *  These exist because the four roles had collapsed into one. On a mobile row the NPC
+ *  name, the town and the limit were all `text-xs text-muted-foreground` at 400 weight
+ *  in a single string, so nothing told them apart; on desktop the NPC name was 500 and
+ *  foreground while the town stayed muted, so the two variants disagreed. The parent
+ *  had the same flat run for its town and its item summary.
+ *
+ *  The split is by ROLE, not by which screen it is on:
+ *   - `META_NPC`   the counterparty's NAME, the anchor of the line: 500 weight, full
+ *                  foreground — it is a name, not a note.
+ *   - `META_TOWN`  where it happens: muted and light. Context, not content, so it has
+ *                  to recede behind the name it follows.
+ *   - `META_LIMIT` how many times you may do it: a cap is a constraint, so it sits in
+ *                  a faint rounded chip that keeps it from reading as more prose. The
+ *                  chip is a BORDER, not a background: a `bg-muted` fill measures the
+ *                  same as the row beneath it on a done row (`bg-muted/50`), so it
+ *                  vanished — exactly the failure the priority stripe had. `border`
+ *                  differs on every card in both themes (0.922 on the light card, 10%
+ *                  white on the dark), so an outline survives wherever the chip lands.
+ *   - `META_COST`  what the trade costs you: a peer of `META_NPC` (500 weight, full
+ *                  foreground), because "what you pay" is content, not context. A
+ *                  barter row's cost is a `MaterialHoverCard` (which already drew
+ *                  itself at this weight) and a shop row's is `Cost` (which inherited
+ *                  the muted wrapper) — so before this the two sides of the same fact
+ *                  did not match.
+ *
+ *  Strings, not a component, for the reason this file gives above: the callers assemble
+ *  these into different shapes (a run separated by ·, a right-aligned cell, a whole
+ *  line) and a component would need a slot per caller. */
+export const META_NPC = "text-xs font-medium text-foreground";
+export const META_TOWN = "text-xs text-muted-foreground";
+export const META_LIMIT = "shrink-0 rounded border border-border px-1.5 py-px text-xs font-medium text-foreground/80";
+export const META_COST = "text-xs font-medium text-foreground";

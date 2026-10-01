@@ -206,6 +206,24 @@ export function displayName(s: string): string {
     .replace(/(?<=\S)\((?=\S)/g, "\u2009(");
 }
 
+/** A limit string for display, with the account-scope tag removed.
+ *
+ *  `stringifyLimit` writes `每日 N 次 (伺服器)` for an account-scoped cap, but every
+ *  surface that renders a limit ALSO renders the 伺服器 BADGE from the same flag
+ *  (`serverShared`, wired to the same `perChar === false` / `scopeAccount` source), so
+ *  the suffix is the same fact twice. The badge wins: it is a scannable mark at a fixed
+ *  place on the title line, where the suffix is prose buried mid-string that vanishes
+ *  the moment the limit line truncates. The shop tile already chose this way —
+ *  `limitOf` strips `（伺服器）` and the tile prints the chip — so stripping here makes
+ *  the tracker agree with it instead of inventing a second convention.
+ *
+ *  Parenthesised, both widths: `barterMeta.limit` is written half-width by
+ *  `stringifyLimit`, while `shops.ts`'s `limitText` still generates the full-width
+ *  `（伺服器）`, so both are matched. */
+export function limitDisplay(s: string): string {
+  return displayName(s).replace(/\s*[（(]伺服器[）)]/g, "");
+}
+
 /** Twin trade leg in the merged route table behind a barter-explorer row:
  *  the shops.json option for (npc, received item, outQty). Exact single
  *  match only — ambiguity returns null and the caller falls back to the

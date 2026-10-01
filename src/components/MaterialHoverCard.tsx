@@ -23,21 +23,21 @@ type Props = {
    *  the row's exchange limit (default 1). */
   times?: number;
   /** Shorten the trigger line for a narrow column. Drops the 你給/你拿
-   *  verbs (the arrow already says which side is which) and a trailing ×1, which
-   *  says nothing about what you hand over (41 of the 100 barter rows are ×1).
-   *  The card is unchanged, so the full 你給 X ×N → 你拿 Y is still there on hover.
+   *  verbs, which the arrow already makes redundant (it says which side is
+   *  which). The card is unchanged, so the full 你給 X ×N → 你拿 Y is still
+   *  there on tap.
    *
-   *  A whole-deal ×N is NOT dropped: dealTimes multiplies the 共需 total by it, so
-   *  hiding it would leave the total unexplained. It is not added to the card
-   *  either, because the total already spells it out as 共需（N次）.
-   *
-   *  Off by default: the tracker's row is wide enough for the full line, so only the
-   *  shop tile turns it on. */
+   *  On by the mobile tracker row and the shop tile, off on the desktop tracker
+   *  row. Mobile turned it on because the two verbs cost 48px of a 165px body
+   *  line — 29% — and the give side already has its own data-inked line under
+   *  the title, so the words bought nothing the layout did not already say.
+   *  Desktop has the room, so it keeps the fuller phrasing. */
   terse?: boolean;
-  /** Drop the item you receive from the trigger line, keeping only `give →`. Only
+  /** Drop the item you receive from the trigger line, keeping only `give`. Only
    *  correct when the caller renders that item elsewhere on screen — the shop tile's
-   *  title is exactly that item, one line above. Off by default, so the tracker's row
-   *  still names both ends of the trade. */
+   *  title is exactly that item, one line above, and a mobile tracker barter row's
+   *  title is the same thing (`tradeTitle` is the get, reduced to its name). Off by
+   *  default, so the desktop tracker row still names both ends of the trade. */
   getless?: boolean;
   /** Optional footer action, e.g. the shop tile's 在商店中查看 link. Rendered only
    *  when the caller passes it, so the tracker's two call sites are unchanged.

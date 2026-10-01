@@ -27,7 +27,7 @@ import { useState } from "react";
 import { displayName } from "@/lib/materials";
 import { TaskRow } from "@/components/TaskRow";
 import { ItemIcon } from "@/components/shop/ItemIcon";
-import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, ITEM_ART_DESKTOP, ITEM_ART_MOBILE } from "@/components/rowStyle";
+import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, ITEM_ART_DESKTOP, ITEM_ART_MOBILE, META_TOWN } from "@/components/rowStyle";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { bandId } from "@/lib/dragRules";
@@ -71,14 +71,6 @@ function useGroupToggle() {
 const VIOLET_STRIP = "bg-violet-500/15 text-violet-700 dark:bg-violet-400/[0.10] dark:text-violet-300";
 const VIOLET_BODY = "bg-violet-50/50 dark:bg-violet-400/[0.04]";
 
-/** The tightest limit in a group: the one that decides whether to act now. */
-function tightestLimit(rows: PinRow[]): string {
-  const limits = rows
-    .map((r) => displayName((r.task.source === "shop" ? r.task.shopMeta?.limit : r.task.barterMeta?.limit) ?? ""))
-    .filter(Boolean);
-  return limits.sort((a, b) => Number(a.match(/(\d+)/)?.[1] ?? 1e9) - Number(b.match(/(\d+)/)?.[1] ?? 1e9))[0] ?? "";
-}
-
 /** The item a pin is about, in the row's own wording: a barter row titles with
  *  barterMeta.get (minus its ×N), a shop row with task.name. */
 function itemName(t: Task): string {
@@ -119,12 +111,14 @@ function Group({
   const isMobile = useIsMobile();
   const first = rows[0].task;
   const town = first.town;
-  const limit = tightestLimit(rows);
   const hasServerShared = rows.some((r) => r.task.serverShared === true);
-  // A row's sub-line is the trade detail; a parent summarizes its children the
-  // same way: the item names, then the tightest limit, in the row's own style.
+  // A parent summarizes its children: the pinned item names, in the row's own style.
+  // ALL names, not the first three: the line truncates with an ellipsis, so it should
+  // show as many as actually fit rather than stopping at an arbitrary count. It used
+  // to join three and append `等 N 筆`, which both capped the visible names AND spent
+  // the tail of the line on a count that the ellipsis now conveys for free.
   const names = rows.map((r) => itemName(r.task));
-  const summary = names.slice(0, 3).join("、") + (names.length > 3 ? ` 等 ${names.length} 筆` : "");
+  const summary = names.join("、");
 
   // Hide: a group is not a task, so hiding it hides every child.
   const char = useAppStore((s) => s.getActiveChar());
@@ -226,6 +220,15 @@ function Group({
   // full width of the card's bottom band. The capsule is what makes it read as a
   // control rather than page furniture.
   //
+  // The capsule is 16px (`h-4`) because its content is 16px — the chevron sets that
+  // height, not the 10px label. It was 14px, which put a 16px chevron and a 16px
+  // label span 1px proud of the capsule top and bottom (`overflow: visible`, so
+  // nothing was actually clipped, but the tinted band read as too thin for what it
+  // held). Growing it by 2px makes it contain its own contents exactly, and costs
+  // the row nothing: the strip overlays the row's existing bottom padding band, so
+  // the card is still 88px/100px and the strip still ends 2px above the card's
+  // bottom edge (measured before/after: both unchanged).
+  //
   // Dark mode is TUNED SEPARATELY, not the light classes with a `dark:` hue swap:
   // the dark card is oklch(0.205 0 0), so the light amber at any real alpha lands
   // as a bright yellow patch on near-black and glares. Dark uses a much lower
@@ -243,7 +246,7 @@ function Group({
         onToggleOpen();
       }}
       className={cn(
-        "absolute inset-x-px bottom-px z-20 flex h-[14px] items-center rounded-b-[7px] transition-colors hover:brightness-95 dark:hover:brightness-125",
+        "absolute inset-x-px bottom-px z-20 flex h-4 items-center rounded-b-[7px] transition-colors hover:brightness-95 dark:hover:brightness-125",
         VIOLET_STRIP,
         "justify-center"
       )}
@@ -276,39 +279,76 @@ function Group({
   );
 
   const railControl = "relative z-20 h-6 w-6 grid shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground";
+  // The merchant's face. Desktop keeps it in the horizontal leading cluster, where a
+  // desktop row keeps its own portrait. Mobile puts it on the TITLE line instead of
+  // the rail: the mobile rail is a VERTICAL stack (eye over grip), so a portrait
+  // appended there lands at the bottom-left, orphaned from the name it belongs to —
+  // while every mobile row puts its face beside the title. Same node, two homes, so
+  // the two variants cannot drift the way the shell did (see rowStyle.ts).
+  const portrait = (
+    <img
+      src={`/npc/${encodeURIComponent(title)}.png`}
+      alt=""
+      aria-hidden
+      loading="lazy"
+      onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")}
+      className={isMobile ? PFP_MOBILE : PFP_DESKTOP}
+    />
+  );
+  // Rail order follows the ROW, and the row's order differs by variant: desktop
+  // leads with the grip (a mouse drag begins anywhere in the cluster), mobile leads
+  // with the eye (the rail is vertical, and the eye is the control you reach for
+  // first with a thumb). The grip then takes the rest of the rail and centres, as a
+  // row's does. Before this the parent stacked grip-then-eye on BOTH, so a mobile
+  // parent's controls sat in the opposite order to every row around it.
+  const grip = (
+    <button
+      {...attributes}
+      {...listeners}
+      className={cn("relative z-20 cursor-grab opacity-40 hover:opacity-100 touch-none", !isMobile && "p-1", isMobile && "flex flex-1 items-center justify-center py-1")}
+      aria-label={`拖曳 ${title} 的交易`}
+    >
+      <GripVertical className="h-4 w-4" />
+    </button>
+  );
+  const eye = (
+    <button type="button" onClick={hideGroup} className={cn("relative z-20", isMobile ? railControl : "flex h-7 w-7 items-center justify-center rounded-md border bg-card shadow-sm opacity-20 group-hover:opacity-100")} aria-label={allHidden ? `顯示 ${title} 的所有交易` : `隱藏 ${title} 的所有交易`}>
+      {allHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+    </button>
+  );
   const leading = (
     <>
-      <button {...attributes} {...listeners} className="relative z-20 cursor-grab p-1 opacity-40 hover:opacity-100 touch-none" aria-label={`拖曳 ${title} 的交易`}>
-        <GripVertical className="h-4 w-4" />
-      </button>
-      <button type="button" onClick={hideGroup} className={cn("relative z-20", isMobile ? railControl : "flex h-7 w-7 items-center justify-center rounded-md border bg-card shadow-sm opacity-20 group-hover:opacity-100")} aria-label={allHidden ? `顯示 ${title} 的所有交易` : `隱藏 ${title} 的所有交易`}>
-        {allHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-      </button>
-      <img
-        src={`/npc/${encodeURIComponent(title)}.png`}
-        alt=""
-        aria-hidden
-        loading="lazy"
-        onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")}
-        className={isMobile ? PFP_MOBILE : PFP_DESKTOP}
-      />
+      {isMobile ? eye : grip}
+      {isMobile ? grip : eye}
+      {!isMobile && portrait}
     </>
   );
 
+  // The body is TWO lines:
+  //   line 1  [face] title · town [伺服器]   — who the merchant is and where
+  //   line 2  summary                         — the pinned items, truncated
+  // No limit. The parent used to show the TIGHTEST cap among its pins, but a parent
+  // is not one trade, so the number named no child: `每日 1 次` on a 4-pin group read
+  // as "this merchant: 1/day" when it meant "one of these four is 1/day". Each child
+  // states its own limit one level down, and the parent's tile already carries the
+  // completion state, so the tightest-cap summary bought an ambiguous number at the
+  // cost of the line the item names needed.
+  //
+  // The face sits on line 1 as it does on a row. On mobile it is placed HERE rather
+  // than in the rail: the mobile rail is a vertical stack (eye over grip), so a face
+  // appended to it landed at the bottom-left, orphaned from the name it belongs to.
   const body = (
     <>
       <div className="flex items-center gap-2">
+        {isMobile && portrait}
         <span className="truncate text-sm font-bold text-primary">
           {title}
         </span>
+        <span className={cn(META_TOWN, "truncate")}>· {town}</span>
         {hasServerShared && <span className="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">伺服器</span>}
-        <span className="ml-auto flex shrink-0 items-center gap-1 text-xs min-w-0">
-          <span className="truncate text-muted-foreground">{town}</span>
-        </span>
       </div>
-      <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground min-w-0">
-        <span className="truncate">{summary}</span>
-        <span className="ml-auto shrink-0">{limit}</span>
+      <div className={cn("truncate text-xs text-muted-foreground min-w-0", isMobile ? "mt-2" : "mt-0.5")}>
+        {summary}
       </div>
     </>
   );
@@ -368,6 +408,10 @@ function Group({
                   // here and shows the ITEM instead. Sized with the row's own portrait
                   // constants, so the swap cannot change the row's height or alignment.
                   portrait={<ItemIcon name={itemArtName(r.task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />}
+                  // Same reasoning as the portrait: the parent above already says
+                  // `特蕾西 · 杜加德走廊`, so the child drops its own copy of the
+                  // merchant and town and states only its item, cap and cost.
+                  merchantless
                 />
               ))}
             </div>
@@ -383,6 +427,7 @@ function Group({
             value={rows[0].value}
             isAccount={rows[0].isAccount}
             portrait={<ItemIcon name={itemArtName(rows[0].task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />}
+            merchantless
           />
         </div>
       )}

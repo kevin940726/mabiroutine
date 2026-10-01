@@ -55,11 +55,11 @@ import { PermissionCoachMark, type CoachMarkKind } from "@/components/Permission
 import { Tooltip } from "@/components/ui/tooltip";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { Cost } from "@/components/shop/shared";
-import { dealTimes, displayName, parseItemQty } from "@/lib/materials";
+import { dealTimes, displayName, limitDisplay, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toastAction } from "@/sync/session";
-import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE } from "@/components/rowStyle";
+import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, META_NPC, META_TOWN, META_LIMIT, META_COST } from "@/components/rowStyle";
 
 /**
  * Hide with an undo toast (user feedback 2026-09-21: the eye sits next to
@@ -97,6 +97,17 @@ type Props = {
    *  instead. A lone pin, and every other trade row, passes nothing and keeps the
    *  face — the merchant is news there. */
   portrait?: React.ReactNode;
+  /** Drop the `npc · town` run from a trade row's meta line, keeping the limit.
+   *
+   *  The same reasoning as `portrait`: inside a group the parent already names the
+   *  merchant AND its town (`特蕾西 · 杜加德走廊`), so every child repeating `特蕾西 ·
+   *  杜加德走廊` says one thing twice across two rows — measured on a 2-pin group,
+   *  4 identical merchant-and-town pairs. The child keeps the facts the parent does
+   *  NOT carry: its own item, its own limit, its own cost.
+   *
+   *  Only correct when the caller has already shown the merchant: a lone pin and
+   *  every row in the main list keep the run. */
+  merchantless?: boolean;
 };
 
 export function TaskRow(props: Props) {
@@ -364,7 +375,7 @@ function barterTimes(task: Task): number {
   return dealTimes(task.npc ?? "", get.name, get.qty, task.barterMeta?.limit);
 }
 
-function TaskRowMobile({ task, value, isAccount, onEdit, portrait }: Props) {
+function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
@@ -434,9 +445,18 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait }: Props) {
           <span className="shrink-0" aria-hidden>{task.icon}</span>
         )}
         <span className={cn("min-w-0 flex-1 break-words")}>{tradeTitle}</span>
-        {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
+        {/* Badges ride the TITLE line, not a line of their own. A reserved badge
+            line cost a full 24px row (measured 106px vs the 100px floor) and bought
+            the title nothing: on all 9 pinned barter rows the title has 26px spare
+            on a 252px line while the badge is 32px, so the two can only share the
+            line if the badge is allowed to pull the title narrower — which it can,
+            because the trade title is short (高級皮革, 設計圖(3級)) and `min-w-0`
+            lets it shrink. Prototyped live: badge inline puts every row on the
+            100px floor with 0 titles wrapped. `flex-wrap` is kept as the safety
+            valve, so a genuinely long title wraps to a second line rather than
+            truncating the badge away. */}
+        {(task.priority === "must" || task.serverShared === true) && <div className="flex shrink-0 items-center gap-1">{badges}</div>}
       </div>
-      {(task.priority === "must" || task.serverShared === true) && <div className="mt-1 flex flex-wrap gap-1">{badges}</div>}
     </div>
   ) : (
     <div>
@@ -460,29 +480,68 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait }: Props) {
 
   const body = isBarter ? (
     <div className="min-w-0 flex-1">
-      <div className="text-xs text-muted-foreground break-words">
-        {task.npc} · {task.town} · {displayName(task.barterMeta?.limit ?? "")}
+      <div className="flex items-center gap-1.5 break-words">
+        {!merchantless && (
+          <>
+            <span className={cn(META_NPC, "truncate")}>{task.npc}</span>
+            <span className={cn(META_TOWN, "truncate")}>· {task.town}</span>
+          </>
+        )}
+        {/* In a group the merchant line is gone, so the cost and the cap share one
+            line: the child states its own facts (item, cost, cap) in two lines total
+            instead of spending a line on the cap alone. The cost leads and the cap is
+            pushed to the right edge, matching the row above: content first, the
+            constraint trailing. */}
+        {merchantless && (
+          <span className={cn(META_COST)}>
+            <MaterialHoverCard
+              give={task.barterMeta?.give ?? ""}
+              get={task.barterMeta?.get ?? ""}
+              terse
+              getless
+              times={barterTimes(task)}
+            />
+          </span>
+        )}
+        {task.barterMeta?.limit ? <span className={cn(META_LIMIT, "ml-auto")}>{limitDisplay(task.barterMeta.limit)}</span> : null}
       </div>
-      <div className="text-xs text-muted-foreground break-words">
-        <MaterialHoverCard
-          give={task.barterMeta?.give ?? ""}
-          get={task.barterMeta?.get ?? ""}
-          times={barterTimes(task)}
-        />
-      </div>
+      {!merchantless && (
+        <div className={cn("mt-0.5 break-words", META_COST)}>
+          <MaterialHoverCard
+            give={task.barterMeta?.give ?? ""}
+            get={task.barterMeta?.get ?? ""}
+            terse
+            getless
+            times={barterTimes(task)}
+          />
+        </div>
+      )}
       {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
     </div>
   ) : isShop ? (
     // No MaterialHoverCard here on purpose: a gold purchase has no material
     // chain to trace, so the row states the price and the limit instead.
     <div className="min-w-0 flex-1">
-      <div className="text-xs text-muted-foreground break-words">
-        {task.npc} · {task.town} ·{" "}
-        {task.shopMeta ? (
-          <Cost currency={task.shopMeta.costCurrency} amount={task.shopMeta.costAmount ?? null} />
-        ) : null}{" "}
-        · {task.shopMeta?.limit}
+      <div className="flex items-center gap-1.5 break-words">
+        {!merchantless && (
+          <>
+            <span className={cn(META_NPC, "truncate")}>{task.npc}</span>
+            <span className={cn(META_TOWN, "truncate")}>· {task.town}</span>
+          </>
+        )}
+        {/* Same as the barter branch: in a group the price leads and the cap trails. */}
+        {merchantless && task.shopMeta && (
+          <span className={cn(META_COST)}>
+            <Cost currency={task.shopMeta.costCurrency} amount={task.shopMeta.costAmount ?? null} />
+          </span>
+        )}
+        {task.shopMeta?.limit ? <span className={cn(META_LIMIT, "ml-auto")}>{limitDisplay(task.shopMeta.limit)}</span> : null}
       </div>
+      {!merchantless && task.shopMeta && (
+        <div className={cn("mt-0.5 break-words", META_COST)}>
+          <Cost currency={task.shopMeta.costCurrency} amount={task.shopMeta.costAmount ?? null} />
+        </div>
+      )}
       {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
     </div>
   ) : (
@@ -670,7 +729,7 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown }: { taskI
 // both.
 // ---------------------------------------------------------------------------
 
-function TaskRowDesktop({ task, value, isAccount, onEdit, portrait }: Props) {
+function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
@@ -767,14 +826,16 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait }: Props) {
             {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
             {isBarter && task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
             {task.serverShared === true && <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] shrink-0">伺服器</span>}
-            <span className="ml-auto flex items-center gap-1 text-xs shrink-0 min-w-0">
-              <span className="font-medium truncate">{task.npc}</span>
-              <span className="text-muted-foreground truncate">· {task.town}</span>
-            </span>
+            {!merchantless && (
+              <span className="ml-auto flex items-center gap-1 shrink-0 min-w-0">
+                <span className={cn(META_NPC, "truncate")}>{task.npc}</span>
+                <span className={cn(META_TOWN, "truncate")}>· {task.town}</span>
+              </span>
+            )}
           </div>
           {isBarter ? (
             <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
-              <span className="truncate">
+              <span className={cn("truncate", META_COST)}>
                 <MaterialHoverCard
                   give={task.barterMeta?.give ?? ""}
                   get={task.barterMeta?.get ?? ""}
@@ -782,17 +843,17 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait }: Props) {
                   times={barterTimes(task)}
                 />
               </span>
-              <span className="ml-auto shrink-0">{displayName(task.barterMeta?.limit ?? "")}</span>
+              {task.barterMeta?.limit ? <span className={cn(META_LIMIT, "ml-auto")}>{limitDisplay(task.barterMeta.limit)}</span> : null}
             </div>
           ) : (
             // No hover card: a purchase has no material chain to trace.
             <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
-              <span className="truncate">
+              <span className={cn("truncate", META_COST)}>
                 {task.shopMeta ? (
                   <Cost currency={task.shopMeta.costCurrency} amount={task.shopMeta.costAmount ?? null} />
                 ) : null}
               </span>
-              <span className="ml-auto shrink-0">{task.shopMeta?.limit}</span>
+              {task.shopMeta?.limit ? <span className={cn(META_LIMIT, "ml-auto")}>{limitDisplay(task.shopMeta.limit)}</span> : null}
             </div>
           )}
           {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic line-clamp-1">📝 {task.notes}</p>}
