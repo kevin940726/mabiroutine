@@ -58,6 +58,27 @@ const PRIORITY = {
   situational: { edge: "bg-border", text: "text-zinc-500 dark:text-zinc-400", label: "視需求" },
 } as const;
 
+/** The verdict as a CHIP, for the tile's overlaid top-left mark.
+ *
+ *  The hue moves into a low-alpha tint and a ring so the word reads as a mark on the
+ *  tile rather than as stray text: an absolutely-positioned word on a busy tile edge
+ *  attaches itself to whatever happens to be beside it.
+ *
+ *  The tint is a per-TIER hue rather than the single colour `priorityEdge` uses, and
+ *  that difference is deliberate. The stripe stays one colour because marked vs
+ *  unmarked has to survive colour blindness as a difference in lightness; the chip's
+ *  WORD carries the tier, so its colour is free to vary.
+ *
+ *  The dark values are lower-alpha lighter steps rather than the light values hue-
+ *  swapped, following the repo's dark-tint convention: the dark card is
+ *  oklch(0.205 0 0), so a light-mode tint at a real alpha glares. */
+const CHIP = {
+  must: "bg-red-500/12 text-red-700 ring-red-500/30 dark:bg-red-400/15 dark:text-red-300 dark:ring-red-400/30",
+  extra: "bg-amber-500/12 text-amber-700 ring-amber-500/30 dark:bg-amber-400/15 dark:text-amber-300 dark:ring-amber-400/30",
+  once: "bg-sky-500/12 text-sky-700 ring-sky-500/30 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/30",
+  situational: "bg-zinc-500/12 text-zinc-600 ring-zinc-500/30 dark:bg-zinc-400/15 dark:text-zinc-300 dark:ring-zinc-400/30",
+} as const;
+
 /** Only 必換 and 推薦 render a word. 視需求 is the true default (53 rows) so naming
  *  it says nothing, and 一次性 reads as a warning but behaves like 推薦 for planning.
  *  Labels stay on the tiers that never render, so the map is total.
@@ -68,7 +89,9 @@ export const priorityEdge = (p: ShopRow["priority"]) =>
   p === "must" || p === "extra" ? PRIORITY[p].edge : "bg-border";
 export const priorityText = (p: ShopRow["priority"]) =>
   p === "must" || p === "extra" ? PRIORITY[p].label : null;
-export const priorityTint = (p: ShopRow["priority"]) => (p ? PRIORITY[p].text : "");
+/** The verdict's chip classes, for the tiers that render a word. "" for the rest. */
+export const priorityChip = (p: ShopRow["priority"]) =>
+  p === "must" || p === "extra" ? CHIP[p] : "";
 
 /** Not a hook — it reads a Set and returns JSX. Named as a plain function on
  *  purpose: it is called inside a .map, and a `use*` name there trips
@@ -234,16 +257,22 @@ export function TradeGrid({
   );
 }
 
-/** 1 column on phones, 2 from the sm breakpoint (640px), 3 on desktop. One column on
- *  a phone because two leaves a 154px tile carrying a 15px CJK title: a long name
- *  like 高級鍊金術再燃燒催化劑 wrapped to three lines, the trade line wrapped with it,
- *  and the merchant name truncated (迪莉絲 · 堤爾…). The wider tiles are what let the
- *  text stop wrapping, the same reason desktop went to three columns.
+/** The grid: 1 column on phones, 2 from the sm breakpoint (640px), 3 from lg, 4 from
+ *  xl (1280px).
+ *
+ *  One column on a phone because two leaves a 154px tile carrying a 15px CJK title: a
+ *  long name like 高級鍊金術再燃燒催化劑 wrapped to three lines, the trade line wrapped
+ *  with it, and the merchant name truncated (迪莉絲 · 堤爾…).
+ *
+ *  Four columns from 1280px is the widest the tile has been cut, and it costs page
+ *  height for width: at 1440px a tile is 169px against 232px at three columns, and the
+ *  longest item name (高級鍊金術再燃燒催化劑, 13 characters) then wraps to a second
+ *  line. `xl` rather than `lg` is what keeps that off the 1024-1280 band, where the
+ *  third column is still 232px and the name still fits on one.
  *
  *  The gap is 20px where the tile's own rhythm is 8px: the 2.5:1 ratio is deliberate,
- *  so the tiles read as cards rather than a wall. Wider tiles cost ~25% more page
- *  height on desktop (68 grid rows vs 53), which is the trade for it. */
-export const GRID = "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+ *  so the tiles read as cards rather than a wall. */
+export const GRID = "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
 /**
  * Hover/tap popover for one barter row, carrying the same MaterialBreakdown the old

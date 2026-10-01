@@ -41,3 +41,16 @@ export const TICKER_FILL = "h-[var(--tile)] w-[var(--tile)]";
  *  did not: the desktop group had no portrait at all. */
 export const PFP_MOBILE = "h-5 w-5 shrink-0 rounded-full object-cover border border-border/50 bg-muted";
 export const PFP_DESKTOP = "h-[50px] w-[50px] rounded-full object-cover shrink-0 border border-border/50 bg-muted";
+
+/** Item-art sizes for the same two slots, WITHOUT a radius or a fill.
+ *
+ *  Separate from PFP_* because the two are different shapes: a face is a circle, an
+ *  item icon is a rounded rectangle (`ItemIcon` owns its radius). Passing PFP_* into
+ *  ItemIcon put `rounded-full` on the frame, and Tailwind's later class won, so the
+ *  item came out a circle in the tracker while the grid showed a rounded square —
+ *  the same dimensions, two shapes, from one shared string.
+ *  20px mobile matches PFP_MOBILE; desktop uses 40px rather than PFP_DESKTOP's 50px
+ *  because the art is a square whose corners are cut, so the same nominal box reads
+ *  heavier than a circle does. */
+export const ITEM_ART_MOBILE = "h-5 w-5 shrink-0";
+export const ITEM_ART_DESKTOP = "h-10 w-10 shrink-0";

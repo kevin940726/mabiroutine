@@ -1,0 +1,40 @@
+// Item art: an item name → the public path of its icon.
+//
+// One function, because four surfaces ask the same question (the shop tile, the
+// pinned group's child rows, the pinned gold rows, the material hover card) and
+// the answer has a trap that must not be re-derived at each call site.
+//
+// THE TRAP: build the path from the RAW name, never the display name.
+// `displayName` folds half-width parens to full-width for reading
+// (materials.ts:170), and the icon files on disk keep the data's own half-width
+// spelling: `public/items/武器製作台設計圖(3級).webp`. Measured over the 133
+// distinct names in shops.json + barter.json get-lines, NINE names match on the
+// raw form only (every `(3級)` blueprint) and ZERO match on the folded form only
+// — so folding before the lookup silently loses all 9 and gains nothing. Same
+// rule materials.ts already states for the route table: fold at the render
+// expression, never a string about to be looked up.
+//
+// EXISTENCE IS NOT CHECKED HERE. The set of icons is expected to lag the data
+// (art is dropped in by hand; 9 names have none today), so "no art yet" is a
+// normal state rather than an error. The name is turned into a URL and the
+// `<img>` reports absence through `onError`, exactly as `/npc/<name>.png` has
+// always worked (NpcFace.tsx:11-25) — there is no runtime manifest on either
+// side, and the browser cannot stat a file before requesting it. Every caller
+// therefore needs a DESIGNED fallback; see `ItemIcon`.
+
+/** The public path for an item's icon.
+ *
+ *  Takes the name as the DATA spells it (half-width parens, any `+` refinement
+ *  suffix) WITHOUT a quantity: the caller strips any ` ×N` first, because the
+ *  tiles and rows carry the yield inline (`聖水 ×10`) and that suffix is not part
+ *  of any filename. `stripQty` is exported so the rule is stated once rather than
+ *  re-derived at each of the four call sites. */
+export function stripQty(name: string): string {
+  return name.replace(/ ×\d+$/, "");
+}
+
+export function itemIconPath(name: string | undefined | null): string | null {
+  const trimmed = name ? stripQty(name).trim() : "";
+  if (!trimmed) return null;
+  return `/items/${encodeURIComponent(trimmed)}.webp`;
+}

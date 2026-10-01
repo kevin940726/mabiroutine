@@ -1,10 +1,19 @@
 // The shop tile.
 //
-// The tight density: the shortest of the five variants measured and the only one with
-// three full grid rows visible in a 1100px viewport.
+// Vertical stack, in the game's own reading order:
+//   name → icon → limit → cost → merchant
+// The first three are the game's (name, art, its 購入N/M limit). The merchant band
+// and the verdict are this app's additions: the merchant closes the card, and the
+// verdict is overlaid on the tile's top-LEFT corner rather than taking a band, since
+// it is a judgement ABOUT the item and not one of its facts.
 //
-// Vertical stack: merchant band, name, priority verdict, limit, price. Rules that hold
-// it together:
+// The art is the SUBJECT: a 72px frame with the yield's count on its bottom-right
+// corner, and the name as a muted 13px caption above it. That is inverted from the
+// pre-icon cut, where the name was a 15px bold heading and the merchant's face was
+// the only image — in the game's tile the art carries recognition and the name
+// labels it, so the weight follows.
+//
+// Rules that hold it together:
 //
 //   1. One spacing scale, applied by the parent: `flex flex-col gap-2`. Every row used
 //      to carry its own `mt-*`, which spread the rhythm across five class lists and
@@ -13,30 +22,37 @@
 //      measured a 23.5px hole between the limit and the cost when a row was stretched
 //      by a two-line neighbour: the price floated down and read as detached from its
 //      own label.
-//   3. Nothing reserves height it does not use. That same cut put `min-h-[2.1em]` on
-//      the price, which resolves against the inherited 16px root rather than the 12px
-//      text, so a one-line gold price silently held 33.6px.
-//   4. The verdict row is drawn only where there is a verdict. It used to be reserved
-//      on all 194 tiles to align the rows below it; at the tight density that 15px on
-//      the 155 rows without a verdict was the single largest piece of empty space in
-//      the tile, measured at 38% whitespace overall.
+//   3. The name band reserves two lines from `xl` (`min-h-[2lh]`). Two rules meet here
+//      and they used to conflict: nothing should reserve height it does not use, but
+//      the bands below must stay aligned across a row. At four columns the longest
+//      real names wrap, and an unreserved name pushed its tile's limit and cost 18px
+//      below its neighbours — measured. `2lh` rather than an em value because a first
+//      attempt at `2.6em` was a hair under a real second line and left 2px.
+//   4. The verdict takes NO band. It was a reserved row below the limit; it is now
+//      absolutely positioned at the top-left, mirroring the pin at the top-right, so
+//      the item's own bands run unbroken and the tile is shorter for it. It cannot
+//      collide with the name (measured), because the name sits below the 28px band the
+//      pin and verdict share.
 //   5. Padding is 28px top, because the 24px pin plus its 4px offset needs a band the
-//      title never reaches. 20px left clears the 4px priority stripe, 16px right and
+//      name never reaches. 20px left clears the 4px priority stripe, 16px right and
 //      bottom match each other.
 import { cn } from "@/lib/utils";
+import { parseItemQty } from "@/lib/materials";
 import { NpcFace } from "./NpcFace";
-import { TradeLine, limitOf, pinButton, priorityEdge, priorityText, priorityTint } from "./shared";
+import { ItemIcon } from "./ItemIcon";
+import { TradeLine, limitOf, pinButton, priorityChip, priorityEdge, priorityText } from "./shared";
 import type { ShopRow } from "./types";
 
 /** The tile's vertical rhythm: one value for every gap between rows. */
 const STACK = "flex flex-col gap-2";
 
-/** The merchant band: portrait, name and town on one line.
+/** The merchant band: portrait, name and town on one line, as a FOOTER.
  *
- *  At the tight density the name and town share a line with a `·` separator. The
- *  earlier two-line version measured 40.3px of the tile's height for the same two
- *  facts, and reading `安黛莉 · 堤爾克那` as a subtitle is what lets the trade name
- *  stay the dominant element. */
+ *  A footer rather than the old header so the item's own facts stay contiguous
+ *  (name → icon → limit → verdict → cost) and the merchant closes the card. It
+ *  draws its one rule on the TOP edge, since that is the side separating it from
+ *  the item. The two facts still share a line with a `·`: the earlier two-line
+ *  version measured 40.3px of tile height for the same information. */
 function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string) => void }) {
   const inner = (
     <>
@@ -47,57 +63,26 @@ function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string) 
       </span>
     </>
   );
-  // A merchant the caller can open is a button, not a div: it is the only in-tile way
-  // to reach that merchant's own shop, and the tile as a whole is not a link. Styled to
-  // look identical to the static band so the grid does not gain a second visual weight;
-  // the hover background and focus ring are the affordance. `-mx-1` lets that background
-  // bleed into the tile's padding so it reads as a full-width row, not a text hitbox.
-  if (!onOpen) return <div className="flex items-center gap-1.5 border-b pb-1.5">{inner}</div>;
+  if (!onOpen) return <div className="flex items-center gap-1.5 border-t pt-1.5">{inner}</div>;
   return (
     <button
       type="button"
-      // the tile behind this band is not itself clickable, but a future one might be —
-      // stop propagation so opening the merchant never doubles as a tile action
       onClick={(e) => {
         e.stopPropagation();
         onOpen(item.npc);
       }}
       aria-label={`開啟 ${item.npc} 的商店`}
-      className="-mx-1 flex items-center gap-1.5 rounded px-1 pb-1.5 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-b"
+      className="-mx-1 flex items-center gap-1.5 rounded border-t px-1 pt-1.5 text-left transition-colors hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {inner}
     </button>
   );
 }
 
-/**
- * The price. Gold is a single coin value on one line.
+/** The cost band.
  *
- * Barter is "name xN", with x1 dropped — that is 41 of the 100 barter rows, where a
- * trailing x1 is pure noise. Fixed 14px, no shrink, no clipping.
- *
- * The size is `text-[14px]`, not `text-sm`. `text-sm` is rem-based, so it resolves
- * against the ROOT font size and a reader with a larger browser default font saw it
- * render at 17.5px: measured, `text-sm` is 14px at root 16px and 17.5px at root 20px.
- * Hardcoding px pins it, which is also what pretext would need if this ever moves to
- * measured fit-to-width.
- *
- * HOUSE RULE: never truncate, always wrap. An earlier cut forced the name to one line,
- * which turned a 10-character material name into an ellipsis. A wrapped second line
- * costs height but hides nothing.
- *
- * The cost line is deliberately NOT height-reserved, so 麗莎's two longest names push
- * their own tile taller rather than being cut.
- *
- * Barter goes through TradeLine, which renders the whole trade line — the give with
- * a dotted underline and a popover when there is a recipe, and the get after an
- * arrow. The tile therefore carries no separate qty suffix: `give` already has the
- * ×N and MaterialHoverCard prints it, so a suffix here would print it twice and
- * would also resurrect the ×1 that was dropped on purpose (41 of 100 barter rows).
- *
- * Gold stays a bare number: a price is a price, and a purchase has no material chain
- * to trace.
- */
+ *  Gold is a bare coin amount; barter is the whole `你給 X → 你拿 Y` trade line,
+ *  whose hover card is the tile's only way into the material breakdown. */
 function Price({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: string, giveName: string) => void }) {
   if (item.kind === "shop") {
     return (
@@ -133,6 +118,11 @@ export function Tile({
   // the pin button carries its own state; destructuring only what the tile uses
   const { button } = pinButton(item, pinned, onTogglePin);
   const verdict = priorityText(item.priority);
+  // The title carries the yield inline (`聖水 ×10`) and the tile wants the name and
+  // the count apart, so split once with the shared parser (materials.ts:154, already
+  // used by TradeLine). `name` doubles as the icon key, which wants the RAW name and
+  // no quantity — see lib/itemIcon.ts for why folding it would lose 9 blueprints.
+  const { name, qty } = parseItemQty(item.title);
   return (
     <div
       data-shop-tile
@@ -156,31 +146,50 @@ export function Tile({
       {/* 28px of top padding is exactly the 24px button plus its 4px offset, so the pin
           keeps a band to itself and never meets the name */}
       <span className="absolute right-1 top-1">{button}</span>
-
-      <div className={STACK}>
-        {showMerchant && <MerchantBand item={item} onOpen={onOpenNpc} />}
-
-        {/* Block-level <p> rows rather than <span>s: these are lines of a description,
-            not inline runs, so the block form gets the line boxes right with no extra
-            wrappers. */}
-        <p className="line-clamp-2 text-[15px] font-bold leading-snug text-foreground">{item.title}</p>
-
-        {/* Always rendered, even without a verdict. Reserving the row is what keeps
-            the limit and price lines aligned across a grid row: when it was
-            conditional, an unmarked tile pulled both up 23px (measured 1249 vs 1272),
-            so three tiles side by side read as three different layouts. `min-h` on
-            12px/leading-tight holds the same 15px the text takes, so the reserved
-            space is exactly the text's, not a guess. */}
-        <p
+      {/* The verdict, as a chip on the top-LEFT, aligned with the tile's own content.
+          `left-5 top-2.5` are the spacing scale's 20px/10px — the same token the tile's
+          `pl-5` uses, so the chip starts on the line the name and art below it share
+          rather than outboard of them (at `left-3` it hung 8px over the padding, and at
+          `left-2` it read as stuck to the edge).
+          The stripe marks the same fact in colour; the chip's WORD carries it without
+          colour vision — see the colour-blind note in CHANGELOG. */}
+      {verdict && (
+        <span
           className={cn(
-            "min-h-[15px] text-[12px] font-semibold leading-tight",
-            verdict ? priorityTint(item.priority) : ""
+            "absolute left-5 top-2.5 rounded px-1.5 py-px text-[10px] font-semibold leading-none ring-1 ring-inset",
+            priorityChip(item.priority)
           )}
         >
           {verdict}
-        </p>
+        </span>
+      )}
 
-        <p className="flex items-center gap-1.5 text-[12px] leading-tight">
+      <div className={STACK}>
+        {/* Block-level <p> rows rather than <span>s: these are lines of a description,
+            not inline runs, so the block form gets the line boxes right with no extra
+            wrappers.
+            The TWO-LINE RESERVATION is what keeps the bands below it aligned: at 4
+            columns a 169px tile wraps the longest real names (11-13 characters, 8 rows
+            of 194) to a second line, which without a reservation pushes that tile's
+            limit and cost below its row-mates — measured at 18px before this, and 2px
+            when the reservation was set too low to cover a real second line.
+            The value is `2lh` (two line boxes) rather than an em guess: `leading-snug`
+            is 1.375, so two lines of 13px text are 35.75px while `2.6em` is 33.8px —
+            a hair short, which is exactly the 2px that showed up. `lh` tracks the
+            leading, so the reservation cannot drift from it if the size changes.
+            Applied only from `xl`, where the fourth column starts: at 1-3 columns every
+            name already fits on one line, so the reservation would be empty height on
+            186 rows to fix 8. `break-words` is not needed — CJK wraps between
+            characters with nothing to break. */}
+        <p className="line-clamp-2 text-center text-[13px] font-semibold leading-snug text-muted-foreground xl:min-h-[2lh]">{name}</p>
+
+        {/* The art, and the tile's subject. `self-center` is required: as a flex
+            column child the frame shrinks to its 72px and sits at the left content
+            edge (measured 71px off the tile's centre line without it). The count
+            rides the frame's bottom-right corner. */}
+        <ItemIcon name={name} size="size-[72px]" className="self-center" badge={qty} />
+
+        <p className="flex items-center justify-center gap-1.5 text-[12px] leading-tight">
           <span className="text-muted-foreground">{limitOf(item)}</span>
           {item.scopeAccount && (
             // plain text, not a chip: `limitOf` strips the （伺服器） suffix that
@@ -190,11 +199,20 @@ export function Tile({
           )}
         </p>
 
-        <div className="leading-tight">
+        {/* Verdict removed from the flow — it is now the absolutely-positioned
+            top-left mark below, so no band is reserved here any more. The band order
+            is therefore name → icon → limit → cost → merchant, with the verdict
+            overlaid on the tile's free top-left corner exactly as the pin is on its
+            top-right. */}
+
+        {/* Centring lives on the wrapper, not in Price, so a barter trade line keeps
+            reading left to right as `你給 X → 你拿 Y`. */}
+        <div className="text-center leading-tight">
           <Price item={item} onViewInShop={onViewInShop} />
         </div>
+
+        {showMerchant && <MerchantBand item={item} onOpen={onOpenNpc} />}
       </div>
     </div>
   );
 }
-

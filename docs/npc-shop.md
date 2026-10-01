@@ -594,4 +594,79 @@ opens 安黛莉's shop with filters kept and a 返回 chip, 返回 restores the 
 and a town filter sections by merchant with portrait headers. Zero console errors,
 and zero `[contain-intrinsic-size]` nodes — proof the row UI is not merely hidden.
 
+---
+
+## 6. The tile, re-cut around the item art
+
+165 item icons landed as static assets, and they changed what the tile should be. The
+art is now the tile's SUBJECT, and the band order follows the game's own:
+
+```
+name → icon → limit → cost → merchant
+```
+
+The first three are the game's (name, art, its 購入N/M limit). The merchant band and
+the 必換 / 推薦 verdict are this app's additions: the merchant closes the card, and
+the verdict is a chip on the tile's top-left rather than a line of its own.
+
+### What changed, and the measurement behind each
+
+| change | why |
+|---|---|
+| art 48px → **72px**, name 15px bold → **13px muted** | in the game's tile the art carries recognition and the name captions it, so the weight is inverted from the pre-art cut |
+| `聖水 ×10` → **`聖水` + a count on the art's bottom-right** | the count belongs with the art, as the game shows it; the name is not a number |
+| verdict moved out of its own row to a **chip, top-left** | it judges the item rather than being one of its facts, and the row it vacated was 15px on all 194 tiles |
+| grid **3 → 4 columns** from 1280px | more of a merchant's stock on one screen; at 1440px a tile is 169px against 232px at three |
+| merchant band **header → footer** | keeps the item's own facts contiguous, and lets the merchant close the card |
+
+### The two drifts, and why the fixes are what they are
+
+**The name wraps at four columns.** At 169px the longest real names (11–13 characters,
+8 rows of 194) wrap to a second line, which pushed that tile's limit and cost 18px
+below its row-mates — measured. The fix is a reservation on the name band
+(`xl:min-h-[2lh]`), applied only from `xl` so 1–3 columns pay nothing: at those widths
+every name already fits on one line, and reserving would be empty height on 186 rows
+to fix 8.
+
+`2lh` rather than an em value, specifically: a first attempt at `2.6em` was 33.8px
+against the 35.75px a real second line takes (`leading-snug` = 1.375 on 13px), and left
+a **2px** drift. `lh` tracks the leading, so the reservation cannot fall behind it if
+the size changes. This is rule 3 of the tile's own header: nothing reserves height it
+does not use, with the one exception the alignment forces.
+
+**The verdict chip sat off-grid.** It was placed at `left-3` (12px), then `left-2`,
+and each read as stuck to the edge — because the tile's content starts at **21px**
+(20px `pl-5` + 1px border) and the chip was on no shared line. `left-5 top-2.5` puts it
+on the scale's 20px/10px, so `chipLeft` = `nameBoxLeft` = 21. The lesson is that
+"move it in a bit" is not a fix when the element is on the wrong grid line entirely.
+
+### The pinned children show the item, not the face
+
+Inside a merchant's group the parent already names the merchant, so the child's
+portrait repeated it while the item — the thing you act on — was only in the text. The
+children now show item art instead, via a `portrait` slot on `TaskRow`; a lone pin and
+every other trade row keep the merchant's face, where the merchant is news.
+
+The slot's size comes from `ITEM_ART_*` in `rowStyle.ts`, NOT from `PFP_*`. Reusing the
+portrait constants passed `rounded-full` and `object-cover` into the icon frame, so the
+art came out a circle and cropped in the tracker while the grid showed a rounded
+square — same dimensions, two shapes, from one shared string. Faces are circles; item
+art is a rounded rectangle whose radius the component owns.
+
+### Verified
+
+`pnpm check` green, 16 lint warnings (baseline). Measured in-browser:
+
+- **Band alignment across a row** at 390 / 768 / 1024 / 1280 / 1440px: cost band at one
+  offset for every tile in every row, `nameH` 18px below `xl` and 36px at it.
+- **Column counts**: 1 / 2 / 3 / 4 at 390 / 768 / 1024 / 1280+.
+- **The chip** at `(21, 11)` in light and dark, no collision with the name or the pin.
+- **The art**: native 128px inside a 72px frame, `object-contain`, no crop.
+- **The placeholder**: 9 forced-missing tiles render a box and keep their height, so a
+  tile with art and one without stay aligned.
+- **The pinned children**: item art at 20px mobile / 40px desktop, row heights unchanged
+  at 105px / 88px.
+- Zero console errors.
+
+
 

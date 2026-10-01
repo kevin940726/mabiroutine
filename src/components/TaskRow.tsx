@@ -81,6 +81,21 @@ type Props = {
   value: boolean | number | undefined;
   isAccount: boolean;
   onEdit?: () => void;
+  /** Replace the leading portrait on a trade row (the merchant's `/npc/` face on
+   *  mobile's title line and desktop's leading cluster). Passing a node means the
+   *  caller owns that slot entirely.
+   *
+   *  SIZE IT WITH THE SAME BOX the face occupies, or the row's height moves — but use
+   *  `ITEM_ART_MOBILE` / `ITEM_ART_DESKTOP` from `rowStyle.ts`, NOT `PFP_*`. The PFP
+   *  constants carry `rounded-full` and `object-cover`, so sharing them made item art
+   *  render as a cropped circle in the tracker while the same art was a rounded square
+   *  in the shop grid: one shared string, two shapes.
+   *
+   *  Added for the grouped pinned rows: inside an NPC's group the parent already
+   *  names the merchant, so the child's face is redundant and shows the ITEM
+   *  instead. A lone pin, and every other trade row, passes nothing and keeps the
+   *  face — the merchant is news there. */
+  portrait?: React.ReactNode;
 };
 
 export function TaskRow(props: Props) {
@@ -348,7 +363,7 @@ function barterTimes(task: Task): number {
   return dealTimes(task.npc ?? "", get.name, get.qty, task.barterMeta?.limit);
 }
 
-function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
+function TaskRowMobile({ task, value, isAccount, onEdit, portrait }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
@@ -403,7 +418,9 @@ function TaskRowMobile({ task, value, isAccount, onEdit }: Props) {
   const title = isTrade ? (
     <div>
       <div className="flex items-center gap-1.5 text-sm font-bold text-primary">
-        {showNpc ? (
+        {portrait ? (
+          portrait
+        ) : showNpc ? (
           <img
             src={`/npc/${encodeURIComponent(task.npc!)}.png`}
             alt=""
@@ -641,7 +658,7 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown }: { taskI
 // both.
 // ---------------------------------------------------------------------------
 
-function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
+function TaskRowDesktop({ task, value, isAccount, onEdit, portrait }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
@@ -709,7 +726,9 @@ function TaskRowDesktop({ task, value, isAccount, onEdit }: Props) {
             </Button>
           </div>
         )}
-        {showNpc ? (
+        {portrait ? (
+          portrait
+        ) : showNpc ? (
           <img
             src={`/npc/${encodeURIComponent(task.npc!)}.png`}
             alt={task.npc!}

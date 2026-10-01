@@ -26,7 +26,8 @@
 import { useState } from "react";
 import { displayName } from "@/lib/materials";
 import { TaskRow } from "@/components/TaskRow";
-import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE } from "@/components/rowStyle";
+import { ItemIcon } from "@/components/shop/ItemIcon";
+import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, ITEM_ART_DESKTOP, ITEM_ART_MOBILE } from "@/components/rowStyle";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useAppStore } from "@/store/useAppStore";
@@ -81,6 +82,18 @@ function tightestLimit(rows: PinRow[]): string {
 function itemName(t: Task): string {
   if (t.source === "barter") return displayName((t.barterMeta?.get ?? "").replace(/ ×\d+$/, ""));
   return displayName(t.name);
+}
+
+/** The same item, UNFOLDED, for the icon lookup.
+ *
+ *  Deliberately NOT `itemName`: `displayName` folds half-width parens for reading
+ *  and the icon files keep the data's own spelling, so 9 blueprint names match
+ *  only in this form. Keeping the two side by side is the point — one is for the
+ *  eye, one is for the filesystem, and folding the wrong one is silent. See
+ *  `src/lib/itemIcon.ts`. */
+function itemArtName(t: Task): string {
+  if (t.source === "barter") return (t.barterMeta?.get ?? "").replace(/ ×\d+$/, "");
+  return t.name;
 }
 
 /** One parent, laid out as a normal row plus a centred expand strip on its bottom
@@ -296,7 +309,16 @@ function Group({
       {open && (
         <div className={cn("mt-2 space-y-2 rounded-lg p-2 pl-3", VIOLET_BODY)}>
           {rows.map((r) => (
-            <TaskRow key={r.task.id} task={r.task} value={r.value} isAccount={r.isAccount} />
+            <TaskRow
+              key={r.task.id}
+              task={r.task}
+              value={r.value}
+              isAccount={r.isAccount}
+              // The parent names the merchant, so the child's face is redundant
+              // here and shows the ITEM instead. Sized with the row's own portrait
+              // constants, so the swap cannot change the row's height or alignment.
+              portrait={<ItemIcon name={itemArtName(r.task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />}
+            />
           ))}
         </div>
       )}
