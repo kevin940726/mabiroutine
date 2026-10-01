@@ -21,7 +21,7 @@ never a `displayName`-folded string.
 
 `displayName` (`src/lib/materials.ts`) folds `(` to `（` for reading, and the files
 keep the data's own spelling: `public/items/武器製作台設計圖(3級).webp`. Measured
-over the 133 distinct names in `shops.json` plus the barter `get` lines:
+over the 181 distinct names in `shops.json` plus the barter `give` and `get` lines:
 
 | | count |
 |---|---|
@@ -41,13 +41,24 @@ contents: the art, or a quiet dashed placeholder box. A tile with art and one
 without must keep the same height, or the grid's row alignment breaks — the same
 invariant that made a conditional verdict row pull two tiles up 23px once.
 
-Nine names have no art today, and they are the ones to add first:
+Sixteen names have no art today, and they are the ones to add first. Counted by
+reading the 165 filenames against every name the app looks up: `items[].name` in
+`shops.json` (126 distinct) plus `give` / `get` in `barter.json` with the ` ×N`
+suffix stripped as `parseItemQty` does (81 + 89). Union 181 names, 165 covered.
 
-| name | why it has no file |
+| name | where it appears |
 |---|---|
-| `愛心幣`, `絕招秘藥`, `精靈的痕跡` | appear as `shops.json` item names |
-| `高級羊毛`, `空白樂譜`, `染色劑基底` | appear only in barter give-lines |
-| `木材加工設備設計圖(3級)`, `布料加工設備設計圖(3級)`, `防具製作台設計圖(3級)` | the three blueprints of the 9 that are missing |
+| `愛心幣`, `精靈的痕跡`, `絕招秘藥` | `shops.json` tiles (and barter `give`/`get` for 愛心幣) |
+| `喵幣`, `完美繃帶`, `幽靈螢火蟲`, `羊毛`, `職業大師勳章`, `雕琢橄欖石 S`, `馬鈴薯沙拉` | barter give-lines only |
+| `高級羊毛`, `染色劑基底`, `空白樂譜`, `木材加工設備設計圖(3級)`, `布料加工設備設計圖(3級)`, `防具製作台設計圖(3級)` | barter get-lines only |
+
+Only the first three reach a tile, so they are the visible gap; the other thirteen
+live inside barter deal text, which renders as plain text today and shows no
+placeholder at all. They still need files the moment a trade line gains art.
+
+The three `(3級)` blueprints are the leftover end of the raw-name trap above: the
+data spells them with half-width parens like the nine that DO have files, so they
+are simply absent rather than mismatched.
 
 There is no runtime existence check beyond the `<img>`'s own `onError`, which is
 how `/npc/<name>.png` has always worked: the browser cannot know a file is absent

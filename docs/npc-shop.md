@@ -662,8 +662,9 @@ art is a rounded rectangle whose radius the component owns.
 - **Column counts**: 1 / 2 / 3 / 4 at 390 / 768 / 1024 / 1280+.
 - **The chip** at `(21, 11)` in light and dark, no collision with the name or the pin.
 - **The art**: native 128px inside a 72px frame, `object-contain`, no crop.
-- **The placeholder**: 9 forced-missing tiles render a box and keep their height, so a
-  tile with art and one without stay aligned.
+- **The placeholder**: the 5 shop rows whose item has no file (愛心幣 on 貓商人 /
+  瓦爾特 / 康納, 絕招秘藥 and 精靈的痕跡 on 阿蘭雯) render a box and keep their
+  height, so a tile with art and one without stay aligned.
 - **The pinned children**: item art at 20px mobile / 40px desktop, row heights unchanged
   at 105px / 88px.
 - Zero console errors.
