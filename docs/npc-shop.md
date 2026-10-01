@@ -659,14 +659,27 @@ art is a rounded rectangle whose radius the component owns.
 
 - **Band alignment across a row** at 390 / 768 / 1024 / 1280 / 1440px: cost band at one
   offset for every tile in every row, `nameH` 18px below `xl` and 36px at it.
+  The name band reserves its second line (`xl:min-h-[2lh]`); the COST band deliberately
+  does not, and the pair is worth telling apart. A wrapped NAME shifts the artifact below
+  it, which is what the eye lands on; a wrapped COST changes only its own tile's height.
+  Four trade lines genuinely wrap at 4 columns (凱琳特製全麥麵包 ×10, 格莉娜的蘋果奶茶 ×2,
+  特蕾西的原木音樂盒 ×1, 檸檬橄欖油義大利麵), and `GRID`'s `items-start` keeps them from
+  stretching their row-mates: measured on row `top=569` the heights are 265/248/248/248
+  against cost bands 37/20/20/20, where the grid's default stretch had given 265/265/265/265.
+  Reserving a second cost line was tried and rejected — it equalised every row at 268px but
+  put 20px of empty band under 35 of 39 tiles to tidy 4.
 - **Column counts**: 1 / 2 / 3 / 4 at 390 / 768 / 1024 / 1280+.
 - **The chip** at `(21, 11)` in light and dark, no collision with the name or the pin.
 - **The art**: native 128px inside a 72px frame, `object-contain`, no crop.
-- **The placeholder**: the 5 shop rows whose item has no file (愛心幣 on 貓商人 /
-  瓦爾特 / 康納, 絕招秘藥 and 精靈的痕跡 on 阿蘭雯) render a box and keep their
-  height, so a tile with art and one without stay aligned.
+- **The placeholder**: a designed state the current data no longer reaches — every one
+  of the 181 names the app looks up has a file (see `docs/item-icons.md`). The frame is
+  still size-unconditional, so a name whose art has not landed yet keeps the row aligned.
 - **The pinned children**: item art at 20px mobile / 40px desktop, row heights unchanged
   at 105px / 88px.
+- **The hover card's contents stay left-aligned while the trigger line stays centred**:
+  `text-align` measured `left` on the card and `center` on the tile's cost band. The card
+  is a DOM child of that band, so without an explicit reset it inherits the centring and
+  every line inside it (the deal, the 共需 total, the footer button) came out centred.
 - Zero console errors.
 
 

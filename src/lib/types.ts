@@ -30,7 +30,23 @@ export type Task = {
   // a pin on a shops.json row with no barter.json entry, so there is no
   // give → get chain to show. Reused by the 8 uncurated barter rows too, which
   // is why it carries both the cost side and the item.
-  shopMeta?: { cost: string; costCurrency: string; outQty: number; npc: string; town: string; limit?: string };
+  //
+  // `rawName` is the item name as the DATA spells it, because `Task.name` is folded
+  // for display (`getText`) and the icon files keep the half-width spelling. A pin
+  // whose row is a `設計圖(3級)` needs this or its art misses the file — same trap
+  // as `ShopRow.rawName` and `lib/itemIcon.ts`. */
+  shopMeta?: {
+    cost: string;
+    costCurrency: string;
+    outQty: number;
+    npc: string;
+    town: string;
+    limit?: string;
+    rawName?: string;
+    /** The cost's numeric amount, for the renderer that draws an icon: `shopMeta.cost`
+     *  is the folded display string, which has the amount baked into text. */
+    costAmount?: number | null;
+  };
   // custom extras
   notes?: string;
   // ordering

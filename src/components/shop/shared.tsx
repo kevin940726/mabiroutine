@@ -2,10 +2,61 @@
 // town/merchant sectioning and the trade popover. The tile lives in Tile.tsx.
 import { Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { barterProducers, dealTimes, hasBarterOnlyRoute, hasBreakdown, parseItemQty } from "@/lib/materials";
-import { MaterialHoverCard } from "@/components/MaterialHoverCard";
+import { barterProducers, dealTimes, displayName, hasBarterOnlyRoute, hasBreakdown, parseItemQty } from "@/lib/materials";
+import { MaterialHoverCard, QtyName } from "@/components/MaterialHoverCard";
+import { ItemIcon } from "./ItemIcon";
 import { NpcFace } from "./NpcFace";
 import type { ShopRow } from "./types";
+
+/** A price, as the shop shows it: gold is the coin glyph, and 喵幣 / 愛心幣 use their
+ *  own art in place of the word.
+ *
+ *  The `×` is dropped for the icon form. Gold never had one (`🪙1,500`), and once the
+ *  currency is a picture the count reads as the amount rather than as a multiplier of
+ *  an invisible noun — `[喵幣]20,000`, not `[喵幣] ×20,000`. The text form keeps its
+ *  `×` because there the word needs the separator (`生皮 ×3`).
+ *
+ *  Everything else is unchanged. The other 96 non-gold cost currencies (生皮, 合金鋼錠,
+ *  布料+ …) DO have icon files, but a cost line drawn as art for all of them was more
+ *  than was asked for, so only the two coin currencies and gold take this path.
+ *
+ *  `size` is small — a cost sits on a text line, not in a 72px frame, so it renders at
+ *  the surrounding line's scale rather than the tile art's. */
+export function Cost({
+  currency,
+  amount,
+  size = "size-4",
+}: {
+  currency: string;
+  amount: number | null;
+  size?: string;
+}) {
+  const label = amount == null ? "價格未填" : amount.toLocaleString();
+  if (currency === "gold") {
+    return (
+      <span className="inline-flex items-center gap-0.5 tabular-nums">
+        <span aria-hidden>🪙</span>
+        {label}
+      </span>
+    );
+  }
+  if (currency === "喵幣" || currency === "愛心幣") {
+    return (
+      <span className="inline-flex items-center gap-1 tabular-nums">
+        <ItemIcon name={currency} size={size} />
+        {label}
+      </span>
+    );
+  }
+  // The word form, unchanged: `生皮 ×3`. displayName folds the parens of a currency
+  // that has them (none today, but the rule is the project's).
+  return (
+    <span className="tabular-nums">
+      {displayName(currency)}
+      {amount != null && amount > 0 ? ` ×${label}` : ""}
+    </span>
+  );
+}
 
 export type ShopProps = {
   items: ShopRow[];
@@ -271,8 +322,19 @@ export function TradeGrid({
  *  third column is still 232px and the name still fits on one.
  *
  *  The gap is 20px where the tile's own rhythm is 8px: the 2.5:1 ratio is deliberate,
- *  so the tiles read as cards rather than a wall. */
-export const GRID = "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+ *  so the tiles read as cards rather than a wall.
+ *
+ *  `items-start` so a tile is its OWN content height instead of being stretched to its
+ *  row's tallest. Grid items stretch by default, and four trade lines wrap to a second
+ *  line at 4 columns (`凱琳特製全麥麵包 ×10`, `格莉娜的蘋果奶茶 ×2`, `特蕾西的原木音樂盒 ×1`,
+ *  檸檬橄欖油義大利麵), making those tiles 265px against 248px. Stretching meant one wrapped
+ *  trade line padded the three one-line tiles beside it, so the padding belonged to a
+ *  neighbour rather than to the tile and only appeared in rows that happened to contain a
+ *  wrap — measured: row `top=569` was 265/265/265/265 with cost-band heights 37/20/20/20.
+ *  With `items-start` each tile keeps its own height, so a one-line tile is never taller
+ *  than its content and a wrapped row is simply a taller row. */
+export const GRID =
+  "grid gap-5 items-start grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
 
 /**
  * Hover/tap popover for one barter row, carrying the same MaterialBreakdown the old
@@ -302,11 +364,26 @@ export const GRID = "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:gri
 export function TradeLine({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: string, giveName: string) => void }) {
   const { name, qty } = parseItemQty(item.give);
   const times = dealTimes(item.npc, name, qty, item.limitText ?? undefined);
+  // A barter row whose give IS an icon currency (喵幣 / 愛心幣) is really a purchase
+  // priced in that coin, not a material trade: 貓商人's 鱸魚, 毒囊 and both 魔力石
+  // rows hand over 喵幣 above and yield the item below. Those render through `Cost`,
+  // so the price reads as art with no `×` — the same shape gold has had all along —
+  // rather than as the word `喵幣 ×20,000`. Everything else, including a material
+  // that merely HAS art (生皮, 布料+), keeps the text form.
+  //
+  // The test reads `costCurrency`, NOT `parseItemQty(give).name`, and the difference
+  // is not cosmetic: `give` for these rows is `喵幣 ×20,000`, and `parseItemQty`'s
+  // `(\d+)` cannot match a comma-grouped amount, so it falls through to
+  // `{ name: "喵幣 ×20,000", qty: 1 }` and the comparison silently fails. That is a
+  // latent hole in `parseItemQty` for any comma number; it goes unreported because
+  // every other caller parses a yield (`×10`), never a price. Reading the row's own
+  // currency field avoids needing the parse at all.
+  const pricedInIcon =
+    item.costCurrency === "喵幣" || item.costCurrency === "愛心幣";
   if (!hasBreakdown(name)) {
     return (
       <span className="text-[14px] font-semibold text-foreground">
-        {name}
-        {qty > 1 && <span className="ml-1 text-[11px] whitespace-nowrap tabular-nums text-muted-foreground">×{qty}</span>}
+        {pricedInIcon ? <Cost currency={item.costCurrency} amount={item.costAmount} /> : <QtyName text={item.give} />}
       </span>
     );
   }

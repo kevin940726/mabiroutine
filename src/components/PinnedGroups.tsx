@@ -95,7 +95,10 @@ function itemName(t: Task): string {
  *  `src/lib/itemIcon.ts`. */
 function itemArtName(t: Task): string {
   if (t.source === "barter") return (t.barterMeta?.get ?? "").replace(/ ×\d+$/, "");
-  return t.name;
+  // A shop pin's `name` is folded (`getText`), so prefer the raw spelling carried
+  // on shopMeta. The fallback keeps older persisted pins working: a save written
+  // before rawName existed has no shopMeta.rawName, and `t.name` is all it has.
+  return t.shopMeta?.rawName ?? t.name;
 }
 
 /** One parent, laid out as a normal row plus a centred expand strip on its bottom

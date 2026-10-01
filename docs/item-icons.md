@@ -34,12 +34,42 @@ never a string about to be looked up. `PinnedGroups.tsx` keeps `itemName` (folde
 for the eye) and `itemArtName` (raw, for the filesystem) side by side for exactly
 this reason.
 
+Two places had broken this and were fixed by carrying the raw spelling alongside the
+display one, rather than by remembering not to fold:
+
+- `ShopRow.rawName` — the tile's title is `getText(deal)`, already folded, and the
+  icon was built from it. Nine rows (`皮革加工設備設計圖(3級)` and friends) asked for
+  `…%EF%BC%883%E7%B4%9A%EF%BC%89.webp` against a half-width file on disk. `rawName` is
+  `deal.name`, the data's spelling.
+- `shopMeta.rawName` — the same trap for a pinned row, whose `Task.name` is also
+  `getText`. `itemArtName` prefers `shopMeta.rawName` and falls back to `t.name` so a
+  save written before the field existed still renders.
+
+### The second trap: `+` is not `%2B`
+
+`itemIconPath` percent-encodes the name, and `encodeURIComponent` escapes `+` as
+`%2B`. That is right for a query value and wrong for a path segment: a `+` in a path
+is a literal plus (only its query-string meaning is a space), and the servers that
+resolve these files do not decode `%2B` back. Five names carry one — `布料+`, `皮革+`,
+`高級布料+`, `高級木材+`, `高級生皮+` — and all five missed, answering `index.html` at
+**200** with a `text/html` content type rather than a 404, so the request looked fine
+and the image failed at decode. The path builder unescapes `%2B` back to `+`; no name
+contains a literal `%`, so the substitution cannot corrupt another character.
+
+Both traps share the failure mode worth remembering on this page: **the miss is
+silent.** There is no manifest, so a wrong name is discovered only by the request
+failing, and Vite answers an unmatched path with the app's own HTML at 200 — the
+`<img>` reports the miss through a decode failure, not a status code.
+
 ## Art coverage
 
 The set lags the data, so `ItemIcon` ALWAYS renders a frame and swaps only the
 contents: the art, or a quiet dashed placeholder box. A tile with art and one
 without must keep the same height, or the grid's row alignment breaks — the same
-invariant that made a conditional verdict row pull two tiles up 23px once.
+invariant that made a conditional verdict row pull two tiles up 23px once. The grid
+does not hide a violation: it lays its tiles out with `items-start`, so a tile is its
+own content height and a conditional frame would simply make that tile shorter instead
+of being stretched to look right. The fixed frame is what keeps the heights equal.
 
 **Every name the app looks up now has art**, so the placeholder is a state the
 current data no longer reaches. It stays as the designed fallback for the next

@@ -54,6 +54,7 @@ function ScheduleBadges() {
 import { PermissionCoachMark, type CoachMarkKind } from "@/components/PermissionCoachMark";
 import { Tooltip } from "@/components/ui/tooltip";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
+import { Cost } from "@/components/shop/shared";
 import { dealTimes, displayName, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -476,7 +477,11 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait }: Props) {
     // chain to trace, so the row states the price and the limit instead.
     <div className="min-w-0 flex-1">
       <div className="text-xs text-muted-foreground break-words">
-        {task.npc} · {task.town} · {task.shopMeta?.cost} · {task.shopMeta?.limit}
+        {task.npc} · {task.town} ·{" "}
+        {task.shopMeta ? (
+          <Cost currency={task.shopMeta.costCurrency} amount={task.shopMeta.costAmount ?? null} />
+        ) : null}{" "}
+        · {task.shopMeta?.limit}
       </div>
       {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
     </div>
@@ -782,7 +787,11 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait }: Props) {
           ) : (
             // No hover card: a purchase has no material chain to trace.
             <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
-              <span className="truncate">{task.shopMeta?.cost}</span>
+              <span className="truncate">
+                {task.shopMeta ? (
+                  <Cost currency={task.shopMeta.costCurrency} amount={task.shopMeta.costAmount ?? null} />
+                ) : null}
+              </span>
               <span className="ml-auto shrink-0">{task.shopMeta?.limit}</span>
             </div>
           )}

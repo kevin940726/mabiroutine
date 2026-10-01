@@ -62,6 +62,7 @@ function toItem(deal: ShopDeal): ShopRow {
     npc: deal.npc,
     town: deal.town,
     title: getText(deal),
+    rawName: deal.name,
     // costText owns the gold glyph, so `cost` and `give` are the same string
     // here. They are kept as separate fields because a barter row's give is a
     // material while a gold row's is a price, and the row layouts read them
@@ -71,6 +72,8 @@ function toItem(deal: ShopDeal): ShopRow {
     // field is total rather than optional.
     get: deal.kind === "barter" ? getText(deal) : "",
     cost: costText(deal),
+    costCurrency: deal.costCurrency,
+    costAmount: deal.costAmount ?? null,
     limitText: deal.limitText,
     scopeAccount: deal.scopeAccount,
     priority: deal.priority,
@@ -103,9 +106,16 @@ function barterRowToItem(row: (typeof barterJson)[number]): ShopRow {
     npc: row.npc,
     town: row.town,
     title: row.get,
+    // row.get carries the yield inline (`… ×1`), so the icon key is the parsed part.
+    // parseItemQty, not displayName: the raw name keeps its half-width parens.
+    rawName: parseItemQty(row.get).name,
     give: row.give,
     get: row.get,
     cost: row.give,
+    // A curated row's cost is a material string (`皮革+ ×5`), so the parts come from
+    // parsing it rather than from a currency field. Same split as the icon key above.
+    costCurrency: parseItemQty(row.give).name,
+    costAmount: parseItemQty(row.give).qty,
     limitText: row.limit ?? null,
     scopeAccount: row.perChar === false,
     priority: row.priority as CuratedPriority,

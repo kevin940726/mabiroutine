@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 import { parseItemQty } from "@/lib/materials";
 import { NpcFace } from "./NpcFace";
 import { ItemIcon } from "./ItemIcon";
-import { TradeLine, limitOf, pinButton, priorityChip, priorityEdge, priorityText } from "./shared";
+import { Cost, TradeLine, limitOf, pinButton, priorityChip, priorityEdge, priorityText } from "./shared";
 import type { ShopRow } from "./types";
 
 /** The tile's vertical rhythm: one value for every gap between rows. */
@@ -82,12 +82,13 @@ function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string) 
 /** The cost band.
  *
  *  Gold is a bare coin amount; barter is the whole `你給 X → 你拿 Y` trade line,
- *  whose hover card is the tile's only way into the material breakdown. */
+ *  whose hover card is the tile's only way into the material breakdown. A barter row
+ *  priced in 喵幣 or 愛心幣 is drawn as that coin's art by `TradeLine` (see there). */
 function Price({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: string, giveName: string) => void }) {
   if (item.kind === "shop") {
     return (
       <span className="text-[14px] font-semibold tabular-nums text-foreground">
-        {item.cost}
+        <Cost currency={item.costCurrency} amount={item.costAmount} />
       </span>
     );
   }
@@ -120,8 +121,14 @@ export function Tile({
   const verdict = priorityText(item.priority);
   // The title carries the yield inline (`聖水 ×10`) and the tile wants the name and
   // the count apart, so split once with the shared parser (materials.ts:154, already
-  // used by TradeLine). `name` doubles as the icon key, which wants the RAW name and
-  // no quantity — see lib/itemIcon.ts for why folding it would lose 9 blueprints.
+  // used by TradeLine).
+  //
+  // `name` is for the CAPTION and is NOT the icon key. It comes from `item.title`,
+  // which `getText` already folded to full-width parens, so the icon must use
+  // `item.rawName` instead — that field exists precisely because a path built from the
+  // folded name misses every `設計圖(3級)` file (measured: nine rows asked for
+  // `...%EF%BC%883%E7%B4%9A%EF%BC%89.webp` against a half-width `(3級)` on disk). The
+  // count still comes from the title, since that is where the yield lives on both paths.
   const { name, qty } = parseItemQty(item.title);
   return (
     <div
@@ -187,7 +194,7 @@ export function Tile({
             column child the frame shrinks to its 72px and sits at the left content
             edge (measured 71px off the tile's centre line without it). The count
             rides the frame's bottom-right corner. */}
-        <ItemIcon name={name} size="size-[72px]" className="self-center" badge={qty} />
+        <ItemIcon name={item.rawName} size="size-[72px]" className="self-center" badge={qty} />
 
         <p className="flex items-center justify-center gap-1.5 text-[12px] leading-tight">
           <span className="text-muted-foreground">{limitOf(item)}</span>
@@ -206,7 +213,18 @@ export function Tile({
             top-right. */}
 
         {/* Centring lives on the wrapper, not in Price, so a barter trade line keeps
-            reading left to right as `你給 X → 你拿 Y`. */}
+            reading left to right as `你給 X → 你拿 Y`.
+            NO HEIGHT RESERVATION HERE, deliberately — unlike the name band one line up.
+            Four trade lines do wrap to a second line at 4 columns (`凱琳特製全麥麵包 ×10`,
+            `格莉娜的蘋果奶茶 ×2`, `特蕾西的原木音樂盒 ×1`, `檸檬橄欖油義大利麵`), which makes
+            those tiles 265px against 248px. The grid handles that instead: see `GRID`'s
+            `items-start`, which is why the 20px of second-line air on the other 35 tiles is
+            not worth reserving. Reserving it was tried and measured: it makes every row
+            268px, but it buys that with 20px of empty band on 35 of 39 tiles to tidy 4, and
+            the four wrapping rows are legible on their own — a second line of cost text is
+            not what a scan is looking for. The name band reserves because a two-line NAME
+            shifts the artifact below it and the icon is what the eye lands on; a two-line
+            COST changes only its own row's height. */}
         <div className="text-center leading-tight">
           <Price item={item} onViewInShop={onViewInShop} />
         </div>

@@ -60,6 +60,35 @@ type Props = {
   };
 };
 
+/** The item name with its quantity, rendered the ONE way a cost band renders it.
+ *
+ *  There were two renderings and they did not match: `TradeLine`'s no-recipe
+ *  branch split the name from its ` ×N` with `parseItemQty` and drew the count as
+ *  a small muted span, while the with-recipe branch printed the whole string, so
+ *  its `×N` came out as ordinary body text at full size and colour. Side by side in
+ *  the same grid the two read as different kinds of information — measured across
+ *  the shop: 9 tiles styled, 25 plain for the same fact.
+ *
+ *  The styled form wins: the count is secondary to the name, which is what the
+ *  muted 11px span says, and it keeps the digits `tabular-nums` so a column of
+ *  costs lines up. Nothing about the with-recipe branch wanted plain text; it was
+ *  simply the branch that never got the split.
+ *
+ *  `text` is the data's string (`皮革+ ×10`), NOT a display name: `parseItemQty`
+ *  runs first so the quantity is separated, then `displayName` folds only the name
+ *  it returns. */
+export function QtyName({ text }: { text: string }) {
+  const { name, qty } = parseItemQty(text);
+  return (
+    <>
+      {displayName(name)}
+      {qty > 1 && (
+        <span className="ml-1 text-[11px] whitespace-nowrap tabular-nums text-muted-foreground">×{qty}</span>
+      )}
+    </>
+  );
+}
+
 export function MaterialHoverCard({ give, get, compact, times, terse, getless, action, barter }: Props) {
   const hasBreakdown = useMemo(() => giveHasBreakdown(give), [give]);
 
@@ -194,8 +223,8 @@ export function MaterialHoverCard({ give, get, compact, times, terse, getless, a
     return (
       <>
         {terse ? "" : "你給 "}
-        {displayName(give)}
-        {getless ? null : <>{"\u00a0→ "}{terse ? "" : "你拿 "}{displayName(get)}</>}
+        <QtyName text={give} />
+        {getless ? null : <>{"\u00a0→ "}{terse ? "" : "你拿 "}<QtyName text={get} /></>}
       </>
     );
   }
@@ -238,7 +267,7 @@ export function MaterialHoverCard({ give, get, compact, times, terse, getless, a
           compact ? "max-w-[65%] align-bottom" : "max-w-full"
         )}
       >
-        <span className={compact ? "truncate" : "break-words"}>{displayName(give)}</span>
+        <span className={compact ? "truncate" : "break-words"}><QtyName text={give} /></span>
         <ReceiptText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>{" "}
       {/* One separator for both sides, so getless can drop the separator with the
@@ -250,7 +279,7 @@ export function MaterialHoverCard({ give, get, compact, times, terse, getless, a
           Still a prop rather than implied by terse: the tracker's row keeps both
           names, and losing the item from the only place it appeared would be a silent
           regression. */}
-      {getless ? null : <>{"\u00a0→ "}{terse ? null : "你拿 "}{displayName(get)}</>}
+      {getless ? null : <>{"\u00a0→ "}{terse ? null : "你拿 "}<QtyName text={get} /></>}
       {open && pos && (
         // Outer box is transparent but hoverable: its 8px padding bridges the
         // gap between trigger and card, so the pointer path never leaves the
@@ -263,8 +292,17 @@ export function MaterialHoverCard({ give, get, compact, times, terse, getless, a
           // desktop row wraps the trigger in a truncate span (white-space:
           // nowrap, inherited) — without this reset nothing inside wraps.
           // text-pretty: fewer dangling single chars on wrapped CJK lines.
+          // text-left: same reason as whitespace-normal, for the OTHER inherited
+          // property. The shop tile centres its cost band (the trigger line reads
+          // better centred under the art), and the card is a DOM child of that
+          // band, so it inherits text-align:center and every line inside the card
+          // comes out centred — the deal line, the 共需 total, the footer button's
+          // label. Centring is right for the short trigger under the art and wrong
+          // for a card of stacked sentences, so the card resets it here rather than
+          // the tile giving up its centring. Measured: card computed text-align was
+          // `center` before this, `left` after.
           className={cn(
-            "fixed z-50 w-[min(300px,78vw)] break-words whitespace-normal text-pretty sm:w-[430px]",
+            "fixed z-50 w-[min(300px,78vw)] break-words whitespace-normal text-left text-pretty sm:w-[430px]",
             pos.above ? "pb-2" : "pt-2"
           )}
         >

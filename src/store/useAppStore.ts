@@ -272,6 +272,10 @@ export function shopDealToTask(deal: ShopDeal): Task {
       npc: deal.npc,
       town: deal.town,
       limit: deal.limitText ?? undefined,
+      // `name` above is `getText(deal)`, folded for reading; the icon needs the
+      // data's own spelling, so carry it alongside.
+      rawName: deal.name,
+      costAmount: deal.costAmount ?? null,
     },
     order: weekly ? 150 : 80,
   };
