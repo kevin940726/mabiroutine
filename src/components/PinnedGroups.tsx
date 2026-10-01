@@ -139,8 +139,15 @@ function Group({
   // useSortable), and dnd-kit cannot tell them apart — dragging the child moved
   // the parent, and a drop snapped back. `bandId` is namespaced so it can never
   // collide with a real pin id.
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: bandId(title) });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: bandId(title) });
   const gripStyle: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
+  // Collapse while the band is being dragged, WITHOUT touching `open`: the group
+  // reopens by itself on drop, so a drag cannot cost the user their expanded
+  // state. Needed because the sortable node is the band (88px) while the children
+  // are a sibling that would otherwise sit there orphaned while the band floats
+  // away. Folding them means the drag reads as one row moving, which is what it
+  // is. Not persisted, and not the user's fold — see `open` above for that.
+  const showChildren = open && !isDragging;
 
   // Children reorder among THEMSELVES: the nested context above contains only
   // this group's children, so `over` cannot name anything else. The write goes
@@ -344,7 +351,7 @@ function Group({
           siblings: `over` cannot resolve to a row in another group or to a slot,
           because they are not in this context. That is what keeps a drag inside
           its merchant, with no cross-group rule to write. */}
-      {open && rows.length > 1 && (
+      {showChildren && rows.length > 1 && (
         <DndContext collisionDetection={closestCenter} onDragEnd={onChildDragEnd}>
           <SortableContext items={rows.map((r) => r.task.id)} strategy={verticalListSortingStrategy}>
             <div className={cn("mt-2 space-y-2 rounded-lg p-2 pl-3", VIOLET_BODY)}>
