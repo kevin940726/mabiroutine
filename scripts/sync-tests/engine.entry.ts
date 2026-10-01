@@ -591,6 +591,23 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
       m.characters.map((c) => c.id)
     );
   }
+  // --- per-device prefs survive a merge ---------------------------------------
+  // pinnedCollapsed is a per-device fold and is absent from the sync key space,
+  // like drag order. Merge must carry the LOCAL value through instead of
+  // rebuilding prefs from the flat map (which dropped it on every pull, masked
+  // only by normalizePersisted's backfill). hideCompleted IS synced, so it must
+  // still come from the server view.
+  {
+    const localPrefs = { ...local, prefs: { ...local.prefs, pinnedCollapsed: { daily: true, weekly: true } } };
+    const serverFlat = { ...flattenSnapshot(local), "pref:hideCompleted": true } as FlatMap;
+    const m = unflattenMerge(serverFlat, localPrefs, 15);
+    ok(
+      "E13 merge keeps local pinnedCollapsed",
+      m.prefs?.pinnedCollapsed?.daily === true && m.prefs?.pinnedCollapsed?.weekly === true,
+      m.prefs?.pinnedCollapsed
+    );
+    ok("E13 merge still takes synced hideCompleted", m.prefs?.hideCompleted === true, m.prefs?.hideCompleted);
+  }
   // --- artifact deferral: a stale-base artifact device full-pushes without
   // ever volunteering its generated order, then adopts canon on the pull ---
   isolate();

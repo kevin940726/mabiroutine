@@ -27,7 +27,15 @@ export { parseCycleKey, isCycleKey, expiredCycleKeys };
 //                    string cap). Last writer wins, then sticks — volunteered
 //                    only by non-sorted orders, withheld before the first pull.
 //                    See parseCharOrder.
-//   pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
+//   pref:hideCompleted
+//
+// pinnedCollapsed (the 已釘選 fold, prefs.pinnedCollapsed) is NOT synced: a fold is a
+// per-device view choice, the same category as drag order below. The merge path
+// therefore carries the LOCAL value through (`...local.prefs`) rather than
+// rebuilding prefs from the flat map — rebuilding dropped it on every pull, and
+// only normalizePersisted's backfill kept the UI from seeing undefined. Replace
+// (a fresh adoption) resets it to the default-open, which is correct for a new
+// device and is what normalizePersisted supplies.
 //
 // BUCKETED CYCLE KEYS — the core of rev 3: a value is written under the
 // Taipei day bucket (daily-kind tasks) or week bucket (weekly-kind) it was
@@ -474,7 +482,7 @@ export function unflattenMerge(
     taskBuckets,
     lastDailyReset: local.lastDailyReset ?? null,
     lastWeeklyReset: local.lastWeeklyReset ?? null,
-    prefs: { hideCompleted: flat["pref:hideCompleted"] === true },
+    prefs: { ...local.prefs, hideCompleted: flat["pref:hideCompleted"] === true },
     globalTaskOrder: local.globalTaskOrder,
   } as AppState & { version: number };
 }

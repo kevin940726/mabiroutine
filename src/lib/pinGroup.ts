@@ -25,8 +25,10 @@ export function progressOf(r: PinRow): { touched: boolean; done: boolean } {
 
 /** The parent tile's three states: untouched, some-but-not-all, every child done.
  *  "touched" and "done" are separate so a group with one counter at 1/10 is
- *  partial, not empty. */
+ *  partial, not empty. An empty group is "empty", NOT "full" — `done === 0 ===
+ *  rows.length` would otherwise read as complete. */
 export function parentState(rows: PinRow[]): "empty" | "partial" | "full" {
+  if (rows.length === 0) return "empty";
   const touched = rows.filter((r) => progressOf(r).touched).length;
   const done = rows.filter((r) => progressOf(r).done).length;
   if (touched === 0) return "empty";
@@ -53,6 +55,7 @@ function childFraction(r: PinRow): number {
  *  inside that slice. So a group of two with one counter at 5/10 fills a quarter,
  *  and it only reaches 100% when every child is actually done. */
 export function parentFillPct(rows: PinRow[]): number {
+  if (rows.length === 0) return 0;
   const sum = rows.reduce((a, r) => a + childFraction(r), 0);
   return Math.round((sum / rows.length) * 100);
 }

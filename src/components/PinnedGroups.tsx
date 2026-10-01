@@ -51,7 +51,16 @@ function useGroupToggle() {
       if (r.task.type === "check") {
         if (Boolean(r.value) !== complete) toggleCheck(r.task.id, r.isAccount);
       } else {
-        setCounter(r.task.id, complete ? (r.task.max ?? 0) : 0, r.isAccount);
+        // Complete writes the task's own max. A counter with no max cannot express
+        // "complete" — writing `max ?? 0` would set 0, the same value the CLEAR
+        // branch writes, so completing the group would be a no-op for that row and
+        // the group could never reach 全部完成. Clearing still writes 0 (a present
+        // zero, per the propagation-bit rule); only the complete side needs a max.
+        if (complete) {
+          if (r.task.max != null && r.task.max > 0) setCounter(r.task.id, r.task.max, r.isAccount);
+        } else {
+          setCounter(r.task.id, 0, r.isAccount);
+        }
       }
     }
   };

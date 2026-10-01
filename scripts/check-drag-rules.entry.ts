@@ -13,7 +13,8 @@
 //   1. a row cannot cross sections (每日 ↔ 每週 shares one context)
 //   2. a band has its own id, so it cannot collide with a child's row id
 //   3. the dragged chip is clamped to its own list's vertical range
-import { decideDrop, groupKey, bandId, bandNpc, clampToRange, type DropTarget } from "@/lib/dragRules";
+import { decideDrop, bandId, bandNpc, clampToRange, type DropTarget } from "@/lib/dragRules";
+import { parentState, parentFillPct, progressOf, type PinRow } from "@/lib/pinGroup";
 
 let bad = 0;
 const ok = (msg: string) => console.log(`ok: ${msg}`);
@@ -77,6 +78,36 @@ const t = (id: string, section: string): DropTarget => ({ id, section });
   // The clamp is exactly the boundary case: the chip can reach the last row.
   const atEnd = clampToRange(190, LIST_TOP, LIST_BOTTOM, ROW_TOP, ROW_H);
   expect(atEnd === 190, "a chip can still reach the end of its own list");
+}
+
+// --- 4. grouped-pin state and fill (pinGroup.ts) -----------------------------
+{
+  const check = (id: string, value: boolean): PinRow => ({ task: { id, type: "check" } as PinRow["task"], value, isAccount: false });
+  const counter = (id: string, value: number, max: number | undefined): PinRow => ({ task: { id, type: "counter", max } as PinRow["task"], value, isAccount: false });
+
+  // An empty group is EMPTY, not full. `done === 0 === rows.length` used to read as
+  // complete, and parentFillPct divided by zero into NaN.
+  expect(parentState([]) === "empty", "an empty group is empty, not full");
+  expect(parentFillPct([]) === 0, "an empty group fills 0, not NaN");
+
+  // touched and done are separate: a counter at 1/10 has started, so partial.
+  expect(parentState([counter("c", 1, 10)]) === "partial", "a counter at 1/10 is partial, not empty");
+  expect(parentState([check("a", false)]) === "empty", "an untouched check group is empty");
+  expect(parentState([check("a", true)]) === "full", "a lone done check is full");
+  expect(parentState([check("a", true), check("b", false)]) === "partial", "one of two done is partial");
+
+  // Fill is the mean of each child's own fraction, so one counter at 5/10 of two
+  // children is a quarter, and only all-done reaches 100.
+  expect(parentFillPct([check("a", false), counter("b", 5, 10)]) === 25, "one counter at 5/10 of two children fills 25%");
+  expect(parentFillPct([check("a", true), check("b", true)]) === 100, "every child done fills 100%");
+  // A counter with no max cannot express a fraction and contributes 0.
+  expect(parentFillPct([counter("c", 5, undefined)]) === 0, "a mapless counter contributes 0, not NaN");
+
+  // progressOf: a mapless counter is never "done", so a group holding one can
+  // never falsely read as full.
+  expect(progressOf(counter("c", 99, undefined)).done === false, "a mapless counter is never done");
+  expect(progressOf(counter("c", 10, 10)).done === true, "a counter at its max is done");
+  expect(progressOf(counter("c", 0, 10)).touched === false, "an untouched counter is not touched");
 }
 
 console.log(bad === 0 ? "drag rules: all pass" : `drag rules: ${bad} FAILED`);
