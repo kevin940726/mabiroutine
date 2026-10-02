@@ -632,9 +632,17 @@ the verdict is a chip on the tile's top-left rather than a line of its own.
 **The name wraps at four columns.** At 169px the longest real names (11–13 characters,
 8 rows of 194) wrap to a second line, which pushed that tile's limit and cost 18px
 below its row-mates — measured. The fix is a reservation on the name band
-(`xl:min-h-[2lh]`), applied only from `xl` so 1–3 columns pay nothing: at those widths
-every name already fits on one line, and reserving would be empty height on 186 rows
-to fix 8.
+(`min-h-[2lh]`), applied only when the tile is actually four columns so 1–3 columns pay
+nothing: at those widths every name already fits on one line, and reserving would be
+empty height on 186 rows to fix 8.
+
+That gate has moved twice, and both moves are the same mistake corrected. It began as a
+viewport query (`xl`), which asked the window a question about the tile: a reader at the
+20px browser default got a 4-column grid with the reservation switched OFF, because the
+`rem` breakpoint had drifted to 1600px, and the 18px drift came straight back. It is now
+a container query on the grid's own width, so it engages exactly when the columns do. The
+width is deliberately kept off the grid's own 4-column threshold — see the `GRID`
+docblock for why sharing a container width loses the column rule.
 
 `2lh` rather than an em value, specifically: a first attempt at `2.6em` was 33.8px
 against the 35.75px a real second line takes (`leading-snug` = 1.375 on 13px), and left
@@ -666,8 +674,10 @@ art is a rounded rectangle whose radius the component owns.
 `pnpm check` green, 16 lint warnings (baseline). Measured in-browser:
 
 - **Band alignment across a row** at 390 / 768 / 1024 / 1280 / 1440px: cost band at one
-  offset for every tile in every row, `nameH` 18px below `xl` and 36px at it.
-  The name band reserves its second line (`xl:min-h-[2lh]`); the COST band deliberately
+  offset for every tile in every row, `nameH` 18px below the reservation's threshold and
+  36px at it.
+  The name band reserves its second line (`min-h-[2lh]`, gated on the grid's container
+  width); the COST band deliberately
   does not, and the pair is worth telling apart. A wrapped NAME shifts the artifact below
   it, which is what the eye lands on; a wrapped COST changes only its own tile's height.
   Four trade lines genuinely wrap at 4 columns (凱琳特製全麥麵包 ×10, 格莉娜的蘋果奶茶 ×2,

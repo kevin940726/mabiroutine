@@ -256,11 +256,21 @@ export function Tile({
             is 1.375, so two lines of 13px text are 35.75px while `2.6em` is 33.8px —
             a hair short, which is exactly the 2px that showed up. `lh` tracks the
             leading, so the reservation cannot drift from it if the size changes.
-            Applied only from `xl`, where the fourth column starts: at 1-3 columns every
-            name already fits on one line, so the reservation would be empty height on
-            186 rows to fix 8. `break-words` is not needed — CJK wraps between
-            characters with nothing to break. */}
-        <p className="line-clamp-2 text-center text-[13px] font-semibold leading-snug text-muted-foreground xl:min-h-[2lh]">{name}</p>
+            GATED ON THE GRID'S OWN CONTAINER WIDTH, so the reservation engages exactly
+            when a tile becomes 4 columns. It used to be a VIEWPORT query (`xl`, 80rem),
+            which asked a different question from the grid: at the 20px browser default
+            80rem is 1600px, so a 1440px desktop was 4 columns with the reservation
+            switched off, and the tile's second name line pushed its cost band 18px below
+            its row-mates — the exact misalignment the reservation exists to prevent.
+            Height is layout, not presentation, so it must not move with a text setting.
+            The width is deliberately one step below the grid's 4-column threshold: two
+            utilities at the SAME container width collide and the grid's rule loses, so
+            the two are kept apart. Both values are far below anything a reader can see,
+            but do not re-share a width between them without re-reading the built CSS.
+            At 1-3 columns every name already fits on one line, so the reservation
+            would be empty height on 186 rows to fix 8. `break-words` is not needed —
+            CJK wraps between characters with nothing to break. */}
+        <p className="line-clamp-2 text-center text-[13px] font-semibold leading-snug text-muted-foreground @min-[880px]:min-h-[2lh]">{name}</p>
 
         {/* The art, and the tile's subject. `self-center` is required: as a flex
             column child the frame shrinks to its 72px and sits at the left content

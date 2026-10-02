@@ -297,7 +297,12 @@ export function TradeGrid({
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    // `GRID_CONTAINER` here, on the one ancestor every grid instance shares: an
+    // element cannot answer its own `@container` query, so the scope has to be a
+    // wrapper. This is also the widest sensible scope — the section headings and
+    // the sections themselves sit inside the same measured width. See the constant
+    // for the caveat about the queries being unnamed.
+    <div className={`flex flex-col gap-5 ${GRID_CONTAINER}`}>
       {[...keyed.entries()].map(([key, rows]) => (
         <section key={key}>
           {/* a single-section view has no header, so its tiles' bands carry the name */}
@@ -316,65 +321,75 @@ export function TradeGrid({
   );
 }
 
-/** The grid: 2 columns on phones, 3 from lg (1024px), 4 from xl (1280px).
+/** The grid: 2 columns on phones, 3 once the GRID has room, 4 when it has more.
  *
- *  Two columns on a phone, which REVERSES an earlier decision. The old note read
- *  "one column because two leaves a 154px tile carrying a 15px CJK title: 高級鍊金術再
- *  燃燒催化劑 wrapped to three lines, the trade line wrapped with it, and the merchant
- *  name truncated". That was measured before the tile was re-cut around the item art and
- *  before the name band reserved its second line, and neither part still holds. Forced
- *  to two columns across all 194 real rows:
+ *  CONTAINER QUERIES, not viewport breakpoints, and the difference is the point.
+ *  The grid's column count used to key off the WINDOW, which asked the wrong
+ *  question twice over:
  *
- *  | viewport | tile  | names wrapping | costs wrapping | most lines |
- *  |---|---|---|---|---|
- *  | 360px | 158px | 14 | 12 | 2 |
- *  | 390px | 173px | 12 |  8 | 2 |
- *  | 430px | 193px |  5 |  4 | 2 |
+ *   1. It ignored the container. The grid sits inside the shell's capped, padded
+ *      column, so at a 1440px window it is ~992px, not 1440px. The window
+ *      breakpoint fired on a width the grid never had.
+ *   2. It moved with the browser's default font size. Tailwind's `rem`
+ *      breakpoints resolve against the INITIAL font size, so a reader at 20px
+ *      (not 16px) gets the top breakpoint at 1600px rather than 1280px: a 1440px
+ *      desktop became a 3-column grid. Measured, both numbers.
  *
- *  (Those tile widths are with the `gap-3` below `sm`; at `gap-5` they are 154 / 169 /
- *  189px and the wrap counts are the same.)
+ *  `@container` asks the grid's own width instead, so the cap and the column rule
+ *  can no longer disagree, and the count stops depending on a font setting. The
+ *  container is the wrapper this class is applied to (see `TradeGrid`), so a
+ *  future change to the shell's cap moves the columns with it automatically.
  *
- *  Nothing exceeds two lines at any phone width, which is the case the name band already
- *  reserves for (`xl:min-h-[2lh]` is `xl`-gated, but 14 of 194 is small enough that the
- *  wrap costs the row it happens in and nothing else — `items-start` keeps it from
- *  stretching the tile beside it). The merchant band was the one band that could be made
- *  to stop wrapping entirely, and that is what keeps the phone grid near-uniform: its
- *  common label needed 101px against a 90px box, so 46 of 194 rows wrapped to a second
- *  line and the grid had TEN distinct tile heights. Hiding the town below `sm` (see
- *  `MerchantBand`) takes that to zero wraps, and with the tighter `gap-3` and `STACK`
- *  gaps the grid ends at SIX heights with 172 of 194 rows on the same 214/215px. The
- *  rest are the genuinely long strings (`稀有鍊金術再燃燒催化劑` plus a 13-character cost)
- *  and no readable font size fits those: measured, they would need 9-10px.
+ *  Thresholds are in PX, not the container scale, and that is the second half of
+ *  the font-setting fix. The container scale's `@3xl` / `@4xl` are 48rem and 56rem,
+ *  so at the 20px browser default they become 960px and 1120px: a 1024px grid then
+ *  failed the 4-column test, and the reader who set 20px fonts got 3 columns where a
+ *  16px reader got 4. The container's WIDTH is a layout fact and should not move
+ *  with a setting that only sizes text — same reasoning as the px cap on the shell
+ *  (App.tsx). With both in px the column count is identical at any font size, and
+ *  only the text inside changes.
  *
- *  What it buys is height, and the ratio is lopsided: the same 194 rows go from a 9976px
- *  page to 4667px at 360px, versus 5264px with the town shown and the wider gaps.
+ *  768px is 3 columns and 900px is 4, so the shell's cap (992px grid) lands on 4
+ *  columns of ~233px, and the 768-899px band holds 3. The cap and these thresholds
+ *  are independent knobs, but the columns move with the GRID's width rather than the
+ *  window's, so changing the cap moves them together instead of silently disagreeing.
  *
- *  The town is still shown from `sm`, in the section header when grouped by NPC, and in
- *  the material popover regardless.
+ *  `gap-3 sm:gap-5` stays a VIEWPORT query on purpose: the gap is about the
+ *  screen it is read on, and the container's own width already accounts for the
+ *  extra room a wider screen gives.
  *
- *  Four columns from 1280px is the widest the tile has been cut, and it costs page
- *  height for width: at 1440px a tile is 169px against 232px at three columns, and the
- *  longest item name (高級鍊金術再燃燒催化劑, 13 characters) then wraps to a second
- *  line. `xl` rather than `lg` is what keeps that off the 1024-1280 band, where the
- *  third column is still 232px and the name still fits on one.
+ *  Two columns on a phone stays as it is — a measured reversal of the old
+ *  one-column cut (at 360px, 2 columns go from a 9976px page to 4667px, with no
+ *  name exceeding two lines). `items-start` keeps that promise per tile: a tile is
+ *  its OWN content height, so one wrapped trade line no longer stretches the
+ *  three beside it (measured on row `top=569`: 265/265/265/265 with cost-band
+ *  heights 37/20/20/20, now 265/248/248/248).
  *
- *  The gap is 20px where the tile's own rhythm is 8px: the 2.5:1 ratio is deliberate,
- *  so the tiles read as cards rather than a wall. It is 12px below `sm` instead, where
- *  the width is the scarce resource: 20px of a 328px row is 6% of the space, and at
- *  12px a two-column tile is 158px against 154px — every band gains 4px, which is 4% of
- *  a name's box. The 20px ratio resumes from `sm`, where the trade is no longer forced.
+ *  THE 4-COLUMN THRESHOLD MUST NOT SHARE ITS WIDTH WITH THE NAME BAND'S RESERVATION
+ *  (Tile.tsx), which is why the two sit at 900px and 880px. Two utilities at one
+ *  container width collide and the grid's own rule is the one dropped while the
+ *  reservation survives — reproduced from a clean build several ways, with no other
+ *  configuration involved. A reader cannot see the 20px gap, so the values are free;
+ *  the separation is not. Re-read the built CSS if either number changes.
  *
- *  `items-start` so a tile is its OWN content height instead of being stretched to its
- *  row's tallest. Grid items stretch by default, and four trade lines wrap to a second
- *  line at 4 columns (`凱琳特製全麥麵包 ×10`, `格莉娜的蘋果奶茶 ×2`, `特蕾西的原木音樂盒 ×1`,
- *  檸檬橄欖油義大利麵), making those tiles 265px against 248px. Stretching meant one wrapped
- *  trade line padded the three one-line tiles beside it, so the padding belonged to a
- *  neighbour rather than to the tile and only appeared in rows that happened to contain a
- *  wrap — measured: row `top=569` was 265/265/265/265 with cost-band heights 37/20/20/20.
- *  With `items-start` each tile keeps its own height, so a one-line tile is never taller
- *  than its content and a wrapped row is simply a taller row. */
+ *  A NOTE ON CLASS NAMES IN PROSE: Tailwind v4 also scans source as TEXT, comments
+ *  included, so a utility written anywhere in the tree emits a real rule. Keep example
+ *  class names in words, and keep scratch files out of the scanned tree. */
 export const GRID =
-  "grid gap-3 sm:gap-5 items-start grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+  "grid gap-3 sm:gap-5 items-start grid-cols-2 @min-[768px]:grid-cols-3 @min-[900px]:grid-cols-4";
+
+/** The container the grid's width queries resolve against.
+ *
+ *  It has to be an ANCESTOR, not the grid itself: an element cannot answer its own
+ *  container query.
+ *
+ *  CAVEAT, worth knowing before relying on it: the theme's `@min-[…]` variants compile
+ *  to an UNNAMED `@container`, so they bind to the nearest ancestor that declares
+ *  container-type, not to the `shop` name. The name is set here for the same reason,
+ *  but nothing currently references it, so a new container introduced between this
+ *  wrapper and the grid would silently take over the query. Use the named form on the
+ *  query if that ever needs pinning. */
+export const GRID_CONTAINER = "@container/shop";
 
 /**
  * Hover/tap popover for one barter row, carrying the same MaterialBreakdown the old

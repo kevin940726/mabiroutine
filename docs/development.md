@@ -102,6 +102,14 @@ list — so they need no rule of their own.
 
 ## Gotchas
 
+- **Tailwind v4 scans source as TEXT, comments and stray files included**, so a
+  class-shaped string written anywhere the build reads emits a real rule. Two ways
+  that bites: a `@min-[…]` example in a comment, and a throwaway script left at the
+  repo root (both happened, and both produce a silent CSS change rather than an
+  error). Two utilities at the same container width also conflict — one is dropped —
+  which is why `GRID` and the name band's reservation in `src/components/shop/` are
+  deliberately 20px apart. Keep example class names in words, keep scratch files out
+  of the tree, and read the built CSS after touching a container-query threshold.
 - `vercel dev` does not forward custom keys from `.env.local` to functions, and
   the SQL driver keys on `VERCEL_ENV`: local `pnpm dev:api` always uses the
   throwaway `file:./dev.db`, while Preview/Production use Turso (which they
