@@ -129,7 +129,22 @@ function Price({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: str
     );
   }
   return (
-    <div className="break-words">
+    // The barter trade line never wraps and never clips: `nowrap` keeps its `×N`
+    // from being orphaned onto a second line, and `overflow-visible` lets the text
+    // run past the band instead of being cut by the tile's `overflow-hidden`.
+    //
+    // `break-words` used to sit here so a long line could wrap, which is what let
+    // `×50` / `×15` drop alone below the name (`稀有鍊金術再燃燒催化劑×50`,
+    // `高級鍊金術再燃燒催化劑×15`). The count is a different fact from the name and
+    // belongs on its line, so the band gives up wrapping instead.
+    //
+    // The overflow is deliberate and bounded: measured at the reader's 20px browser
+    // root font (which moves the `rem` breakpoints, so `xl` is 1600px and a 1440px
+    // window is 3 columns), a 14-character give is ~259px against a ~257px content
+    // box — inside it, but with no margin. At 4 columns (~185px content) the same
+    // line now runs past the band rather than folding. A name much longer than 15
+    // CJK characters will overhang visibly; that is the trade taken here.
+    <div className="overflow-visible whitespace-nowrap">
       <TradeLine item={item} onViewInShop={onViewInShop} />
     </div>
   );
@@ -177,13 +192,19 @@ export function Tile({
       // emerald border plus a bottom rule read as a second, louder signal for something
       // the filled pin already says, and the tile's edges were competing with the
       // priority stripe on the left.
-      // `pl-4 sm:pl-5`: the 20px left padding exists to clear the 4px priority stripe, and
-      // the stripe is hidden below `sm` (see it below), so a phone was paying 4px of dead
-      // gutter on a 158px tile — left 20px against right 16px, for a stripe that is not
-      // drawn. Below `sm` the two sides are equal; from `sm` the gutter comes back with the
-      // stripe it is there for, and the content line starts where the stripe ends.
+      // Padding. Below `sm` the sides are equal at `pl-4 pr-4`: the 20px left gutter exists
+      // to clear the 4px priority stripe, and the stripe is hidden there (see below), so a
+      // phone was paying 4px of dead gutter on a dead edge. From `sm` the stripe is drawn
+      // and the two sides are ASYMMETRIC on purpose: `pl-4.5` (18px) leaves 4px for the
+      // stripe plus 14px of content gutter, and `pr-3.25` (13px) is smaller so the content
+      // box grows by 5px over the old `pl-5 pr-4` (20 + 16). That width goes to the bands
+      // that wrap — most visibly the barter trade line, which is the longest text on a tile
+      // (`稀有鍊金術再燃燒催化劑 ×50`).
+      // Both values are on the 4px spacing scale (`pl-4.5` is 18px, `pr-3.25` is 13px), so
+      // they are real Tailwind steps rather than arbitrary ones. The verdict chip below
+      // tracks `pl-4.5` so it still starts on the content line.
       className={cn(
-        "relative flex flex-col overflow-hidden rounded-lg border bg-card pt-7 pr-4 pb-4 pl-4 transition-colors hover:bg-accent/40 sm:pl-5",
+        "relative flex flex-col overflow-hidden rounded-lg border bg-card pt-7 pr-4 pb-4 pl-4 transition-colors hover:bg-accent/40 sm:pr-3.25 sm:pl-4.5",
         // the landed-on tile: a ring, not a border colour, so the priority stripe on
         // the left edge and the pin's own state both stay readable underneath. The
         // transition is on the base class, so it fades both in and out.
@@ -203,7 +224,7 @@ export function Tile({
           keeps a band to itself and never meets the name */}
       <span className="absolute right-1 top-1">{button}</span>
       {/* The verdict, as a chip on the top-LEFT, aligned with the tile's own content.
-          `left-4 sm:left-5` tracks the tile's own `pl-4 sm:pl-5` so the chip starts on the
+          `left-4 sm:left-4.5` tracks the tile's own `pl-4 sm:pl-4.5` so the chip starts on the
           line the name and art below it share rather than outboard of them. It matches the
           padding at BOTH breakpoints deliberately: the two used to be a single value and a
           change to one would silently put the chip 4px off the content line it is supposed
@@ -214,7 +235,7 @@ export function Tile({
       {verdict && (
         <span
           className={cn(
-            "absolute left-4 top-2.5 rounded px-1.5 py-px text-[10px] font-semibold leading-none ring-1 ring-inset sm:left-5",
+            "absolute left-4 top-2.5 rounded px-1.5 py-px text-[10px] font-semibold leading-none ring-1 ring-inset sm:left-4.5",
             priorityChip(item.priority)
           )}
         >
