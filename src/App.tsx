@@ -41,6 +41,14 @@ const AddTaskDialog = lazy(() =>
   import("@/components/AddTaskDialog").then((m) => ({ default: m.AddTaskDialog }))
 );
 
+/** The app shell's content width, shared by the header, the tab row and `<main>`.
+ *
+ *  PX rather than a `max-w-*` token: a rem cap resolves against the browser's default
+ *  font size, which moves the content width for a reader at 20px even though that
+ *  setting should only size text. One constant rather than the class repeated three
+ *  times, because a shell whose rows disagree about their cap stops lining up. */
+const SHELL = "mx-auto max-w-[896px]";
+
 export default function App() {
   const chars = useAppStore((s) => s.characters);
   const active = useAppStore((s) => s.getActiveChar());
@@ -204,17 +212,11 @@ export default function App() {
       >
         跳到主內容
       </a>
-      {/* Header */}
-      {/* `max-w-[1024px]`, not a `max-w-*` token, and PX rather than rem on purpose:
-          the three shell rows (here, the nav below, and `<main>`) are one visual
-          column and must keep one cap. A rem cap scales with the browser's default
-          font size — a reader at 20px got a 1152px column instead of 1024px — so the
-          width of the content moved with a setting that should only size TEXT.
-          1024px is the width that was chosen at the 16px default, so the 16px
-          appearance is unchanged and the 20px one now matches it. All three sites
-          move together; a token there would reintroduce the drift. */}
+      {/* Header. Width comes from `SHELL`; the px rationale is on the constant.
+          It is also the width the shop's grid is tuned against: 896 - px-4 leaves the
+          grid 864px, which clears its 4-column threshold, so the shop shows 4 columns. */}
         <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto max-w-[1024px] px-3 sm:px-4 py-[10px] sm:py-3 flex items-center justify-between gap-2 sm:gap-3">
+        <div className={`${SHELL} px-3 sm:px-4 py-[10px] sm:py-3 flex items-center justify-between gap-2 sm:gap-3`}>
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img src="/logo-96.png" alt="MabiRoutine" className="h-7 w-7 sm:h-8 sm:w-8 object-contain shrink-0" />
             <div className="min-w-0">
@@ -232,11 +234,9 @@ export default function App() {
         </div>
       </header>
 
-      {/* nav bar — plain in-flow, scrolls away naturally, no sticky needed.
-          `max-w-[1024px]`: see the header block above — the same cap, in px, kept
-          in step with the header and `<main>`. */}
+      {/* nav bar — plain in-flow, scrolls away naturally, no sticky needed */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto max-w-[1024px] px-4 py-2.5">
+        <div className={`${SHELL} px-4 py-2.5`}>
           {/* row 1: progress + hide */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -469,7 +469,7 @@ export default function App() {
       </>
       )}
 
-      <main id="main" tabIndex={-1} className="mx-auto max-w-[1024px] px-4 py-6 space-y-6 focus:outline-none">
+      <main id="main" tabIndex={-1} className={`${SHELL} px-4 py-6 space-y-6 focus:outline-none`}>
 
         {/* tabs */}
         <div className="flex items-center gap-2 border-b" role="tablist" aria-label="主分頁">

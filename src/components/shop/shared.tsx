@@ -321,62 +321,32 @@ export function TradeGrid({
   );
 }
 
-/** The grid: 2 columns on phones, 3 once the GRID has room, 4 when it has more.
+/** The grid's track template: 2 columns on phones, 3 on a narrow desktop, 4 wide.
  *
- *  CONTAINER QUERIES, not viewport breakpoints, and the difference is the point.
- *  The grid's column count used to key off the WINDOW, which asked the wrong
- *  question twice over:
+ *  CONTAINER QUERIES, so the column count follows the width the GRID has, not the
+ *  window's. The grid sits inside the shell's capped, padded column, so the window
+ *  answer is always larger than the box being laid out. `GRID_CONTAINER` marks the
+ *  ancestor these queries resolve against, and it is the same box the shell's cap
+ *  constrains, so changing the cap moves the columns with it.
  *
- *   1. It ignored the container. The grid sits inside the shell's capped, padded
- *      column, so at a 1440px window it is ~992px, not 1440px. The window
- *      breakpoint fired on a width the grid never had.
- *   2. It moved with the browser's default font size. Tailwind's `rem`
- *      breakpoints resolve against the INITIAL font size, so a reader at 20px
- *      (not 16px) gets the top breakpoint at 1600px rather than 1280px: a 1440px
- *      desktop became a 3-column grid. Measured, both numbers.
+ *  PX THRESHOLDS, not the container scale (`@3xl`, `@4xl`). A `rem` breakpoint
+ *  resolves against the browser's INITIAL font size, so on a reader whose default is
+ *  20px the same rules fire much later and the column count changes for reasons that
+ *  have nothing to do with the width available. The thresholds are layout facts and
+ *  stay in px; only the text inside them scales.
  *
- *  `@container` asks the grid's own width instead, so the cap and the column rule
- *  can no longer disagree, and the count stops depending on a font setting. The
- *  container is the wrapper this class is applied to (see `TradeGrid`), so a
- *  future change to the shell's cap moves the columns with it automatically.
+ *  768px is 3 columns and 840px is 4. The shell caps at 896px, which leaves the grid
+ *  864px, so the shop shows 4 columns with 24px of slack and the 768-839px band holds
+ *  3. The slack keeps the pair from being tied by arithmetic: were the threshold equal
+ *  to the grid width, a change to the shell's `px-4` would drop the shop to 3 columns
+ *  silently.
  *
- *  Thresholds are in PX, not the container scale, and that is the second half of
- *  the font-setting fix. The container scale's `@3xl` / `@4xl` are 48rem and 56rem,
- *  so at the 20px browser default they become 960px and 1120px: a 1024px grid then
- *  failed the 4-column test, and the reader who set 20px fonts got 3 columns where a
- *  16px reader got 4. The container's WIDTH is a layout fact and should not move
- *  with a setting that only sizes text — same reasoning as the px cap on the shell
- *  (App.tsx). With both in px the column count is identical at any font size, and
- *  only the text inside changes.
- *
- *  768px is 3 columns and 900px is 4, so the shell's cap (992px grid) lands on 4
- *  columns of ~233px, and the 768-899px band holds 3. The cap and these thresholds
- *  are independent knobs, but the columns move with the GRID's width rather than the
- *  window's, so changing the cap moves them together instead of silently disagreeing.
- *
- *  `gap-3 sm:gap-5` stays a VIEWPORT query on purpose: the gap is about the
- *  screen it is read on, and the container's own width already accounts for the
- *  extra room a wider screen gives.
- *
- *  Two columns on a phone stays as it is — a measured reversal of the old
- *  one-column cut (at 360px, 2 columns go from a 9976px page to 4667px, with no
- *  name exceeding two lines). `items-start` keeps that promise per tile: a tile is
- *  its OWN content height, so one wrapped trade line no longer stretches the
- *  three beside it (measured on row `top=569`: 265/265/265/265 with cost-band
- *  heights 37/20/20/20, now 265/248/248/248).
- *
- *  THE 4-COLUMN THRESHOLD MUST NOT SHARE ITS WIDTH WITH THE NAME BAND'S RESERVATION
- *  (Tile.tsx), which is why the two sit at 900px and 880px. Two utilities at one
- *  container width collide and the grid's own rule is the one dropped while the
- *  reservation survives — reproduced from a clean build several ways, with no other
- *  configuration involved. A reader cannot see the 20px gap, so the values are free;
- *  the separation is not. Re-read the built CSS if either number changes.
- *
- *  A NOTE ON CLASS NAMES IN PROSE: Tailwind v4 also scans source as TEXT, comments
- *  included, so a utility written anywhere in the tree emits a real rule. Keep example
- *  class names in words, and keep scratch files out of the scanned tree. */
+ *  The 4-column threshold and the name band's two-line reservation (Tile.tsx) must
+ *  stay at DIFFERENT widths. Two container-query utilities at one width collide and
+ *  the grid's own rule loses, leaving the reservation in force and the grid silently
+ *  unchanged. Move both if the pair needs shifting, and check the built CSS after. */
 export const GRID =
-  "grid gap-3 sm:gap-5 items-start grid-cols-2 @min-[768px]:grid-cols-3 @min-[900px]:grid-cols-4";
+  "grid gap-3 sm:gap-5 items-start grid-cols-2 @min-[768px]:grid-cols-3 @min-[840px]:grid-cols-4";
 
 /** The container the grid's width queries resolve against.
  *

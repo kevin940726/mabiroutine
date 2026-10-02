@@ -134,10 +134,14 @@ Each of these cost real time and will again.
   1. **Never truncate; always wrap.** A cost line forced to one line with
      `truncate` turned 麗莎's two 10-character names into 稀有鍊金術再燃… . A
      wrapped second line costs height but hides nothing. The one exception is the
-     tile's title, which keeps `line-clamp-2 min-h-[2.7em]`: that reservation is
+     tile's title, which keeps `line-clamp-2 min-h-[2lh]`: that reservation is
      what every tile on the grid aligning its limit row depends on, and the longest
      real title is 13 characters against 18 that fit, so two lines is never
-     reached by real data.
+     reached by real data. The barter COST band is the second exception, added
+     later: it holds one line so a long give cannot orphan its own `×N` onto a
+     second line, which means a give name longer than the tile is cut at the tile's
+     edge. The two facts it carries read wrong split, and that trade was taken
+     deliberately.
   2. **Never use the `title` attribute.** No HTML tooltips anywhere in `src/`.
      The last one (on the schedule button in `SchedulePopover.tsx`) was removed and
      it keeps its `aria-label`; the popover it opens carries the same label. React
@@ -624,7 +628,7 @@ the verdict is a chip on the tile's top-left rather than a line of its own.
 | art 48px → **72px**, name 15px bold → **13px muted** | in the game's tile the art carries recognition and the name captions it, so the weight is inverted from the pre-art cut |
 | `聖水 ×10` → **`聖水` + a count on the art's bottom-right** | the count belongs with the art, as the game shows it; the name is not a number |
 | verdict moved out of its own row to a **chip, top-left** | it judges the item rather than being one of its facts, and the row it vacated was 15px on all 194 tiles |
-| grid **3 → 4 columns** from 1280px | more of a merchant's stock on one screen; at 1440px a tile is 169px against 232px at three |
+| grid 4 columns at a normal desktop width | more of a merchant's stock on one screen |
 | merchant band **header → footer** | keeps the item's own facts contiguous, and lets the merchant close the card |
 
 ### The two drifts, and why the fixes are what they are
@@ -686,13 +690,16 @@ art is a rounded rectangle whose radius the component owns.
   against cost bands 37/20/20/20, where the grid's default stretch had given 265/265/265/265.
   Reserving a second cost line was tried and rejected — it equalised every row at 268px but
   put 20px of empty band under 35 of 39 tiles to tidy 4.
-- **Column counts**: 2 / 2 / 3 / 4 at 390 / 768 / 1024 / 1280+. The phone count was 1
+- **Column counts**: 2 / 3 / 4 as the grid's own container grows: 2 below 768px,
+  3 from 768px, 4 from 840px. Those are container widths, not window widths, and they
+  are in px so the browser's default font size does not move them. The phone count was 1
   until the tile was re-cut: the old rejection ("a 154px tile wrapped a long name to
   three lines and truncated the merchant") was measured before that re-cut and before
   the name band reserved its second line, and forcing two columns across all 194 rows
   now tops out at two lines for both name and cost at every phone width. Measured
   320 / 360 / 390 / 414 / 430 / 640 / 768px, all with 0 truncated labels and 0 bands
-  over two lines.
+  over two lines. A barter cost band is the one band that does not wrap, so its own
+  long names are the exception to that count.
 - **The phone tile's height is near-uniform**: 172 of 194 rows are the same 214/215px,
   with six distinct heights in total and the rest the genuinely long strings
   (`稀有鍊金術再燃燒催化劑` plus a 13-character cost, which would need a 9-10px font to

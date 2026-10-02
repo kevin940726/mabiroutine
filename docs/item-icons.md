@@ -49,8 +49,9 @@ display one, rather than by remembering not to fold:
 
 `itemIconPath` percent-encodes the name, and `encodeURIComponent` escapes `+` as
 `%2B`. That is the form the URL must carry, and production is the authority: Vercel
-resolves `%2B` to `public/items/皮革+.webp`, while a literal `+` in the path is
-normalized to a space and 404s (measured against the PR preview, 2026-10-02). Five
+resolves `%2B` to `public/items/皮革+.webp`, and a literal `+` in the path does not
+resolve (404; measured against the deployed preview, 2026-10-02, along with `%20`,
+which also 404s). Five
 names carry one — `布料+`, `皮革+`, `高級布料+`, `高級木材+`, `高級生皮+` — and all
 five go out as `%2B`.
 

@@ -22,12 +22,13 @@
 //      measured a 23.5px hole between the limit and the cost when a row was stretched
 //      by a two-line neighbour: the price floated down and read as detached from its
 //      own label.
-//   3. The name band reserves two lines from `xl` (`min-h-[2lh]`). Two rules meet here
-//      and they used to conflict: nothing should reserve height it does not use, but
-//      the bands below must stay aligned across a row. At four columns the longest
-//      real names wrap, and an unreserved name pushed its tile's limit and cost 18px
-//      below its neighbours — measured. `2lh` rather than an em value because a first
-//      attempt at `2.6em` was a hair under a real second line and left 2px.
+//   3. The name band reserves two lines when the tile is 4 columns (`min-h-[2lh]`,
+//      gated on the grid's container width). Two rules meet here and they used to
+//      conflict: nothing should reserve height it does not use, but the bands below
+//      must stay aligned across a row. At four columns the longest real names wrap,
+//      and an unreserved name pushed its tile's limit and cost 18px below its
+//      neighbours. `2lh` rather than an em value because it tracks the leading, where
+//      an em guess came up under a real second line.
 //   4. The verdict takes NO band. It was a reserved row below the limit; it is now
 //      absolutely positioned at the top-left, mirroring the pin at the top-right, so
 //      the item's own bands run unbroken and the tile is shorter for it. It cannot
@@ -129,21 +130,16 @@ function Price({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: str
     );
   }
   return (
-    // The barter trade line never wraps and never clips: `nowrap` keeps its `×N`
-    // from being orphaned onto a second line, and `overflow-visible` lets the text
-    // run past the band instead of being cut by the tile's `overflow-hidden`.
+    // The barter trade line does not wrap: `nowrap` keeps its `×N` on the name's line
+    // rather than orphaning it onto a second one. The cost band is the one place on a
+    // tile that reverses the "always wrap, never truncate" rule, because the two facts
+    // it carries read wrong split across lines.
     //
-    // `break-words` used to sit here so a long line could wrap, which is what let
-    // `×50` / `×15` drop alone below the name (`稀有鍊金術再燃燒催化劑×50`,
-    // `高級鍊金術再燃燒催化劑×15`). The count is a different fact from the name and
-    // belongs on its line, so the band gives up wrapping instead.
-    //
-    // The overflow is deliberate and bounded: measured at the reader's 20px browser
-    // root font (which moves the `rem` breakpoints, so `xl` is 1600px and a 1440px
-    // window is 3 columns), a 14-character give is ~259px against a ~257px content
-    // box — inside it, but with no margin. At 4 columns (~185px content) the same
-    // line now runs past the band rather than folding. A name much longer than 15
-    // CJK characters will overhang visibly; that is the trade taken here.
+    // What happens past the band's width is TRUNCATION, not an overhang: the tile root
+    // carries `overflow-hidden` (see the tile's own class list), so a line longer than
+    // the tile is cut at the tile's edge regardless of this div's `overflow-visible`.
+    // That is the deliberate trade against folding the count onto its own line; a give
+    // name much longer than 15 CJK characters will lose its tail.
     <div className="overflow-visible whitespace-nowrap">
       <TradeLine item={item} onViewInShop={onViewInShop} />
     </div>
@@ -247,29 +243,19 @@ export function Tile({
         {/* Block-level <p> rows rather than <span>s: these are lines of a description,
             not inline runs, so the block form gets the line boxes right with no extra
             wrappers.
-            The TWO-LINE RESERVATION is what keeps the bands below it aligned: at 4
-            columns a 169px tile wraps the longest real names (11-13 characters, 8 rows
-            of 194) to a second line, which without a reservation pushes that tile's
-            limit and cost below its row-mates — measured at 18px before this, and 2px
-            when the reservation was set too low to cover a real second line.
-            The value is `2lh` (two line boxes) rather than an em guess: `leading-snug`
-            is 1.375, so two lines of 13px text are 35.75px while `2.6em` is 33.8px —
-            a hair short, which is exactly the 2px that showed up. `lh` tracks the
-            leading, so the reservation cannot drift from it if the size changes.
-            GATED ON THE GRID'S OWN CONTAINER WIDTH, so the reservation engages exactly
-            when a tile becomes 4 columns. It used to be a VIEWPORT query (`xl`, 80rem),
-            which asked a different question from the grid: at the 20px browser default
-            80rem is 1600px, so a 1440px desktop was 4 columns with the reservation
-            switched off, and the tile's second name line pushed its cost band 18px below
-            its row-mates — the exact misalignment the reservation exists to prevent.
-            Height is layout, not presentation, so it must not move with a text setting.
-            The width is deliberately one step below the grid's 4-column threshold: two
-            utilities at the SAME container width collide and the grid's rule loses, so
-            the two are kept apart. Both values are far below anything a reader can see,
-            but do not re-share a width between them without re-reading the built CSS.
-            At 1-3 columns every name already fits on one line, so the reservation
-            would be empty height on 186 rows to fix 8. `break-words` is not needed —
-            CJK wraps between characters with nothing to break. */}
+            The TWO-LINE RESERVATION keeps the bands below it aligned: at 4 columns the
+            longest real names (11-13 characters, 8 of 194 rows) wrap to a second line,
+            which without a reservation pushes that tile's limit and cost below its
+            row-mates by 18px.
+            `2lh` (two line boxes) rather than an em guess: `leading-snug` is 1.375, so
+            two lines of 13px text are 35.75px, and `lh` tracks that leading rather than
+            drifting from it if the size changes.
+            Gated on the grid's own container width, so it engages exactly when a tile
+            becomes 4 columns, at any browser font size. The threshold is deliberately
+            NOT the grid's 4-column threshold: two container-query utilities at one
+            width collide and the grid's rule loses, so keep the two apart and check the
+            built CSS after moving either. At 1-3 columns every name fits on one line,
+            so the reservation would be empty height on 186 rows to fix 8. */}
         <p className="line-clamp-2 text-center text-[13px] font-semibold leading-snug text-muted-foreground @min-[880px]:min-h-[2lh]">{name}</p>
 
         {/* The art, and the tile's subject. `self-center` is required: as a flex
@@ -297,16 +283,10 @@ export function Tile({
         {/* Centring lives on the wrapper, not in Price, so a barter trade line keeps
             reading left to right as `你給 X → 你拿 Y`.
             NO HEIGHT RESERVATION HERE, deliberately — unlike the name band one line up.
-            Four trade lines do wrap to a second line at 4 columns (`凱琳特製全麥麵包 ×10`,
-            `格莉娜的蘋果奶茶 ×2`, `特蕾西的原木音樂盒 ×1`, `檸檬橄欖油義大利麵`), which makes
-            those tiles 265px against 248px. The grid handles that instead: see `GRID`'s
-            `items-start`, which is why the 20px of second-line air on the other 35 tiles is
-            not worth reserving. Reserving it was tried and measured: it makes every row
-            268px, but it buys that with 20px of empty band on 35 of 39 tiles to tidy 4, and
-            the four wrapping rows are legible on their own — a second line of cost text is
-            not what a scan is looking for. The name band reserves because a two-line NAME
-            shifts the artifact below it and the icon is what the eye lands on; a two-line
-            COST changes only its own row's height. */}
+            A cost band that grows changes only its own row's height, where a two-line
+            NAME shifts the artifact below it and the icon is what the eye lands on. The
+            rare wrapped cost line is absorbed by `GRID`'s `items-start`, which lets each
+            tile keep its own height instead of stretching the one-line tiles beside it. */}
         <div className="text-center leading-tight">
           <Price item={item} onViewInShop={onViewInShop} />
         </div>
