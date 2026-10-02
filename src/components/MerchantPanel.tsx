@@ -48,10 +48,24 @@ const KIND_OPTIONS = [
 
 /** The compact trigger treatment for the floating pill: the header field at pill
  *  scale. twMerge resolves these against MenuSelect's h-9 / rounded-md / text-sm
- *  defaults, so no variant flag is needed on the shared component. `px-2` below
- *  `sm` keeps a label-bearing trigger under its cap without truncating (measured:
- *  必換、推薦 at 102px), widening to `px-2.5` from `sm`. */
+ *  defaults, so no variant flag is needed on the shared component. Triggers do NOT
+ *  shrink by default: an inactive trigger is a fixed label, and letting it give
+ *  width back would starve `類型` to `類…` to feed a neighbour's long value. Only a
+ *  trigger WIDE ENOUGH TO MATTER opts into `min-w-0 shrink`, so a long value
+ *  truncates and every other control keeps its label. */
 const PILL_TRIGGER = "h-7 rounded-full px-1.5 sm:px-2.5 text-xs gap-0.5 sm:gap-1";
+
+/** A trigger shrinks only when its own value is long. Flex splits a shortfall
+ *  across every `shrink` item, so marking a short one like 優先度 shrinkable makes
+ *  it give up characters to feed a long neighbour. Anything at or under the pill's
+ *  fixed labels (3 CJK chars) is `shrink-0`; a long value keeps a readable floor
+ *  and pushes the row into its horizontal scroll instead of collapsing to one
+ *  character. */
+const PILL_VALUE_MAX = "max-w-[9rem]";
+function pillShrink(label: string | undefined, fallback: string) {
+  const text = label ?? fallback;
+  return text.length > 4 ? `min-w-[4.5rem] ${PILL_VALUE_MAX}` : "shrink-0";
+}
 
 /** Past this scroll depth the pill replaces the header as the surface for the
  *  panel's filters (Q7). A UI constant, not shared state: the character pill's
@@ -519,12 +533,12 @@ export function MerchantPanel() {
           threshold, so only one of those surfaces is on screen at a time. */}
       <div
         className={cn(
-          "fixed left-1/2 -translate-x-1/2 z-30 w-max max-w-[calc(100svw-2rem)] transition-all duration-300",
+          "fixed left-1/2 -translate-x-1/2 z-30 w-[calc(100svw-2rem)] sm:w-max max-w-[calc(100svw-2rem)] transition-all duration-300",
           showPill ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
         )}
         style={{ top: isMobile ? 70 : 88 }}
       >
-        <div className="flex items-center gap-0.5 sm:gap-1.5 rounded-full border bg-card shadow-md px-1.5 py-1.5 sm:px-2.5 text-xs relative isolate overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-full items-center gap-0.5 sm:gap-1.5 rounded-full border bg-card shadow-md px-1.5 py-1.5 sm:px-2.5 text-xs relative isolate overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {pillSearchOpen ? (
             /* Search takes the whole row: on a phone a row of filters plus an
                inline field cannot fit, and a full-width field is a better
@@ -586,7 +600,7 @@ export function MerchantPanel() {
                     onChange={(value) => { setTown(value); setMerchant("all"); writeNpcParam("all"); }}
                     options={townOptions}
                     triggerLabel={town === "all" ? "城鎮" : undefined}
-                    triggerClassName={cn(PILL_TRIGGER, "max-w-[7rem]", town !== "all" && "border-primary text-primary")}
+                    triggerClassName={cn(PILL_TRIGGER, "max-w-none sm:max-w-[8rem]", pillShrink(town === "all" ? undefined : town, "城鎮"), town !== "all" && "border-primary text-primary")}
                   />
                   <MenuSelect
                     value={merchant}
@@ -594,7 +608,7 @@ export function MerchantPanel() {
                     onChange={selectNpc}
                     options={npcOptions}
                     triggerLabel={merchant === "all" ? "NPC" : undefined}
-                    triggerClassName={cn(PILL_TRIGGER, "max-w-[8rem]", merchant !== "all" && "border-primary text-primary")}
+                    triggerClassName={cn(PILL_TRIGGER, "max-w-none sm:max-w-[8rem]", pillShrink(merchant === "all" ? undefined : merchant, "NPC"), merchant !== "all" && "border-primary text-primary")}
                   />
                   <MenuMultiSelect
                     values={priorityFilter}
@@ -606,7 +620,7 @@ export function MerchantPanel() {
                        says a filter is live, and the menu shows the ticks. From
                        `sm` there is room for the full labels. */
                     triggerLabel={isMobile && priorityFilter.length > 0 ? "優先度" : undefined}
-                    triggerClassName={cn(PILL_TRIGGER, "max-w-[7rem]", priorityFilter.length > 0 && "border-primary text-primary")}
+                    triggerClassName={cn(PILL_TRIGGER, "max-w-none sm:max-w-[7rem]", pillShrink(isMobile ? "優先度" : priorityFilter.join(""), "優先度"), priorityFilter.length > 0 && "border-primary text-primary")}
                   />
                   <MenuSelect
                     value={kindFilter}
@@ -614,7 +628,7 @@ export function MerchantPanel() {
                     onChange={setKindFilter}
                     options={KIND_OPTIONS}
                     triggerLabel={kindFilter === "all" ? "類型" : undefined}
-                    triggerClassName={cn(PILL_TRIGGER, kindFilter !== "all" && "border-primary text-primary")}
+                    triggerClassName={cn(PILL_TRIGGER, "max-w-none sm:max-w-[6rem]", pillShrink(kindFilter === "all" ? undefined : kindFilter, "類型"), kindFilter !== "all" && "border-primary text-primary")}
                   />
                   <button
                     type="button"
