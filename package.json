@@ -12,10 +12,11 @@
     "lint": "oxlint",
     "test:migrations": "node scripts/check-migrations.mjs",
     "test:drag": "node scripts/check-drag-rules.mjs",
-    "check": "pnpm lint && pnpm test:shops && pnpm test:drag && pnpm test:migrations && pnpm test:sync && pnpm build",
+    "check": "pnpm lint && pnpm test:shops && pnpm test:icons && pnpm test:drag && pnpm test:migrations && pnpm test:sync && pnpm build",
     "test:sync": "node scripts/check-sync.mjs",
     "gen-splash": "node scripts/gen-splash.cjs",
     "test:shops": "node scripts/check-shops.mjs",
+    "test:icons": "node scripts/check-item-icons.mjs",
     "worker:deploy": "wrangler deploy --config workers/mabiroutine-worker/wrangler.jsonc"
   },
   "dependencies": {

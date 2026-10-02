@@ -45,21 +45,34 @@ display one, rather than by remembering not to fold:
   `getText`. `itemArtName` prefers `shopMeta.rawName` and falls back to `t.name` so a
   save written before the field existed still renders.
 
-### The second trap: `+` is not `%2B`
+### The second trap: encode the `+`, fix the dev server instead
 
 `itemIconPath` percent-encodes the name, and `encodeURIComponent` escapes `+` as
-`%2B`. That is right for a query value and wrong for a path segment: a `+` in a path
-is a literal plus (only its query-string meaning is a space), and the servers that
-resolve these files do not decode `%2B` back. Five names carry one — `布料+`, `皮革+`,
-`高級布料+`, `高級木材+`, `高級生皮+` — and all five missed, answering `index.html` at
-**200** with a `text/html` content type rather than a 404, so the request looked fine
-and the image failed at decode. The path builder unescapes `%2B` back to `+`; no name
-contains a literal `%`, so the substitution cannot corrupt another character.
+`%2B`. That is the form the URL must carry, and production is the authority: Vercel
+resolves `%2B` to `public/items/皮革+.webp`, while a literal `+` in the path is
+normalized to a space and 404s (measured against the PR preview, 2026-10-02). Five
+names carry one — `布料+`, `皮革+`, `高級布料+`, `高級木材+`, `高級生皮+` — and all
+five go out as `%2B`.
+
+The parens are the opposite case, and the reason this section is worth reading
+twice. `(` and `)` are RFC 3986 sub-delims like `+`, but unlike `+` the servers
+`+` was measured against do resolve them: Vercel serves `…設計圖(3級).webp` to the
+file (measured 2026-10-02), so the builder leaves them literal. Escaping them to
+`%28`/`%29` would be a different, unverified path, and `pnpm test:icons` pins the
+literal form rather than "tidying" it.
+
+Vite's DEV static layer is the outlier, not the reference: it leaves `%2B` encoded,
+so the path misses and the SPA fallback answers `index.html` at **200** with a
+`text/html` content type. That is the trap `vite.config.ts` handles, with a dev-only
+middleware that rewrites `%2B` back to `+` before the static middleware. App code
+stays server-agnostic and the files keep their literal `+` on disk; only the URL
+spelling is encoded.
 
 Both traps share the failure mode worth remembering on this page: **the miss is
 silent.** There is no manifest, so a wrong name is discovered only by the request
-failing, and Vite answers an unmatched path with the app's own HTML at 200 — the
-`<img>` reports the miss through a decode failure, not a status code.
+failing, and the two environments fail differently — Vite's dev server returns the
+app's own HTML at 200, production 404s. Either way the browser learns it from the
+`<img>`, not from a check the app can run.
 
 ## Art coverage
 

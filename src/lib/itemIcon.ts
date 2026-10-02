@@ -40,17 +40,15 @@ export function stripQty(name: string): string {
 export function itemIconPath(name: string | undefined | null): string | null {
   const trimmed = name ? stripQty(name).trim() : "";
   if (!trimmed) return null;
-  // `encodeURIComponent` escapes `+` as `%2B`, which is correct for a QUERY
-  // value but wrong for a PATH segment: the servers that resolve these files
-  // (Vite dev included) do not decode `%2B` back to `+`, so an encoded plus
-  // misses the file and the SPA fallback answers `index.html` at 200 with a
-  // `text/html` content type. The `<img>` then fails to DECODE, `onError`
-  // fires, and the icon renders as the placeholder — a silent miss, since the
-  // request never 404s. A literal `+` is legal in a path (only its
-  // query-string meaning is "space"), and that is how the five files are
-  // spelled on disk: 布料+, 皮革+, 高級布料+, 高級木材+, 高級生皮+. So unescape
-  // it again after encoding. `%2B` is the only sequence this produces for a
-  // legal filename, and no name contains a literal `%`, so the substitution
-  // cannot corrupt another character.
-  return `/items/${encodeURIComponent(trimmed).replace(/%2B/g, "+")}.webp`;
+  // `encodeURIComponent` is correct here, `+` included: a path segment must
+  // percent-encode a plus, and production is the authority on how that
+  // resolves. Vercel serves `%2B` to the file and normalizes a literal `+` to a
+  // space and 404s it (measured against the PR preview, 2026-10-02); Vite's dev
+  // static layer is the outlier, leaving `%2B` encoded so the SPA fallback
+  // answers `index.html` at 200 with a `text/html` content type and the `<img>`
+  // fails to DECODE rather than 404. `vite.config.ts` therefore rewrites `%2B`
+  // to `+` for `/items/` in dev only, so both environments resolve the same
+  // URL. The five files (布料+, 皮革+, 高級布料+, 高級木材+, 高級生皮+) keep
+  // their literal `+` on disk; only the URL spelling is encoded.
+  return `/items/${encodeURIComponent(trimmed)}.webp`;
 }

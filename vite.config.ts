@@ -7,6 +7,22 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    // Item art: `public/items/*+.webp` must be requested as `%2B` in production
+    // (Vercel 404s a literal `+`, normalizing it to a space — measured against
+    // the PR preview), but Vite's dev static layer does not decode `%2B` and
+    // answers the SPA fallback, so the encoded path silently misses in dev too.
+    // Rewrite `%2B` back to `+` before the static middleware so dev resolves the
+    // same URL production does and the app can stay server-agnostic. This hook
+    // is dev-only, so builds are untouched.
+    {
+      name: 'decode-encoded-plus-in-item-paths',
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          if (req.url?.startsWith('/items/')) req.url = req.url.replace(/%2B/gi, '+')
+          next()
+        })
+      },
+    },
     react(),
     tailwindcss(),
     VitePWA({

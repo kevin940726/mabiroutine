@@ -84,11 +84,15 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:drag` + `test:migrations` + `test:sync` + `build`. All six must pass.
+`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:drag` + `test:migrations` + `test:sync` + `build`. All seven must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
 `barter.json` (shape + currency + dup + no-trade-routes + shop-gold-only + twin cap parity).
+Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
+data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
+→ percent-encoded). The encoding has a silent failure mode in two directions, so
+it is pinned rather than left to a comment; see `docs/item-icons.md`.
 Drag rule: `pnpm test:drag` after touching `src/lib/dragRules.ts` or a drag
 handler. It asserts the hierarchy (`scripts/check-drag-rules.entry.ts`, bundled
 like the others): children reorder only within their own merchant group, rows
