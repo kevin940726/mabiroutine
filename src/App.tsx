@@ -472,7 +472,7 @@ export default function App() {
       <main id="main" tabIndex={-1} className={`${SHELL} px-4 py-6 space-y-6 focus:outline-none`}>
 
         {/* tabs */}
-        <div className="flex items-center gap-2 border-b" role="tablist" aria-label="主分頁">
+        <div className="flex items-center gap-2 border-b max-sm:gap-1.5" role="tablist" aria-label="主分頁">
           <button role="tab" aria-selected={tab === "tracker"} onClick={() => setTab("tracker")} className={`whitespace-nowrap px-3 py-2 text-sm font-medium border-b-2 -mb-px sm:px-4 ${tab === "tracker" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             任務追蹤
           </button>
@@ -482,7 +482,14 @@ export default function App() {
           <div className="ml-auto flex items-center gap-1 pb-1">
             <Button size="sm" onClick={openAdd}>
               <Plus className="h-4 w-4" />
-              新增自訂
+              {/* Below sm the label shortens to 自訂: at 320px the row needs 314px of
+                  content in a 288px box, so the full 新增自訂 (96px) overflowed by
+                  26px. The `+` icon always shows, so 自訂 still reads as "add a
+                  custom task" without spending the width on 新增. The full label
+                  returns at sm and up. Both spans stay in the DOM, so the button's
+                  accessible name is complete at every width. */}
+              <span className="sm:hidden">自訂</span>
+              <span className="hidden sm:inline">新增自訂</span>
             </Button>
           </div>
         </div>
