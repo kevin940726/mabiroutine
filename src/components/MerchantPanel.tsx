@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MapPin, RotateCcw, Search, ShoppingBag, Store } from "lucide-react";
+import { ArrowLeft, MapPin, RotateCcw, Search, ShoppingBag, Store, X } from "lucide-react";
 import { MenuSelect, MenuMultiSelect } from "@/components/MenuSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, focusSelectOnMount } from "@/lib/utils";
 import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
 import { displayName, parseItemQty } from "@/lib/materials";
 import { ShopGrid } from "@/components/shop/ShopGrid";
@@ -29,6 +30,44 @@ const FOCUS_FLASH_MS = 1600;
  *  indistinguishable from "no filter", and clearing would look like the only way to
  *  see rows it had been hiding. */
 const DEFAULT_PRIORITY = ["must", "extra"];
+
+/** The 優先度 / 類型 options, shared by the header's filter grid and the floating
+ *  pill so the two surfaces cannot drift apart (the pill duplicates the header
+ *  by design, but not the option list). */
+const PRIORITY_OPTIONS = [
+  { value: "must", label: "必換" },
+  { value: "extra", label: "推薦" },
+  { value: "once", label: "一次性" },
+  { value: "situational", label: "視需求" },
+];
+const KIND_OPTIONS = [
+  { value: "all", label: "全部類型" },
+  { value: "shop", label: "金幣" },
+  { value: "barter", label: "以物易物" },
+];
+
+/** The compact trigger treatment for the floating pill: the header field at pill
+ *  scale. twMerge resolves these against MenuSelect's h-9 / rounded-md / text-sm
+ *  defaults, so no variant flag is needed on the shared component. */
+const PILL_TRIGGER = "h-7 rounded-full px-2.5 text-xs gap-1";
+
+/** Past this scroll depth the pill replaces the header as the surface for the
+ *  panel's filters (Q7). A UI constant, not shared state: the character pill's
+ *  `compact` in App.tsx is independent. */
+const PILL_SCROLL_THRESHOLD = 200;
+
+/** Local scroll flag, so the pill needs no prop from App.tsx across the tab
+ *  Activity boundary. Mirrors the character pill's listener. */
+function useScrolledPast(threshold: number) {
+  const [past, setPast] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setPast(window.scrollY > threshold);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  return past;
+}
 
 /** Scroll the flashed tile into the middle of the viewport. "center" rather than
  *  "start": the card can sit directly under a tile, and a top-aligned scroll puts
@@ -196,6 +235,12 @@ export function MerchantPanel() {
   // was deleted; it has since been removed outright (store v20).
   const [priorityFilter, setPriorityFilter] = useState<string[]>(DEFAULT_PRIORITY);
   const [kindFilter, setKindFilter] = useState<string>("all");
+  // The floating filter pill (barter tab's replacement for the character pill).
+  // `showPill` re-derives the scroll threshold locally; `pillSearchOpen` is the
+  // pill's only own state — every filter it shows is the panel's (Q1).
+  const isMobile = useIsMobile();
+  const showPill = useScrolledPast(PILL_SCROLL_THRESHOLD);
+  const [pillSearchOpen, setPillSearchOpen] = useState(false);
   // The tile a jump just landed on, flashed and then cleared. Keyed by pinId, the
   // same id a pin uses: a curated barter row's `key` is the shop deal's key and is
   // absent when the row came from barter.json alone, while pinId is total.
@@ -213,6 +258,20 @@ export function MerchantPanel() {
   // merchant's grid rows — that is `npcRows`, derived from `items` below.
   const options = useMemo(() => filterItems(ALL_SHOP_ITEMS, town, ""), [town]);
   const groups = useMemo(() => groupItems(options), [options]);
+  // Option lists shared by the header grid and the floating pill.
+  const townOptions = useMemo(
+    () => [{ value: "all", label: "全部城鎮" }, ...towns.map((value) => ({ value, label: value }))],
+    [towns]
+  );
+  const npcOptions = useMemo(
+    () => [
+      { value: "all", label: "全部 NPC", icon: <span className="grid size-5 shrink-0 place-items-center rounded-full border bg-muted"><Store className="size-3" /></span> },
+      // grouped by town: the list is already town-ordered, so headings
+      // make that visible instead of leaving 36 rows to scan
+      ...groups.map((group) => ({ value: group.name, label: group.name, group: group.town, icon: <NpcFace npc={group.name} size="size-5" /> })),
+    ],
+    [groups]
+  );
   const items = useMemo(
     () =>
       filterItems(ALL_SHOP_ITEMS, town, query)
@@ -451,6 +510,118 @@ export function MerchantPanel() {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Floating filter pill — the barter tab's replacement for the character
+          pill (docs/plans/floating-pill-rework.md). It owns no filter state:
+          every control drives the panel's own useState, so the pill and the
+          header are two surfaces onto one state. It shows only past the scroll
+          threshold, so only one of those surfaces is on screen at a time. */}
+      <div
+        className={cn(
+          "fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300",
+          showPill ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+        )}
+        style={{ top: isMobile ? 70 : 88 }}
+      >
+        <div className="flex items-center gap-1.5 rounded-full border bg-card shadow-md px-2.5 py-1.5 w-max max-w-[calc(100svw-2rem)] flex-wrap justify-center text-xs relative isolate overflow-hidden">
+          {pillSearchOpen ? (
+            <div className="flex items-center gap-1">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  ref={focusSelectOnMount}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onBlur={() => { if (!query) setPillSearchOpen(false); }}
+                  placeholder="搜尋獎勵、材料、NPC"
+                  aria-label="搜尋獎勵、材料、NPC 或城鎮"
+                  className="h-7 w-44 rounded-full border border-input bg-background pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => { setQuery(""); setPillSearchOpen(false); }}
+                aria-label="清除搜尋"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPillSearchOpen(true)}
+              aria-label="搜尋"
+              className={cn(
+                "grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground",
+                query !== "" && "text-primary"
+              )}
+            >
+              <Search className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <div className="h-4 w-px bg-border shrink-0" />
+          {/* In 已選 view the header hides its grid filters (they do not apply to
+              the pinned list), so the pill mirrors that: search + 已選 N only. */}
+          {!selectedOnly && (
+            <>
+              <MenuSelect
+                value={town}
+                ariaLabel="城鎮"
+                onChange={(value) => { setTown(value); setMerchant("all"); writeNpcParam("all"); }}
+                options={townOptions}
+                triggerLabel={town === "all" ? "城鎮" : undefined}
+                triggerClassName={cn(PILL_TRIGGER, "max-w-[7rem]", town !== "all" && "border-primary text-primary")}
+              />
+              <MenuSelect
+                value={merchant}
+                ariaLabel="NPC"
+                onChange={selectNpc}
+                options={npcOptions}
+                triggerLabel={merchant === "all" ? "NPC" : undefined}
+                triggerClassName={cn(PILL_TRIGGER, "max-w-[8rem]", merchant !== "all" && "border-primary text-primary")}
+              />
+              <MenuMultiSelect
+                values={priorityFilter}
+                ariaLabel="優先度"
+                onChange={setPriorityFilter}
+                options={PRIORITY_OPTIONS}
+                triggerLabel={priorityFilter.length === 0 ? "優先度" : undefined}
+                triggerClassName={cn(PILL_TRIGGER, "max-w-[8rem]", priorityFilter.length > 0 && "border-primary text-primary")}
+              />
+              <MenuSelect
+                value={kindFilter}
+                ariaLabel="交易類型"
+                onChange={setKindFilter}
+                options={KIND_OPTIONS}
+                triggerLabel={kindFilter === "all" ? "類型" : undefined}
+                triggerClassName={cn(PILL_TRIGGER, kindFilter !== "all" && "border-primary text-primary")}
+              />
+              <button
+                type="button"
+                onClick={clearFilters}
+                disabled={!filtersActive}
+                aria-label="清除全部篩選"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+          <Button
+            type="button"
+            variant={selectedOnly ? "default" : "outline"}
+            size="sm"
+            aria-pressed={selectedOnly}
+            aria-label={`已選 ${barterPins.length} 筆交易`}
+            onClick={() => setSelectedOnly((value) => !value)}
+            className="h-7 shrink-0 rounded-full px-2.5 text-xs"
+          >
+            <ShoppingBag className="size-3.5" />
+            已選 {barterPins.length}
+          </Button>
+        </div>
+      </div>
+
       <header className="rounded-2xl border bg-card p-4 sm:p-5">
         <div className="mb-4">
           <h1 className="text-2xl font-semibold">商店 / 以物易物</h1>
@@ -484,42 +655,28 @@ export function MerchantPanel() {
             value={town}
             ariaLabel="城鎮"
             onChange={(value) => { setTown(value); setMerchant("all"); writeNpcParam("all"); }}
-            options={[{ value: "all", label: "全部城鎮" }, ...towns.map((value) => ({ value, label: value }))]}
+            options={townOptions}
             triggerClassName={cn("w-full", town !== "all" && "border-primary text-primary")}
           />
           <MenuSelect
             value={merchant}
             ariaLabel="NPC"
             onChange={selectNpc}
-            options={[
-              { value: "all", label: "全部 NPC", icon: <span className="grid size-5 shrink-0 place-items-center rounded-full border bg-muted"><Store className="size-3" /></span> },
-              // grouped by town: the list is already town-ordered, so headings
-              // make that visible instead of leaving 36 rows to scan
-              ...groups.map((group) => ({ value: group.name, label: group.name, group: group.town, icon: <NpcFace npc={group.name} size="size-5" /> })),
-            ]}
+            options={npcOptions}
             triggerClassName={cn("w-full", merchant !== "all" && "border-primary text-primary")}
           />
           <MenuMultiSelect
             values={priorityFilter}
             ariaLabel="優先度"
             onChange={setPriorityFilter}
-            options={[
-              { value: "must", label: "必換" },
-              { value: "extra", label: "推薦" },
-              { value: "once", label: "一次性" },
-              { value: "situational", label: "視需求" },
-            ]}
+            options={PRIORITY_OPTIONS}
             triggerClassName={cn("w-full", priorityFilter.length > 0 && "border-primary text-primary")}
           />
           <MenuSelect
             value={kindFilter}
             ariaLabel="交易類型"
             onChange={setKindFilter}
-            options={[
-              { value: "all", label: "全部類型" },
-              { value: "shop", label: "金幣" },
-              { value: "barter", label: "以物易物" },
-            ]}
+            options={KIND_OPTIONS}
             triggerClassName={cn("w-full", kindFilter !== "all" && "border-primary text-primary")}
           />
           <Button type="button" variant="ghost" onClick={clearFilters} disabled={!filtersActive} aria-label="清除全部篩選" className="h-9 shrink-0 self-center">

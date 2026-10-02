@@ -10,7 +10,7 @@ type MenuOption = { value: string; label: string; icon?: ReactNode; group?: stri
 // mobile, double-locks inside modal dialogs). One pattern everywhere:
 // barter filters + custom-task dialog (same non-modal pattern the character
 // switchers use directly).
-export function MenuSelect({ value, options, onChange, triggerClassName, placeholder, ariaLabel, contentClassName }: {
+export function MenuSelect({ value, options, onChange, triggerClassName, placeholder, ariaLabel, contentClassName, triggerLabel }: {
   value: string;
   options: MenuOption[];
   onChange: (v: string) => void;
@@ -19,6 +19,10 @@ export function MenuSelect({ value, options, onChange, triggerClassName, placeho
   /** Stable accessible name; without it the trigger is only named by its value. */
   ariaLabel?: string;
   contentClassName?: string;
+  /** Overrides the displayed trigger text without touching the option list, so a
+   *  compact surface (the floating pill) can read `城鎮` where the header reads
+   *  `全部城鎮` from the same options. Falls back to the current option's label. */
+  triggerLabel?: ReactNode;
 }) {
   const current = options.find((o) => o.value === value);
   return (
@@ -31,7 +35,7 @@ export function MenuSelect({ value, options, onChange, triggerClassName, placeho
             triggerClassName
           )}
         >
-          <span className="truncate">{current?.label ?? placeholder ?? value}</span>
+          <span className="truncate">{triggerLabel ?? current?.label ?? placeholder ?? value}</span>
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </button>
       </DropdownMenuTrigger>
@@ -78,13 +82,16 @@ const TRIGGER_CLASS =
  * "no filter" — with a radio you pick the all option, with checkboxes you would
  * either tick everything or have to know that unticking the last one clears it.
  */
-export function MenuMultiSelect({ values, options, onChange, triggerClassName, ariaLabel, contentClassName }: {
+export function MenuMultiSelect({ values, options, onChange, triggerClassName, ariaLabel, contentClassName, triggerLabel }: {
   values: string[];
   options: MenuOption[];
   onChange: (v: string[]) => void;
   triggerClassName?: string;
   ariaLabel?: string;
   contentClassName?: string;
+  /** Same compact-surface override as MenuSelect: `優先度` on a pill where the
+   *  header would read `全部優先度`. Falls back to the selected labels. */
+  triggerLabel?: ReactNode;
 }) {
   const selected = options.filter((o) => values.includes(o.value));
   const toggle = (value: string) =>
@@ -97,7 +104,7 @@ export function MenuMultiSelect({ values, options, onChange, triggerClassName, a
           className={cn(TRIGGER_CLASS, triggerClassName)}
         >
           <span className="truncate">
-            {selected.length === 0 ? "全部優先度" : selected.map((o) => o.label).join("、")}
+            {triggerLabel ?? (selected.length === 0 ? "全部優先度" : selected.map((o) => o.label).join("、"))}
           </span>
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </button>
