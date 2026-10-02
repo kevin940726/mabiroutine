@@ -378,7 +378,12 @@ export function unflattenReplace(flat: FlatMap, version: number): AppState & { v
     taskBuckets,
     lastDailyReset: currentDailyBucket(now),
     lastWeeklyReset: getTaipeiWeekKey(now),
-    prefs: { hideCompleted: flat["pref:hideCompleted"] === true },
+    // Fresh adopt: the fold is per-device and NOT synced (see the header note on
+    // pinnedCollapsed), so it resets to the documented default rather than
+    // carrying whatever the adopting device happened to have open. Written out
+    // rather than left for normalizePersisted to backfill, so the literal
+    // satisfies `prefs` on its own and the cast below is not hiding a hole.
+    prefs: { hideCompleted: flat["pref:hideCompleted"] === true, pinnedCollapsed: { daily: false, weekly: false } },
     // NOTE: globalTaskOrder intentionally omitted — ordering is per-device
     // local; applySnapshot keeps the current value when the key is absent.
   } as AppState & { version: number };

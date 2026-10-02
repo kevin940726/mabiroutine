@@ -393,6 +393,33 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     return { slots, slotOf };
   }, [cycleBarter]);
 
+  // The ids ACTUALLY rendered, which is what `SortableContext` must declare. It has
+  // to be derived from the FILTERED list, because hiding a pin changes the shape: a
+  // two-pin merchant whose other pin is hidden collapses to a lone `TaskRow` (id is
+  // the task id), and a fully-hidden merchant renders nothing. Declaring the
+  // unfiltered `pinSlots.slots` left dnd-kit holding ids no node registered, so the
+  // sorting strategy measured phantom slots. The DRAG WRITE still uses `pinSlots`:
+  // the stored order is the full pin order, and flattening a filtered list back into
+  // it would drop the hidden pins.
+  const renderedSlots = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of barterSubtasksFiltered) {
+      const npc = t.npc ?? "其他";
+      counts.set(npc, (counts.get(npc) ?? 0) + 1);
+    }
+    const seen = new Set<string>();
+    const slots: string[] = [];
+    for (const t of barterSubtasksFiltered) {
+      const npc = t.npc ?? "其他";
+      const s = (counts.get(npc) ?? 0) > 1 ? bandId(npc) : t.id;
+      if (!seen.has(s)) {
+        seen.add(s);
+        slots.push(s);
+      }
+    }
+    return slots;
+  }, [barterSubtasksFiltered]);
+
   const handleBarterDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
@@ -541,7 +568,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
                   // group grip drags by its first child's id, so the existing
                   // reorder handler orders groups without change.
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleBarterDragEnd}>
-                    <SortableContext items={pinSlots.slots} strategy={verticalListSortingStrategy}>
+                    <SortableContext items={renderedSlots} strategy={verticalListSortingStrategy}>
                       <PinnedGroups
                         rows={barterSubtasksFiltered.map((bt) => ({
                           task: bt,

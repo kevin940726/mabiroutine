@@ -81,6 +81,10 @@ export type ShopProps = {
   onOpenNpc?: (npc: string) => void;
   /** pinId of the tile a jump just landed on — flashed, then cleared by the caller. */
   focusKey?: string | null;
+  /** Keep the caller's array order instead of sorting by priority. The 已選 view is
+   *  the one caller that wants this: its promise is selection order, which
+   *  `compareRows` would overwrite. */
+  preserveOrder?: boolean;
 };
 
 /**
@@ -241,14 +245,18 @@ export function TradeGrid({
   items,
   byNpc,
   splitKind,
+  preserveOrder,
   renderTile,
 }: {
   items: ShopRow[];
   byNpc?: boolean;
   splitKind?: boolean;
+  preserveOrder?: boolean;
   renderTile: (item: ShopRow, showBand: boolean) => React.ReactNode;
 }) {
-  const sorted = [...items].sort(compareRows);
+  // preserveOrder keeps the caller's sequence (the 已選 view's selection order);
+  // otherwise sort by priority tier, which is the shop's reading order.
+  const sorted = preserveOrder ? [...items] : [...items].sort(compareRows);
 
   const keyed = new Map<string, ShopRow[]>();
   for (const i of sorted) {

@@ -207,6 +207,10 @@ export function MerchantPanel() {
   const togglePin = useAppStore((s) => s.toggleBarterPin);
 
   const towns = useMemo(() => [...new Set(ALL_SHOP_ITEMS.map((item) => item.town))].sort(compareTowns), []);
+  // The merchant PICKER and the header's town use these: the option list should
+  // show every merchant in a town regardless of the priority/kind/search filters,
+  // so this is intentionally town-only. It is NOT the source of the selected
+  // merchant's grid rows — that is `npcRows`, derived from `items` below.
   const options = useMemo(() => filterItems(ALL_SHOP_ITEMS, town, ""), [town]);
   const groups = useMemo(() => groupItems(options), [options]);
   const items = useMemo(
@@ -224,7 +228,15 @@ export function MerchantPanel() {
   );
 
   const selected = merchant === "all" ? null : groups.find((group) => group.name === merchant) ?? null;
-  const npcRows = selected?.rows ?? [];
+  // The selected merchant's rows come from the SAME fully-filtered `items` list,
+  // not from `options`/`groups`. Those carry only the town filter, so sourcing the
+  // grid from them silently dropped 優先度, 類型 and the search box the moment a
+  // merchant was picked — the opposite of what openNpc promises ("keeps the current
+  // filters ... wants that merchant's 必換 rows, not an unfiltered dump").
+  const npcRows = useMemo(
+    () => (merchant === "all" ? [] : items.filter((item) => item.npc === merchant)),
+    [items, merchant]
+  );
   // Pinned rows resolve through barter.json, so a pin made in the tracker (or on
   // another device) shows here even when that row is not in shops.json. Matched
   // on pinId, not barterId: a gold pin has no barter.json id and would be
@@ -236,7 +248,13 @@ export function MerchantPanel() {
     const orphans = (barterJson as (typeof barterJson)[number][])
       .filter((row) => wanted.has(row.id) && !seen.has(row.id))
       .map((row) => barterRowToItem(row));
-    return [...fromShops, ...orphans].filter((item) => rowMatches(item, query));
+    // Selection order. The 已選 view promises "依選取順序" and pins are appended as
+    // they are made, so `barterPins` IS that order; a row missing from it (a pin
+    // that did not resolve) sorts last rather than being dropped.
+    const rank = new Map(barterPins.map((id, i) => [id, i]));
+    return [...fromShops, ...orphans]
+      .filter((item) => rowMatches(item, query))
+      .sort((a, b) => (rank.get(a.pinId) ?? Infinity) - (rank.get(b.pinId) ?? Infinity));
   }, [barterPins, query]);
 
   /** Flash a tile and scroll to it. Shared by the in-card 在商店中查看 jump and the
@@ -337,7 +355,6 @@ export function MerchantPanel() {
     url.searchParams.delete("npc");
     url.searchParams.delete("item");
     window.history.replaceState(null, "", url.toString());
-    if (!npc && !item) return;
     // ?item= wins: it names an exact row, and knows its own NPC.
     const target = item ? ALL_SHOP_ITEMS.find((row) => row.pinId === item) : undefined;
     if (target) {
@@ -346,12 +363,15 @@ export function MerchantPanel() {
       focusTile(target.pinId);
       return;
     }
-    // Bare ?npc= (or an ?item= that no longer resolves — a data edit retires row
-    // ids), which degrades to the merchant's section rather than a blank view.
+    // Fall back to ?npc=, which covers both a bare NPC link and an ?item= whose row
+    // was retired by a data edit. A stale ?item= with NO npc lands on the default
+    // view: there is no merchant to degrade to, and inventing one would be worse
+    // than the unfiltered shop.
+    if (!npc) return;
     const group = groupItems(ALL_SHOP_ITEMS).find((entry) => entry.name === npc);
     if (!group) return;
     setTown("all");
-    setMerchant(npc!);
+    setMerchant(npc);
   }, [focusTile]);
 
   const writeNpcParam = (name: string) => {
@@ -388,11 +408,15 @@ export function MerchantPanel() {
   // the one control that reveals those rows looking disabled on the very screen it
   // applies to. Pressing it empties the filter to all rows, so the outcome matches the
   // promise: enabled on load, disabled after it clears.
-  const filtersActive = town !== "all" || merchant !== "all" || priorityFilter.length > 0 || kindFilter !== "all";
+  // The search box is a filter too: with only a query typed the reset has something
+  // to clear, so it is part of "active" and gets cleared below.
+  const filtersActive =
+    town !== "all" || merchant !== "all" || priorityFilter.length > 0 || kindFilter !== "all" || query !== "";
 
   const clearFilters = () => {
     setTown("all");
     setMerchant("all");
+    setQuery("");
     // Empties the priority filter to show all 194 rows, the literal meaning of 清除.
     // The 必換+推薦 default is a starting view, not a floor: re-ticking the two tiers
     // in the 優先度 menu is how you get back, and the menu shows its state so that is
@@ -526,6 +550,7 @@ export function MerchantPanel() {
               focusKey={focusKey}
               byNpc
               splitKind
+              preserveOrder
             />
           ) : (
             <div className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">尚無已選交易</div>

@@ -13,12 +13,14 @@ export function ShopGrid({
   onViewInShop,
   onOpenNpc,
   focusKey,
+  preserveOrder,
 }: ShopProps) {
   return (
     <TradeGrid
       items={items}
       byNpc={byNpc}
       splitKind={splitKind}
+      preserveOrder={preserveOrder}
       renderTile={(item, showBand) => (
         <Tile
           key={item.key}

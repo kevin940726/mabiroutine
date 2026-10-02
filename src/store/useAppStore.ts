@@ -1030,9 +1030,12 @@ export const useAppStore = create<Store>()(
         }),
       toggleHidden: (taskId) =>
         set((s) => {
-          // account-section tasks AND server-shared barter hide globally
-          // (shared state, like accountValues)
-          if (isAccountTaskId(taskId, s.customTasks) || isServerSharedBarterId(taskId)) {
+          // account-section tasks AND server-shared barter/shop hide globally
+          // (shared state, like accountValues). isServerSharedPinId covers BOTH
+          // pin namespaces: a `shop::` row can be scope "account" too, and the
+          // barter-only predicate missed those, so their eye wrote per-character
+          // hidden state while the row read the account list.
+          if (isAccountTaskId(taskId, s.customTasks) || isServerSharedPinId(taskId)) {
             const isHidden = (s.hiddenAccountTaskIds ?? []).includes(taskId);
             return {
               hiddenAccountTaskIds: isHidden
@@ -1053,7 +1056,7 @@ export const useAppStore = create<Store>()(
         }),
       isTaskHidden: (taskId) => {
         const s = get();
-        if (isAccountTaskId(taskId, s.customTasks) || isServerSharedBarterId(taskId))
+        if (isAccountTaskId(taskId, s.customTasks) || isServerSharedPinId(taskId))
           return (s.hiddenAccountTaskIds ?? []).includes(taskId);
         return s.getActiveChar()?.hiddenTaskIds.includes(taskId) ?? false;
       },
