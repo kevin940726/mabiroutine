@@ -75,8 +75,10 @@ function useGroupToggle() {
  *  - `body` is the expanded children block. Tinting it is what makes an open group
  *    read as one unit instead of a parent with loose rows hanging off it.
  *
- *  The parent CARD is deliberately not tinted: it keeps the row's own neutral shell
- *  so the two read as the same component, with violet as a section marker only. */
+ *  The parent CARD is not tinted on the group's account: it keeps the row's own
+ *  neutral shell so the two read as the same component, with violet as a section
+ *  marker only. It does take the row's `bg-muted/50` completion tint, because a
+ *  done group must read as done the way a done row does. */
 const VIOLET_STRIP = "bg-violet-500/15 text-violet-700 dark:bg-violet-400/[0.10] dark:text-violet-300";
 const VIOLET_BODY = "bg-violet-50/50 dark:bg-violet-400/[0.04]";
 
@@ -364,9 +366,11 @@ function Group({
 
   return (
     <div data-pin-group={title} data-pin-group-state={state}>
-      {/* The parent IS a row: the row's own shell, untinted. Violet appears only on
-          the strip and, when open, the children block — so a parent is
-          indistinguishable from a row except for its bottom capsule.
+      {/* The parent IS a row: the row's own shell, tinted only on COMPLETION,
+          exactly as a row is. Violet appears on the strip and, when open, the
+          children block — so a parent is indistinguishable from a row except for
+          its bottom capsule, and a fully-done group goes flat like any other done
+          row.
 
           The sortable ref sits on THIS div, not the wrapper around it: the wrapper
           also contains the expanded children block, so measuring it made the
@@ -375,7 +379,21 @@ function Group({
           of the thing being dragged, which is what made the preview look squashed.
           Keeping the children outside the measured node lets them ride along
           untouched. */}
-      <div ref={setNodeRef} style={gripStyle} className={cn(isMobile ? ROW_SHELL_MOBILE : ROW_SHELL_DESKTOP)}>
+      <div
+        ref={setNodeRef}
+        style={gripStyle}
+        className={cn(
+          isMobile ? ROW_SHELL_MOBILE : ROW_SHELL_DESKTOP,
+          // A parent reads "done" the way a row does: its card takes the same
+          // `bg-muted/50 border-muted` a completed TaskRow uses (both variants),
+          // so a fully-ticked group sits in the list with the same colour scheme
+          // instead of staying the neutral card colour while every other done row
+          // goes flat. `full` is the group's `isDone`: every child done. The
+          // violet strip and body still mark the group as a group, so the tint
+          // marks COMPLETION and nothing else.
+          state === "full" ? "bg-muted/50 border-muted" : "",
+        )}
+      >
         {fullRowTarget}
         {isMobile ? (
           <div className="flex items-start gap-2">
