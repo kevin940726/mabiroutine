@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MapPin, RotateCcw, Search, ShoppingBag, Store, X } from "lucide-react";
+import { ArrowLeft, MapPin, RotateCcw, Search, ShoppingBag, SlidersHorizontal, Store, X } from "lucide-react";
 import { MenuSelect, MenuMultiSelect } from "@/components/MenuSelect";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { cn, focusSelectOnMount } from "@/lib/utils";
 import { compareTowns } from "@/lib/towns";
@@ -46,26 +47,14 @@ const KIND_OPTIONS = [
   { value: "barter", label: "以物易物" },
 ];
 
-/** The compact trigger treatment for the floating pill: the header field at pill
- *  scale. twMerge resolves these against MenuSelect's h-9 / rounded-md / text-sm
- *  defaults, so no variant flag is needed on the shared component. Triggers do NOT
- *  shrink by default: an inactive trigger is a fixed label, and letting it give
- *  width back would starve `類型` to `類…` to feed a neighbour's long value. Only a
- *  trigger WIDE ENOUGH TO MATTER opts into `min-w-0 shrink`, so a long value
- *  truncates and every other control keeps its label. */
-const PILL_TRIGGER = "h-7 rounded-full px-1.5 sm:px-2.5 text-xs gap-0.5 sm:gap-1";
-
-/** A trigger shrinks only when its own value is long. Flex splits a shortfall
- *  across every `shrink` item, so marking a short one like 優先度 shrinkable makes
- *  it give up characters to feed a long neighbour. Anything at or under the pill's
- *  fixed labels (3 CJK chars) is `shrink-0`; a long value keeps a readable floor
- *  and pushes the row into its horizontal scroll instead of collapsing to one
- *  character. */
-const PILL_VALUE_MAX = "max-w-[9rem]";
-function pillShrink(label: string | undefined, fallback: string) {
-  const text = label ?? fallback;
-  return text.length > 4 ? `min-w-[4.5rem] ${PILL_VALUE_MAX}` : "shrink-0";
-}
+/** The compact trigger treatment for the floating pill. No fixed `h-*`: a px
+ *  height does not grow with the browser font size, so at a 32px root the text
+ *  was already taller than `h-7` and spilled out of a control that had gone
+ *  circular. `h-auto min-h-7` lets the control take its text's height, `shrink-0`
+ *  keeps the label on one line, and `whitespace-nowrap` stops it wrapping into a
+ *  column. The built-in `h-9` from MenuSelect is overridden explicitly (`h-auto`
+ *  after it in the merge order). */
+const PILL_TRIGGER = "h-auto min-h-7 shrink-0 rounded-full px-1.5 sm:px-2.5 text-xs gap-0.5 sm:gap-1 whitespace-nowrap";
 
 /** Past this scroll depth the pill replaces the header as the surface for the
  *  panel's filters (Q7). A UI constant, not shared state: the character pill's
@@ -488,6 +477,14 @@ export function MerchantPanel() {
   const filtersActive =
     town !== "all" || merchant !== "all" || priorityFilter.length > 0 || kindFilter !== "all" || query !== "";
 
+  // How many of the pill's four filter groups carry a narrowing value, for the
+  // 篩選 trigger's badge. Counted per GROUP, not per value, so ticking three
+  // 優先度 tiers reads 1 rather than 3 — the badge answers "how many things do I
+  // go into the drawer to change", which is what the trigger promises.
+  // `query` is excluded: it has its own control on the pill.
+  const activeFilterCount =
+    (town !== "all" ? 1 : 0) + (merchant !== "all" ? 1 : 0) + (priorityFilter.length > 0 ? 1 : 0) + (kindFilter !== "all" ? 1 : 0);
+
   const clearFilters = () => {
     setTown("all");
     setMerchant("all");
@@ -553,13 +550,13 @@ export function MerchantPanel() {
                 onKeyDown={(event) => { if (event.key === "Escape") { setQuery(""); setPillSearchOpen(false); } }}
                 placeholder="搜尋獎勵、材料、NPC 或城鎮"
                 aria-label="搜尋獎勵、材料、NPC 或城鎮"
-                className="h-7 min-w-0 flex-1 rounded-full border border-input bg-background px-2.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-auto min-h-7 min-w-0 flex-1 rounded-full border border-input bg-background px-2.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <button
                 type="button"
                 onClick={() => { setQuery(""); setPillSearchOpen(false); }}
                 aria-label="清除搜尋"
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="grid h-auto min-h-7 w-auto min-w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -574,7 +571,7 @@ export function MerchantPanel() {
                   onClick={clearFilters}
                   aria-label={`清除搜尋「${query}」`}
                   title={`搜尋：${query}`}
-                  className="flex h-7 min-w-0 max-w-[8rem] shrink items-center gap-1 rounded-full border border-primary px-2 text-xs text-primary"
+                  className="flex h-auto min-h-7 min-w-0 max-w-[8rem] shrink items-center gap-1 rounded-full border border-primary px-2 text-xs text-primary"
                 >
                   <Search className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{query}</span>
@@ -585,7 +582,7 @@ export function MerchantPanel() {
                   type="button"
                   onClick={() => setPillSearchOpen(true)}
                   aria-label="搜尋"
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="grid h-auto min-h-7 w-auto min-w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
                   <Search className="h-3.5 w-3.5" />
                 </button>
@@ -593,55 +590,101 @@ export function MerchantPanel() {
               {/* In 已選 view the header hides its grid filters (they do not apply
                   to the pinned list), so the pill mirrors that: search + 已選 only. */}
               {!selectedOnly && (
-                <>
-                  <MenuSelect
-                    value={town}
-                    ariaLabel="城鎮"
-                    onChange={(value) => { setTown(value); setMerchant("all"); writeNpcParam("all"); }}
-                    options={townOptions}
-                    triggerLabel={town === "all" ? "城鎮" : undefined}
-                    triggerClassName={cn(PILL_TRIGGER, "max-w-none sm:max-w-[8rem]", pillShrink(town === "all" ? undefined : town, "城鎮"), town !== "all" && "border-primary text-primary")}
-                  />
-                  <MenuSelect
-                    value={merchant}
-                    ariaLabel="NPC"
-                    onChange={selectNpc}
-                    options={npcOptions}
-                    triggerLabel={merchant === "all" ? "NPC" : undefined}
-                    triggerClassName={cn(PILL_TRIGGER, "max-w-none sm:max-w-[8rem]", pillShrink(merchant === "all" ? undefined : merchant, "NPC"), merchant !== "all" && "border-primary text-primary")}
-                  />
-                  <MenuMultiSelect
-                    values={priorityFilter}
-                    ariaLabel="優先度"
-                    onChange={setPriorityFilter}
-                    options={PRIORITY_OPTIONS}
-                    /* On a phone the default pair would print 必換、推薦 and eat
-                       ~36px the row does not have; the highlighted border already
-                       says a filter is live, and the menu shows the ticks. From
-                       `sm` there is room for the full labels. */
-                    triggerLabel={isMobile && priorityFilter.length > 0 ? "優先度" : undefined}
-                    triggerClassName={cn(PILL_TRIGGER, "max-w-none sm:max-w-[7rem]", pillShrink(isMobile ? "優先度" : priorityFilter.join(""), "優先度"), priorityFilter.length > 0 && "border-primary text-primary")}
-                  />
-                  <MenuSelect
-                    value={kindFilter}
-                    ariaLabel="交易類型"
-                    onChange={setKindFilter}
-                    options={KIND_OPTIONS}
-                    triggerLabel={kindFilter === "all" ? "類型" : undefined}
-                    triggerClassName={cn(PILL_TRIGGER, "max-w-none sm:max-w-[6rem]", pillShrink(kindFilter === "all" ? undefined : kindFilter, "類型"), kindFilter !== "all" && "border-primary text-primary")}
-                  />
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    disabled={!filtersActive}
-                    aria-label="清除全部篩選"
-                    title="清除全部篩選"
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:flex sm:w-auto sm:gap-1 sm:px-2.5"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">清除</span>
-                  </button>
-                </>
+                <Drawer>
+                  <DrawerTrigger asChild>
+                    {/* One trigger for all four filters. Four separate triggers
+                        could not survive a larger browser font size: each keeps
+                        its own label, so the row's width scales with the text and
+                        overflows. Collapsing them to one keeps the row at three
+                        items, which fits every font size (measured ~228px at a
+                        28px root against a ~334px row). */}
+                    <button
+                      type="button"
+                      className={cn(
+                        PILL_TRIGGER,
+                        "flex items-center border border-input bg-transparent shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        activeFilterCount > 0 && "border-primary text-primary"
+                      )}
+                      aria-label={activeFilterCount > 0 ? `篩選（${activeFilterCount} 項已套用）` : "篩選"}
+                    >
+                      {/* The funnel is the Filters icon; the old RotateCcw reset
+                          stays in the drawer's footer, where it can say 清除篩選. */}
+                      <SlidersHorizontal className="h-3.5 w-3.5 shrink-0" />
+                      篩選
+                      {activeFilterCount > 0 && (
+                        <span className="grid h-4 min-w-4 shrink-0 place-items-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </button>
+                  </DrawerTrigger>
+                  <DrawerContent aria-describedby={undefined}>
+                    <DrawerHeader>
+                      <DrawerTitle>篩選商店</DrawerTitle>
+                      <DrawerDescription>選擇 NPC 後，於頁籤內瀏覽完整內容</DrawerDescription>
+                    </DrawerHeader>
+                    {/* Each group keeps the SAME control the header grid uses, so
+                        one surface cannot drift from the other; the drawer only
+                        gives them a full-width row and a label of their own. */}
+                    <div className="flex flex-col gap-3 overflow-y-auto">
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">城鎮</span>
+                        <MenuSelect
+                          value={town}
+                          ariaLabel="城鎮"
+                          onChange={(value) => { setTown(value); setMerchant("all"); writeNpcParam("all"); }}
+                          options={townOptions}
+                          triggerClassName="w-full"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">NPC</span>
+                        <MenuSelect
+                          value={merchant}
+                          ariaLabel="NPC"
+                          onChange={selectNpc}
+                          options={npcOptions}
+                          triggerClassName="w-full"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">優先度</span>
+                        <MenuMultiSelect
+                          values={priorityFilter}
+                          ariaLabel="優先度"
+                          onChange={setPriorityFilter}
+                          options={PRIORITY_OPTIONS}
+                          triggerClassName="w-full"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">類型</span>
+                        <MenuSelect
+                          value={kindFilter}
+                          ariaLabel="交易類型"
+                          onChange={setKindFilter}
+                          options={KIND_OPTIONS}
+                          triggerClassName="w-full"
+                        />
+                      </label>
+                    </div>
+                    <DrawerFooter className="flex-row gap-2 border-t pt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={clearFilters}
+                        disabled={!filtersActive}
+                        className="flex-1"
+                      >
+                        <RotateCcw />
+                        清除篩選
+                      </Button>
+                      <DrawerClose asChild>
+                        <Button type="button" className="flex-1">完成</Button>
+                      </DrawerClose>
+                    </DrawerFooter>
+                  </DrawerContent>
+                </Drawer>
               )}
               <Button
                 type="button"
@@ -651,7 +694,7 @@ export function MerchantPanel() {
                 aria-label={`已選 ${barterPins.length} 筆交易（${selectedOnly ? "檢視中" : "檢視"}）`}
                 title={`已選 ${barterPins.length}`}
                 onClick={() => setSelectedOnly((value) => !value)}
-                className="h-7 shrink-0 rounded-full px-1.5 sm:w-auto sm:px-2.5"
+                className="h-auto min-h-7 shrink-0 rounded-full px-1.5 sm:w-auto sm:px-2.5"
               >
                 <ShoppingBag className="size-3.5" />
                 <span className="hidden sm:inline">已選 {barterPins.length}</span>
