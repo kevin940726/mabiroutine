@@ -265,7 +265,11 @@ export default function App() {
         </div>
       </div>
 
-      {isMobile ? (
+      {/* The character pill is tracker-only. In the barter tab it carried state
+          that tab never reads (a character name and progress ring over a grid
+          whose pins are global), so that tab gets its own filter pill instead —
+          rendered inside MerchantPanel, which owns the filter state. */}
+      {tab === "tracker" && (isMobile ? (
       <>
       {/* compact pill — single line: progress + ‹ char › stepper + add + ⋯ menu */}
       <div
@@ -467,7 +471,7 @@ export default function App() {
         </div>
       </div>
       </>
-      )}
+      ))}
 
       <main id="main" tabIndex={-1} className={`${SHELL} px-4 py-6 space-y-6 focus:outline-none`}>
 
