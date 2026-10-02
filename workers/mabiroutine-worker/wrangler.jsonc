@@ -4,9 +4,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
-  // UTC == Taipei minute (+8 fixed, no DST). Hourly barrier tick, flat
-  // 1-min purple check (arithmetic covers the 36h15m cycle), 2x/day watcher.
+  // UTC == Taipei minute (+8 fixed, no DST). Hourly barrier tick at :59 —
+  // EXPERIMENT 2026-10-02 (see docs/operations.md §2): the platform delivers
+  // the :00 tick at :00:58, so cards land :01; revert to "0 * * * *" if the
+  // :59 tick lands on time and cards arrive :59:xx. Flat 1-min purple check
+  // (arithmetic covers the 36h15m cycle), 2x/day watcher.
   // Cron edits take up to ~15 min to propagate (CF-documented).
-  "triggers": { "crons": ["0 * * * *", "* * * * *", "17 3,15 * * *"] },
+  "triggers": { "crons": ["59 * * * *", "* * * * *", "17 3,15 * * *"] },
   "kv_namespaces": [{ "binding": "PURPLE", "id": "2c35b0732c9a4ebd8d3088824fdc9401" }]
 }

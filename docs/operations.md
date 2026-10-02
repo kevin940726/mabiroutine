@@ -28,12 +28,30 @@ file to update when operations change. Design rationale lives in
 
 | Cron (UTC) | Taipei | Job | Healthy log line |
 |---|---|---|---|
-| `0 * * * *` | :00 hourly | barrier fanout | `barrier fanout … fanned-out` / `past-cutoff` / `no-subs` |
+| `59 * * * *` | :59 fire (≈:00 arrival — experiment 2026-10-02, see below) | barrier fanout | `barrier fanout … fanned-out` / `past-cutoff` / `no-subs` |
 | `* * * * *` | every minute | purple tick → fanout when a spawn is within 15 min (pages the lane, ~30 sends/tick) | `purple fanout … fanned-out` / `retry-pending` (page had zero deliveries, held for the next tick) / `no-spawn` / `fired-already` |
 | `17 3,15 * * *` | 11:17 / 23:17 daily | Bahamut watcher → candidates → auto-apply | `purple watch … {"windows": N, "applied": bool}` |
 
 Cron edits take ~15 min to propagate (CF-documented). Tail with
 `pnpm wrangler tail --config workers/mabiroutine-worker/wrangler.jsonc`.
+
+### Experiment 2026-10-02: barrier tick at :59 (worker only)
+
+Platform delivers the `:00` tick at :00:58 (`at` stamps `20:00:58Z` hourly and
+`19:59:58Z` on the per-minute tick; fanout wall 2.5s for 20 subs), so server
+cards land :01 on every device. Hypothesis: the ~58s phase is constant across
+minutes → firing at :59 lands completion ≈:00:00 and arrival ≈:00:0x. Scope is
+worker cron + dispatch only; the local open-app timer still fires :00:00.x.
+Costs accepted for the experiment: the roster snapshot reads ~60s earlier (a
+completion at :59:30 still nags) and the fire precedes the :00 soft ping
+(arrival still pairs with it). The staleness guard is carved out for the last
+minute before the hour — without it every `:59` tick would skip as
+past-cutoff and send nothing.
+Verify: next ticks' `barrier fanout <at>` stamps + `reason` fields + device
+arrival times.
+Decide after 2–3 ticks: arrival :00:0x → keep; :59:xx → revert.
+Revert: `59 * * * *` → `0 * * * *` in `wrangler.jsonc` + `src/index.ts`
+dispatch, one `worker:deploy` (cron propagation ~15 min).
 
 ## 3. KV inventory (`PURPLE`, id `2c35b0732c9a4ebd8d3088824fdc9401`)
 

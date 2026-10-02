@@ -113,7 +113,7 @@ flips. Any Phase 1 subscribe flow must preserve this ordering; never call
 ## 4. Architecture (Phase 1+)
 
 ```
-CF Worker cron (0 * * * * UTC == Taipei :00)
+CF Worker cron (59 * * * * UTC, fires :59 for ≈:00 arrival — experiment 2026-10-02, see operations.md §2)
   → staleness guard (skip past :02:00 Taipei) → read subs from Turso
     (raw /v2/pipeline over fetch) → WebCrypto send, concurrency 20,
       VAPID JWT signed once per push origin per run
