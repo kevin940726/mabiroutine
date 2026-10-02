@@ -144,9 +144,9 @@ export function isServerSharedBarterId(id: string): boolean {
 
 // One resolver for both pin namespaces. barterPins holds curated barter ids
 // and shops.json ids, so every consumer that used to reach straight for
-// barterJson.find() silently skipped the shop half — including 清除本區, which
-// is why a gold counter would never have been clearable. Deal data is resolved
-// once here instead of at each of those call sites.
+// barterJson.find() silently skipped the shop half — including clearSection,
+// which is why a gold counter would never have been clearable. Deal data is
+// resolved once here instead of at each of those call sites.
 const SHOP_DEALS_BY_PIN = shopDealsByPinId();
 
 /** Reset cycle of a pinned row, from either namespace. */
@@ -946,7 +946,7 @@ export const useAppStore = create<Store>()(
             idsToClear.add(t.id);
           }
           // barter pins clear with their own cycle (daily pins with 每日,
-          // weekly pins with 每週) so 清除本區 never touches the other cycle.
+          // weekly pins with 每週) so a section clear never touches the other cycle.
           // pinCycleOf reads both namespaces, so a shop:: counter clears with
           // its cycle too instead of being skipped as an unknown id.
           if (section === "daily" || section === "weekly") {
@@ -958,7 +958,7 @@ export const useAppStore = create<Store>()(
           const { values: nextVal, touched } = zeroOut(target.taskValues, idsToClear);
           const nextChars = s.characters.map((c) => (c.id === s.activeCharId ? { ...c, taskValues: nextVal } : c));
           // server-shared pins render in this cycle's subsection but live in
-          // accountValues — 清除本區 clears them too (they belong to this
+          // accountValues — a section clear clears them too (they belong to this
           // cycle's UI, and the pool is shared so one clear clears for all).
           const sharedIds = new Set(
             s.barterPins.filter((pid) => isServerSharedPinId(pid) && pinCycleOf(pid) === section)

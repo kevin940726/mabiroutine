@@ -11,7 +11,19 @@ import type { Task, ResetKind, TaskSection, TaskType } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 import { focusSelectOnMount } from "@/lib/utils";
 
-type Props = { open: boolean; onOpenChange: (v: boolean) => void; editing?: Task | null; };
+type Props = { open: boolean; onOpenChange: (v: boolean) => void; editing?: Task | null; defaultSection?: TaskSection };
+
+// Which schedule a freshly opened dialog starts on. A section maps to one
+// schedule except "account", which holds both the daily and weekly account
+// resets (SCHEDULES above), so an account-section add starts on account-daily
+// and the select still offers account-weekly. Editing ignores this: the task's
+// own saved pair wins.
+function initialSchedule(editing: Task | null | undefined, defaultSection: TaskSection | undefined): string {
+  if (editing) return scheduleOf(editing);
+  if (defaultSection === "weekly") return "weekly";
+  if (defaultSection === "account") return "account-daily";
+  return "daily";
+}
 
 // Curated quick picks fill the free input — the typed text is always the
 // final value, the menu never owns it. No search/filter: 15 items fit.
@@ -46,7 +58,24 @@ function scheduleOf(t: { section: TaskSection; kind: ResetKind } | null | undefi
   return "daily";
 }
 
-export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
+// Which schedule options the dialog offers, given where it was opened from.
+//
+// On ADD the section is known from the per-section 新增 button, so the options
+// narrow to that section's schedules — and when there is only one, the field is
+// hidden entirely (a control with a single choice is just a label the user cannot
+// act on). "account" is the one section with two schedules, so it keeps the field
+// and shows just those two; the other three sections each collapse to one option
+// and their field disappears.
+//
+// On EDIT every option stays: the select is also how an existing task moves
+// between sections, which is a capability, not a presentation detail.
+function scheduleOptions(editing: Task | null | undefined, defaultSection: TaskSection | undefined) {
+  if (editing || !defaultSection) return SCHEDULES;
+  if (defaultSection === "account") return SCHEDULES.filter((s) => s.section === "account");
+  return SCHEDULES.filter((s) => s.section === defaultSection);
+}
+
+export function AddTaskDialog({ open, onOpenChange, editing, defaultSection }: Props) {
   const add = useAppStore((s) => s.addCustomTask);
   const update = useAppStore((s) => s.updateCustomTask);
   // Fresh mount per open/target (see key= at the call site) — initializers
@@ -55,7 +84,7 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
   const [icon, setIcon] = useState(editing?.icon ?? "⭐");
   const [desc, setDesc] = useState(editing?.desc ?? "");
   const [notes, setNotes] = useState(editing?.notes ?? "");
-  const [schedule, setSchedule] = useState(scheduleOf(editing));
+  const [schedule, setSchedule] = useState(() => initialSchedule(editing, defaultSection));
   // Icon selects all once on its FIRST focus (mount focus belongs to the
   // name field below). Per-open flag is enough: the dialog remounts on every
   // open/target via key= at the call site.
@@ -64,6 +93,11 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
   const [max, setMax] = useState(editing?.max ?? 1);
 
   const maxFor = (t: TaskType) => (t === "check" ? undefined : Math.max(1, max));
+  // The section was already decided by the button that opened this dialog when
+  // there is exactly one valid schedule, so the field would be a one-item control
+  // with nothing to choose. Account keeps it (two schedules); edit keeps all four.
+  const options = scheduleOptions(editing, defaultSection);
+  const showSchedule = options.length > 1;
   const submit = () => {
     if (!name.trim()) return;
     const s = SCHEDULES.find((x) => x.value === schedule) ?? SCHEDULES[0];
@@ -138,16 +172,21 @@ export function AddTaskDialog({ open, onOpenChange, editing }: Props) {
             <Label>備註 / 筆記</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="若缺印章可換（200 魔物印記的證明）" rows={2} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>區段 / 重置</Label>
-              <MenuSelect
-                value={schedule}
-                options={SCHEDULES.map(({ value, label }) => ({ value, label }))}
-                onChange={(v) => setSchedule(v)}
-                triggerClassName="w-full"
-              />
-            </div>
+          {/* The 區段 / 重置 row and 類型 share a row when both are present. With the
+              section field hidden (a single valid schedule) 類型 takes the full
+              width, so hiding the field does not leave a half-empty row. */}
+          <div className={showSchedule ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
+            {showSchedule && (
+              <div className="grid gap-1.5">
+                <Label>區段 / 重置</Label>
+                <MenuSelect
+                  value={schedule}
+                  options={options.map(({ value, label }) => ({ value, label }))}
+                  onChange={(v) => setSchedule(v)}
+                  triggerClassName="w-full"
+                />
+              </div>
+            )}
             <div className="grid gap-1.5">
               <Label>類型</Label>
               <MenuSelect

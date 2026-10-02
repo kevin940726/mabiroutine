@@ -352,7 +352,9 @@ Worth keeping, because both were reasoned rather than measured.
 
 - **清除本區** resolved pins through `barterJson.find` and skipped anything
   else, so a gold counter would never have been clearable. `pinCycleOf` and
-  `isServerSharedPinId` now resolve both namespaces.
+  `isServerSharedPinId` now resolve both namespaces. (The button was later removed
+  from the section header as unused; the `clearSection` store action and the
+  resolution it depends on are unchanged, and the sync case still pins them.)
 - **The load-time `barterCustomOrder` filter** was barter-only, so a shop pin
   would have dropped out of the drag order on every load. Widened to the shared
   set. This is the change the ledger had flagged as having no automated

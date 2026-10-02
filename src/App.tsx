@@ -25,7 +25,7 @@ import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyRemind
 import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
 import { focusSelectOnMount } from "@/lib/utils";
-import type { Task } from "@/lib/types";
+import type { Task, TaskSection } from "@/lib/types";
 import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -65,6 +65,10 @@ export default function App() {
   const [addOpen, setAddOpen] = useState(false);
   const [addMounted, setAddMounted] = useState(false); // mount (and fetch) the dialog chunk on first open only
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  // Which section a NEW custom task starts in. Set by the per-section 新增
+  // buttons; ignored when editing (the task's own saved pair wins). Reset to
+  // null when the dialog closes so a later add from elsewhere does not inherit it.
+  const [addSection, setAddSection] = useState<TaskSection | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [compact, setCompact] = useState(false);
   const [pillRenaming, setPillRenaming] = useState(false);
@@ -192,13 +196,14 @@ export default function App() {
   const weeklyWithCustom = [...weeklyTasks, ...customTasks.filter((t) => t.section === "weekly")];
   const accountWithCustom = [...accountTasks, ...customTasks.filter((t) => t.section === "account")];
 
-  const openDialog = (editing: Task | null) => {
+  const openDialog = (editing: Task | null, section: TaskSection | null = null) => {
     setEditingTask(editing);
+    setAddSection(editing ? null : section);
     setAddMounted(true);
     setAddOpen(true);
   };
   const openEdit = (t: Task) => openDialog(t);
-  const openAdd = () => openDialog(null);
+  const openAdd = (section: TaskSection) => openDialog(null, section);
 
   if (!hasHydrated) {
     return <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">載入中...</div>;
@@ -233,37 +238,6 @@ export default function App() {
           </div>
         </div>
       </header>
-
-      {/* nav bar — plain in-flow, scrolls away naturally, no sticky needed */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className={`${SHELL} px-4 py-2.5`}>
-          {/* row 1: progress + hide */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{overall.pct}%</span>
-              <div className="h-2 w-28 rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-primary transition-all" style={{ width: `${overall.pct}%` }} />
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {active?.name} {overall.done}/{overall.total}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Label htmlFor="hideDone" className="text-xs whitespace-nowrap">
-                隱藏已完成
-              </Label>
-              <Switch
-                checked={prefs.hideCompleted}
-                onCheckedChange={(v) => useAppStore.setState((s) => ({ prefs: { ...s.prefs, hideCompleted: v } }))}
-              />
-            </div>
-          </div>
-          {/* row 2: character tabs — full width */}
-          <div className="mt-2">
-            <CharacterTabs />
-          </div>
-        </div>
-      </div>
 
       {/* The character pill is tracker-only. In the barter tab it carried state
           that tab never reads (a character name and progress ring over a grid
@@ -483,19 +457,6 @@ export default function App() {
           <button role="tab" aria-selected={tab === "barter"} onClick={() => setTab("barter")} className={`whitespace-nowrap px-3 py-2 text-sm font-medium border-b-2 -mb-px sm:px-4 ${tab === "barter" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             商店 / 以物易物
           </button>
-          <div className="ml-auto flex items-center gap-1 pb-1">
-            <Button size="sm" onClick={openAdd}>
-              <Plus className="h-4 w-4" />
-              {/* Below sm the label shortens to 自訂: at 320px the row needs 314px of
-                  content in a 288px box, so the full 新增自訂 (96px) overflowed by
-                  26px. The `+` icon always shows, so 自訂 still reads as "add a
-                  custom task" without spending the width on 新增. The full label
-                  returns at sm and up. Both spans stay in the DOM, so the button's
-                  accessible name is complete at every width. */}
-              <span className="sm:hidden">自訂</span>
-              <span className="hidden sm:inline">新增自訂</span>
-            </Button>
-          </div>
         </div>
 
         {/* Both tabs stay MOUNTED; only one is visible. Switching used to unmount the
@@ -514,10 +475,39 @@ export default function App() {
             172px from the top at load, -1828px when scrolled 2000px), and there is
             nothing meaningful to restore. */}
         <Activity mode={tab === "tracker" ? "visible" : "hidden"}>
+          {/* Everything tracker-scoped now lives INSIDE this tab rather than in a
+              nav bar above <main>, so the shop tab carries none of it: the progress
+              summary reads the active character's tasks, 隱藏已完成 filters those same
+              rows, CharacterTabs switches the character those rows belong to, and
+              新增自訂 adds a custom row to them. None of the four means anything on the
+              shop tab, whose pins are a single global list every character shares.
+              Keeping them here also makes the two tabs structurally parallel — each
+              owns its own controls. */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{overall.pct}%</span>
+              <div className="h-2 w-28 rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${overall.pct}%` }} />
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {active?.name} {overall.done}/{overall.total}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Label htmlFor="hideDone" className="text-xs whitespace-nowrap">
+                隱藏已完成
+              </Label>
+              <Switch
+                checked={prefs.hideCompleted}
+                onCheckedChange={(v) => useAppStore.setState((s) => ({ prefs: { ...s.prefs, hideCompleted: v } }))}
+              />
+            </div>
+          </div>
+          <CharacterTabs />
           <div className="grid gap-6 grid-cols-1">
-            <TrackerSection title="每日任務" icon="☀️" tasks={dailyWithCustom} isAccount={false} onEditTask={openEdit} />
-            <TrackerSection title="每週任務" icon="🗓️" tasks={weeklyWithCustom} isAccount={false} onEditTask={openEdit} />
-            <TrackerSection title="帳號共通" icon="👥" tasks={accountWithCustom} isAccount={true} onEditTask={openEdit} />
+            <TrackerSection title="每日任務" icon="☀️" tasks={dailyWithCustom} isAccount={false} section="daily" onEditTask={openEdit} onAdd={openAdd} />
+            <TrackerSection title="每週任務" icon="🗓️" tasks={weeklyWithCustom} isAccount={false} section="weekly" onEditTask={openEdit} onAdd={openAdd} />
+            <TrackerSection title="帳號共通" icon="👥" tasks={accountWithCustom} isAccount={true} section="account" onEditTask={openEdit} onAdd={openAdd} />
           </div>
         </Activity>
         <Activity mode={tab === "barter" ? "visible" : "hidden"}>
@@ -612,10 +602,11 @@ export default function App() {
       {addMounted && (
       <Suspense fallback={null}>
         <AddTaskDialog
-          key={`${addOpen}-${editingTask?.id ?? "new"}`}
+          key={`${addOpen}-${editingTask?.id ?? "new"}-${addSection ?? ""}`}
           open={addOpen}
-          onOpenChange={(v) => { setAddOpen(v); if (!v) setEditingTask(null); }}
+          onOpenChange={(v) => { setAddOpen(v); if (!v) { setEditingTask(null); setAddSection(null); } }}
           editing={editingTask}
+          defaultSection={addSection ?? undefined}
         />
       </Suspense>
       )}

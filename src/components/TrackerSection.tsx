@@ -4,17 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TaskRow } from "@/components/TaskRow";
 import { Tooltip } from "@/components/ui/tooltip";
-import type { Task } from "@/lib/types";
+import type { Task, TaskSection } from "@/lib/types";
 import { summarizeProgress } from "@/lib/progress";
 import { useAppStore, barterToTask, shopDealToTask, canonicalBarterOrder } from "@/store/useAppStore";
 import { shopDealsByPinId } from "@/lib/shops";
-import { confirmClearSection } from "@/components/ConfirmDialog";
 import { PURPLE_HOLE_ID, isScheduledToday, nextBadgeLabel } from "@/lib/purpleHole";
 import barterJson from "@/data/barter.json";
 import { DndContext, closestCenter, type DragEndEvent, type Modifier } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { decideDrop, bandId, clampToRange, type DropTarget } from "@/lib/dragRules";
-import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { useNow } from "@/hooks/useNow";
 import { toastAction } from "@/sync/session";
 import { PinnedGroups } from "@/components/PinnedGroups";
@@ -147,15 +146,21 @@ type Props = {
   icon: string;
   tasks: Task[];
   isAccount: boolean;
+  /** The section this card renders. Passed rather than derived from `isAccount`,
+   *  because "account" holds two schedules (daily and weekly resets), so the
+   *  section alone does not name the schedule — the dialog's select still does. */
+  section: TaskSection;
   onEditTask?: (t: Task) => void;
+  /** Opens the add dialog pre-set to this section. Rendered in the header, so it
+   *  stays reachable whether the section is open or folded. */
+  onAdd?: (section: TaskSection) => void;
 };
 
-export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Props) {
+export function TrackerSection({ title, icon, tasks, isAccount, section, onEditTask, onAdd }: Props) {
   const char = useAppStore((s) => s.getActiveChar());
   const accountValues = useAppStore((s) => s.accountValues);
   const barterPins = useAppStore((s) => s.barterPins);
   const barterCustomOrder = useAppStore((s) => s.barterCustomOrder);
-  const clearSection = useAppStore((s) => s.clearSection);
   const reorder = useAppStore((s) => s.reorderTasks);
   const reorderBarter = useAppStore((s) => s.reorderBarterPins);
   const globalOrder = useAppStore((s) => s.globalTaskOrder);
@@ -443,44 +448,52 @@ export function TrackerSection({ title, icon, tasks, isAccount, onEditTask }: Pr
     batchedDragUndo("", () => useAppStore.setState({ barterCustomOrder: prev }));
   };
 
-  // section key for clear
-  const sectionKey = tasks[0]?.section ?? "daily";
-
   return (
     <Card className="overflow-hidden -mx-4 rounded-none border-x-0 sm:mx-0 sm:rounded-xl sm:border">
       <CardHeader className="pb-2 px-3 sm:px-6">
-        <button
-          onClick={() => setCollapsed((v) => !v)}
-          className="flex w-full items-center justify-between gap-2 text-left rounded-md -mx-1 px-1 py-1 hover:bg-accent"
-        >
-          <CardTitle className="flex items-center gap-2 text-base m-0">
-            {collapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
-            <span className="text-lg">{icon}</span>
-            {title}
-            <Badge variant="secondary" className="ml-1 font-mono text-xs">
-              {done}/{total} · {percent}%
-            </Badge>
-          </CardTitle>
-          <span className="text-xs text-muted-foreground hidden sm:inline">{collapsed ? "展開" : "收合"}</span>
-        </button>
+        {/* Title row: the collapse toggle takes the space, the add action rides at
+            its right. The add button is a SIBLING of the toggle, not inside it, so
+            tapping it cannot also fold the section — and it stays visible when the
+            section is collapsed, since this row always renders. */}
+        <div className="flex items-center gap-2">
+          {/* The whole row is the toggle, so the chevron plus the hover fill carry
+              the affordance; the old 收合/展開 text was a third signal for the same
+              thing and only appeared from `sm` up anyway (mobile never had it).
+              `aria-expanded` replaces it where it matters: without it a screen
+              reader heard the title and badge but not that this discloses a body. */}
+          <button
+            onClick={() => setCollapsed((v) => !v)}
+            aria-expanded={!collapsed}
+            className="flex flex-1 min-w-0 items-center justify-between gap-2 text-left rounded-md -mx-1 px-1 py-1 hover:bg-accent"
+          >
+            <CardTitle className="flex items-center gap-2 text-base m-0">
+              {collapsed ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronUp className="h-4 w-4 text-muted-foreground" />}
+              <span className="text-lg">{icon}</span>
+              {title}
+              <Badge variant="secondary" className="ml-1 font-mono text-xs">
+                {done}/{total} · {percent}%
+              </Badge>
+            </CardTitle>
+          </button>
+          {onAdd && (
+            // Filled primary, matching the original single 新增自訂 button (it used
+            // the Button default variant). On a header row full of muted text and a
+            // ghost chevron, a filled pill is what makes the action read as one.
+            <Button
+              size="sm"
+              className="h-7 shrink-0 gap-1.5 px-2.5 sm:pr-3 text-xs"
+              onClick={() => onAdd(section)}
+              aria-label={`新增自訂任務到${title}`}
+            >
+              <Plus className="h-3 w-3" />
+              <span className="hidden sm:inline">新增自訂</span>
+            </Button>
+          )}
+        </div>
         <div className="flex items-center gap-2 mt-2">
           <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
             <div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              void confirmClearSection(title).then((ok) => {
-                if (ok) clearSection(sectionKey);
-              });
-            }}
-          >
-            <RotateCcw className="h-3 w-3" />
-            清除本區
-          </Button>
         </div>
       </CardHeader>
       {collapsed ? (

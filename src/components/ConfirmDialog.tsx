@@ -62,14 +62,6 @@ export function confirmRemoveTask(name: string): Promise<boolean> {
   });
 }
 
-export function confirmClearSection(title: string): Promise<boolean> {
-  return confirmAction({
-    title: "清除本區",
-    body: `確定要清除「${title}」的所有進度嗎？此動作無法復原。`,
-    confirmText: "清除",
-  });
-}
-
 // Soft-ask before the browser notification permission prompt: cold prompts
 // get reflex-denied, and a denial can only be undone in browser settings.
 // Non-destructive styling (danger: false) — subscribing takes nothing away.

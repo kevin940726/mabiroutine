@@ -1,7 +1,8 @@
 # Plan — floating switch bar: character pill in tracker, filter/search pill in barter
 
-Status: APPROVED for build. Branch `feat/barter-filter-pill`, cut from `main` at
-`8c11235`. No code yet; T1–T5 below are the build order.
+Status: IN BUILD. Branch `feat/barter-filter-pill`. T1–T4 built; T5 (polish) and
+T6 (move the tracker context block into the tracker tab) remain. The design below
+is the original plan; section 0 is the live handoff.
 
 **Read section 0 first.** It is the handoff: where the branch stands, what is
 next, and the traps that cost time getting here. Everything after it is the
@@ -13,29 +14,57 @@ design of the change.
 
 ### Where things stand
 
-- **Branch:** `feat/barter-filter-pill`, cut from `main` at `8c11235`. Local
-  only: **not pushed**, no PR, nothing committed on it yet. This doc is its
-  first commit.
-- **`main` is ahead of `origin/main`** and contains the merged shop-browser
-  branch plus one later commit (`8c11235`, an unrelated hourly-barrier cron
-  experiment from another session). The shop browser is already on local `main`
-  but **not pushed**, so PR #2 (`wip/shop-browser` → `main`) is still open.
-- **Worktree layout matters here.** This repo uses two worktrees:
-  - `C:/Users/User/work/mabiroutine` — this one, on `feat/barter-filter-pill`.
-  - `C:/Users/User/work/mabiroutine-main` — holds `main`.
-  So `git checkout main` **fails** in this worktree ("already used by worktree").
-  To inspect `main`, use `git -C C:/Users/User/work/mabiroutine-main …` or
-  `git log main`; do not try to switch to it.
-- **`docs/plans/` was untracked** on the branch; this commit makes it tracked for
-  the first time. Nothing else in the tree is dirty.
+- **Branch:** `feat/barter-filter-pill`, rebased onto `main` at `38ea130`. Local
+  only: **not pushed**, no PR.
+- **Built:** T1 (character pill gated on `tab === "tracker"`), T2 (empty
+  `<FilterPill>` in `MerchantPanel`), T3 (search icon + expanding input), T4 (the
+  four compact filters, 清除 and 已選 N). Each is a commit on this branch.
+- **Remaining:** T5 (polish + docs) and T6 (see below).
+- **Worktree layout.** Three dirs exist; two are git worktrees of the original
+  clone at `C:/Users/User/work/mabiroutine`:
+  - `C:/Users/User/work/mabiroutine` — the MAIN worktree, on `main`.
+  - `C:/Users/User/work/mabiroutine-pill` — THIS one, on `feat/barter-filter-pill`.
+  - `C:/Users/User/work/mabiroutine-main` — REMOVED (was the old `main` worktree).
+  So `git checkout main` **fails** here ("already used by worktree"). Inspect
+  `main` with `git log main`; do not try to switch to it.
+- **T6 — move the tracker context block into the tracker tab, and add per section.**
+  The progress row, 隱藏已完成 and `<CharacterTabs />` were page-level in a nav bar
+  above `<main>`, so the shop tab carried controls it does not read. They now render
+  INSIDE the tracker `<Activity>`: the shop tab's top is header → tabs → shop. This
+  supersedes the old "gate the nav bar" idea; the block moved rather than being
+  hidden in place.
+  The single 新增自訂 button (tab row, then briefly its own line above the grid)
+  was replaced by one per section header — 每日任務 / 每週任務 / 帳號共通 — each
+  opening the dialog pre-set to its section via a new `defaultSection` prop. The
+  區段 / 重置 select is hidden when the seed leaves only one valid schedule
+  (daily, weekly), and narrowed to the two account options when opened from
+  帳號共通 — it used to offer all four there, so an account add could silently move
+  the task out of its section. Editing keeps all four options, because that select
+  is also how a task moves between sections. The add
+  button is a sibling of the section's collapse toggle, so it cannot fold the
+  section, and it stays visible while the section is collapsed.
+  The section headers also dropped their 收合 / 展開 text (the chevron plus the
+  whole-bar hover already say it, and mobile never showed the label). The toggle
+  gained `aria-expanded`, which it had lacked.
+  **清除本區 was removed** from the section header (its destructive scope was not
+  visible from where it sat). The `clearSection` store action stays — the sync case
+  E9 pins it — so only the button, its handler, and the now-dead
+  `ConfirmDialog.confirmClearSection` were deleted.
+
 
 ### What is next, in order
 
 Build T1–T5 (below) in order, each ending in a working, verifiable state. Per
 `AGENTS.md`: **commit only when asked**, one logical change per commit, changelog
 entry in the same commit; **never push** without explicit approval. The user runs
-Vite on `http://localhost:5173` and iterates visually — prefer measured
-in-browser numbers over argument.
+Vite and iterates visually — prefer measured in-browser numbers over argument.
+
+**Ports on this machine:** `:5173` serves the MAIN worktree (`mabiroutine`, on
+`main`); `:5174` serves THIS worktree (`mabiroutine-pill`). Check the port's
+checkout before trusting a measurement — measuring the other worktree's code
+silently is a trap that has already cost time. Verify served code by structural
+markers (class strings, JSX), never by comments: Vite strips comments from the
+transformed module, so a comment can never appear in what the server returns.
 
 1. **T1** — gate the character pill on `tab === "tracker"` (both variants).
 2. **T2** — empty `<FilterPill>` in `MerchantPanel`, fixed in the pill slot,
@@ -185,6 +214,10 @@ just another surface onto that state.
 - **T1** — Gate the character pill on `tab === "tracker"` (both variants). Verify
   the barter tab is pill-free and the tracker pill still works. Smallest
   independently verifiable step.
+- **T6** — Move the tracker context block (progress row, 隱藏已完成,
+  `<CharacterTabs />`) and the 新增自訂 button out of the page-level nav bar / tab
+  row and into the tracker `<Activity>`, so the shop tab carries none of them.
+  Built as reported under section 0.
 - **T2** — Stand up an empty `<FilterPill>` in `MerchantPanel`, fixed in the pill
   slot, shown past the local scroll threshold. Verify it appears/disappears on
   scroll and survives tab switches.
