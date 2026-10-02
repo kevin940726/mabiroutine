@@ -19,7 +19,7 @@ Two modules own this, and nothing else should build an `/items/` URL by hand:
 Use the name as the DATA spells it — half-width parens, `+` refinement kept — and
 never a `displayName`-folded string.
 
-`displayName` (`src/lib/materials.ts`) folds `(` to `（` for reading, and the files
+`displayName` (`src/lib/materials.ts`) narrows full-width `（` to `(` for reading, and the files
 keep the data's own spelling: `public/items/武器製作台設計圖(3級).webp`. Measured
 over the 181 distinct names in `shops.json` plus the barter `give` and `get` lines:
 

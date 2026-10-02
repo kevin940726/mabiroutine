@@ -46,7 +46,7 @@ case — switch to `dev:api`.
   (town-grouped for in-game checking); never let a `barter.json` limit string
   and its shops twin cap disagree (`test:shops` enforces parity).
 - **State is one Zustand store** — `src/store/useAppStore.ts`, persisted to
-  `localStorage` key `mabiroutine:v2` (schema `v12`, migrated on load — see the
+  `localStorage` key `mabiroutine:v2` (schema `v20`, migrated on load — see the
   store checklist in `AGENTS.md` before changing persisted shape).
 - **Resets are Taipei wall-clock** — `src/lib/reset.ts`: daily 06:00 /
   Monday 06:00 `Asia/Taipei`, evaluated lazily + on focus/visibility + 60s tick.
@@ -93,6 +93,16 @@ Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so
 it is pinned rather than left to a comment; see `docs/item-icons.md`.
+Shop rule: `pnpm test:shop-e2e` before a release, and after touching the store's
+migration, the shop grid, or the pinned-section fold. It drives the real app in
+Edge over CDP and asserts what the unit gates cannot: a real v19 save migrating on
+load (and an existing fold NOT being stomped), the grid rendering 4 columns at a
+desktop width with the discriminating 1100px case that tells the container rule
+apart from a viewport one, and the pinned-section fold surviving a reload. Needs
+`pnpm dev` (default `:5173`, override with `APP_URL=`) plus Edge, and SKIPs loudly
+without either, so it is NOT in `pnpm check` — a browser suite that needs a dev
+server does not belong in the offline gate. `APP_URL=http://localhost:5188 pnpm
+test:shop-e2e` points it at another port.
 Drag rule: `pnpm test:drag` after touching `src/lib/dragRules.ts` or a drag
 handler. It asserts the hierarchy (`scripts/check-drag-rules.entry.ts`, bundled
 like the others): children reorder only within their own merchant group, rows

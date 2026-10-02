@@ -17,6 +17,7 @@
     "gen-splash": "node scripts/gen-splash.cjs",
     "test:shops": "node scripts/check-shops.mjs",
     "test:icons": "node scripts/check-item-icons.mjs",
+    "test:shop-e2e": "node scripts/check-shop-e2e.mjs",
     "worker:deploy": "wrangler deploy --config workers/mabiroutine-worker/wrangler.jsonc"
   },
   "dependencies": {
