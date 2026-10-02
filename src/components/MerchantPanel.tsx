@@ -48,8 +48,10 @@ const KIND_OPTIONS = [
 
 /** The compact trigger treatment for the floating pill: the header field at pill
  *  scale. twMerge resolves these against MenuSelect's h-9 / rounded-md / text-sm
- *  defaults, so no variant flag is needed on the shared component. */
-const PILL_TRIGGER = "h-7 rounded-full px-2.5 text-xs gap-1";
+ *  defaults, so no variant flag is needed on the shared component. `px-2` below
+ *  `sm` keeps a label-bearing trigger under its cap without truncating (measured:
+ *  必換、推薦 at 102px), widening to `px-2.5` from `sm`. */
+const PILL_TRIGGER = "h-7 rounded-full px-1.5 sm:px-2.5 text-xs gap-0.5 sm:gap-1";
 
 /** Past this scroll depth the pill replaces the header as the surface for the
  *  panel's filters (Q7). A UI constant, not shared state: the character pill's
@@ -517,26 +519,28 @@ export function MerchantPanel() {
           threshold, so only one of those surfaces is on screen at a time. */}
       <div
         className={cn(
-          "fixed left-1/2 -translate-x-1/2 z-30 transition-all duration-300",
+          "fixed left-1/2 -translate-x-1/2 z-30 w-max max-w-[calc(100svw-2rem)] transition-all duration-300",
           showPill ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
         )}
         style={{ top: isMobile ? 70 : 88 }}
       >
-        <div className="flex items-center gap-1.5 rounded-full border bg-card shadow-md px-2.5 py-1.5 w-max max-w-[calc(100svw-2rem)] flex-wrap justify-center text-xs relative isolate overflow-hidden">
+        <div className="flex items-center gap-0.5 sm:gap-1.5 rounded-full border bg-card shadow-md px-1.5 py-1.5 sm:px-2.5 text-xs relative isolate overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {pillSearchOpen ? (
-            <div className="flex items-center gap-1">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  ref={focusSelectOnMount}
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  onBlur={() => { if (!query) setPillSearchOpen(false); }}
-                  placeholder="搜尋獎勵、材料、NPC"
-                  aria-label="搜尋獎勵、材料、NPC 或城鎮"
-                  className="h-7 w-44 rounded-full border border-input bg-background pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
+            /* Search takes the whole row: on a phone a row of filters plus an
+               inline field cannot fit, and a full-width field is a better
+               target than a cramped 176px one anyway. */
+            <div className="flex items-center gap-1 w-[calc(100svw-4rem)] sm:w-72">
+              <Search className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
+              <input
+                ref={focusSelectOnMount}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onBlur={() => { if (!query) setPillSearchOpen(false); }}
+                onKeyDown={(event) => { if (event.key === "Escape") { setQuery(""); setPillSearchOpen(false); } }}
+                placeholder="搜尋獎勵、材料、NPC 或城鎮"
+                aria-label="搜尋獎勵、材料、NPC 或城鎮"
+                className="h-7 min-w-0 flex-1 rounded-full border border-input bg-background px-2.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
               <button
                 type="button"
                 onClick={() => { setQuery(""); setPillSearchOpen(false); }}
@@ -547,78 +551,99 @@ export function MerchantPanel() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setPillSearchOpen(true)}
-              aria-label="搜尋"
-              className={cn(
-                "grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground",
-                query !== "" && "text-primary"
-              )}
-            >
-              <Search className="h-3.5 w-3.5" />
-            </button>
-          )}
-          <div className="h-4 w-px bg-border shrink-0" />
-          {/* In 已選 view the header hides its grid filters (they do not apply to
-              the pinned list), so the pill mirrors that: search + 已選 N only. */}
-          {!selectedOnly && (
             <>
-              <MenuSelect
-                value={town}
-                ariaLabel="城鎮"
-                onChange={(value) => { setTown(value); setMerchant("all"); writeNpcParam("all"); }}
-                options={townOptions}
-                triggerLabel={town === "all" ? "城鎮" : undefined}
-                triggerClassName={cn(PILL_TRIGGER, "max-w-[7rem]", town !== "all" && "border-primary text-primary")}
-              />
-              <MenuSelect
-                value={merchant}
-                ariaLabel="NPC"
-                onChange={selectNpc}
-                options={npcOptions}
-                triggerLabel={merchant === "all" ? "NPC" : undefined}
-                triggerClassName={cn(PILL_TRIGGER, "max-w-[8rem]", merchant !== "all" && "border-primary text-primary")}
-              />
-              <MenuMultiSelect
-                values={priorityFilter}
-                ariaLabel="優先度"
-                onChange={setPriorityFilter}
-                options={PRIORITY_OPTIONS}
-                triggerLabel={priorityFilter.length === 0 ? "優先度" : undefined}
-                triggerClassName={cn(PILL_TRIGGER, "max-w-[8rem]", priorityFilter.length > 0 && "border-primary text-primary")}
-              />
-              <MenuSelect
-                value={kindFilter}
-                ariaLabel="交易類型"
-                onChange={setKindFilter}
-                options={KIND_OPTIONS}
-                triggerLabel={kindFilter === "all" ? "類型" : undefined}
-                triggerClassName={cn(PILL_TRIGGER, kindFilter !== "all" && "border-primary text-primary")}
-              />
-              <button
+              {query !== "" ? (
+                /* A live query is state worth seeing, and the way back to it
+                   without re-typing: the field is one tap away through the X. */
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  aria-label={`清除搜尋「${query}」`}
+                  title={`搜尋：${query}`}
+                  className="flex h-7 min-w-0 max-w-[8rem] shrink items-center gap-1 rounded-full border border-primary px-2 text-xs text-primary"
+                >
+                  <Search className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{query}</span>
+                  <X className="h-3 w-3 shrink-0" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPillSearchOpen(true)}
+                  aria-label="搜尋"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {/* In 已選 view the header hides its grid filters (they do not apply
+                  to the pinned list), so the pill mirrors that: search + 已選 only. */}
+              {!selectedOnly && (
+                <>
+                  <MenuSelect
+                    value={town}
+                    ariaLabel="城鎮"
+                    onChange={(value) => { setTown(value); setMerchant("all"); writeNpcParam("all"); }}
+                    options={townOptions}
+                    triggerLabel={town === "all" ? "城鎮" : undefined}
+                    triggerClassName={cn(PILL_TRIGGER, "max-w-[7rem]", town !== "all" && "border-primary text-primary")}
+                  />
+                  <MenuSelect
+                    value={merchant}
+                    ariaLabel="NPC"
+                    onChange={selectNpc}
+                    options={npcOptions}
+                    triggerLabel={merchant === "all" ? "NPC" : undefined}
+                    triggerClassName={cn(PILL_TRIGGER, "max-w-[8rem]", merchant !== "all" && "border-primary text-primary")}
+                  />
+                  <MenuMultiSelect
+                    values={priorityFilter}
+                    ariaLabel="優先度"
+                    onChange={setPriorityFilter}
+                    options={PRIORITY_OPTIONS}
+                    /* On a phone the default pair would print 必換、推薦 and eat
+                       ~36px the row does not have; the highlighted border already
+                       says a filter is live, and the menu shows the ticks. From
+                       `sm` there is room for the full labels. */
+                    triggerLabel={isMobile && priorityFilter.length > 0 ? "優先度" : undefined}
+                    triggerClassName={cn(PILL_TRIGGER, "max-w-[7rem]", priorityFilter.length > 0 && "border-primary text-primary")}
+                  />
+                  <MenuSelect
+                    value={kindFilter}
+                    ariaLabel="交易類型"
+                    onChange={setKindFilter}
+                    options={KIND_OPTIONS}
+                    triggerLabel={kindFilter === "all" ? "類型" : undefined}
+                    triggerClassName={cn(PILL_TRIGGER, kindFilter !== "all" && "border-primary text-primary")}
+                  />
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    disabled={!filtersActive}
+                    aria-label="清除全部篩選"
+                    title="清除全部篩選"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30 sm:flex sm:w-auto sm:gap-1 sm:px-2.5"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">清除</span>
+                  </button>
+                </>
+              )}
+              <Button
                 type="button"
-                onClick={clearFilters}
-                disabled={!filtersActive}
-                aria-label="清除全部篩選"
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+                variant={selectedOnly ? "default" : "outline"}
+                size="icon"
+                aria-pressed={selectedOnly}
+                aria-label={`已選 ${barterPins.length} 筆交易（${selectedOnly ? "檢視中" : "檢視"}）`}
+                title={`已選 ${barterPins.length}`}
+                onClick={() => setSelectedOnly((value) => !value)}
+                className="h-7 shrink-0 rounded-full px-1.5 sm:w-auto sm:px-2.5"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
+                <ShoppingBag className="size-3.5" />
+                <span className="hidden sm:inline">已選 {barterPins.length}</span>
+              </Button>
             </>
           )}
-          <Button
-            type="button"
-            variant={selectedOnly ? "default" : "outline"}
-            size="sm"
-            aria-pressed={selectedOnly}
-            aria-label={`已選 ${barterPins.length} 筆交易`}
-            onClick={() => setSelectedOnly((value) => !value)}
-            className="h-7 shrink-0 rounded-full px-2.5 text-xs"
-          >
-            <ShoppingBag className="size-3.5" />
-            已選 {barterPins.length}
-          </Button>
         </div>
       </div>
 
