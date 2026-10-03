@@ -57,6 +57,11 @@ design of the change.
   first (canonical `TOWN_ORDER`, the dropdown's own order), then pins, then
   tiers, in browse and search alike: sorting pins first globally dragged a pinned
   town's whole section to the top, so the 糖 search read 地下城 before 堤爾克那.
+- **CJK composition buffers locally (2026-10-03).** Both search fields own a
+  `useSearchBox` instance (header + pill, synced through `query`): partial IME
+  text stays in per-field `draft`, plain keystrokes commit live, `compositionend`
+  commits, blur backstops, and Escape mid-composition is the IME's (ignored).
+  Verified with synthetic composition events on both instances.
 - **Tracker→shop deep-links (companion, 2026-10-03).** Tracker portraits are
   buttons: regular trade rows (NPC face), group parents (face, flashes ALL
   children via a `focusKeys` set under one timer) and group children (item art).

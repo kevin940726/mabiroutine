@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CompositionEvent } from "react";
 import { ArrowLeft, MapPin, RotateCcw, Search, SlidersHorizontal, Store, X } from "lucide-react";
 import { MenuSelect, MenuMultiSelect } from "@/components/MenuSelect";
 import { Button } from "@/components/ui/button";
@@ -239,14 +239,88 @@ function groupItems(items: ShopRow[]) {
   return [...groups.values()].sort((a, b) => compareTowns(a.town, b.town) || a.name.localeCompare(b.name, "zh-Hant"));
 }
 
+/** Composition-aware search box: CJK input stays local until committed.
+ *
+ *  An IME keystroke fires `onChange` for every partial (unconverted) syllable —
+ *  committing those would re-filter (and shrink/scroll the page) mid-word, so
+ *  partial text lives in `draft` and only a finished value reaches the shared
+ *  `query`: plain keystrokes commit immediately (today's live search, unchanged),
+ *  a composition commits on `compositionend`, and blur always commits (the
+ *  backstop for sessions an IME ends without events). The other surface's
+ *  commits are adopted unless a composition is in flight here — the IME owns
+ *  the field until it says done. setDraft with an identical value bails out, so
+ *  adopting a self-commit never re-renders or jumps the caret.
+ *
+ *  Both search fields (header + pill) own one instance each; they stay in sync
+ *  through `query`. Freezing the controlled value instead (no draft) is NOT an
+ *  option: the composition text needs value updates to render, and holding it
+ *  back breaks the IME session in some browsers. */
+function useSearchBox(query: string, onQueryChange: (value: string) => void) {
+  const [draft, setDraft] = useState(query);
+  const composingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  // Adopt outside commits (the other field, clears, jumps) — never while THIS
+  // field composes.
+  useEffect(() => {
+    if (!composingRef.current) setDraft(query);
+  }, [query]);
+  const commit = useCallback(
+    (value: string) => {
+      setDraft(value);
+      onQueryChange(value);
+    },
+    [onQueryChange]
+  );
+  // The blur backstop (and the pill's collapse check) need the freshest text:
+  // read the field, not state. Returns the committed value.
+  const commitField = useCallback(() => {
+    const value = inputRef.current?.value ?? draft;
+    commit(value);
+    return value;
+  }, [commit, draft]);
+  return {
+    inputRef,
+    draft,
+    composingRef,
+    onChange: (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      // Both signals: the ref (set by onCompositionStart) and the event's own
+      // flag — neither is redundant across all IMEs and browsers.
+      if (composingRef.current || (event.nativeEvent as InputEvent).isComposing) setDraft(value);
+      else commit(value);
+    },
+    onCompositionStart: () => {
+      composingRef.current = true;
+    },
+    onCompositionEnd: (event: CompositionEvent<HTMLInputElement>) => {
+      composingRef.current = false;
+      commit(event.currentTarget.value);
+    },
+    onBlurCommit: () => {
+      composingRef.current = false;
+      return commitField();
+    },
+  };
+}
+
 function SearchControls({ query, onQueryChange }: {
   query: string;
   onQueryChange: (query: string) => void;
 }) {
+  const box = useSearchBox(query, onQueryChange);
   return (
     <div className="relative min-w-0 flex-1">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="搜尋獎勵、材料、NPC 或城鎮" className="h-10 bg-background pl-9" />
+      <Input
+        ref={box.inputRef}
+        value={box.draft}
+        onChange={box.onChange}
+        onCompositionStart={box.onCompositionStart}
+        onCompositionEnd={box.onCompositionEnd}
+        onBlur={box.onBlurCommit}
+        placeholder="搜尋獎勵、材料、NPC 或城鎮"
+        className="h-10 bg-background pl-9"
+      />
     </div>
   );
 }
@@ -295,6 +369,19 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
   const controlsInView = useControlsInView(controlsRef);
   const showPill = pillSearchFocused || !controlsInView;
   const [pillSearchOpen, setPillSearchOpen] = useState(false);
+  // The pill's own search-box instance (the header owns the other — see
+  // SearchControls). Shares `query`, buffers CJK composition in `draft`.
+  const pillBox = useSearchBox(query, setQuery);
+  // Stable across renders: an inline ref callback would detach/re-attach (and
+  // re-run the focus-select) on every keystroke. Merges the box's field ref
+  // with the mount autofocus.
+  const setPillInputRef = useCallback(
+    (el: HTMLInputElement | null) => {
+      pillBox.inputRef.current = el;
+      focusSelectOnMount(el);
+    },
+    [pillBox.inputRef]
+  );
   // (focusKeys state lives beside flashTiles below.)
   const focusTimer = useRef<number | null>(null);
   // Guards the one-shot ?npc=/?item= landing below: set on first effect run AND
@@ -744,12 +831,20 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
             <div className="flex items-center gap-1 w-[calc(100svw-4rem)] sm:w-72">
               <Search className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
               <input
-                ref={focusSelectOnMount}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                ref={setPillInputRef}
+                value={pillBox.draft}
+                onChange={pillBox.onChange}
+                onCompositionStart={pillBox.onCompositionStart}
+                onCompositionEnd={pillBox.onCompositionEnd}
                 onFocus={() => setPillSearchFocused(true)}
-                onBlur={() => { setPillSearchFocused(false); if (!query) setPillSearchOpen(false); }}
-                onKeyDown={(event) => { if (event.key === "Escape") { setQuery(""); setPillSearchOpen(false); } }}
+                onBlur={() => { setPillSearchFocused(false); if (!pillBox.onBlurCommit()) setPillSearchOpen(false); }}
+                onKeyDown={(event) => {
+                  // Mid-composition Escape belongs to the IME (cancels the
+                  // syllable); acting on it would yank the session. The flag
+                  // covers browsers that don't mark the key event itself.
+                  if (pillBox.composingRef.current) return;
+                  if (event.key === "Escape") { setQuery(""); setPillSearchOpen(false); }
+                }}
                 placeholder="搜尋獎勵、材料、NPC 或城鎮"
                 aria-label="搜尋獎勵、材料、NPC 或城鎮"
                 className="h-auto min-h-7 min-w-0 flex-1 rounded-full border border-input bg-background px-2.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
