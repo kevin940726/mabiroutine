@@ -56,7 +56,7 @@ const DrawerContent = React.forwardRef<
       {/* Grab handle: a phone idiom, and a second, larger hint that this is a sheet. */}
       <div className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-muted" aria-hidden="true" />
       {children}
-      <DialogPrimitive.Close className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:text-foreground hover:opacity-100 focus:outline-none">
+      <DialogPrimitive.Close className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <X className="h-4 w-4" />
         <span className="sr-only">關閉</span>
       </DialogPrimitive.Close>
