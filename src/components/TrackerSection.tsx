@@ -466,6 +466,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
               `aria-expanded` replaces it where it matters: without it a screen
               reader heard the title and badge but not that this discloses a body. */}
           <button
+            data-celebrate-section={section}
             onClick={() => setCollapsed((v) => !v)}
             aria-expanded={!collapsed}
             className="flex flex-1 min-w-0 items-center justify-between gap-2 text-left rounded-md -mx-1 px-1 py-1 hover:bg-accent"
