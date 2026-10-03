@@ -248,7 +248,9 @@ just another surface onto that state.
    (Was a local scroll hook, `window.scrollY > 200` — replaced because a fixed
    offset left both surfaces visible on short viewports; see the revision note.)
 4. **Contents.** Search icon button that expands an inline input (auto-focus,
-   collapses on clear/blur), then compact buttons for 城鎮 / NPC / 優先度 / 類型
+   collapses on Escape, on blur when empty, or on X when already empty — the X
+   clears text otherwise and keeps focus, so its outcome is identical at every
+   scroll), then compact buttons for 城鎮 / NPC / 優先度 / 類型
    (each opening the same dropdown the header uses), then 清除. (已釘選 N rode
    along here originally; removed in the single-list revision.) Reuse
    `MenuSelect` / `MenuMultiSelect` as-is; add a compact `triggerClassName` so

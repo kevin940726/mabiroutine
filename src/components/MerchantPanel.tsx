@@ -707,8 +707,10 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
   // the hidden tab's effects (and never runs them for a panel that mounts
   // hidden), so an effect registration would be missing exactly when a tracker
   // click needs it — and its cleanup would null the ref on every switch back
-  // to the tracker. Render assignment always holds the latest committed
-  // closure, which is what a click after any keystroke must see.
+  // to the tracker. Render assignment always holds the latest rendered closure
+  // (an abandoned concurrent render could in theory leave a stale snapshot, but
+  // the next commit overwrites it); what a click after any keystroke must see
+  // is never older than the last paint.
   if (jumpRef) jumpRef.current = viewTaskInShop;
 
   const writeNpcParam = (name: string) => {
@@ -851,7 +853,24 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
               />
               <button
                 type="button"
-                onClick={() => { setQuery(""); setPillSearchOpen(false); }}
+                onMouseDown={(event) => {
+                  // Keep focus in the field. Without this the tap blurs first,
+                  // and the pill's visibility (focus-kept-alive near the top,
+                  // controls rule elsewhere) would make the same tap end
+                  // differently by scroll position: near the top the whole pill
+                  // vanishes, far down it stays. Clearing must not move focus.
+                  event.preventDefault();
+                }}
+                onClick={() => {
+                  // Mid-composition the tap belongs to the IME, like Escape:
+                  // clearing under an active session would split the field
+                  // (still composing) from the query (emptied). With nothing to
+                  // clear the X dismisses instead — the visible way back to the
+                  // filter row now that clearing no longer closes it.
+                  if (pillBox.composingRef.current) return;
+                  if (query === "") setPillSearchOpen(false);
+                  else setQuery("");
+                }}
                 aria-label="清除搜尋"
                 className="grid h-auto min-h-7 w-auto min-w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
               >
@@ -865,7 +884,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
                    without re-typing: the field is one tap away through the X. */
                 <button
                   type="button"
-                  onClick={clearFilters}
+                  onClick={() => setQuery("")}
                   aria-label={`清除搜尋「${query}」`}
                   title={`搜尋：${query}`}
                   className="flex h-auto min-h-7 min-w-0 max-w-[8rem] shrink items-center gap-1 rounded-full border border-primary px-2 text-xs text-primary"
