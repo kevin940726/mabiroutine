@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 
-const STEP_PX = 14; // px of vertical drag per ±1
+const MAX_RANGE_PX = 140; // px of vertical drag for full range
+const MIN_STEP_PX = 6; // px of vertical drag to count as a step
+const MAX_STEP_PX = 14; // px of vertical drag to count as a step
 const HOLD_MS = 300; // hold duration before grab mode
 const LEARNED_KEY = "mabiroutine:grab-learned";
 const COACH_EVENT = "mabiroutine:grab-coach"; // { taskId: string | null } — null hides all
@@ -121,9 +123,10 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
       },
       onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
         if (!grabbed) return;
-        if (Math.abs(e.clientY - startY.current) < 6) return;
+        if (Math.abs(e.clientY - startY.current) < MIN_STEP_PX) return;
         moved.current = true;
-        const steps = Math.trunc((startY.current - e.clientY) / STEP_PX);
+        const stepPx = Math.min(MAX_STEP_PX, Math.max(MIN_STEP_PX, MAX_RANGE_PX / max)); // px of vertical drag per ±1
+        const steps = Math.trunc((startY.current - e.clientY) / stepPx);
         const next = clamp(startVal.current + steps);
         if (next !== count) {
           setCounter(taskId, next, isAccount);
