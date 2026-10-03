@@ -28,14 +28,14 @@ file to update when operations change. Design rationale lives in
 
 | Cron (UTC) | Taipei | Job | Healthy log line |
 |---|---|---|---|
-| `59 * * * *` | :59 fire (≈:00 arrival — experiment 2026-10-02, see below) | barrier fanout | `barrier fanout … fanned-out` / `past-cutoff` / `no-subs` |
+| `0 * * * *` | :00 hourly | barrier fanout | `barrier fanout … fanned-out` / `past-cutoff` / `no-subs` |
 | `* * * * *` | every minute | purple tick → fanout when a spawn is within 15 min (pages the lane, ~30 sends/tick) | `purple fanout … fanned-out` / `retry-pending` (page had zero deliveries, held for the next tick) / `no-spawn` / `fired-already` |
 | `17 3,15 * * *` | 11:17 / 23:17 daily | Bahamut watcher → candidates → auto-apply | `purple watch … {"windows": N, "applied": bool}` |
 
 Cron edits take ~15 min to propagate (CF-documented). Tail with
 `pnpm wrangler tail --config workers/mabiroutine-worker/wrangler.jsonc`.
 
-### Experiment 2026-10-02: barrier tick at :59 (worker only)
+### Experiment 2026-10-02: barrier tick at :59 (worker only, reverted 2026-10-03)
 
 Platform delivers the `:00` tick at :00:58 (`at` stamps `20:00:58Z` hourly and
 `19:59:58Z` on the per-minute tick; fanout wall 2.5s for 20 subs), so server
@@ -52,6 +52,13 @@ arrival times.
 Decide after 2–3 ticks: arrival :00:0x → keep; :59:xx → revert.
 Revert: `59 * * * *` → `0 * * * *` in `wrangler.jsonc` + `src/index.ts`
 dispatch, one `worker:deploy` (cron propagation ~15 min).
+
+Outcome 2026-10-03: FALSIFIED — the ~58s phase is per-cron, not constant.
+The `:59` tick stamped `scheduledTime 1791032351` (20:59:11 Taipei, not
+:59:00) and fired 20:59:17 Taipei (+6s, wall 2.5s), so cards land ≈:59:20,
+~40s early and no longer paired with the :00 soft ping. Reverted to
+`0 * * * *` (cron + dispatch + guard carve-out all back); server cards land
+:01 again until a better approach turns up.
 
 ## 3. KV inventory (`PURPLE`, id `2c35b0732c9a4ebd8d3088824fdc9401`)
 

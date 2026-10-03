@@ -466,12 +466,7 @@ function nameBody(undone: string[], names: string[]): { body: string; chars: str
  */
 export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
   const now = Date.now();
-  const t = secIntoHour(now);
-  // EXPERIMENT 2026-10-02: the :59 tick must run the fanout, so the cutoff
-  // skips only when past the event AND outside the last minute before the
-  // hour — without this carve-out every :59 tick reads as past-cutoff and
-  // sends nothing. A tick delayed past :00 still runs, as before.
-  if (t > EVENT_SEC_PAST_HOUR - CATCHUP_MIN_SEC && t < 3600 - 60) {
+  if (secIntoHour(now) > EVENT_SEC_PAST_HOUR - CATCHUP_MIN_SEC) {
     return { skipped: true, reason: "past-cutoff", subs: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
   }
   const [listed] = await tursoPipeline(env, [
@@ -1353,9 +1348,7 @@ export default {
 
   async scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
     const at = new Date(event.scheduledTime).toISOString();
-    if (event.cron === "59 * * * *") {
-      // EXPERIMENT 2026-10-02: hourly tick moved from :00 (platform delivers
-      // it at :00:58 — see docs/operations.md §2). Revert with wrangler.jsonc.
+    if (event.cron === "0 * * * *") {
       try {
         console.log(`barrier fanout ${at}: ${JSON.stringify(await runBarrierFanout(env))}`);
       } catch (e) {
