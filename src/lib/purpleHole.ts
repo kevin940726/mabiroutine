@@ -68,6 +68,24 @@ export function normalizeWindows(windows: MaintenanceWindow[]): MaintenanceWindo
   return out;
 }
 
+/**
+ * True while the game is inside a maintenance window (half-open [start, end)).
+ * Both notification lanes stand down on this: a card fired while the game is
+ * down names a spawn that cannot happen, and post-window timing is
+ * hand-corrected anyway (2026-09-30 evidence). Suppression is only as good
+ * as the window list — unknown maintenance still notifies.
+ */
+export function isInMaintenance(
+  nowMs: number,
+  windows: MaintenanceWindow[] = activeTimetableWindows()
+): boolean {
+  for (const w of normalizeWindows(windows)) {
+    if (nowMs >= w.startMs && nowMs < w.endMs) return true;
+    if (w.startMs > nowMs) break;
+  }
+  return false;
+}
+
 // Active timetable: the code values above until a schedule feed doc applies.
 // Every public entry point defaults to this snapshot (anchor AND windows),
 // so a feed update shifts badges, popover, and fire times with no caller

@@ -11,6 +11,7 @@ import {
   PURPLE_TAG,
   firstIndexAfter,
   formatTaipei,
+  isInMaintenance,
   msUntilNextPurpleFire,
   msUntilPurpleFire,
   nthOccurrence,
@@ -71,6 +72,12 @@ export function usePurpleHoleReminders(enabled: boolean) {
     const fireStep = () => {
       void (async () => {
         if (cancelled) return;
+        // Game down: stand this spawn down and arm the next — a card now
+        // would name a spawn that cannot happen.
+        if (isInMaintenance(Date.now())) {
+          armNextSpawn();
+          return;
+        }
         const spawn = nthOccurrence(firstIndexAfter(Date.now()));
         // Already fired for this spawn (e.g. foreground bounce right after
         // a fire): skip, don't double-card.

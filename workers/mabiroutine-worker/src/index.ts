@@ -33,6 +33,7 @@ import {
   PURPLE_LEAD_MS,
   PURPLE_TAG,
   firstIndexAfter,
+  isInMaintenance,
   normalizeWindows,
   nthOccurrence,
   parseScheduleDoc,
@@ -1079,6 +1080,11 @@ async function readPurpleFanoutState(env: Env): Promise<PurpleFanoutState | null
 export async function runPurpleFanout(env: Env): Promise<PurpleFanoutReport> {
   const now = Date.now();
   const sched = await readSchedule(env);
+  // Game down: no cards while the spawn cannot happen. The cursor is untouched
+  // (same as no-spawn), so ticks after the window resume where they left off.
+  if (isInMaintenance(now, sched.windows)) {
+    return { skipped: true, reason: "maintenance", spawn: null, subs: 0, sent: 0, pruned: 0 };
+  }
   const spawn = nthOccurrence(
     firstIndexAfter(now, sched.windows, sched.anchorMs),
     sched.windows,
