@@ -22,7 +22,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 |---|---|---|---|---|---|
 | daily-dungeon | 週幾地下城 | check | - | 每日 1 次。一／四 閃耀洞穴（金幣）・二／五 璀璨宅邸（寶石）・三／六 燦爛遺跡（催化劑）・日 自選。需先接每週兼職。 | nipponhashi |
 | daily-challenge | 每日挑戰 | counter | 8 | 每日 8 個挑戰，會員有另外 2 個專屬挑戰，6 次拿滿額外獎勵。06:00 重置。 | user hand-added 2026-09-04; max 10→8, store v11→v12 caps over-max |
-| deep-dungeon | 深層地下城 | counter | 2 | 消耗魔族貢品進入（Lv55+）。貢品每 12 小時 +1、上限 10——別讓它積滿停止恢復。 | nipponhashi; bobogameguides 深淵指南 |
+| deep-dungeon | 深層地下城 | check | - | 每天都要見茉莉！消耗魔族貢品進入。貢品每 12 小時 +1、上限 10。 | nipponhashi; bobogameguides 深淵指南 |
 | parttime | 兼職 | check | - | 18:00 刷新 1 個 | nipponhashi; bobogameguides 已確認 週一06:00重置 + 每日18:00 |
 | tower | 亡靈之塔 | counter | 20 | 每日 20 次挑戰機會（06:00 重置） | nipponhashi — flipped check→counter back 2026-09-05 now that grab-adjust exists; store v10→v11 carries checked `true` as 20 |
 | purple-hole | 深淵的黑色坑洞 | counter | 3 | 約 36 小時 15 分出現一次。女神庭園、冰霜峽谷、雲海曠野各生成一個。時間為預測值，維護期間計時暫停，實際以遊戲內為準。 | **hand-added 2026-09-17, behind the experimental flag**: anchor 2026-09-16 14:08 Taipei (`src/lib/purpleHole.ts`); render-only off-day parking, no store change |
