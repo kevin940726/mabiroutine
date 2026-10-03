@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MapPin, RotateCcw, Search, ShoppingBag, SlidersHorizontal, Store, X } from "lucide-react";
+import { ArrowLeft, MapPin, RotateCcw, Search, SlidersHorizontal, Store, X } from "lucide-react";
 import { MenuSelect, MenuMultiSelect } from "@/components/MenuSelect";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
@@ -11,6 +11,8 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
 import { displayName, parseItemQty } from "@/lib/materials";
 import { ShopGrid } from "@/components/shop/ShopGrid";
+import { compareRows } from "@/components/shop/shared";
+import { writeShopJumpParams } from "@/lib/shopJump";
 import { NpcFace } from "@/components/shop/NpcFace";
 import type { ShopRow } from "@/components/shop/types";
 import barterJson from "@/data/barter.json";
@@ -61,6 +63,30 @@ const PILL_TRIGGER = "h-auto min-h-7 shrink-0 rounded-full px-1.5 sm:px-2.5 text
  *  `compact` in App.tsx is independent. */
 const PILL_SCROLL_THRESHOLD = 200;
 
+/** Below this width the pill's four filter dropdowns go behind a drawer; at or
+ *  above it they lay out inline.
+ *
+ *  The inline row scales with the root font (~535px at 16px, 794px at 24px,
+ *  925px at 28px), so a boundary low enough for `sm` would overflow on a narrow
+ *  desktop window with a zoomed font — the reason the drawer existed at all.
+ *  1024px (`lg`) covers every size measured with room to spare, and below it the
+ *  drawer is the right call anyway: the row genuinely lacks the space. */
+const PILL_DRAWER_MAX_WIDTH = 1023;
+
+/** True while the viewport is at or below `maxPx`. A one-off here rather than in
+ *  `useIsMobile`, whose 639px meaning drives the app-wide mobile/desktop layout
+ *  variants and must not shift for a pill's sake. */
+function useNarrowerThan(maxPx: number) {
+  const [narrow, setNarrow] = useState(() => window.matchMedia(`(max-width: ${maxPx}px)`).matches);
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${maxPx}px)`);
+    const onChange = () => setNarrow(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [maxPx]);
+  return narrow;
+}
+
 /** Local scroll flag, so the pill needs no prop from App.tsx across the tab
  *  Activity boundary. Mirrors the character pill's listener. */
 function useScrolledPast(threshold: number) {
@@ -92,10 +118,13 @@ type ViewSnapshot = {
   town: string;
   merchant: string;
   query: string;
-  selectedOnly: boolean;
   priorityFilter: string[];
   kindFilter: string;
   scrollY: number;
+  /** Which tab the jump came from. Shop-origin jumps restore shop filters;
+   *  tracker-origin jumps switch the tab back. Set by snapshotView ("shop")
+   *  and overridden by the tracker entry below. */
+  origin: "tracker" | "shop";
 };
 
 type MerchantGroup = { name: string; town: string; rows: ShopRow[] };
@@ -205,35 +234,34 @@ function groupItems(items: ShopRow[]) {
   return [...groups.values()].sort((a, b) => compareTowns(a.town, b.town) || a.name.localeCompare(b.name, "zh-Hant"));
 }
 
-function SearchControls({ query, onQueryChange, selectedOnly, onSelectedOnlyChange, selectedCount }: {
+function SearchControls({ query, onQueryChange }: {
   query: string;
   onQueryChange: (query: string) => void;
-  selectedOnly: boolean;
-  onSelectedOnlyChange: (value: boolean) => void;
-  selectedCount: number;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row">
-      <div className="relative min-w-0 flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="搜尋獎勵、材料、NPC 或城鎮" className="h-10 bg-background pl-9" />
-      </div>
-      <Button type="button" variant={selectedOnly ? "default" : "outline"} className="h-10 shrink-0" aria-pressed={selectedOnly} onClick={() => onSelectedOnlyChange(!selectedOnly)}>
-        <ShoppingBag data-icon="inline-start" />
-        已選 {selectedCount}
-      </Button>
+    <div className="relative min-w-0 flex-1">
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="搜尋獎勵、材料、NPC 或城鎮" className="h-10 bg-background pl-9" />
     </div>
   );
 }
 
-export function MerchantPanel() {
+/** Props are navigation only — the panel owns all filter state. `jumpRef` lets App
+ *  fire a tracker-originated jump (tab switch is App's job, the filter reset is
+ *  here); `onNavigateTab` lets the 返回 chip switch back to the tracker. */
+export function MerchantPanel({ jumpRef, onNavigateTab }: {
+  jumpRef?: { current: ((npc: string, pinIds: string[]) => void) | null };
+  onNavigateTab?: (tab: "tracker" | "barter") => void;
+}) {
   const [town, setTown] = useState("all");
   const [merchant, setMerchant] = useState("all");
   const [query, setQuery] = useState("");
-  const [selectedOnly, setSelectedOnly] = useState(false);
   // The tracker's pin list, shared: pinning here and pinning in the tracker are
   // the same action on the same barter id, and the pins sync with it.
   const barterPins = useAppStore((s) => s.barterPins);
+  // A Set, memoized: `items` (below) and several grid call sites all need
+  // "is this row pinned", and rebuilding it per render per row is wasteful.
+  const pinSet = useMemo(() => new Set(barterPins), [barterPins]);
   // Panel-local filters: deliberately not persisted, so nothing here leaks into
   // the store or costs a version bump. The store used to carry a persisted
   // barterFilters with a priority field, but nothing read it after the old explorer
@@ -244,13 +272,21 @@ export function MerchantPanel() {
   // `showPill` re-derives the scroll threshold locally; `pillSearchOpen` is the
   // pill's only own state — every filter it shows is the panel's (Q1).
   const isMobile = useIsMobile();
+  // The pill's four dropdowns go inline only when there is room for them; below
+  // that they sit behind the drawer. Separate from `isMobile` on purpose (see
+  // PILL_DRAWER_MAX_WIDTH).
+  const pillUsesDrawer = useNarrowerThan(PILL_DRAWER_MAX_WIDTH);
   const showPill = useScrolledPast(PILL_SCROLL_THRESHOLD);
   const [pillSearchOpen, setPillSearchOpen] = useState(false);
-  // The tile a jump just landed on, flashed and then cleared. Keyed by pinId, the
-  // same id a pin uses: a curated barter row's `key` is the shop deal's key and is
-  // absent when the row came from barter.json alone, while pinId is total.
-  const [focusKey, setFocusKey] = useState<string | null>(null);
+  // (focusKeys state lives beside flashTiles below.)
   const focusTimer = useRef<number | null>(null);
+  // Guards the one-shot ?npc=/?item= landing below: set on first effect run AND
+  // by the in-app jump, which writes fresh params just before the tab shows and
+  // the effect runs for the first time. Without the second set the effect would
+  // mistake the jump's own deep link for a cold load and strip it on arrival.
+  // Refs survive Activity hide/show (only a true remount resets), so the guard
+  // holds across tab switches.
+  const landingDone = useRef(false);
   // The view to return to, armed by a jump and discharged by the 返回 chip. Null
   // when there is nothing to go back to, which is what hides the chip.
   const [preJump, setPreJump] = useState<ViewSnapshot | null>(null);
@@ -278,17 +314,62 @@ export function MerchantPanel() {
     [groups]
   );
   const items = useMemo(
-    () =>
-      filterItems(ALL_SHOP_ITEMS, town, query)
+    () => {
+      // Orphans: pins that resolve only through barter.json (a tracker-made pin
+      // for a row shops.json has no entry for). They rode along in the old
+      // pinned-only list; folding them into the pool keeps them visible here
+      // instead of dropping a pin the tracker still counts.
+      const seen = new Set(ALL_SHOP_ITEMS.map((item) => item.pinId));
+      const orphans = (barterJson as (typeof barterJson)[number][])
+        .filter((row) => pinSet.has(row.id) && !seen.has(row.id))
+        .map((row) => barterRowToItem(row));
+      // Pinning order. Pins lead the list (see below), so `barterPins` IS that
+      // order; a row missing from it sorts with the unpinned rest rather than
+      // being dropped.
+      const rank = new Map(barterPins.map((id, i) => [id, i]));
+      return filterItems([...ALL_SHOP_ITEMS, ...orphans], town, query)
         .filter((item) => merchant === "all" || item.npc === merchant)
         // Applied here so every view below (all merchants, one merchant, and the
         // counts in the header) sees the same list.
+        //
         // Priority is multi-select: an empty set is unfiltered, otherwise a row
         // passes on any of the ticked tiers. Ticking several tiers widens the list
         // (union), which is what a filter is for.
-        .filter((item) => priorityFilter.length === 0 || (item.priority != null && priorityFilter.includes(item.priority)))
-        .filter((item) => kindFilter === "all" || (kindFilter === "shop" ? item.kind === "shop" : item.kind === "barter")),
-    [town, query, merchant, priorityFilter, kindFilter],
+        //
+        // A PINNED row bypasses this filter. The list opens on 必換+推薦 (39 of
+        // 194), and pinning is itself a deliberate act, so a pin the user made must
+        // not be hidden by a default they did not choose — a pinned 一般 row would
+        // otherwise vanish from the very list it was pinned from. The other filters
+        // (town / NPC / kind / search) still apply to it: those are things the user
+        // set explicitly, and honoring them keeps the pinned row in the context it
+        // was found in. The section header names the bypass (see
+        // `bypassedCount`), so the trigger reading 必換、推薦 while the list holds
+        // a 視需求 row is stated, not silent.
+        .filter(
+          (item) =>
+            pinSet.has(item.pinId) ||
+            priorityFilter.length === 0 ||
+            (item.priority != null && priorityFilter.includes(item.priority))
+        )
+        .filter((item) => kindFilter === "all" || (kindFilter === "shop" ? item.kind === "shop" : item.kind === "barter"))
+        // Pins lead, in pinning order; the rest keeps the shop's tier reading
+        // order (`compareRows`), not catalog order — the grid has always read
+        // 必換 first, and a pin landing should not reshuffle everything below
+        // it. Pinning then visibly moves a row to the top of its section, which
+        // is the feedback that the pin landed — and unpinning drops it back to
+        // its tier position (or out of the list, if no ticked tier covers it).
+        // The caller owns this order end to end, so the grid must keep it: the
+        // panel passes `preserveOrder` (see below).
+        .sort((a, b) => {
+          const ar = rank.get(a.pinId);
+          const br = rank.get(b.pinId);
+          if (ar !== undefined && br === undefined) return -1;
+          if (ar === undefined && br !== undefined) return 1;
+          if (ar !== undefined && br !== undefined) return ar - br;
+          return compareRows(a, b);
+        });
+    },
+    [town, query, merchant, priorityFilter, kindFilter, pinSet, barterPins],
   );
 
   const selected = merchant === "all" ? null : groups.find((group) => group.name === merchant) ?? null;
@@ -301,43 +382,41 @@ export function MerchantPanel() {
     () => (merchant === "all" ? [] : items.filter((item) => item.npc === merchant)),
     [items, merchant]
   );
-  // Pinned rows resolve through barter.json, so a pin made in the tracker (or on
-  // another device) shows here even when that row is not in shops.json. Matched
-  // on pinId, not barterId: a gold pin has no barter.json id and would be
-  // missing from its own 已選 list while still counted in the header.
-  const pinnedItems = useMemo(() => {
-    const wanted = new Set(barterPins);
-    const fromShops = ALL_SHOP_ITEMS.filter((item) => wanted.has(item.pinId));
-    const seen = new Set(fromShops.map((item) => item.pinId));
-    const orphans = (barterJson as (typeof barterJson)[number][])
-      .filter((row) => wanted.has(row.id) && !seen.has(row.id))
-      .map((row) => barterRowToItem(row));
-    // Selection order. The 已選 view promises "依選取順序" and pins are appended as
-    // they are made, so `barterPins` IS that order; a row missing from it (a pin
-    // that did not resolve) sorts last rather than being dropped.
-    const rank = new Map(barterPins.map((id, i) => [id, i]));
-    return [...fromShops, ...orphans]
-      .filter((item) => rowMatches(item, query))
-      .sort((a, b) => (rank.get(a.pinId) ?? Infinity) - (rank.get(b.pinId) ?? Infinity));
-  }, [barterPins, query]);
+  // How many of the SHOWN rows are present only because they are pinned — i.e.
+  // the trigger reads 必換、推薦 while the list holds rows of other tiers. The
+  // section header states this count, so the bypass is visible rather than a
+  // silent exception. Zero when the priority filter is empty (nothing bypassed)
+  // or when every pin already sits inside a ticked tier.
+  const bypassedCount = useMemo(() => {
+    if (priorityFilter.length === 0) return 0;
+    const shown = selected ? npcRows : items;
+    return shown.filter(
+      (item) => pinSet.has(item.pinId) && !(item.priority != null && priorityFilter.includes(item.priority))
+    ).length;
+  }, [selected, npcRows, items, priorityFilter, pinSet]);
 
-  /** Flash a tile and scroll to it. Shared by the in-card 在商店中查看 jump and the
-   *  ?item= landing, so a shared link and a click land identically. */
-  const focusTile = useCallback((key: string) => {
-    setFocusKey(key);
+  /** Flash tiles and scroll to the first. A SET, not a key: a tracker group-parent
+   *  jump lands on every child at once, so all of them flash together under one
+   *  timer. Single-row callers pass one element. Keys that never mount (a retired
+   *  pin) simply match no tile; scrollToFocus reports it and no scroll happens. */
+  const [focusKeys, setFocusKeys] = useState<string[]>([]);
+  const flashTiles = useCallback((keys: string[]) => {
+    setFocusKeys(keys);
     if (focusTimer.current) window.clearTimeout(focusTimer.current);
-    focusTimer.current = window.setTimeout(() => setFocusKey(null), FOCUS_FLASH_MS);
+    focusTimer.current = window.setTimeout(() => setFocusKeys([]), FOCUS_FLASH_MS);
   }, []);
-  // Scroll to the flashed tile from here, not from focusTile: a jump switches merchant
+  // Scroll to the flashed tile from here, not from the jump: a jump switches merchant
   // in the same handler, so at call time the list still renders the OLD merchant and
   // the target is not mounted. This effect runs after the commit that mounts it. The
   // rAF waits one frame for layout, since scrollIntoView on a not-yet-laid-out node
-  // lands nowhere.
+  // lands nowhere. It also re-runs when the tab becomes visible again: Activity
+  // tears down the hidden subtree's effects, so a jump fired from the tracker (shop
+  // hidden) flashes and scrolls once the shop is shown.
   useEffect(() => {
-    if (!focusKey) return;
-    const raf = requestAnimationFrame(() => scrollToFocus(focusKey));
+    if (focusKeys.length === 0) return;
+    const raf = requestAnimationFrame(() => scrollToFocus(focusKeys[0]));
     return () => cancelAnimationFrame(raf);
-  }, [focusKey]);
+  }, [focusKeys]);
   useEffect(
     () => () => {
       if (focusTimer.current) window.clearTimeout(focusTimer.current);
@@ -354,12 +433,12 @@ export function MerchantPanel() {
       town,
       merchant,
       query,
-      selectedOnly,
       priorityFilter,
       kindFilter,
       scrollY: typeof window === "undefined" ? 0 : window.scrollY,
+      origin: "shop",
     }),
-    [town, merchant, query, selectedOnly, priorityFilter, kindFilter]
+    [town, merchant, query, priorityFilter, kindFilter]
   );
 
   /** The in-card jump: go to the merchant that PRODUCES the give, not the row being
@@ -383,13 +462,15 @@ export function MerchantPanel() {
       setQuery("");
       setPriorityFilter([]);
       setKindFilter("all");
-      setSelectedOnly(false);
       setTown("all");
       setMerchant(npc);
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.searchParams.set("npc", npc);
         url.searchParams.delete("item");
+        // A later in-shop jump ends the tracker landing: the way back belongs
+        // to the newest jump, and this one arms its own snapshot.
+        url.searchParams.delete("from");
         window.history.replaceState(null, "", url.toString());
       }
       // Flash the row that produces the material: the producing merchant trades it as
@@ -397,34 +478,59 @@ export function MerchantPanel() {
       // the producer leg is a shops.json entry with no barter-row pinId of its own.
       // get is the display string ("凱琳特製全麥麵包 ×3"), so compare the parsed name.
       // ALL_SHOP_ITEMS is module-level data, so the row resolves synchronously — the
-      // only thing that has to wait is the DOM, which the focusKey effect handles.
+      // only thing that has to wait is the DOM, which the focusKeys effect handles.
       // Not found (a curation gap) still lands on the section, minus the flash.
       const row = ALL_SHOP_ITEMS.find((r) => r.npc === npc && parseItemQty(r.get).name === giveName);
-      if (row) focusTile(row.pinId);
+      if (row) flashTiles([row.pinId]);
     },
-    [focusTile, snapshotView]
+    [flashTiles, snapshotView]
   );
   // One-shot landing for ?npc= and ?item=, the same convention the reminder params
   // use in useHourlyReminders: read once, act, then strip so the URL stops claiming
   // to be navigation state. A param is only reachable on a cold load anyway (an
   // installed PWA that gets focused never sees one), so keeping it around adds
   // nothing a reload would honour.
+  //
+  // The once-guard is load-bearing, not belt-and-braces: Activity re-runs a
+  // hidden tab's effects on EVERY show, so without it a tab switch back to the
+  // shop would re-process whatever params the URL currently holds, clobbering
+  // the merchant the user picked meanwhile. (Declared with the refs above: the
+  // in-app jump sets it too, covering the first-show case.)
   useEffect(() => {
+    if (landingDone.current) return;
+    landingDone.current = true;
     if (typeof window === "undefined") return;
     const q = new URLSearchParams(window.location.search);
     const npc = q.get("npc");
     const item = q.get("item");
+    const fromTracker = q.get("from") === "tracker";
     if (!npc && !item) return;
     const url = new URL(window.location.href);
     url.searchParams.delete("npc");
     url.searchParams.delete("item");
+    url.searchParams.delete("from");
     window.history.replaceState(null, "", url.toString());
+    // A tracker jump copied as a link keeps its way back: arm 返回任務追蹤 with
+    // the cold defaults (which ARE the pre-jump shop state on a fresh load —
+    // the filter useStates initialize to exactly these). Bare ?npc= links
+    // (in-shop jumps, hand-written URLs) arm nothing, as before.
+    if (fromTracker && npc) {
+      setPreJump({
+        town: "all",
+        merchant: "all",
+        query: "",
+        priorityFilter: DEFAULT_PRIORITY,
+        kindFilter: "all",
+        scrollY: 0,
+        origin: "tracker",
+      });
+    }
     // ?item= wins: it names an exact row, and knows its own NPC.
     const target = item ? ALL_SHOP_ITEMS.find((row) => row.pinId === item) : undefined;
     if (target) {
       setTown("all");
       setMerchant(target.npc);
-      focusTile(target.pinId);
+      flashTiles([target.pinId]);
       return;
     }
     // Fall back to ?npc=, which covers both a bare NPC link and an ?item= whose row
@@ -436,13 +542,54 @@ export function MerchantPanel() {
     if (!group) return;
     setTown("all");
     setMerchant(npc);
-  }, [focusTile]);
+  }, [flashTiles]);
+
+  /** The tracker jump: a tracker row's icon deep-links to that row's NPC shop and
+   *  flashes the row (one pinId) or the whole group (every child pinId). The tab
+   *  switch itself is the caller's job (App owns `tab`); this runs while the shop
+   *  is still hidden, and the flash/scroll effect fires once Activity shows it.
+   *
+   *  Resets EVERYTHING except the merchant: town, search, 優先度 and 類型 all go
+   *  back to unfiltered, so the landed view is that merchant's full section and
+   *  the target cannot be hidden behind a stale filter. The snapshot keeps origin
+   *  "tracker" so 返回 switches the tab back instead of restoring shop filters.
+   *  The URL names the merchant (and the exact row for a single pin) so the
+   *  landing is shareable; the mount effect above honors both on a cold load. */
+  const viewTaskInShop = useCallback(
+    (npc: string, pinIds: string[]) => {
+      setPreJump({ ...snapshotView(), origin: "tracker" });
+      setQuery("");
+      setPriorityFilter([]);
+      setKindFilter("all");
+      setTown("all");
+      setMerchant(npc);
+      writeShopJumpParams(npc, pinIds);
+      // Claim the landing guard: the tab is about to show and the one-shot
+      // effect runs for the first time — these params are the jump's own, not
+      // a cold load, so the effect must leave them alone.
+      landingDone.current = true;
+      flashTiles(pinIds);
+    },
+    [flashTiles, snapshotView]
+  );
+
+  // Publish the tracker jump entry so App can fire it alongside the tab switch.
+  // Assigned during RENDER, not in an effect, on purpose: Activity tears down
+  // the hidden tab's effects (and never runs them for a panel that mounts
+  // hidden), so an effect registration would be missing exactly when a tracker
+  // click needs it — and its cleanup would null the ref on every switch back
+  // to the tracker. Render assignment always holds the latest committed
+  // closure, which is what a click after any keystroke must see.
+  if (jumpRef) jumpRef.current = viewTaskInShop;
 
   const writeNpcParam = (name: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     if (name === "all") url.searchParams.delete("npc");
     else url.searchParams.set("npc", name);
+    // Any merchant change after a landing ends it: a copied URL must not offer
+    // a way back to a jump the user already moved on from.
+    url.searchParams.delete("from");
     window.history.replaceState(null, "", url.toString());
   };
 
@@ -501,18 +648,23 @@ export function MerchantPanel() {
 
   /** Discharge the 返回 chip: put back the filters and scroll a jump wiped. Runs as
    *  a same-session state restore, symmetric with the jump — the URL is rewritten to
-   *  match so a shared link stops claiming the jumped-to merchant. */
+   *  match so a shared link stops claiming the jumped-to merchant.
+   *
+   *  Tracker-origin jumps switch the tab back instead: the snapshot's filters are
+   *  still restored (so the shop keeps its pre-jump state for the next visit) and
+   *  the scroll restore lands on the tracker's position, since both tabs share
+   *  the window scroll and switching does not preserve it. */
   const goBack = () => {
     const snap = preJump;
     if (!snap) return;
     setTown(snap.town);
     setMerchant(snap.merchant);
     setQuery(snap.query);
-    setSelectedOnly(snap.selectedOnly);
     setPriorityFilter(snap.priorityFilter);
     setKindFilter(snap.kindFilter);
     writeNpcParam(snap.merchant);
     setPreJump(null);
+    if (snap.origin === "tracker") onNavigateTab?.("tracker");
     // After the restore commits, put the viewport back where it was. The rAF lets
     // the restored list lay out first; without it the scroll lands on the wrong
     // height (the pre-jump scrollY measured against a different list).
@@ -530,7 +682,12 @@ export function MerchantPanel() {
           threshold, so only one of those surfaces is on screen at a time. */}
       <div
         className={cn(
-          "fixed left-1/2 -translate-x-1/2 z-30 w-[calc(100svw-2rem)] sm:w-max max-w-[calc(100svw-2rem)] transition-all duration-300",
+          // Hugs its content (`w-max`) and never exceeds the viewport. It was
+          // pinned full-width on a phone while the four dropdowns lived inline
+          // (a long value needed a definite width to shrink against); those
+          // moved into the drawer, so the phone row is now three fixed-width
+          // items and nothing in it can grow — full width just left a gap.
+          "fixed left-1/2 -translate-x-1/2 z-30 w-max max-w-[calc(100svw-2rem)] transition-all duration-300",
           showPill ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
         )}
         style={{ top: isMobile ? 70 : 88 }}
@@ -587,17 +744,18 @@ export function MerchantPanel() {
                   <Search className="h-3.5 w-3.5" />
                 </button>
               )}
-              {/* In 已選 view the header hides its grid filters (they do not apply
-                  to the pinned list), so the pill mirrors that: search + 已選 only. */}
-              {!selectedOnly && (
+              {/* One list, so the four filters are always here: there is no second
+                  view for them to vanish into. 優先度 exempts pins (see `items`
+                  and the section count), so a pin is never emptied by a default
+                  the user did not choose. */}
+              {pillUsesDrawer ? (
                 <Drawer>
                   <DrawerTrigger asChild>
-                    {/* One trigger for all four filters. Four separate triggers
-                        could not survive a larger browser font size: each keeps
-                        its own label, so the row's width scales with the text and
-                        overflows. Collapsing them to one keeps the row at three
-                        items, which fits every font size (measured ~228px at a
-                        28px root against a ~334px row). */}
+                    {/* On a phone the four controls do not fit the row (measured
+                        ~390px of controls against a 358px phone row), so they live
+                        behind one trigger and a drawer. On desktop the row has the
+                        room and a drawer would cost an extra click, so the four are
+                        laid out inline there instead — see the desktop branch below. */}
                     <button
                       type="button"
                       className={cn(
@@ -621,7 +779,7 @@ export function MerchantPanel() {
                   <DrawerContent aria-describedby={undefined}>
                     <DrawerHeader>
                       <DrawerTitle>篩選商店</DrawerTitle>
-                      <DrawerDescription>選擇 NPC 後，於頁籤內瀏覽完整內容</DrawerDescription>
+                      <DrawerDescription>選擇城鎮、NPC、優先度或類型，縮小下方清單</DrawerDescription>
                     </DrawerHeader>
                     {/* Each group keeps the SAME control the header grid uses, so
                         one surface cannot drift from the other; the drawer only
@@ -685,20 +843,64 @@ export function MerchantPanel() {
                     </DrawerFooter>
                   </DrawerContent>
                 </Drawer>
+              ) : (
+                /* Desktop: the four dropdowns inline, each the same control the
+                   header uses, so the header grid and the pill are two surfaces onto
+                   one state and cannot drift. A trigger reads its short group name
+                   while at its default and its chosen value once set, which is the
+                   same convention the header uses (`全部城鎮` -> `城鎮`); keeping the
+                   label short is what lets four of them fit one row. */
+                <>
+                  <MenuSelect
+                    value={town}
+                    ariaLabel="城鎮"
+                    triggerLabel={town === "all" ? "城鎮" : undefined}
+                    onChange={(value) => { setTown(value); setMerchant("all"); writeNpcParam("all"); }}
+                    options={townOptions}
+                    triggerClassName={cn(PILL_TRIGGER, "border border-input bg-transparent shadow-sm", town !== "all" && "border-primary text-primary")}
+                    contentClassName="min-w-[12rem]"
+                  />
+                  <MenuSelect
+                    value={merchant}
+                    ariaLabel="NPC"
+                    triggerLabel={merchant === "all" ? "NPC" : undefined}
+                    onChange={selectNpc}
+                    options={npcOptions}
+                    triggerClassName={cn(PILL_TRIGGER, "border border-input bg-transparent shadow-sm", merchant !== "all" && "border-primary text-primary")}
+                    contentClassName="min-w-[12rem]"
+                  />
+                  <MenuMultiSelect
+                    values={priorityFilter}
+                    ariaLabel="優先度"
+                    triggerLabel={priorityFilter.length === 0 ? "優先度" : undefined}
+                    onChange={setPriorityFilter}
+                    options={PRIORITY_OPTIONS}
+                    triggerClassName={cn(PILL_TRIGGER, "border border-input bg-transparent shadow-sm", priorityFilter.length > 0 && "border-primary text-primary")}
+                    contentClassName="min-w-[12rem]"
+                  />
+                  <MenuSelect
+                    value={kindFilter}
+                    ariaLabel="交易類型"
+                    triggerLabel={kindFilter === "all" ? "類型" : undefined}
+                    onChange={setKindFilter}
+                    options={KIND_OPTIONS}
+                    triggerClassName={cn(PILL_TRIGGER, "border border-input bg-transparent shadow-sm", kindFilter !== "all" && "border-primary text-primary")}
+                    contentClassName="min-w-[12rem]"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={clearFilters}
+                    disabled={!filtersActive}
+                    aria-label="清除篩選"
+                    title="清除篩選"
+                    className={cn(PILL_TRIGGER, "text-muted-foreground hover:text-foreground disabled:opacity-40")}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 shrink-0" />
+                    清除
+                  </Button>
+                </>
               )}
-              <Button
-                type="button"
-                variant={selectedOnly ? "default" : "outline"}
-                size="icon"
-                aria-pressed={selectedOnly}
-                aria-label={`已選 ${barterPins.length} 筆交易（${selectedOnly ? "檢視中" : "檢視"}）`}
-                title={`已選 ${barterPins.length}`}
-                onClick={() => setSelectedOnly((value) => !value)}
-                className="h-auto min-h-7 shrink-0 rounded-full px-1.5 sm:w-auto sm:px-2.5"
-              >
-                <ShoppingBag className="size-3.5" />
-                <span className="hidden sm:inline">已選 {barterPins.length}</span>
-              </Button>
             </>
           )}
         </div>
@@ -707,9 +909,8 @@ export function MerchantPanel() {
       <header className="rounded-2xl border bg-card p-4 sm:p-5">
         <div className="mb-4">
           <h1 className="text-2xl font-semibold">商店 / 以物易物</h1>
-          <p className="mt-1 text-sm text-muted-foreground">選擇 NPC 後，於頁籤內瀏覽完整內容</p>
         </div>
-        <SearchControls query={query} onQueryChange={setQuery} selectedOnly={selectedOnly} onSelectedOnlyChange={setSelectedOnly} selectedCount={barterPins.length} />
+        <SearchControls query={query} onQueryChange={setQuery} />
       </header>
 
       {/* Armed by a jump, discharged here. Sits above the filters rather than in the
@@ -724,15 +925,14 @@ export function MerchantPanel() {
             className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeft className="size-3.5" />
-            返回{preJump.merchant !== "all" ? ` ${preJump.merchant}` : preJump.town !== "all" ? ` ${preJump.town}` : "全部商店"}
+            {preJump.origin === "tracker" ? "返回任務追蹤" : `返回${preJump.merchant !== "all" ? ` ${preJump.merchant}` : preJump.town !== "all" ? ` ${preJump.town}` : "全部商店"}`}
           </button>
         </div>
       )}
 
       {/* 優先度 and 類型 are grid filters, so the template needs five columns or the
           reset button wraps under the last control */}
-      {!selectedOnly && (
-        <div className={cn("grid gap-2", "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]")}>
+      <div className={cn("grid gap-2", "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]")}>
           <MenuSelect
             value={town}
             ariaLabel="城鎮"
@@ -766,50 +966,27 @@ export function MerchantPanel() {
             清除篩選
           </Button>
         </div>
-      )}
 
-      {selectedOnly ? (
-        <section>
-          <div className="mb-4 flex items-end justify-between border-b pb-3">
-            <div>
-              <h2 className="text-lg font-semibold">已選交易</h2>
-              <p className="mt-1 text-xs text-muted-foreground">所有來源，依選取順序</p>
-            </div>
-            <span className="text-sm text-muted-foreground">{pinnedItems.length} 筆</span>
-          </div>
-          {pinnedItems.length > 0 ? (
-            // grouped by merchant, in selection order: this view's premise is
-            // that the order you picked things in is the order you want them
-            <ShopGrid
-              items={pinnedItems}
-              pinned={new Set(barterPins)}
-              onTogglePin={togglePin}
-              onViewInShop={viewInShop}
-              onOpenNpc={openNpc}
-              focusKey={focusKey}
-              byNpc
-              splitKind
-              preserveOrder
-            />
+      {/* One list, no modes. Pins lead in pinning order (see `items`), so the
+          default view IS pins ∪ the ticked tiers; there is no second view to
+          switch to and no control that acts in one view and idles in another. */}
+      <section>
+        <div className="mb-4 flex flex-wrap items-center gap-3 border-b pb-4">
+          {selected ? (
+            <NpcFace npc={selected.name} size="size-12" />
           ) : (
-            <div className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">尚無已選交易</div>
+            <span className="grid size-12 place-items-center rounded-full border bg-background"><Store /></span>
           )}
-        </section>
-      ) : (
-        <section>
-          <div className="mb-4 flex flex-wrap items-center gap-3 border-b pb-4">
-            {selected ? (
-              <NpcFace npc={selected.name} size="size-12" />
-            ) : (
-              <span className="grid size-12 place-items-center rounded-full border bg-background"><Store /></span>
-            )}
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate text-lg font-semibold">{selected?.name ?? "全部商店"}</h2>
-              <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-                {selected ? <><MapPin /> {selected.town} · {npcRows.length} 筆</> : `${items.length} 筆`}
-              </p>
-            </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-lg font-semibold">{selected?.name ?? "全部商店"}</h2>
+            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+              {selected ? <><MapPin /> {selected.town} · {npcRows.length} 筆</> : `${items.length} 筆`}
+              {bypassedCount > 0 && (
+                <span>（含 {bypassedCount} 筆已釘選，不受優先度篩選）</span>
+              )}
+            </p>
           </div>
+        </div>
           {/* The grid sections by town when the list is unfiltered and by merchant
               once a town or NPC filter narrows it, since a town heading would then
               repeat a single value. */}
@@ -817,14 +994,16 @@ export function MerchantPanel() {
             byNpc={town !== "all" || merchant !== "all"}
             splitKind={town !== "all" || merchant !== "all"}
             items={selected ? npcRows : items}
-            pinned={new Set(barterPins)}
+            pinned={pinSet}
             onTogglePin={togglePin}
             onViewInShop={viewInShop}
             onOpenNpc={openNpc}
-            focusKey={focusKey}
+            focusKeys={focusKeys}
+            // The caller owns the order end to end (pins lead, then tiers —
+            // see `items`), so the grid keeps it instead of re-sorting.
+            preserveOrder
           />
         </section>
-      )}
     </div>
   );
 }

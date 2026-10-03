@@ -1,8 +1,8 @@
 # Plan — floating switch bar: character pill in tracker, filter/search pill in barter
 
-Status: IN BUILD. Branch `feat/barter-filter-pill`. T1–T4 built; T5 (polish) and
-T6 (move the tracker context block into the tracker tab) remain. The design below
-is the original plan; section 0 is the live handoff.
+Status: IN BUILD. Branch `feat/barter-filter-pill`. T1–T6 built; T5 (final polish
+and the remaining search-path check) is what is left. The design below is the
+original plan; section 0 is the live handoff.
 
 **Read section 0 first.** It is the handoff: where the branch stands, what is
 next, and the traps that cost time getting here. Everything after it is the
@@ -18,8 +18,54 @@ design of the change.
   only: **not pushed**, no PR.
 - **Built:** T1 (character pill gated on `tab === "tracker"`), T2 (empty
   `<FilterPill>` in `MerchantPanel`), T3 (search icon + expanding input), T4 (the
-  four compact filters, 清除 and 已選 N). Each is a commit on this branch.
-- **Remaining:** T5 (polish + docs) and T6 (see below).
+  four compact filters and 清除), T6 (tracker context block moved into the
+  tracker tab). Each is a commit on this branch.
+- **The pill's filters split by width.** Below 1024px (`PILL_DRAWER_MAX_WIDTH` in
+  `MerchantPanel`) the four dropdowns sit behind one 篩選 trigger and a drawer;
+  from 1024px up they lay out inline with 清除. The drawer was the original design
+  for every width, but on desktop it costs an extra click and hides four controls
+  that have room to show. The boundary is 1024 rather than `sm` because the inline
+  row scales with the root font (535px at 16px, 794px at 24px, 927px at 28px):
+  below ~1024 an enlarged font overflowed, which is exactly what the drawer was
+  for. `useNarrowerThan` is local to the panel — `useIsMobile` (639px) still
+  drives the app-wide layout variants and was left alone.
+- **The phone pill hugs.** It was pinned full-width on a phone while the four
+  dropdowns were inline (a long value needed a definite width for `shrink`), but
+  once those moved into the drawer the row held only three fixed-width items and
+  full width just left a gap. Now `w-max` + `max-w-[calc(100svw-2rem)]`: 154px at
+  rest, widening to the row only when the search field opens.
+- **One list, pins lead — the toggle is gone (revised 2026-10-03).** The `selectedOnly`
+  mode is deleted: keeping it could not be made coherent (with the pin bypass, the
+  優先度 control was dead in the pinned view since every row there is pinned;
+  without it, the default must+extra hid pins inside the very view meant to show
+  them — and the pinned list turned out to filter by search only, so its visible
+  town / NPC / priority / kind controls acted on nothing). `items` is now the only
+  list: pins lead their section in pinning order, then `compareRows` tier order
+  below (the panel passes `preserveOrder` so the grid keeps the caller's order).
+  The section count states the bypass exactly when it bites
+  (`含 N 筆已釘選，不受優先度篩選`). "Only pins" is the tracker's pinned groups.
+  Vocabulary stays 釘選 everywhere (store `barterPins`, tracker, tile buttons).
+  Verified: `tir-f1` (視需求, pinned) leads its section in the 40-row default with
+  the caption present; unpinning drops it (39 rows); pinning a must row moves it to
+  its section top; no 已釘選 toggle or heading remains in the shop.
+- **Tracker→shop deep-links (companion, 2026-10-03).** Tracker portraits are
+  buttons: regular trade rows (NPC face), group parents (face, flashes ALL
+  children via a `focusKeys` set under one timer) and group children (item art).
+  One list, so the landing is the merchant's full section with every filter reset
+  (`viewTaskInShop`: town/search/優先度/類型 cleared). App owns the tab switch and
+  fires the panel through a render-assigned ref — NOT an effect registration, and
+  NOT nulled on cleanup, because Activity tears down hidden-tab effects (the
+  first implementation did both and the jump silently no-op'd: tab switched, no
+  landing). The one-shot ?npc=/?item= effect carries a `landingDone` guard for
+  the same reason: without it every tab show re-processed the URL, stripping a
+  fresh jump link on arrival. Cold-start gap (chunk unloaded) falls back to the
+  same params in the URL (`lib/shopJump.writeShopJumpParams`, incl.
+  `from=tracker`), which the landing honors — and `from` arms 返回任務追蹤 with
+  cold defaults, so even a copied link keeps its way back. Verified: regular /
+  child / parent jumps flash 1 / 1 / N tiles, reset is visible (trigger reads
+  全部優先度), back restores tracker + scroll, cold link lands + arms + strips.
+- **Remaining:** T5 (final polish) and the search-path assertion (expand the pill's
+  search, type, and compare the grid count against the header search).
 - **Worktree layout.** Three dirs exist; two are git worktrees of the original
   clone at `C:/Users/User/work/mabiroutine`:
   - `C:/Users/User/work/mabiroutine` — the MAIN worktree, on `main`.
@@ -70,8 +116,9 @@ transformed module, so a comment can never appear in what the server returns.
 2. **T2** — empty `<FilterPill>` in `MerchantPanel`, fixed in the pill slot,
    shown past a local scroll threshold.
 3. **T3** — search icon + expanding inline input, wired to the panel's `query`.
-4. **T4** — the four compact filter buttons (城鎮 / NPC / 優先度 / 類型), 清除,
-   已選 N.
+4. **T4** — the four compact filter buttons (城鎮 / NPC / 優先度 / 類型) and 清除.
+   (The 已釘選 N toggle shipped with T4 and was removed in the 2026-10-03
+   single-list revision — see the note above.)
 5. **T5** — polish, only-one-surface check, mobile + desktop, changelog + docs.
 
 Each user-visible task needs a `CHANGELOG.md` `### Features` bullet in its own
@@ -152,7 +199,7 @@ just another surface onto that state.
   search icon **expands an inline search field** inside the pill (focus it on
   expand; collapse on clear/blur). The four filter buttons **mirror the header
   dropdowns** as compact triggers, each opening the same dropdown: 城鎮 / NPC /
-  優先度 / 類型. 清除 and the 已選 count ride along.
+  優先度 / 類型. 清除 and the 已釘選 count ride along.
 - **Q3 replace/duplicate → duplicate.** The header keeps its controls; the pill
   appears only past the scroll threshold, so only one surface is on screen at a
   time.
@@ -183,7 +230,8 @@ just another surface onto that state.
    pill uses.
 4. **Contents.** Search icon button that expands an inline input (auto-focus,
    collapses on clear/blur), then compact buttons for 城鎮 / NPC / 優先度 / 類型
-   (each opening the same dropdown the header uses), then 清除 and 已選 N. Reuse
+   (each opening the same dropdown the header uses), then 清除. (已釘選 N rode
+   along here originally; removed in the single-list revision.) Reuse
    `MenuSelect` / `MenuMultiSelect` as-is; add a compact `triggerClassName` so
    they fit a pill rather than the full-width header cell.
 5. **No double surface.** Header rows stay mounted (they are above the fold at
@@ -224,7 +272,8 @@ just another surface onto that state.
 - **T3** — Put the search icon + expanding inline input in the pill; wire to the
   panel's `query`. Verify the grid narrows identically to the header search.
 - **T4** — Put the four compact filter buttons in the pill, reusing the header
-  dropdowns; add 清除 and 已選 N. Verify each control changes the grid the same
+  dropdowns; add 清除 (已釘選 N was added here and later removed — see the
+  revision note). Verify each control changes the grid the same
   way its header twin does.
 - **T5** — Polish: only-one-surface check, mobile + desktop pass, changelog + docs.
 

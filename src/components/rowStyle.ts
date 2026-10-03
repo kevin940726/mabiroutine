@@ -64,6 +64,23 @@ export const PFP_DESKTOP = "h-[50px] w-[50px] rounded-full object-cover shrink-0
 export const ITEM_ART_MOBILE = "h-5 w-5 shrink-0";
 export const ITEM_ART_DESKTOP = "h-10 w-10 shrink-0";
 
+/** Interactive treatment for a portrait that deep-links to the shop. Wraps the
+ *  face or item art WITHOUT changing the row's layout: the button shrink-wraps
+ *  the fixed-size art, so the row measures exactly as it did as a bare image.
+ *
+ *  `grid place-items-center` is load-bearing, not decoration: Tailwind preflight
+ *  makes `img` block (no baseline), but ItemIcon's root is an `inline-grid` span,
+ *  which sits on the text baseline and leaves ~6px of descender strut below it —
+ *  measured 40×46 with the icon top-aligned at dy=+3. Grid blockifies the child
+ *  and centers it, so the button hugs 40×40 exactly.
+ *
+ *  Radius stays the caller's — `rounded-full` for faces, `rounded-md` for item
+ *  art — because a circular ring around the square item icon reads as a mistake.
+ *  The hover brightening is the discoverability: a bare portrait gives no hint
+ *  it is clickable, so the first hover states the affordance before the click. */
+export const PFP_BUTTON =
+  "grid shrink-0 cursor-pointer place-items-center transition hover:brightness-110 hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
 /** The tracker's meta vocabulary: the small facts under a title, each with ONE
  *  treatment wherever it appears — a trade row, a shop row, a grouped parent, mobile
  *  and desktop alike.

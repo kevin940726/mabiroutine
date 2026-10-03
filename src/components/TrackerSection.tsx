@@ -154,9 +154,13 @@ type Props = {
   /** Opens the add dialog pre-set to this section. Rendered in the header, so it
    *  stays reachable whether the section is open or folded. */
   onAdd?: (section: TaskSection) => void;
+  /** Deep-link a row's portrait to the shop: the merchant and the pin ids to
+   *  flash. Threaded to every TaskRow (faces) and to PinnedGroups (group faces
+   *  and child item art); App fires the tab switch alongside it. */
+  onViewInShop?: (npc: string, pinIds: string[]) => void;
 };
 
-export function TrackerSection({ title, icon, tasks, isAccount, section, onEditTask, onAdd }: Props) {
+export function TrackerSection({ title, icon, tasks, isAccount, section, onEditTask, onAdd, onViewInShop }: Props) {
   const char = useAppStore((s) => s.getActiveChar());
   const accountValues = useAppStore((s) => s.accountValues);
   const barterPins = useAppStore((s) => s.barterPins);
@@ -199,7 +203,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
   // Two namespaces: a curated pin resolves through barter.json, a pin on a
   // shops.json row through the catalog. Resolving only the first was what made
   // the gold rows unpinnable — an unknown id was dropped here and rendered
-  // nowhere, while still counting toward 已選.
+  // nowhere, while still counting toward 已釘選.
   const barterSubtasks = useMemo(() => {
     const pinned = new Set(barterPins);
     const base = (barterCustomOrder ?? canonicalBarterOrder(barterPins)).filter((id) => pinned.has(id));
@@ -530,6 +534,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
                 value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]}
                 isAccount={isAccount}
                 onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined}
+                onViewInShop={onViewInShop}
               />
             ))}
           </SortableContext>
@@ -588,6 +593,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
                           value: bt.serverShared === true ? accountValues[bt.id] : char?.taskValues[bt.id],
                           isAccount: bt.serverShared === true,
                         }))}
+                        onViewInShop={onViewInShop}
                       />
                     </SortableContext>
                   </DndContext>
@@ -631,7 +637,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
                     {purpleOffDay && t.id === PURPLE_HOLE_ID && !isHiddenFor(t) && (
                       <p className="text-[11px] text-muted-foreground mb-1 px-1">非出沒日{purpleNext ? ` — 下次${purpleNext}` : ""}，出沒時會自動移回上方</p>
                     )}
-                    <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} />
+                    <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} onViewInShop={onViewInShop} />
                   </div>
                 ))}
                 {hiddenBarter.map((bt) => (
@@ -640,6 +646,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
                       task={bt}
                       value={bt.serverShared === true ? accountValues[bt.id] : char?.taskValues[bt.id]}
                       isAccount={bt.serverShared === true}
+                      onViewInShop={onViewInShop}
                     />
                   </div>
                 ))}

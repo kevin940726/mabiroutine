@@ -27,7 +27,7 @@ import { useState } from "react";
 import { displayName } from "@/lib/materials";
 import { TaskRow } from "@/components/TaskRow";
 import { ItemIcon } from "@/components/shop/ItemIcon";
-import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, ITEM_ART_DESKTOP, ITEM_ART_MOBILE, META_TOWN } from "@/components/rowStyle";
+import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, PFP_BUTTON, ITEM_ART_DESKTOP, ITEM_ART_MOBILE, META_TOWN } from "@/components/rowStyle";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { bandId } from "@/lib/dragRules";
@@ -111,11 +111,13 @@ function Group({
   rows,
   open,
   onToggleOpen,
+  onViewInShop,
 }: {
   title: string;
   rows: PinRow[];
   open: boolean;
   onToggleOpen: () => void;
+  onViewInShop?: (npc: string, pinIds: string[]) => void;
 }) {
   const state = parentState(rows);
   const toggleGroup = useGroupToggle();
@@ -306,6 +308,25 @@ function Group({
       className={isMobile ? PFP_MOBILE : PFP_DESKTOP}
     />
   );
+  // The merchant with no counterpart: pins grouped under "其他" have no npc, so
+  // there is no shop section to land on and the face stays inert. A real group
+  // deep-links to its NPC shop and flashes EVERY child at once (see flashTiles):
+  // one section, one timer, no per-child state to track.
+  const groupNpc = rows.find((r) => r.task.npc)?.task.npc;
+  const face =
+    onViewInShop && groupNpc ? (
+      <button
+        type="button"
+        onClick={() => onViewInShop(groupNpc, rows.map((r) => r.task.id))}
+        aria-label={`在商店查看${title}的已釘選交易`}
+        title={`在商店查看${title}的已釘選交易`}
+        className={cn(PFP_BUTTON, "rounded-full")}
+      >
+        {portrait}
+      </button>
+    ) : (
+      portrait
+    );
   // Rail order follows the ROW, and the row's order differs by variant: desktop
   // leads with the grip (a mouse drag begins anywhere in the cluster), mobile leads
   // with the eye (the rail is vertical, and the eye is the control you reach for
@@ -331,9 +352,27 @@ function Group({
     <>
       {isMobile ? eye : grip}
       {isMobile ? grip : eye}
-      {!isMobile && portrait}
+      {!isMobile && face}
     </>
   );
+  // A child's item art deep-links to its own row: the merchant's shop, flashed.
+  // Faceless children (the "其他" group) have no section to land on and stay
+  // inert. Radius is rounded-md, not full: the art is a rounded square and a
+  // circular ring around it reads as a mistake (see PFP_BUTTON).
+  const childPortrait = (r: PinRow) =>
+    onViewInShop && r.task.npc ? (
+      <button
+        type="button"
+        onClick={() => onViewInShop(r.task.npc!, [r.task.id])}
+        aria-label={`在商店查看${itemName(r.task)}`}
+        title={`在商店查看${itemName(r.task)}`}
+        className={cn(PFP_BUTTON, "rounded-md")}
+      >
+        <ItemIcon name={itemArtName(r.task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />
+      </button>
+    ) : (
+      <ItemIcon name={itemArtName(r.task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />
+    );
 
   // The body is TWO lines:
   //   line 1  [face] title · town [伺服器]   — who the merchant is and where
@@ -351,7 +390,7 @@ function Group({
   const body = (
     <>
       <div className="flex items-center gap-2">
-        {isMobile && portrait}
+        {isMobile && face}
         <span className="truncate text-sm font-bold text-primary">
           {title}
         </span>
@@ -434,7 +473,7 @@ function Group({
                   // The parent names the merchant, so the child's face is redundant
                   // here and shows the ITEM instead. Sized with the row's own portrait
                   // constants, so the swap cannot change the row's height or alignment.
-                  portrait={<ItemIcon name={itemArtName(r.task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />}
+                  portrait={childPortrait(r)}
                   // Same reasoning as the portrait: the parent above already says
                   // `特蕾西 · 杜加德走廊`, so the child drops its own copy of the
                   // merchant and town and states only its item, cap and cost.
@@ -453,7 +492,7 @@ function Group({
             task={rows[0].task}
             value={rows[0].value}
             isAccount={rows[0].isAccount}
-            portrait={<ItemIcon name={itemArtName(rows[0].task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />}
+            portrait={childPortrait(rows[0])}
             merchantless
           />
         </div>
@@ -479,15 +518,20 @@ function useOpenMap() {
 
 /** The grouped pinned layout: one parent per merchant, gold and barter together.
  *  Lone pins stay plain rows — a parent of one is just a row wearing a strip. */
-export function PinnedGroups({ rows }: { rows: PinRow[] }) {
+export function PinnedGroups({ rows, onViewInShop }: {
+  rows: PinRow[];
+  /** Deep-link portraits to the shop (see TaskRow's prop): the parent's face
+   *  jumps with every child pinId, a lone pin's face with its own. */
+  onViewInShop?: (npc: string, pinIds: string[]) => void;
+}) {
   const [open, toggle] = useOpenMap();
   return (
     <div className="space-y-2" data-pin-variant="D">
       {bucket(rows, (r) => r.task.npc ?? "其他").map(([npc, group]) =>
         group.length === 1 ? (
-          <TaskRow key={group[0].task.id} task={group[0].task} value={group[0].value} isAccount={group[0].isAccount} />
+          <TaskRow key={group[0].task.id} task={group[0].task} value={group[0].value} isAccount={group[0].isAccount} onViewInShop={onViewInShop} />
         ) : (
-          <Group key={npc} title={npc} rows={group} open={open[npc] ?? false} onToggleOpen={() => toggle(npc)} />
+          <Group key={npc} title={npc} rows={group} open={open[npc] ?? false} onToggleOpen={() => toggle(npc)} onViewInShop={onViewInShop} />
         )
       )}
     </div>

@@ -1,8 +1,9 @@
-import { Activity, lazy, Suspense, useEffect, useState } from "react";
+import { Activity, lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore, barterToTask } from "@/store/useAppStore";
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
 import { summarizeProgress } from "@/lib/progress";
+import { writeShopJumpParams } from "@/lib/shopJump";
 import { CharacterTabs, SortableCharMenu } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
@@ -62,6 +63,27 @@ export default function App() {
   const customTasks = useAppStore((s) => s.customTasks);
   const barterPins = useAppStore((s) => s.barterPins);
   const [tab, setTab] = useState<"tracker" | "barter">("tracker");
+  // The shop panel's tracker-jump entry, published through its `jumpRef` prop
+  // (assigned during the panel's render, so it survives Activity's hidden-tab
+  // effect teardown — see the prop's comment). A ref (not state) because it is
+  // write-once machinery, not render input — and because the writer
+  // (MerchantPanel's render) and the reader (a tracker portrait click) live in
+  // different tabs that never render together.
+  const shopJumpRef = useRef<((npc: string, pinIds: string[]) => void) | null>(null);
+  /** Tracker portrait click → that row's NPC shop, flashed. The tab switch is
+   *  App's (it owns `tab`); the filter reset + flash is the panel's, fired
+   *  through the ref while the shop is still hidden — its flash/scroll effect
+   *  runs once Activity shows it. Batched in one handler, so no intermediate
+   *  paint.
+   *
+   *  If the ref is empty the shop chunk has not loaded yet (the first second of
+   *  app life): leave the same deep link in the URL instead, which the panel's
+   *  one-shot landing honors on mount. Either path lands identically. */
+  const goToShopItem = useCallback((npc: string, pinIds: string[]) => {
+    setTab("barter");
+    if (shopJumpRef.current) shopJumpRef.current(npc, pinIds);
+    else writeShopJumpParams(npc, pinIds);
+  }, []);
   const [addOpen, setAddOpen] = useState(false);
   const [addMounted, setAddMounted] = useState(false); // mount (and fetch) the dialog chunk on first open only
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -505,9 +527,9 @@ export default function App() {
           </div>
           <CharacterTabs />
           <div className="grid gap-6 grid-cols-1">
-            <TrackerSection title="每日任務" icon="☀️" tasks={dailyWithCustom} isAccount={false} section="daily" onEditTask={openEdit} onAdd={openAdd} />
-            <TrackerSection title="每週任務" icon="🗓️" tasks={weeklyWithCustom} isAccount={false} section="weekly" onEditTask={openEdit} onAdd={openAdd} />
-            <TrackerSection title="帳號共通" icon="👥" tasks={accountWithCustom} isAccount={true} section="account" onEditTask={openEdit} onAdd={openAdd} />
+            <TrackerSection title="每日任務" icon="☀️" tasks={dailyWithCustom} isAccount={false} section="daily" onEditTask={openEdit} onAdd={openAdd} onViewInShop={goToShopItem} />
+            <TrackerSection title="每週任務" icon="🗓️" tasks={weeklyWithCustom} isAccount={false} section="weekly" onEditTask={openEdit} onAdd={openAdd} onViewInShop={goToShopItem} />
+            <TrackerSection title="帳號共通" icon="👥" tasks={accountWithCustom} isAccount={true} section="account" onEditTask={openEdit} onAdd={openAdd} onViewInShop={goToShopItem} />
           </div>
         </Activity>
         <Activity mode={tab === "barter" ? "visible" : "hidden"}>
@@ -520,7 +542,7 @@ export default function App() {
               </div>
             }
           >
-            <MerchantPanel />
+            <MerchantPanel jumpRef={shopJumpRef} onNavigateTab={setTab} />
           </Suspense>
         </Activity>
 

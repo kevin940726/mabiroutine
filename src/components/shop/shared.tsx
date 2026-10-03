@@ -79,11 +79,12 @@ export type ShopProps = {
    *  there is no row to flash. Kept apart from onViewInShop rather than passing an
    *  empty material name, so each callback says what it does. */
   onOpenNpc?: (npc: string) => void;
-  /** pinId of the tile a jump just landed on — flashed, then cleared by the caller. */
-  focusKey?: string | null;
-  /** Keep the caller's array order instead of sorting by priority. The 已選 view is
-   *  the one caller that wants this: its promise is selection order, which
-   *  `compareRows` would overwrite. */
+  /** pinIds of the tiles a jump just landed on — flashed, then cleared by the
+   *  caller. A set because a group-parent jump lands on every child at once. */
+  focusKeys?: string[];
+  /** Keep the caller's array order instead of sorting by priority. The panel owns
+   *  its order end to end (pins lead, then tiers — see its `items` memo), and a
+   *  re-sort here would undo it, so the grid keeps what it is given. */
   preserveOrder?: boolean;
 };
 
@@ -158,7 +159,7 @@ export function pinButton(item: ShopRow, pinned: Set<string>, onTogglePin: (id: 
       <button
         key="pin"
         type="button"
-        aria-label={isPinned ? `取消選取 ${item.title}` : `選取 ${item.title}`}
+        aria-label={isPinned ? `取消釘選 ${item.title}` : `釘選 ${item.title}`}
         aria-pressed={isPinned}
         onClick={(e) => {
           e.stopPropagation();
@@ -254,8 +255,8 @@ export function TradeGrid({
   preserveOrder?: boolean;
   renderTile: (item: ShopRow, showBand: boolean) => React.ReactNode;
 }) {
-  // preserveOrder keeps the caller's sequence (the 已選 view's selection order);
-  // otherwise sort by priority tier, which is the shop's reading order.
+  // preserveOrder keeps the caller's sequence (pins lead, then tiers); otherwise
+  // sort by priority tier, which is the shop's reading order.
   const sorted = preserveOrder ? [...items] : [...items].sort(compareRows);
 
   const keyed = new Map<string, ShopRow[]>();

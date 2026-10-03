@@ -59,7 +59,7 @@ import { dealTimes, displayName, limitDisplay, parseItemQty } from "@/lib/materi
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toastAction } from "@/sync/session";
-import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, META_NPC, META_TOWN, META_LIMIT, META_COST } from "@/components/rowStyle";
+import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, PFP_BUTTON, META_NPC, META_TOWN, META_LIMIT, META_COST } from "@/components/rowStyle";
 
 /**
  * Hide with an undo toast (user feedback 2026-09-21: the eye sits next to
@@ -108,6 +108,13 @@ type Props = {
    *  Only correct when the caller has already shown the merchant: a lone pin and
    *  every row in the main list keep the run. */
   merchantless?: boolean;
+  /** Deep-link this row's portrait to the shop: called with the merchant and the
+   *  row's pin id. Rendered as a button around the face on trade rows that show
+   *  one; rows without a face (custom rows, the icon fallback) get no button.
+   *
+   *  A caller-passed `portrait` node is exempt: the caller owns that slot
+   *  entirely, clicks included (PinnedGroups wraps its item art itself). */
+  onViewInShop?: (npc: string, pinIds: string[]) => void;
 };
 
 export function TaskRow(props: Props) {
@@ -375,7 +382,7 @@ function barterTimes(task: Task): number {
   return dealTimes(task.npc ?? "", get.name, get.qty, task.barterMeta?.limit);
 }
 
-function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless }: Props) {
+function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless, onViewInShop }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
@@ -433,14 +440,33 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless 
         {portrait ? (
           portrait
         ) : showNpc ? (
-          <img
-            src={`/npc/${encodeURIComponent(task.npc!)}.png`}
-            alt=""
-            aria-hidden
-            loading="lazy"
-            onError={() => setNpcImgError(true)}
-            className={PFP_MOBILE}
-          />
+          task.npc && onViewInShop ? (
+            <button
+              type="button"
+              onClick={() => onViewInShop(task.npc!, [task.id])}
+              aria-label={`在商店查看${tradeTitle}`}
+              title={`在商店查看${tradeTitle}`}
+              className={cn(PFP_BUTTON, "rounded-full")}
+            >
+              <img
+                src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                onError={() => setNpcImgError(true)}
+                className={PFP_MOBILE}
+              />
+            </button>
+          ) : (
+            <img
+              src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+              alt=""
+              aria-hidden
+              loading="lazy"
+              onError={() => setNpcImgError(true)}
+              className={PFP_MOBILE}
+            />
+          )
         ) : (
           <span className="shrink-0" aria-hidden>{task.icon}</span>
         )}
@@ -734,7 +760,7 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown }: { taskI
 // both.
 // ---------------------------------------------------------------------------
 
-function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless }: Props) {
+function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless, onViewInShop }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
@@ -808,16 +834,38 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
         {portrait ? (
           portrait
         ) : showNpc ? (
-          <img
-            src={`/npc/${encodeURIComponent(task.npc!)}.png`}
-            alt={task.npc!}
-            className={PFP_DESKTOP}
-            loading="lazy"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "/npc/placeholder.png";
-              setNpcImgError(false);
-            }}
-          />
+          task.npc && onViewInShop ? (
+            <button
+              type="button"
+              onClick={() => onViewInShop(task.npc!, [task.id])}
+              aria-label={`在商店查看${tradeTitle}`}
+              title={`在商店查看${tradeTitle}`}
+              className={cn(PFP_BUTTON, "rounded-full")}
+            >
+              <img
+                src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+                alt=""
+                aria-hidden
+                className={PFP_DESKTOP}
+                loading="lazy"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/npc/placeholder.png";
+                  setNpcImgError(false);
+                }}
+              />
+            </button>
+          ) : (
+            <img
+              src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+              alt={task.npc!}
+              className={PFP_DESKTOP}
+              loading="lazy"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "/npc/placeholder.png";
+                setNpcImgError(false);
+              }}
+            />
+          )
         ) : (
           <span className="h-[50px] w-[50px] shrink-0 grid place-items-center text-2xl leading-none select-none" aria-hidden>
             {task.icon}

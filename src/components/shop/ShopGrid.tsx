@@ -12,7 +12,7 @@ export function ShopGrid({
   byNpc,
   onViewInShop,
   onOpenNpc,
-  focusKey,
+  focusKeys,
   preserveOrder,
 }: ShopProps) {
   return (
@@ -30,7 +30,7 @@ export function ShopGrid({
           showMerchant={showBand}
           onViewInShop={onViewInShop}
           onOpenNpc={onOpenNpc}
-          focused={focusKey != null && item.pinId === focusKey}
+          focused={focusKeys?.includes(item.pinId) ?? false}
         />
       )}
     />
