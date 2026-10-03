@@ -47,7 +47,16 @@ design of the change.
   Vocabulary stays 釘選 everywhere (store `barterPins`, tracker, tile buttons).
   Verified: `tir-f1` (視需求, pinned) leads its section in the 40-row default with
   the caption present; unpinning drops it (39 rows); pinning a must row moves it to
-  its section top; no 已釘選 toggle or heading remains in the shop.
+  its section top; no 已釘選 toggle or heading remains in the shop. A non-empty
+  query suspends (never composes with) the priority filter — searching 糖 with one
+  糖 row pinned returned just that pin while the other NPCs selling it hid behind
+  the default, and now returns all three with a `搜尋時顯示所有優先度` caption
+  (`搜尋中` sounded like loading; the conditional states the effect); town / NPC
+  / kind still narrow a search and the ticks resume on clear. Verified end to
+  end via the real pin path (UI-pin, reload, search, clear). List order is town
+  first (canonical `TOWN_ORDER`, the dropdown's own order), then pins, then
+  tiers, in browse and search alike: sorting pins first globally dragged a pinned
+  town's whole section to the top, so the 糖 search read 地下城 before 堤爾克那.
 - **Tracker→shop deep-links (companion, 2026-10-03).** Tracker portraits are
   buttons: regular trade rows (NPC face), group parents (face, flashes ALL
   children via a `focusKeys` set under one timer) and group children (item art).
@@ -114,7 +123,8 @@ transformed module, so a comment can never appear in what the server returns.
 
 1. **T1** — gate the character pill on `tab === "tracker"` (both variants).
 2. **T2** — empty `<FilterPill>` in `MerchantPanel`, fixed in the pill slot,
-   shown past a local scroll threshold.
+   shown past a local scroll threshold. (Now visibility-driven; the threshold
+   is recorded here as history.)
 3. **T3** — search icon + expanding inline input, wired to the panel's `query`.
 4. **T4** — the four compact filter buttons (城鎮 / NPC / 優先度 / 類型) and 清除.
    (The 已釘選 N toggle shipped with T4 and was removed in the 2026-10-03
@@ -201,8 +211,9 @@ just another surface onto that state.
   dropdowns** as compact triggers, each opening the same dropdown: 城鎮 / NPC /
   優先度 / 類型. 清除 and the 已釘選 count ride along.
 - **Q3 replace/duplicate → duplicate.** The header keeps its controls; the pill
-  appears only past the scroll threshold, so only one surface is on screen at a
-  time.
+  appears only while the header controls are off screen (visibility, not the old
+  scroll threshold — see the revision note), so only one surface is on screen at
+  a time.
 - **Q4 scope → both mobile and desktop.** The desktop pill is the same leftover.
 - **Q5 隱藏已完成 and the progress ring leave the barter tab** with the character
   pill (they are tracker-scoped; `MerchantPanel` does not read them — grep
@@ -210,7 +221,8 @@ just another surface onto that state.
 - **Q6 pins are global; treated as intended, not touched here.**
 - **Q7 scroll flag → re-derive the threshold inside `MerchantPanel`** with a
   small local hook (`window.scrollY > 200`), rather than threading `compact` down
-  from `App.tsx`. The pill is self-contained (Q1's premise), the threshold is a
+  from `App.tsx`. (Superseded: the threshold became `useControlsInView`, an
+  IntersectionObserver on the controls — see the revision note.)
   UI constant rather than shared state, and no prop has to cross the tab
   `Activity` boundary. `compact` in `App.tsx` keeps driving the character pill;
   the two are independent by design.
@@ -225,9 +237,11 @@ just another surface onto that state.
    panel's tree and `position: fixed` in the same slot/`z` the character pill used
    (mobile `top: 70`, desktop `top: 88`, `left-1/2 -translate-x-1/2 z-30`) so the
    swap reads as the same object changing its contents.
-3. **Visibility.** The local scroll hook (Q7) shows the pill past
-   `window.scrollY > 200`, with the same fade/translate transition the character
-   pill uses.
+3. **Visibility.** An IntersectionObserver on the controls wrapper
+   (`useControlsInView`) shows the pill only while none of the header is
+   visible, with the same fade/translate transition the character pill uses.
+   (Was a local scroll hook, `window.scrollY > 200` — replaced because a fixed
+   offset left both surfaces visible on short viewports; see the revision note.)
 4. **Contents.** Search icon button that expands an inline input (auto-focus,
    collapses on clear/blur), then compact buttons for 城鎮 / NPC / 優先度 / 類型
    (each opening the same dropdown the header uses), then 清除. (已釘選 N rode
@@ -244,10 +258,10 @@ just another surface onto that state.
 ## Test / verify plan
 
 - Harness: at scroll 0 in the barter tab, assert **no** floating pill and the
-  header controls are present; scroll past 200 and assert the filter pill
-  appears, contains a search icon and the four filter buttons, and **no**
-  character name; switch back to the tracker and assert the character pill
-  returns with the progress ring.
+  header controls are present; scroll until the header controls leave the
+  viewport and assert the filter pill appears, contains a search icon and the
+  four filter buttons, and **no** character name; switch back to the tracker and
+  assert the character pill returns with the progress ring.
 - Type into the pill's expanded search and assert the grid result count changes
   the same way the header search does (compare counts).
 - Assert only one search input is reachable at a time (the other is either
@@ -267,8 +281,8 @@ just another surface onto that state.
   row and into the tracker `<Activity>`, so the shop tab carries none of them.
   Built as reported under section 0.
 - **T2** — Stand up an empty `<FilterPill>` in `MerchantPanel`, fixed in the pill
-  slot, shown past the local scroll threshold. Verify it appears/disappears on
-  scroll and survives tab switches.
+  slot, shown past the local scroll threshold (now visibility-driven — recorded
+  as history). Verify it appears/disappears on scroll and survives tab switches.
 - **T3** — Put the search icon + expanding inline input in the pill; wire to the
   panel's `query`. Verify the grid narrows identically to the header search.
 - **T4** — Put the four compact filter buttons in the pill, reusing the header

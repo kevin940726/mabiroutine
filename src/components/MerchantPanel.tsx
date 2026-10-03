@@ -58,10 +58,28 @@ const KIND_OPTIONS = [
  *  after it in the merge order). */
 const PILL_TRIGGER = "h-auto min-h-7 shrink-0 rounded-full px-1.5 sm:px-2.5 text-xs gap-0.5 sm:gap-1 whitespace-nowrap";
 
-/** Past this scroll depth the pill replaces the header as the surface for the
- *  panel's filters (Q7). A UI constant, not shared state: the character pill's
- *  `compact` in App.tsx is independent. */
-const PILL_SCROLL_THRESHOLD = 200;
+/** True while the header controls (title card + filter grid) are on screen, so
+ *  the pill needs no scroll offset from App.tsx across the tab Activity
+ *  boundary. An IntersectionObserver on the controls wrapper, not a scrollY
+ *  threshold: a threshold is a proxy that leaves both surfaces visible at some
+ *  depths (a short viewport with the header still showing past 200px, or a tall
+ *  one with it long gone), while visibility IS the rule — the pill duplicates
+ *  the header's search and filters, so it exists only when those have scrolled
+ *  away. Starts true (pill hidden): at load the header is on screen, and the
+ *  observer corrects immediately if it is not. */
+function useControlsInView(ref: { current: Element | null }) {
+  const [inView, setInView] = useState(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), {
+      threshold: 0,
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref]);
+  return inView;
+}
 
 /** Below this width the pill's four filter dropdowns go behind a drawer; at or
  *  above it they lay out inline.
@@ -85,19 +103,6 @@ function useNarrowerThan(maxPx: number) {
     return () => mql.removeEventListener("change", onChange);
   }, [maxPx]);
   return narrow;
-}
-
-/** Local scroll flag, so the pill needs no prop from App.tsx across the tab
- *  Activity boundary. Mirrors the character pill's listener. */
-function useScrolledPast(threshold: number) {
-  const [past, setPast] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setPast(window.scrollY > threshold);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [threshold]);
-  return past;
 }
 
 /** Scroll the flashed tile into the middle of the viewport. "center" rather than
@@ -269,14 +274,26 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
   const [priorityFilter, setPriorityFilter] = useState<string[]>(DEFAULT_PRIORITY);
   const [kindFilter, setKindFilter] = useState<string>("all");
   // The floating filter pill (barter tab's replacement for the character pill).
-  // `showPill` re-derives the scroll threshold locally; `pillSearchOpen` is the
-  // pill's only own state — every filter it shows is the panel's (Q1).
+  // `showPill` is visibility-driven (see `useControlsInView`); `pillSearchOpen`
+  // is the pill's only own state — every filter it shows is the panel's (Q1).
   const isMobile = useIsMobile();
   // The pill's four dropdowns go inline only when there is room for them; below
   // that they sit behind the drawer. Separate from `isMobile` on purpose (see
   // PILL_DRAWER_MAX_WIDTH).
   const pillUsesDrawer = useNarrowerThan(PILL_DRAWER_MAX_WIDTH);
-  const showPill = useScrolledPast(PILL_SCROLL_THRESHOLD);
+  // Observed by `useControlsInView` (see below): while any of it is on screen
+  // the pill stays hidden, so the two surfaces never co-exist.
+  const controlsRef = useRef<HTMLDivElement | null>(null);
+  // A focused field is never yanked: narrowing the list shortens the page, the
+  // browser clamps the scroll, the header comes back into view — and without
+  // this the pill (and the field being typed in) would vanish mid-word. Active
+  // editing outranks the no-coexistence rule; blur restores it immediately.
+  const [pillSearchFocused, setPillSearchFocused] = useState(false);
+  // Called unconditionally and combined after: short-circuiting the hook call
+  // itself (`focused || !useControlsInView(...)`) skips a hook on focused
+  // renders, which violates the Rules of Hooks and unmounts the tree.
+  const controlsInView = useControlsInView(controlsRef);
+  const showPill = pillSearchFocused || !controlsInView;
   const [pillSearchOpen, setPillSearchOpen] = useState(false);
   // (focusKeys state lives beside flashTiles below.)
   const focusTimer = useRef<number | null>(null);
@@ -336,31 +353,52 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
         // passes on any of the ticked tiers. Ticking several tiers widens the list
         // (union), which is what a filter is for.
         //
-        // A PINNED row bypasses this filter. The list opens on 必換+推薦 (39 of
-        // 194), and pinning is itself a deliberate act, so a pin the user made must
-        // not be hidden by a default they did not choose — a pinned 一般 row would
-        // otherwise vanish from the very list it was pinned from. The other filters
-        // (town / NPC / kind / search) still apply to it: those are things the user
-        // set explicitly, and honoring them keeps the pinned row in the context it
+        // A non-empty query SUSPENDS this filter — typed text names what the user
+        // wants, and the ticked tiers are (usually) a starting view they never
+        // chose, not a choice. Without this a search only finds what the default
+        // already shows: type 糖 with one 糖 row pinned and the list holds just
+        // that pin, while the other NPCs selling it hide behind 必換+推薦 with no
+        // way out in sight. The rule this encodes: explicit input overrides the
+        // app's implicit default, never an explicit choice — town / NPC / kind
+        // still narrow a search (their triggers show it when set), and the ticks
+        // themselves are untouched, so clearing the query resumes exactly the
+        // view the user left. The section header states the suspension while it
+        // holds (see below), so the trigger reading 必換、推薦 during a search
+        // is disclosed, not silent.
+        //
+        // A PINNED row bypasses this filter when no query suspends it. Pinning is
+        // itself a deliberate act, so a pin the user made must not be hidden by a
+        // default they did not choose — a pinned 一般 row would otherwise vanish
+        // from the very list it was pinned from. The other filters (town / NPC /
+        // kind / search) still apply to it: those are things the user set
+        // explicitly, and honoring them keeps the pinned row in the context it
         // was found in. The section header names the bypass (see
         // `bypassedCount`), so the trigger reading 必換、推薦 while the list holds
         // a 視需求 row is stated, not silent.
         .filter(
           (item) =>
-            pinSet.has(item.pinId) ||
             priorityFilter.length === 0 ||
+            query.trim() !== "" ||
+            pinSet.has(item.pinId) ||
             (item.priority != null && priorityFilter.includes(item.priority))
         )
         .filter((item) => kindFilter === "all" || (kindFilter === "shop" ? item.kind === "shop" : item.kind === "barter"))
-        // Pins lead, in pinning order; the rest keeps the shop's tier reading
-        // order (`compareRows`), not catalog order — the grid has always read
-        // 必換 first, and a pin landing should not reshuffle everything below
-        // it. Pinning then visibly moves a row to the top of its section, which
-        // is the feedback that the pin landed — and unpinning drops it back to
-        // its tier position (or out of the list, if no ticked tier covers it).
-        // The caller owns this order end to end, so the grid must keep it: the
-        // panel passes `preserveOrder` (see below).
+        // Order is town first (the canonical `TOWN_ORDER`, game-region order —
+        // the same list the town dropdown offers), then pins, then tiers. Town
+        // first because sections follow row order: sorting pins first GLOBALLY
+        // drags a pinned town's whole section to the top (a pinned 地下城 row
+        // put 地下城 first), so search results read in no recognizable order.
+        // Pins still lead WITHIN their town — pinning visibly moves a row to
+        // the top of its section, which is the feedback that the pin landed —
+        // and the rest keeps the shop's tier reading order (`compareRows`), not
+        // catalog order: the grid has always read 必換 first, and a pin landing
+        // should not reshuffle everything below it. Unpinning drops a row back
+        // to its tier position (or out of the list, if no ticked tier covers
+        // it). The caller owns this order end to end, so the grid must keep
+        // it: the panel passes `preserveOrder` (see below).
         .sort((a, b) => {
+          const town = compareTowns(a.town, b.town);
+          if (town !== 0) return town;
           const ar = rank.get(a.pinId);
           const br = rank.get(b.pinId);
           if (ar !== undefined && br === undefined) return -1;
@@ -382,18 +420,22 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
     () => (merchant === "all" ? [] : items.filter((item) => item.npc === merchant)),
     [items, merchant]
   );
+  // The rows the section below renders: one list, filtered once here so the
+  // header count, the bypass caption, the empty state and the grid all read the
+  // same array instead of each re-deriving it.
+  const shown = selected ? npcRows : items;
   // How many of the SHOWN rows are present only because they are pinned — i.e.
   // the trigger reads 必換、推薦 while the list holds rows of other tiers. The
   // section header states this count, so the bypass is visible rather than a
-  // silent exception. Zero when the priority filter is empty (nothing bypassed)
+  // silent exception. Zero when the priority filter is empty (nothing bypassed),
+  // when a query suspends the filter (nothing is excepted — every tier shows),
   // or when every pin already sits inside a ticked tier.
   const bypassedCount = useMemo(() => {
-    if (priorityFilter.length === 0) return 0;
-    const shown = selected ? npcRows : items;
+    if (priorityFilter.length === 0 || query.trim() !== "") return 0;
     return shown.filter(
       (item) => pinSet.has(item.pinId) && !(item.priority != null && priorityFilter.includes(item.priority))
     ).length;
-  }, [selected, npcRows, items, priorityFilter, pinSet]);
+  }, [shown, priorityFilter, pinSet, query]);
 
   /** Flash tiles and scroll to the first. A SET, not a key: a tracker group-parent
    *  jump lands on every child at once, so all of them flash together under one
@@ -678,8 +720,10 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
       {/* Floating filter pill — the barter tab's replacement for the character
           pill (docs/plans/floating-pill-rework.md). It owns no filter state:
           every control drives the panel's own useState, so the pill and the
-          header are two surfaces onto one state. It shows only past the scroll
-          threshold, so only one of those surfaces is on screen at a time. */}
+          header are two surfaces onto one state. It shows only while the header
+          controls are off screen (see `useControlsInView`), so the two never
+          co-exist — except for a focused search field, which is never yanked
+          mid-word (see `pillSearchFocused`). */}
       <div
         className={cn(
           // Hugs its content (`w-max`) and never exceeds the viewport. It was
@@ -703,7 +747,8 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
                 ref={focusSelectOnMount}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                onBlur={() => { if (!query) setPillSearchOpen(false); }}
+                onFocus={() => setPillSearchFocused(true)}
+                onBlur={() => { setPillSearchFocused(false); if (!query) setPillSearchOpen(false); }}
                 onKeyDown={(event) => { if (event.key === "Escape") { setQuery(""); setPillSearchOpen(false); } }}
                 placeholder="搜尋獎勵、材料、NPC 或城鎮"
                 aria-label="搜尋獎勵、材料、NPC 或城鎮"
@@ -906,6 +951,11 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
         </div>
       </div>
 
+      {/* The controls the pill duplicates. Observed (see `useControlsInView`):
+          one wrapper so a single entry answers "are the filters on screen".
+          Same `gap-5` rhythm inside as the page uses outside, so wrapping
+          changes no spacing — the chip's `-mt-1` still applies within. */}
+      <div ref={controlsRef} className="flex min-w-0 flex-col gap-5">
       <header className="rounded-2xl border bg-card p-4 sm:p-5">
         <div className="mb-4">
           <h1 className="text-2xl font-semibold">商店 / 以物易物</h1>
@@ -966,6 +1016,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
             清除篩選
           </Button>
         </div>
+      </div>
 
       {/* One list, no modes. Pins lead in pinning order (see `items`), so the
           default view IS pins ∪ the ticked tiers; there is no second view to
@@ -980,9 +1031,11 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-lg font-semibold">{selected?.name ?? "全部商店"}</h2>
             <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-              {selected ? <><MapPin /> {selected.town} · {npcRows.length} 筆</> : `${items.length} 筆`}
-              {bypassedCount > 0 && (
-                <span>（含 {bypassedCount} 筆已釘選，不受優先度篩選）</span>
+              {selected ? <><MapPin /> {selected.town} · {shown.length} 筆</> : `${shown.length} 筆`}
+              {query.trim() !== "" && priorityFilter.length > 0 ? (
+                <span>（搜尋時顯示所有優先度）</span>
+              ) : (
+                bypassedCount > 0 && <span>（含 {bypassedCount} 筆已釘選，不受優先度篩選）</span>
               )}
             </p>
           </div>
@@ -990,10 +1043,25 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
           {/* The grid sections by town when the list is unfiltered and by merchant
               once a town or NPC filter narrows it, since a town heading would then
               repeat a single value. */}
+          {shown.length === 0 ? (
+            // Empty only ever means over-filtered: the unfiltered pool is the
+            // whole catalog, so zero rows is always some combination of search +
+            // filters hiding everything. Name that (a bare "0 筆" explains nothing)
+            // and offer the one tap that undoes it — the filters stay intact
+            // until the user chooses to clear them.
+            <div className="rounded-xl border border-dashed py-16 text-center">
+              <p className="text-sm font-medium">沒有符合條件的項目</p>
+              <p className="mt-1 text-xs text-muted-foreground">搜尋與篩選會同時作用，試著放寬其中一邊</p>
+              <Button type="button" variant="outline" onClick={clearFilters} className="mt-4">
+                <RotateCcw />
+                清除篩選
+              </Button>
+            </div>
+          ) : (
           <ShopGrid
             byNpc={town !== "all" || merchant !== "all"}
             splitKind={town !== "all" || merchant !== "all"}
-            items={selected ? npcRows : items}
+            items={shown}
             pinned={pinSet}
             onTogglePin={togglePin}
             onViewInShop={viewInShop}
@@ -1003,6 +1071,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
             // see `items`), so the grid keeps it instead of re-sorting.
             preserveOrder
           />
+          )}
         </section>
     </div>
   );
