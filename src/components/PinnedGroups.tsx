@@ -313,6 +313,10 @@ function Group({
   // deep-links to its NPC shop and flashes EVERY child at once (see flashTiles):
   // one section, one timer, no per-child state to track.
   const groupNpc = rows.find((r) => r.task.npc)?.task.npc;
+  // Above the full-row overlay: every real control rides z-20 over its z-10
+  // (grip, eye, strip, tile), and this one must too — without it pointer taps
+  // land on the overlay and merely toggle the group. `pointer-events-auto` for
+  // the mobile home, which sits inside the pointer-events-none body wrapper.
   const face =
     onViewInShop && groupNpc ? (
       <button
@@ -320,7 +324,7 @@ function Group({
         onClick={() => onViewInShop(groupNpc, rows.map((r) => r.task.id))}
         aria-label={`在商店查看${title}的已釘選交易`}
         title={`在商店查看${title}的已釘選交易`}
-        className={cn(PFP_BUTTON, "rounded-full")}
+        className={cn(PFP_BUTTON, "rounded-full", "relative z-20 pointer-events-auto")}
       >
         {portrait}
       </button>
