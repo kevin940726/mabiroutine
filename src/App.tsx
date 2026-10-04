@@ -22,7 +22,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { useSectionCelebration } from "@/hooks/useSectionCelebration";
 import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
 import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
@@ -153,9 +152,6 @@ export default function App() {
   // Reminder-tap landing (?task=&chars=): resolve the character, scroll to
   // the row, flash it once. Runs for every load — cheap no-op without params.
   useReminderDeepLink(hasHydrated);
-  // Section-completion puff: fires on live incomplete → complete transitions
-  // only (daily/weekly per character, account shared). No subscription needed.
-  useSectionCelebration(hasHydrated);
 
   // compact pill toggles at a simple scroll threshold
   useEffect(() => {

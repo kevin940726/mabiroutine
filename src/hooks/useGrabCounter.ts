@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
+import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
+import type { TaskSection } from "@/lib/types";
 
 const MAX_RANGE_PX = 140; // px of vertical drag for full range
 const MIN_STEP_PX = 6; // px of vertical drag to count as a step
@@ -38,7 +40,7 @@ function markGrabLearned() {
 // Desktop right-click stays −1 (mobile long-press menu is suppressed).
 // Teaching: touch learns on tap, hover-capable learns on hover; the coach
 // bubble retires everywhere after the first successful grab.
-export function useGrabCounter(taskId: string, count: number, max: number, isAccount: boolean) {
+export function useGrabCounter(taskId: string, count: number, max: number, isAccount: boolean, section: TaskSection) {
   const setCounter = useAppStore((s) => s.setCounter);
   const incCounter = useAppStore((s) => s.incCounter);
   const [grabbed, setGrabbed] = useState(false);
@@ -129,7 +131,7 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
         const steps = Math.trunc((startY.current - e.clientY) / stepPx);
         const next = clamp(startVal.current + steps);
         if (next !== count) {
-          setCounter(taskId, next, isAccount);
+          celebrateAfterWrite(section, controlPoint(e), () => setCounter(taskId, next, isAccount));
           buzz(8);
         }
       },
@@ -141,7 +143,7 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
         else clear();
         if (!wasGrabbed && !didMove) {
           if (done) setCounter(taskId, 0, isAccount);
-          else incCounter(taskId, 1, isAccount);
+          else celebrateAfterWrite(section, controlPoint(e), () => incCounter(taskId, 1, isAccount));
           if (!canHover && !grabLearned()) showCoach();
         }
       },
@@ -156,7 +158,9 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
       onKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => {
         if (e.key === "ArrowUp" || e.key === "ArrowRight") {
           e.preventDefault();
-          setCounter(taskId, clamp(count + 1), isAccount);
+          celebrateAfterWrite(section, controlPoint(e), () =>
+            setCounter(taskId, clamp(count + 1), isAccount)
+          );
         } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
           e.preventDefault();
           setCounter(taskId, clamp(count - 1), isAccount);

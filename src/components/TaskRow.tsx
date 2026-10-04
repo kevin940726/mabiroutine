@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { useGrabCounter } from "@/hooks/useGrabCounter";
-import type { Task } from "@/lib/types";
+import type { Task, TaskSection } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { confirmRemoveTask, confirmReenableReminder, confirmSubscribeReminder } from "@/components/ConfirmDialog";
@@ -12,6 +12,7 @@ import { isEligibleReminderId, reminderPermission, requestReminderPermission, wa
 import { isServerPushMode, isIOSWithoutPWA, reconcileServerPush, refreshServerRoster, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
 import { PURPLE_HOLE_ID, formatTaipei, purpleLive } from "@/lib/purpleHole";
 import { formatCountdown } from "@/lib/reset";
+import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
 import { useNow } from "@/hooks/useNow";
 import { SchedulePopover } from "@/components/SchedulePopover";
 
@@ -649,7 +650,9 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
                 "h-11 w-11 rounded-xl border grid place-items-center transition-colors",
                 checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
               )}
-              onClick={() => toggleCheck(task.id, isAccount)}
+              onClick={(e) =>
+                celebrateAfterWrite(task.section, controlPoint(e), () => toggleCheck(task.id, isAccount))
+              }
               aria-label={task.name}
               role="checkbox"
               aria-checked={checked}
@@ -657,7 +660,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
               <span className="text-lg leading-none">{checked ? "✓" : ""}</span>
             </button>
           ) : (
-            <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} />
+            <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} section={task.section} />
           )}
         </div>
       </div>
@@ -708,8 +711,8 @@ function RowMenu({ isHidden, hideScope, onEdit, onToggleHidden, onRemove }: {
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click = −1. Hold 0.3s → grab, drag vertically to adjust fast.
 // Progress is the fill rising inside the tile.
-function CounterTileMobile({ taskId, count, max, isAccount, countdown }: { taskId: string; count: number; max: number; isAccount: boolean; countdown?: boolean }) {
-  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max, isAccount);
+function CounterTileMobile({ taskId, count, max, isAccount, countdown, section }: { taskId: string; count: number; max: number; isAccount: boolean; countdown?: boolean; section: TaskSection }) {
+  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max, isAccount, section);
   const pct = max ? Math.min(100, (count / max) * 100) : 0;
   const done = max > 0 && count >= max;
   // countdown mode: big number counts down (剩 N), fill still rises with used
@@ -951,7 +954,9 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
               "h-14 w-14 rounded-xl border grid place-items-center transition-colors",
               checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
             )}
-            onClick={() => toggleCheck(task.id, isAccount)}
+            onClick={(e) =>
+              celebrateAfterWrite(task.section, controlPoint(e), () => toggleCheck(task.id, isAccount))
+            }
             aria-label={task.name}
             role="checkbox"
             aria-checked={checked}
@@ -959,7 +964,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
             <span className="text-xl leading-none">{checked ? "✓" : ""}</span>
           </button>
         ) : (
-          <CounterTileDesktop taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} />
+          <CounterTileDesktop taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} section={task.section} />
         )}
       </div>
     </div>
@@ -969,8 +974,8 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click = −1. Hold 0.3s → grab, drag vertically to adjust fast.
 // Progress is the fill rising inside the tile.
-function CounterTileDesktop({ taskId, count, max, isAccount, countdown }: { taskId: string; count: number; max: number; isAccount: boolean; countdown?: boolean }) {
-  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max, isAccount);
+function CounterTileDesktop({ taskId, count, max, isAccount, countdown, section }: { taskId: string; count: number; max: number; isAccount: boolean; countdown?: boolean; section: TaskSection }) {
+  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max, isAccount, section);
   const pct = max ? Math.min(100, (count / max) * 100) : 0;
   const done = max > 0 && count >= max;
   // countdown mode: big number counts down (剩 N), fill still rises with used

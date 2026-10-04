@@ -1,8 +1,9 @@
 // Section-completion celebration: a small emoji puff of the section's own
-// task icons, erupting where the completing tap landed. Best-effort by
-// design — reduced-motion skips it entirely, a hidden tab skips it (with no
-// catch-up burst on return), and completions with no fresh tap (keyboard,
-// sync) fall back to the section header.
+// task icons, fired from inside the gesture handler that completes it.
+// Causality by construction — sync, import and reset never pass through a
+// row control, so they can never celebrate. Origin comes straight off the
+// event (tap point, or the control's rect for keyboard), so there is no
+// pointer tracking, no focus reading, and no fallback chain.
 import confetti from "canvas-confetti";
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
@@ -11,6 +12,7 @@ import {
   isServerSharedPinId,
   pinCycleOf,
   shopDealToTask,
+  useAppStore,
 } from "@/store/useAppStore";
 import { shopDealsByPinId } from "@/lib/shops";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
@@ -112,33 +114,34 @@ function sectionShapes(section: TaskSection, s: CelebrationSnapshot) {
   );
 }
 
-type Point = { x: number; y: number };
-const clampPoint = (x: number, y: number): Point => ({
-  x: Math.min(0.95, Math.max(0.05, x / window.innerWidth)),
-  y: Math.min(0.95, Math.max(0.05, y / window.innerHeight)),
-});
+export type Point = { x: number; y: number };
 
-// Last tap position, written by the hook's pointerup listener. Freshness is
-// the whole trick: only the tap that just completed a row may aim the burst.
-let lastPointer: { x: number; y: number; t: number } | null = null;
-const POINTER_FRESH_MS = 2000;
-
-export function noteCelebrationPointer(x: number, y: number): void {
-  lastPointer = { x, y, t: Date.now() };
+function clampPoint(x: number, y: number): Point {
+  return {
+    x: Math.min(0.95, Math.max(0.05, x / window.innerWidth)),
+    y: Math.min(0.95, Math.max(0.05, y / window.innerHeight)),
+  };
 }
 
-/** Tap point when fresh, else the section header (keyboard/sync fallback). */
-function celebrationOrigin(section: TaskSection): { point: Point; aimed: boolean } {
-  if (lastPointer && Date.now() - lastPointer.t < POINTER_FRESH_MS) {
-    return { point: clampPoint(lastPointer.x, lastPointer.y), aimed: true };
-  }
-  const header = document.querySelector(`[data-celebrate-section="${section}"]`);
-  if (!header) return { point: { x: 0.5, y: 0.2 }, aimed: false };
-  const r = header.getBoundingClientRect();
-  return {
-    point: clampPoint(r.left + r.width / 2, r.top + r.height / 2),
-    aimed: false,
-  };
+/** Center of a control's own box. */
+function rectCenter(el: Element): Point {
+  const r = el.getBoundingClientRect();
+  return clampPoint(r.left + r.width / 2, r.top + r.height / 2);
+}
+
+/**
+ * Origin straight off the gesture: the tap point when the event carries
+ * coordinates, else the control's own center (keyboard events have none;
+ * a keyboard-activated click reports (0, 0)). Any zero/missing coordinate
+ * counts as missing — (0, 0) is off-screen chrome, never a genuine tap.
+ */
+export function controlPoint(e: {
+  clientX?: number;
+  clientY?: number;
+  currentTarget: Element;
+}): Point {
+  if (e.clientX && e.clientY) return clampPoint(e.clientX, e.clientY);
+  return rectCenter(e.currentTarget);
 }
 
 /**
@@ -153,25 +156,53 @@ function edgeAim(p: Point): { angle: number; spread: number } {
   return { angle: (Math.atan2(0.14 + p.y, 0.5 - p.x) * 180) / Math.PI, spread: 50 };
 }
 
-export function celebrateSection(section: TaskSection, s: CelebrationSnapshot): void {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
-  if (document.visibilityState !== "visible") return;
-  if (
+function readSnapshot(): CelebrationSnapshot {
+  const s = useAppStore.getState();
+  return {
+    customTasks: s.customTasks,
+    barterPins: s.barterPins,
+    characters: s.characters,
+    activeCharId: s.activeCharId,
+    accountValues: s.accountValues,
+    hiddenAccountTaskIds: s.hiddenAccountTaskIds,
+  };
+}
+
+function reducedMotion(): boolean {
+  return (
     typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  ) {
+  );
+}
+
+/**
+ * Wrap a progress write made by a row control: if this write completes the
+ * section, celebrate at the gesture's own origin. The was/now comparison
+ * runs against the synchronously-updated store, and decrements need not call
+ * this (they can only un-complete, which the was-check turns into a no-op
+ * anyway).
+ */
+export function celebrateAfterWrite(
+  section: TaskSection,
+  origin: Point,
+  write: () => void
+): void {
+  const before = readSnapshot();
+  if (isSectionComplete(section, before)) {
+    write();
     return;
   }
-  const { point, aimed } = celebrationOrigin(section);
+  write();
+  const after = readSnapshot();
+  if (!isSectionComplete(section, after) || reducedMotion()) return;
   confetti({
     particleCount: 36,
-    spread: 65,
+    ...edgeAim(origin),
     startVelocity: 30,
     gravity: 1.1,
     ticks: 150,
     scalar: 2,
-    ...(aimed ? edgeAim(point) : null),
-    shapes: sectionShapes(section, s),
-    origin: point,
+    shapes: sectionShapes(section, after),
+    origin,
   });
 }

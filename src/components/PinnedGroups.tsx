@@ -31,6 +31,7 @@ import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOB
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { bandId } from "@/lib/dragRules";
+import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
 import { CSS } from "@dnd-kit/utilities";
 import { useAppStore, canonicalBarterOrder } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -197,7 +198,7 @@ function Group({
             ? `清除 ${title} 的所有交易（${rows.filter((r) => progressOf(r).done).length}/${rows.length} 完成）`
             : `完成 ${title} 的所有交易`
         }
-        onClick={() => toggleGroup(rows)}
+        onClick={(e) => celebrateAfterWrite(first.section, controlPoint(e), () => toggleGroup(rows))}
         className={cn(
           "relative block h-11 w-11 rounded-xl border overflow-hidden select-none transition-colors",
           isMobile ? "" : "h-14 w-14",
