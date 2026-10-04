@@ -22,13 +22,20 @@
 //      measured a 23.5px hole between the limit and the cost when a row was stretched
 //      by a two-line neighbour: the price floated down and read as detached from its
 //      own label.
-//   3. The name band reserves two lines when the tile is 4 columns (`min-h-[2lh]`,
-//      gated on the grid's container width). Two rules meet here and they used to
-//      conflict: nothing should reserve height it does not use, but the bands below
-//      must stay aligned across a row. At four columns the longest real names wrap,
-//      and an unreserved name pushed its tile's limit and cost 18px below its
-//      neighbours. `2lh` rather than an em value because it tracks the leading, where
-//      an em guess came up under a real second line.
+//   3. The name band reserves two lines at 4 columns (`min-h-[2lh]`, gated on
+//      the grid's container width) and on phones (`max-sm:`, viewport-gated).
+//      Two rules meet here and they used to conflict: nothing should reserve
+//      height it does not use, but the bands below must stay aligned across a
+//      row. At four columns the longest real names wrap, and an unreserved name
+//      pushed its tile's limit and cost 18px below its neighbours. `2lh`
+//      rather than an em value because it tracks the leading, where an em
+//      guess came up under a real second line. The phone reservation is the
+//      same alignment for the same reason: at two ~158px columns even
+//      medium names wrap, so a one-line tile sat its icon and cost a line
+//      above its two-line neighbour. Between the two (sm to 4-column widths)
+//      every name fits one line, so no height is reserved there. `max-sm:`
+//      and `@min-[880px]` can never both match (a ≥880px container implies a
+//      viewport above `sm`), so the two gates do not collide.
 //   4. The verdict takes NO band. It was a reserved row below the limit; it is now
 //      absolutely positioned at the top-left, mirroring the pin at the top-right, so
 //      the item's own bands run unbroken and the tile is shorter for it. It cannot
@@ -255,8 +262,11 @@ export function Tile({
             NOT the grid's 4-column threshold: two container-query utilities at one
             width collide and the grid's rule loses, so keep the two apart and check the
             built CSS after moving either. At 1-3 columns every name fits on one line,
-            so the reservation would be empty height on 186 rows to fix 8. */}
-        <p className="line-clamp-2 text-center text-[13px] font-semibold leading-snug text-muted-foreground @min-[880px]:min-h-[2lh]">{name}</p>
+            so the reservation would be empty height on 186 rows to fix 8 — except on
+            phones, where `max-sm:` reserves unconditionally: at two ~158px columns
+            even medium names wrap, so the same misalignment the 4-column gate fixes
+            shows up between one-line and two-line neighbours. */}
+        <p className="line-clamp-2 text-center text-[13px] font-semibold leading-snug text-muted-foreground max-sm:min-h-[2lh] @min-[880px]:min-h-[2lh]">{name}</p>
 
         {/* The art, and the tile's subject. `self-center` is required: as a flex
             column child the frame shrinks to its 72px and sits at the left content
