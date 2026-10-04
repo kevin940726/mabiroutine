@@ -288,7 +288,7 @@ export default function App() {
                 ref={focusSelectOnMount}
                 value={pillDraft}
                 onChange={(e) => setPillDraft(e.target.value)}
-                className="h-7 w-24 rounded-full text-xs px-2.5 bg-background border border-input"
+                className="h-7 w-24 rounded-full text-base px-2.5 bg-background border border-input"
                 placeholder="名稱"
               />
               <button type="submit" className="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-primary text-primary-foreground" aria-label="save rename">
@@ -386,7 +386,7 @@ export default function App() {
               }}
               className="flex items-center gap-1"
             >
-              <Input ref={focusSelectOnMount} value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)} className="h-7 w-24 rounded-full text-xs px-2.5" placeholder="名稱" />
+              <Input ref={focusSelectOnMount} value={renameDraft} onChange={(e) => setRenameDraft(e.target.value)} className="h-7 w-24 rounded-full text-base px-2.5" placeholder="名稱" />
               <button type="submit" className="h-7 w-7 shrink-0 grid place-items-center rounded-full bg-primary text-primary-foreground" aria-label="save rename">
                 <Check className="h-3.5 w-3.5" />
               </button>

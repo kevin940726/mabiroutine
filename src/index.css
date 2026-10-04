@@ -120,6 +120,24 @@
   }
 }
 
+/* iOS auto-zoom floor: Safari (standalone PWA included) zooms on focus
+   whenever a text field computes below 16px. Base Input/Textarea are
+   text-base, but per-call text-xs/text-sm overrides have reintroduced the
+   zoom before — this floors every text-editable field back up, including
+   future ones. Unlayered DELIBERATELY: Tailwind v4's utilities layer beats
+   anything inside @layer base regardless of specificity, so a layered rule
+   would lose to the next text-xs override — the exact regression this
+   guards against. Consequence: no input/textarea/select in this app can
+   render below 16px via utilities either, which is the invariant iOS
+   demands. max() (not a fixed px) so larger root fonts still scale up.
+   Non-text inputs (checkbox, radio, buttons, file, …) are excluded — iOS
+   never zooms on those, and their sizing stays with their own rules. */
+input:not([type="checkbox"], [type="radio"], [type="range"], [type="button"], [type="submit"], [type="reset"], [type="image"], [type="hidden"], [type="file"], [type="color"]),
+textarea,
+select {
+  font-size: max(16px, 1rem);
+}
+
 /* Reminder tap deep-link: one subtle amber ring pulse on the target task
    row. scroll-margin-top clears the sticky header + compact pill for
    scrollIntoView. */

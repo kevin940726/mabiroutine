@@ -849,7 +849,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
                 }}
                 placeholder="搜尋獎勵、材料、NPC 或城鎮"
                 aria-label="搜尋獎勵、材料、NPC 或城鎮"
-                className="h-auto min-h-7 min-w-0 flex-1 rounded-full border border-input bg-background px-2.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-auto min-h-7 min-w-0 flex-1 rounded-full border border-input bg-background px-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
               <button
                 type="button"

@@ -549,7 +549,7 @@ export const SyncButton = memo(function SyncButton() {
                     }}
                     onClick={() => void copyCurrentLink()}
                     aria-label="sync link, tap to copy"
-                    className="cursor-pointer font-mono text-xs text-right"
+                    className="cursor-pointer font-mono text-base text-right"
                   />
                   <Button
                     variant="outline"
@@ -589,7 +589,7 @@ export const SyncButton = memo(function SyncButton() {
                   }}
                   placeholder="貼上同步連結加入此裝置"
                   aria-label="paste sync link"
-                  className="font-mono text-xs"
+                  className="font-mono text-base"
                 />
                 <Button
                   variant="outline"
