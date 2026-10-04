@@ -22,6 +22,15 @@ export interface ShopDeal {
   costCurrency: string;
   outQty: number;
   limitText: string | null;
+  /**
+   * Structured reset cycle behind limitText: "weekly" when the row's limit
+   * says so, "daily" for any other limited row, null when unlimited. Cycle
+   * readers (pinCycleOf, taskKind, section placement) must use this, never
+   * parse limitText — display copy is free to reword, this is not.
+   */
+  limitPeriod: "daily" | "weekly" | null;
+  /** Structured purchase cap behind limitText (null when unlimited). */
+  limitTimes: number | null;
   /** account-wide rather than per character, i.e. the in-game 伺服器 badge */
   scopeAccount: boolean;
   note: string | null;
@@ -119,6 +128,24 @@ function limitText(limit?: { times?: number; period?: string }, scope?: string):
 }
 
 /**
+ * Structured twin of limitText's cycle: "weekly" only on an explicit weekly
+ * period, "daily" for every other limited row (an absent period renders as
+ * 每日 — most limited rows carry none), null when unlimited. Same rule as
+ * isWeeklyLimit in cycle.ts, kept local so the dependency arrow stays
+ * one-way (cycle → shops, never back).
+ */
+function limitPeriod(limit?: { times?: number; period?: string }): "daily" | "weekly" | null {
+  if (limit?.times == null) return null;
+  return limit.period === "weekly" ? "weekly" : "daily";
+}
+
+/** Cycle of a barter.json limit string (curated-only rows carry no RawOption). */
+function barterLimitPeriod(limit?: string | null): "daily" | "weekly" | null {
+  if (limit == null) return null;
+  return /每週\s*\d+\s*次/.test(limit) ? "weekly" : "daily";
+}
+
+/**
  * Punctuation folding for matching only, never for display.
  *
  * Both sources now spell `設計圖(3級)` with half-width U+0028/U+0029, so this no longer
@@ -180,6 +207,8 @@ export function loadShopNpcs(): ShopNpc[] {
         costCurrency,
         outQty,
         limitText: limitText(item.limit, item.scope),
+        limitPeriod: limitPeriod(item.limit),
+        limitTimes: item.limit?.times ?? null,
         scopeAccount: item.scope === "account",
         inShopCatalog: true,
         barterId: exact?.row.id ?? null,
@@ -205,6 +234,10 @@ export function loadShopNpcs(): ShopNpc[] {
       costCurrency: give.name,
       outQty: get.qty,
       limitText: row.limit ?? null,
+      limitPeriod: barterLimitPeriod(row.limit),
+      // barter.json carries no structured times — the count parses from the
+      // same limit string limitText echoes verbatim.
+      limitTimes: Number(row.limit?.match(/(\d+)\s*次/)?.[1] ?? 0) || null,
       scopeAccount: !row.perChar,
       inShopCatalog: false,
       barterId: row.id,

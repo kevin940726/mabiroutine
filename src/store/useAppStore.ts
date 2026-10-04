@@ -152,7 +152,7 @@ const SHOP_DEALS_BY_PIN = shopDealsByPinId();
 /** Reset cycle of a pinned row, from either namespace. */
 export function pinCycleOf(id: string): "daily" | "weekly" | null {
   const deal = SHOP_DEALS_BY_PIN.get(id);
-  if (deal) return deal.limitText?.startsWith("每週") ? "weekly" : "daily";
+  if (deal) return deal.limitPeriod === "weekly" ? "weekly" : "daily";
   const b = (barterJson as BarterJsonItem[]).find((x) => x.id === id);
   return b ? barterCycleOf(b) : null;
 }
@@ -249,8 +249,8 @@ export function barterToTask(b: BarterJsonItem): Task {
 // subsection. Order numbers match the barter convention (daily 80, weekly 150)
 // so the two kinds of pin interleave predictably.
 export function shopDealToTask(deal: ShopDeal): Task {
-  const weekly = deal.limitText?.startsWith("每週") ?? false;
-  const times = Number(deal.limitText?.match(/(\d+)\s*次/)?.[1] ?? 0);
+  const weekly = deal.limitPeriod === "weekly";
+  const times = deal.limitTimes ?? 0;
   const isCounter = times > 1;
   return {
     id: deal.pinId,

@@ -1,6 +1,7 @@
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
 import trackerJson from "@/data/tracker.json";
 import barterJson from "@/data/barter.json";
+import { shopDealsByPinId } from "@/lib/shops";
 
 // Cycle bucketing for task values: a value is tagged with the Taipei day
 // bucket (daily-kind tasks) or week bucket (weekly-kind) it was set in.
@@ -36,6 +37,13 @@ export function taskKind(tid: string, customTasks: { id: string; kind: string }[
   if (c) return c.kind;
   const bk = BARTER_KIND.get(tid);
   if (bk) return bk;
+  // Shop-namespace pins (shop::npc::name, the gold rows with no barter.json
+  // entry) read their cycle from the deal's structured limit period — the
+  // same rule the store's pinCycleOf uses. Without this every weekly gold
+  // row bucketed daily and was pruned the next morning (seen: 空瓶 at
+  // 瓦爾特, 每週 1 次).
+  const deal = shopDealsByPinId().get(tid);
+  if (deal) return deal.limitPeriod === "weekly" ? "weekly" : "daily";
   return "daily";
 }
 
