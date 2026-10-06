@@ -67,26 +67,28 @@ const STACK = "flex flex-col gap-1 sm:gap-2";
  *  draws its one rule on the TOP edge, since that is the side separating it from
  *  the item.
  *
- *  THE TOWN IS HIDDEN BELOW `sm`, and that is what keeps the tile one uniform height
- *  on a phone. At two columns the band's text box is 90px at 360px, and the common
- *  label `安黛莉 · 堤爾克那` needs 101px — the +11px overflow repeated across 46 of the
- * 194 rows, which wrapped them to a second line and left the mobile grid with ten
- *  distinct tile heights. The NPC name alone fits comfortably (`安黛莉` is 39px), so
- *  dropping the town takes the wraps to ZERO and the distinct heights from ten to six.
- *  Shrinking the font was measured as the alternative and does nothing once the town
- *  is gone, so the text keeps its 13px.
+ *  THE BAND NAMES NO TOWN AT ANY WIDTH, and that is what keeps the tile one
+ *  uniform height everywhere. At two columns the band's text box is 90px at
+ *  360px, and the common label `安黛莉 · 堤爾克那` needs 101px — the +11px
+ *  overflow repeated across 46 of the 194 rows, which wrapped them to a second
+ *  line and left the grid with ten distinct tile heights. The NPC name alone
+ *  fits comfortably (`安黛莉` is 39px), so dropping the town takes the wraps to
+ *  ZERO and the distinct heights from ten to six. Shrinking the font was
+ *  measured as the alternative and does nothing once the town is gone, so the
+ *  text keeps its 13px.
  *
- *  Nothing is lost: the town is on the section header when the grid is grouped by NPC,
- *  it is in this band on desktop, and the material popover names `npc · town` in full.
- *  Below `sm` the merchant is still identified — by name here and by portrait — while
- *  the row stops paying 17px of height for the town. */
+ *  Nothing is lost: the town is on the section heading in the default view, on
+ *  the selected-merchant header (portrait + MapPin line) in a single-merchant
+ *  view, on each `NpcHeader` in a town-filtered view, and in the material
+ *  popover's `npc · town` line. The merchant is still identified here — by
+ *  name and by portrait — while the row stops paying 17px of height for a town
+ *  that is already named above it. */
 function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string, town: string) => void }) {
   const inner = (
     <>
       <NpcFace npc={item.npc} town={item.town} size="size-5" />
-      <span className="min-w-0 text-[13px] leading-tight">
-        <span className="font-semibold text-foreground">{item.npc}</span>
-        <span className="hidden text-muted-foreground sm:inline"> · {item.town}</span>
+      <span className="min-w-0 truncate text-[13px] font-semibold leading-tight text-foreground">
+        {item.npc}
       </span>
     </>
   );
