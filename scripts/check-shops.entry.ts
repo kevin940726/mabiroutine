@@ -105,6 +105,26 @@ for (const t of townList) {
     seen.add(n["name"] as string);
   }
 }
+// Twin probes: every shops.json leg must be reachable in the materials route
+// table through twinTradeLeg. The town-group conversion once left materials.ts
+// reading the old npc-keyed shape, which synthesized zero legs — the grid
+// (shops.ts) looked fine while 30 popovers went 找不到資料, and every gate
+// stayed green. These probes cover a gold leg, a barter leg, a multi-yield
+// leg, and a quest-board leg; ambiguity (same npc+name+outQty twice) returns
+// null by design, so keep the probes unique.
+{
+  const probes: Array<[string, string, string, number]> = [
+    ["安黛莉", "堤爾克那", "聖水", 1],
+    ["安黛莉", "堤爾克那", "聖水", 10],
+    ["佛格斯", "堤爾克那", "鐵礦石", 1],
+    ["任務佈告欄", "堤爾克那", "料理卷軸：煎蛋", 1],
+  ];
+  for (const [npc, town, name, qty] of probes) {
+    if (!twinTradeLeg(npc, name, qty, town)) {
+      fail(`twin probe blind: ${town} ${npc} ${name} ×${qty} has no leg in the materials table`);
+    }
+  }
+}
 // Shop-option priority must reach the deal: a curated barter row wins when both
 // exist, otherwise the option's own tier flows through (today exactly the four
 // 推薦 quest-board scrolls). If this count moves, the new mark is either

@@ -44,7 +44,6 @@ export type ShopRow = {
   /** Account-wide rather than per character, i.e. the in-game 伺服器 badge. */
   scopeAccount: boolean;
   priority: CuratedPriority | null;
-  note: string | null;
   /** Art override from the option (`icon`): a data-spelled item name whose file
    *  to show instead of this row's own. Null follows the filename convention. */
   icon: string | null;

@@ -155,7 +155,6 @@ function toItem(deal: ShopDeal): ShopRow {
     limitText: deal.limitText,
     scopeAccount: deal.scopeAccount,
     priority: deal.priority,
-    note: deal.note,
     icon: deal.icon,
     kind: deal.kind,
     curatedIndex: deal.curatedIndex,
@@ -202,7 +201,6 @@ function barterRowToItem(row: (typeof barterJson)[number]): ShopRow {
     limitText: row.limit ?? null,
     scopeAccount: row.perChar === false,
     priority: row.priority as CuratedPriority,
-    note: row.note ?? null,
     icon: null,
     kind: "barter",
     curatedIndex: -1,
@@ -238,7 +236,7 @@ function rowMatches(item: ShopRow, query: string) {
   const fold = (v: string) => displayName(v).replace(/\u2009/g, "").toLocaleLowerCase("zh-Hant");
   const q = fold(query.trim());
   if (!q) return true;
-  return fold(`${item.title} ${item.give} ${item.npc} ${item.town} ${item.note ?? ""}`).includes(q);
+  return fold(`${item.title} ${item.give} ${item.npc} ${item.town}`).includes(q);
 }
 
 function filterItems(items: ShopRow[], town: string, query: string) {

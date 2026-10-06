@@ -7,6 +7,10 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ### Features
 - Shop tiles no longer repeat the town in the merchant band: every view already names it above the grid (town section headings, the selected merchant's MapPin line, per-merchant headers when town-filtered, and the material popover), so the band is portrait + name at every width and all tiles share one height
 
+### Fixes
+- Shop and barter sources are back in material popovers: the town-grouped `shops.json` conversion left the route table reading the old npc-keyed shape, which silently dropped every shop/barter leg and turned ~30 materials into 找不到資料 while the grid itself looked fine. A twin-probe tripwire in `test:shops` now fails loudly on any such drift
+- Merchant search no longer matches barter row notes: the note text stays in `barter.json` but out of the query, so a search hits names, prices, NPCs and towns only
+
 ## 2026-10-06 — Quest boards
 
 ### Features

@@ -36,7 +36,6 @@ export interface ShopDeal {
   limitTimes: number | null;
   /** account-wide rather than per character, i.e. the in-game 伺服器 badge */
   scopeAccount: boolean;
-  note: string | null;
   priority: CuratedPriority | null;
   /** Art override from the option (`icon`): a data-spelled item name whose file
    *  to show instead of this deal's own. Null follows the filename convention. */
@@ -78,7 +77,6 @@ type CuratedRow = {
   priority: CuratedPriority;
   perChar: boolean;
   limit?: string;
-  note?: string;
 };
 
 /**
@@ -262,7 +260,6 @@ export function loadShopNpcs(): ShopNpc[] {
           pinId: exact?.row.id ?? shopPinId(npc, item.name),
           priority: exact?.row.priority ?? (typeof item.priority === "string" && SHOP_PRIORITIES.has(item.priority) ? (item.priority as CuratedPriority) : null),
           icon: typeof item.icon === "string" ? item.icon : null,
-          note: exact?.row.note ?? null,
           curatedIndex: exact?.index ?? -1,
         };
       });
@@ -292,7 +289,6 @@ export function loadShopNpcs(): ShopNpc[] {
       barterId: row.id,
       pinId: row.id,
       priority: row.priority,
-      note: row.note ?? null,
       icon: null,
       curatedIndex: index,
     };

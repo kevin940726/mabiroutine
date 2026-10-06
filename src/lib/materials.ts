@@ -62,33 +62,46 @@ const RECIPES = ((): Record<string, RecipeEntry> => {
       routes: (e.routes ?? []).filter((r) => r.kind !== "shop" && r.kind !== "barter"),
     };
   }
-  const shops = shopsJson as unknown as Record<string, { town: string; items: ShopOption[] }>;
-  for (const [npc, s] of Object.entries(shops)) {
-    if (npc === "$schema" || typeof s !== "object" || !s) continue;
-    for (const it of s.items ?? []) {
-      const kind = it.kind ?? "shop";
-      if (kind !== "shop" && kind !== "barter") continue;
-      const scope = it.scope ?? "character";
-      const route: RecipeRoute = { kind, npc, town: s.town, outQty: 1, scope };
-      if (it.limit) {
-        const rebuilt = stringifyLimit(it.limit, scope);
-        if (rebuilt !== null) route.limit = rebuilt;
-        if (Number.isInteger(it.limit.times) && (it.limit.times ?? 0) >= 1) {
-          route.times = it.limit.times as number;
+  // Town-grouped since the 2026-10-06 conversion: towns → npcs → items.
+  // The reader before that walked Object.entries in the old npc-keyed shape
+  // and silently synthesized ZERO legs after the conversion (an array's
+  // `.items` is undefined), turning every shop-sourced material into 找不到資料
+  // while the grid — which reads through shops.ts — looked fine. The tripwire
+  // in test:shops (twin probes) exists so a shape drift fails loudly next time.
+  const shops = shopsJson as unknown as {
+    towns?: Array<{ name: string; npcs?: Array<{ name: string; items?: ShopOption[] }> }>;
+  };
+  for (const t of shops.towns ?? []) {
+    if (typeof t?.name !== "string" || !Array.isArray(t.npcs)) continue;
+    const town = t.name;
+    for (const shop of t.npcs) {
+      if (typeof shop?.name !== "string" || !Array.isArray(shop.items)) continue;
+      const npc = shop.name;
+      for (const it of shop.items ?? []) {
+        const kind = it.kind ?? "shop";
+        if (kind !== "shop" && kind !== "barter") continue;
+        const scope = it.scope ?? "character";
+        const route: RecipeRoute = { kind, npc, town, outQty: 1, scope };
+        if (it.limit) {
+          const rebuilt = stringifyLimit(it.limit, scope);
+          if (rebuilt !== null) route.limit = rebuilt;
+          if (Number.isInteger(it.limit.times) && (it.limit.times ?? 0) >= 1) {
+            route.times = it.limit.times as number;
+          }
         }
+        if (it.get && Number.isInteger(it.get.amount) && it.get.amount >= 1) {
+          route.outQty = it.get.amount;
+        }
+        const currency = it.cost.currency ?? "gold";
+        if (currency === "gold") {
+          if (it.cost.amount !== null && it.cost.amount !== undefined) route.price = it.cost.amount;
+        } else if (it.cost.amount !== null && it.cost.amount !== undefined) {
+          route.components = [{ name: currency, qty: it.cost.amount }];
+        }
+        const entry = merged[it.name] ?? { verified: "tw" as const, routes: [] };
+        entry.routes.push(route);
+        merged[it.name] = entry;
       }
-      if (it.get && Number.isInteger(it.get.amount) && it.get.amount >= 1) {
-        route.outQty = it.get.amount;
-      }
-      const currency = it.cost.currency ?? "gold";
-      if (currency === "gold") {
-        if (it.cost.amount !== null && it.cost.amount !== undefined) route.price = it.cost.amount;
-      } else if (it.cost.amount !== null && it.cost.amount !== undefined) {
-        route.components = [{ name: currency, qty: it.cost.amount }];
-      }
-      const entry = merged[it.name] ?? { verified: "tw" as const, routes: [] };
-      entry.routes.push(route);
-      merged[it.name] = entry;
     }
   }
   return merged;
