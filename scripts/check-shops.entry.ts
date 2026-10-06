@@ -1,13 +1,16 @@
 /* eslint-disable no-console */
 // shops.json integrity: strict shape (mirrors shops.schema.json at runtime),
-// known currencies, null-amount-gold-only, no identical-duplicate options,
-// and recipes.json carrying no shop/barter routes (they live here now).
+// town-grouped arrays in display order, uniqueness gates (towns, npcs per
+// town, minted pin ids), known currencies, null-amount-gold-only, no
+// identical-duplicate options, and recipes.json carrying no shop/barter
+// routes (they live here now).
 // Run after touching shops.json, recipes.json, or barter.json: pnpm test:shops
 import barterJson from "@/data/barter.json";
 import recipesJson from "@/data/recipes.json";
 import shopsJson from "@/data/shops.json";
 import { parseItemQty, twinTradeLeg } from "@/lib/materials";
-import { loadShopNpcs, shopDeals } from "@/lib/shops";
+import { TOWN_ORDER } from "@/lib/towns";
+import { loadShopNpcs, merchantKey, shopDeals, shopPinId } from "@/lib/shops";
 
 type Route = { kind: string };
 const recipes = recipesJson as Record<string, { routes?: Route[] }>;
@@ -23,19 +26,121 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
 const keys = (v: unknown): string[] => (isObj(v) ? Object.keys(v) : []);
 
+// 0. top-level shape: $schema plus the towns array. Towns and NPCs are arrays
+// (never keyed objects): key order is a formatter away from a silent
+// reshuffle, and objects cannot hold two same-name NPCs in different towns.
+if (!Array.isArray(shops["towns"])) fail("top level must carry a towns array");
+for (const k of keys(shops)) {
+  if (k !== "$schema" && k !== "towns") fail(`unknown top-level key: ${k}`);
+}
+const townList = (Array.isArray(shops["towns"]) ? shops["towns"] : []) as unknown[];
+const townKeys = new Set(["name", "npcs"]);
+const npcKeys = new Set(["name", "icon", "items"]);
+for (const t of townList) {
+  if (!isObj(t) || typeof t["name"] !== "string" || !Array.isArray(t["npcs"])) {
+    fail(`bad town block: ${JSON.stringify(t)?.slice(0, 80)}`);
+    continue;
+  }
+  for (const k of keys(t)) {
+    if (!townKeys.has(k)) fail(`unknown town key ${t["name"]}: ${k}`);
+  }
+  for (const n of t["npcs"] as unknown[]) {
+    if (!isObj(n) || typeof n["name"] !== "string" || !Array.isArray(n["items"])) {
+      fail(`bad npc block in ${t["name"]}`);
+      continue;
+    }
+    for (const k of keys(n)) {
+      if (!npcKeys.has(k)) fail(`unknown npc key ${t["name"]} ${n["name"]}: ${k}`);
+    }
+    if (n["icon"] !== undefined && typeof n["icon"] !== "string") {
+      fail(`bad icon ${t["name"]} ${n["name"]}: portraits override with a public/npc path or omit`);
+    }
+  }
+}
+
+// 0b. file town order must respect TOWN_ORDER. Display follows the constant,
+// not file position — but a file that disagrees with it is either a mistake
+// or a silent no-op edit, so the gate keeps the two in sync. Unknown towns
+// (not in the constant) are unconstrained and sort after known ones.
+{
+  const rank = new Map<string, number>((TOWN_ORDER as readonly string[]).map((t, i) => [t, i]));
+  const fileTowns = townList
+    .filter(isObj)
+    .map((t) => t["name"])
+    .filter((n): n is string => typeof n === "string");
+  const known = fileTowns.filter((t) => rank.has(t));
+  const ordered = [...known].sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0));
+  if (known.some((t, i) => t !== ordered[i])) {
+    fail(`town order drifts from TOWN_ORDER: file has ${known.join(" → ")} (reorder the file or update the constant)`);
+  }
+}
+// 0c. uniqueness gates.
+// Towns are the top-level identity: two blocks for one town would split its
+// merchants across sections with no error at runtime.
+{
+  const seen = new Set<string>();
+  for (const t of townList) {
+    if (!isObj(t) || typeof t["name"] !== "string") continue;
+    if (seen.has(t["name"])) fail(`duplicate town block: ${t["name"]} (merge the npcs into one)`);
+    seen.add(t["name"]);
+  }
+}
+// Same-name NPCs in DIFFERENT towns are supported (separate entries under
+// their own town). Twice in ONE town is unrepresentable by design — JSON
+// would keep only the last — so fail loudly instead of silently dropping a
+// merchant. Two boards in one town needs the array escape hatch: say so here.
+for (const t of townList) {
+  if (!isObj(t) || !Array.isArray(t["npcs"])) continue;
+  const seen = new Set<string>();
+  for (const n of t["npcs"] as unknown[]) {
+    if (!isObj(n) || typeof n["name"] !== "string") continue;
+    if (seen.has(n["name"] as string)) {
+      fail(
+        `duplicate npc ${(n["name"] as string)} in ${t["name"]}: one town cannot hold two same-name merchants ` +
+          `(split them across towns if they are distinct; a genuine same-town pair needs the schema's array escape hatch)`
+      );
+    }
+    seen.add(n["name"] as string);
+  }
+}
+// Minted pin ids must be unique: a `shop::<npc>::<name>` id is persisted in
+// users' pins and sync buckets, so two deals sharing one means one pin
+// completing two rows. (Items differ per town today, so this passes on
+// npc::name alone.) If it ever fails, keep the bare id on the first
+// (npc, name) in file order and give the newcomer an explicit town-qualified
+// id — never rewrite the faces users already saved.
+{
+  const seen = new Map<string, string>();
+  for (const deal of shopDeals(loadShopNpcs())) {
+    if (deal.barterId) continue;
+    const id = shopPinId(deal.npc, deal.name);
+    const where = `${deal.town} ${deal.npc} ${deal.name}`;
+    const prev = seen.get(id);
+    if (prev !== undefined) {
+      fail(`pin id collision ${id}: ${prev} vs ${where} (qualify the newcomer with its town)`);
+    } else {
+      seen.set(id, where);
+    }
+  }
+}
+
 // 1. strict shape per option
 const optKeys = new Set(["name", "kind", "cost", "get", "limit", "scope"]);
 const costKeys = new Set(["amount", "currency"]);
 const getKeys = new Set(["amount"]);
 const limitKeys = new Set(["times", "period"]);
-for (const [npc, s] of Object.entries(shops)) {
-  if (npc === "$schema") continue;
-  if (!isObj(s) || typeof s["town"] !== "string" || !Array.isArray(s["items"])) {
-    fail(`bad shop block: ${npc}`);
-    continue;
+const eachNpc = (fn: (town: string, npc: string, items: unknown[]) => void) => {
+  for (const t of townList) {
+    if (!isObj(t) || typeof t["name"] !== "string" || !Array.isArray(t["npcs"])) continue;
+    for (const n of t["npcs"] as unknown[]) {
+      if (!isObj(n) || typeof n["name"] !== "string" || !Array.isArray(n["items"])) continue;
+      fn(t["name"] as string, n["name"] as string, n["items"] as unknown[]);
+    }
   }
-  for (const it of s["items"] as unknown[]) {
-    const where = `${npc} ${(isObj(it) && it["name"]) || "?"}`;
+};
+eachNpc((town, npc, items) => {
+  for (const it of items) {
+    const where = `${town} ${npc} ${(isObj(it) && it["name"]) || "?"}`;
     if (!isObj(it)) {
       fail(`non-object option: ${where}`);
       continue;
@@ -107,7 +212,7 @@ for (const [npc, s] of Object.entries(shops)) {
       fail(`bad scope ${where}: ${it["scope"]}`);
     }
   }
-}
+});
 
 // 2. currencies must be gold, a known item, a barter give/get token,
 // or an allowlisted sourceless token
@@ -128,32 +233,29 @@ for (const r of (barterJson as { rows?: { give?: string; get?: string }[] }).row
   if (typeof r?.give === "string") known.add(base(r.give));
   if (typeof r?.get === "string") known.add(base(r.get));
 }
-for (const [, s] of Object.entries(shops)) {
-  if (!isObj(s)) continue;
-  for (const it of s["items"] as unknown[]) {
+eachNpc((_town, _npc, items) => {
+  for (const it of items) {
     if (isObj(it) && typeof it["name"] === "string") known.add(it["name"]);
   }
-}
-for (const [npc, s] of Object.entries(shops)) {
-  if (npc === "$schema" || !isObj(s)) continue;
-  for (const it of s["items"] as unknown[]) {
+});
+eachNpc((town, npc, items) => {
+  for (const it of items) {
     if (!isObj(it) || !isObj(it["cost"])) continue;
     const currency = ((it["cost"] as Record<string, unknown>)["currency"] as string | undefined) ?? "gold";
-    if (!known.has(currency)) fail(`unknown currency ${npc} ${it["name"]}: ${currency}`);
+    if (!known.has(currency)) fail(`unknown currency ${town} ${npc} ${it["name"]}: ${currency}`);
   }
-}
+});
 
-// 3. no identical-duplicate options (same npc|item|kind + same everything)
+// 3. no identical-duplicate options (same town|npc|item|kind + same everything)
 {
   const seen = new Map<string, number>();
-  for (const [npc, s] of Object.entries(shops)) {
-    if (npc === "$schema" || !isObj(s)) continue;
-    for (const it of s["items"] as unknown[]) {
+  eachNpc((town, npc, items) => {
+    for (const it of items) {
       if (!isObj(it)) continue;
-      const sig = JSON.stringify([npc, it["name"], it["kind"] ?? "shop", it["cost"], it["get"] ?? null, it["limit"] ?? null, it["scope"] ?? "character"]);
+      const sig = JSON.stringify([town, npc, it["name"], it["kind"] ?? "shop", it["cost"], it["get"] ?? null, it["limit"] ?? null, it["scope"] ?? "character"]);
       seen.set(sig, (seen.get(sig) ?? 0) + 1);
     }
-  }
+  });
   for (const [sig, n] of seen) {
     if (n > 1) fail(`duplicate option ×${n}: ${sig.slice(0, 120)}`);
   }
@@ -169,10 +271,10 @@ for (const [item, e] of Object.entries(recipes)) {
 // 5. twin cap parity: where a barter row has an exact shops twin, the
 // barter display string must equal the twin's rebuilt limit (shops owns
 // mechanics). A twin with no limit pairs with 不限次數 only.
-for (const r of barterJson as unknown as { id?: string; npc?: string; get?: string; limit?: string }[]) {
+for (const r of barterJson as unknown as { id?: string; npc?: string; town?: string; get?: string; limit?: string }[]) {
   if (typeof r?.npc !== "string" || typeof r?.get !== "string") continue;
   const { name, qty } = parseItemQty(r.get);
-  const twin = twinTradeLeg(r.npc, name, qty);
+  const twin = twinTradeLeg(r.npc, name, qty, r.town);
   if (!twin) continue;
   const want = twin.limit ?? "不限次數";
   if ((r.limit ?? "") !== want) {
@@ -192,11 +294,15 @@ for (const r of barterJson as unknown as { id?: string; npc?: string; get?: stri
 // between the check and the code is the failure being fixed here. The matcher's
 // own behaviour is covered by the migration fixtures instead.
 const ALLOWED_UNCURATED_BARTER: string[] = [
-  // Intentionally uncurated shop barter rows, as "<npc>::<name>". Empty today.
+  // Intentionally uncurated shop barter rows, as "<npc>::<town>::<name>". Empty today.
   // Listing a row here accepts the degraded rendering on purpose; anything not
   // listed must have a barter.json entry, so an accidental name or quantity
   // typo fails the gate instead of quietly losing the badge and the breakdown.
 ];
+
+function dealKey(npc: string, town: string, name: string): string {
+  return merchantKey(npc, town) + "::" + name;
+}
 
 // A near miss is a name that shares its first two characters with the shop row,
 // or contains it. Length alone is far too loose for CJK: two unrelated four-char
@@ -207,17 +313,17 @@ const nearMiss = (a: string, b: string): boolean =>
 
 for (const deal of shopDeals(loadShopNpcs())) {
   if (deal.kind !== "barter" || deal.barterId) continue;
-  const key = `${deal.npc}::${deal.name}`;
+  const key = dealKey(deal.npc, deal.town, deal.name);
   if (ALLOWED_UNCURATED_BARTER.includes(key)) continue;
   // Point at the entry that was probably meant, so the fix is a rename rather
-  // than a search. Same NPC only: a name that matches elsewhere is a different
-  // trade and would be a red herring.
-  const sameNpc = (barterJson as unknown as { npc?: string; get?: string; id?: string }[])
-    .filter((r) => r?.npc === deal.npc && typeof r.get === "string")
-    .map((r) => ({ r, name: parseItemQty(r.get).name }))
+  // than a search. Same merchant only: a name that matches elsewhere is a
+  // different trade and would be a red herring.
+  const sameMerchant = (barterJson as unknown as { npc?: string; town?: string; get?: string; id?: string }[])
+    .filter((r) => r?.npc === deal.npc && r?.town === deal.town && typeof r.get === "string")
+    .map((r) => ({ r, name: parseItemQty(r.get as string).name }))
     .filter((c) => nearMiss(c.name, deal.name));
-  const hint = sameNpc.length
-    ? ` — closest curated entr${sameNpc.length > 1 ? "ies" : "y"}: ${sameNpc.map((c) => `${JSON.stringify(c.name)} (${c.r.id})`).join(", ")}`
+  const hint = sameMerchant.length
+    ? ` — closest curated entr${sameMerchant.length > 1 ? "ies" : "y"}: ${sameMerchant.map((c) => `${JSON.stringify(c.name)} (${c.r.id})`).join(", ")}`
     : "";
   fail(
     `uncurated barter row ${key}: give ${deal.costCurrency} x${deal.costAmount} yields ${deal.outQty}` +

@@ -225,15 +225,21 @@ export function limitDisplay(s: string): string {
 }
 
 /** Twin trade leg in the merged route table behind a barter-explorer row:
- *  the shops.json option for (npc, received item, outQty). Exact single
+ *  the shops.json option for (npc, town, received item, outQty). Exact single
  *  match only — ambiguity returns null and the caller falls back to the
  *  barter.json display string. shops.json owns the mechanics, so a matched
- *  leg with no limit means uncapped (never "fall back"). */
-export function twinTradeLeg(npc: string, name: string, qty: number): RecipeRoute | null {
+ *  leg with no limit means uncapped (never "fall back"). Town is optional for
+ *  older callers; without it two same-name NPCs' legs collide into null
+ *  instead of matching the wrong town's leg. */
+export function twinTradeLeg(npc: string, name: string, qty: number, town?: string): RecipeRoute | null {
   const entry = RECIPES[name];
   if (!entry) return null;
   const cands = (entry.routes ?? []).filter(
-    (r) => (r.kind === "barter" || r.kind === "shop") && r.npc === npc && (r.outQty ?? 1) === qty
+    (r) =>
+      (r.kind === "barter" || r.kind === "shop") &&
+      r.npc === npc &&
+      (town === undefined || r.town === town) &&
+      (r.outQty ?? 1) === qty
   );
   return cands.length === 1 ? cands[0] : null;
 }
@@ -242,8 +248,8 @@ export function twinTradeLeg(npc: string, name: string, qty: number): RecipeRout
  *  leg's limit.times when an exact twin exists (a matched leg with no limit
  *  means uncapped — the row string is never consulted), else the row's own
  *  limit string ("每日 3 次" → 3, 一次性 → 1), else 1. */
-export function dealTimes(npc: string, name: string, qty: number, rowLimit?: string): number {
-  const twin = twinTradeLeg(npc, name, qty);
+export function dealTimes(npc: string, name: string, qty: number, rowLimit?: string, town?: string): number {
+  const twin = twinTradeLeg(npc, name, qty, town);
   if (twin) return twin.times ?? 1;
   const m = rowLimit?.match(/(\d+)\s*次/);
   return m ? Number(m[1]) : 1;

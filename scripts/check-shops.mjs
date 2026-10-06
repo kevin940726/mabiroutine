@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * shops.json gate (shape + currency + dup + no-trade-routes-in-recipes).
+ * shops.json gate (town-grouped shape + uniqueness + currency + dup +
+ * no-trade-routes-in-recipes + twin parity + curation).
  * Bundles scripts/check-shops.entry.ts (real recipes/shops data) with
  * esbuild and runs the assertions in node.
  * Usage: pnpm test:shops (after touching recipes.json, shops.json, or

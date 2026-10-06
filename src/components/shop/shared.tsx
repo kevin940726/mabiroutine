@@ -78,7 +78,7 @@ export type ShopProps = {
    *  popover's jump but a different intent: this goes to THAT merchant's section, so
    *  there is no row to flash. Kept apart from onViewInShop rather than passing an
    *  empty material name, so each callback says what it does. */
-  onOpenNpc?: (npc: string) => void;
+  onOpenNpc?: (npc: string, town: string) => void;
   /** pinIds of the tiles a jump just landed on — flashed, then cleared by the
    *  caller. A set because a group-parent jump lands on every child at once. */
   focusKeys?: string[];
@@ -261,7 +261,9 @@ export function TradeGrid({
 
   const keyed = new Map<string, ShopRow[]>();
   for (const i of sorted) {
-    const key = byNpc ? i.npc : i.town;
+    // Composite key: bare NPC names conflate same-name merchants across
+    // towns into one section.
+    const key = byNpc ? `${i.npc}::${i.town}` : i.town;
     const bucket = keyed.get(key);
     if (bucket) bucket.push(i);
     else keyed.set(key, [i]);
@@ -389,7 +391,7 @@ export const GRID_CONTAINER = "@container/shop";
  */
 export function TradeLine({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: string, giveName: string) => void }) {
   const { name, qty } = parseItemQty(item.give);
-  const times = dealTimes(item.npc, name, qty, item.limitText ?? undefined);
+  const times = dealTimes(item.npc, name, qty, item.limitText ?? undefined, item.town);
   // A barter row whose give IS an icon currency (喵幣 / 愛心幣) is really a purchase
   // priced in that coin, not a material trade: 貓商人's 鱸魚, 毒囊 and both 魔力石
   // rows hand over 喵幣 above and yield the item below. Those render through `Cost`,

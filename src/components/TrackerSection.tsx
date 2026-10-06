@@ -7,7 +7,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import type { Task, TaskSection } from "@/lib/types";
 import { summarizeProgress } from "@/lib/progress";
 import { useAppStore, barterToTask, shopDealToTask, canonicalBarterOrder } from "@/store/useAppStore";
-import { shopDealsByPinId } from "@/lib/shops";
+import { merchantKey, shopDealsByPinId } from "@/lib/shops";
 import { PURPLE_HOLE_ID, isScheduledToday, nextBadgeLabel } from "@/lib/purpleHole";
 import barterJson from "@/data/barter.json";
 import { DndContext, closestCenter, type DragEndEvent, type Modifier } from "@dnd-kit/core";
@@ -157,7 +157,7 @@ type Props = {
   /** Deep-link a row's portrait to the shop: the merchant and the pin ids to
    *  flash. Threaded to every TaskRow (faces) and to PinnedGroups (group faces
    *  and child item art); App fires the tab switch alongside it. */
-  onViewInShop?: (npc: string, pinIds: string[]) => void;
+  onViewInShop?: (npc: string, town: string | undefined, pinIds: string[]) => void;
 };
 
 export function TrackerSection({ title, icon, tasks, isAccount, section, onEditTask, onAdd, onViewInShop }: Props) {
@@ -380,14 +380,18 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
   // registering them here let a child drag shift a neighbouring group — and made
   // the band collide with its first child, since both registered one id.
   const pinSlots = useMemo(() => {
+    // Slot identity is `npc::town` (or "其他"): bare names would merge
+    // same-name merchants into one band id. Must match PinnedGroups' buckets
+    // exactly, or dnd-kit holds ids no node registered.
+    const keyOf = (t: Task) => (t.npc ? merchantKey(t.npc, t.town ?? "") : "其他");
     const counts = new Map<string, number>();
     for (const t of cycleBarter) {
-      const npc = t.npc ?? "其他";
-      counts.set(npc, (counts.get(npc) ?? 0) + 1);
+      const k = keyOf(t);
+      counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     const slotOf = (t: Task) => {
-      const npc = t.npc ?? "其他";
-      return (counts.get(npc) ?? 0) > 1 ? bandId(npc) : t.id;
+      const k = keyOf(t);
+      return (counts.get(k) ?? 0) > 1 ? bandId(k) : t.id;
     };
     // One entry per slot, in first-seen order, deduped.
     const seen = new Set<string>();
@@ -411,16 +415,17 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
   // the stored order is the full pin order, and flattening a filtered list back into
   // it would drop the hidden pins.
   const renderedSlots = useMemo(() => {
+    const keyOf = (t: Task) => (t.npc ? merchantKey(t.npc, t.town ?? "") : "其他");
     const counts = new Map<string, number>();
     for (const t of barterSubtasksFiltered) {
-      const npc = t.npc ?? "其他";
-      counts.set(npc, (counts.get(npc) ?? 0) + 1);
+      const k = keyOf(t);
+      counts.set(k, (counts.get(k) ?? 0) + 1);
     }
     const seen = new Set<string>();
     const slots: string[] = [];
     for (const t of barterSubtasksFiltered) {
-      const npc = t.npc ?? "其他";
-      const s = (counts.get(npc) ?? 0) > 1 ? bandId(npc) : t.id;
+      const k = keyOf(t);
+      const s = (counts.get(k) ?? 0) > 1 ? bandId(k) : t.id;
       if (!seen.has(s)) {
         seen.add(s);
         slots.push(s);

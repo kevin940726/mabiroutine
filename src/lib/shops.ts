@@ -47,6 +47,8 @@ export interface ShopDeal {
 export interface ShopNpc {
   name: string;
   town: string;
+  /** Portrait override from the NPC object (`icon`); null follows the convention. */
+  icon: string | null;
   deals: ShopDeal[];
 }
 
@@ -170,8 +172,10 @@ function fold(text: string): string {
   return text.replace(/[（）；：，]/g, (c) => MATCH_FOLD[c]);
 }
 
-function matchKey(npc: string, kind: DealKind, costCurrency: string, costAmount: number | null, name: string, outQty: number) {
-  return [npc, kind, fold(costCurrency), costAmount ?? "?", fold(name), outQty].join("::");
+function matchKey(npc: string, town: string, kind: DealKind, costCurrency: string, costAmount: number | null, name: string, outQty: number) {
+  // Town is part of the identity: two same-name NPCs in different towns must
+  // never match each other's curated rows, even for identical trades.
+  return [npc, town, kind, fold(costCurrency), costAmount ?? "?", fold(name), outQty].join("::");
 }
 
 const curatedRows = barterJson as unknown as CuratedRow[];
@@ -179,46 +183,82 @@ const curatedByDeal = new Map<string, { row: CuratedRow; index: number }>();
 curatedRows.forEach((row, index) => {
   const give = parseItemQty(row.give);
   const get = parseItemQty(row.get);
-  const key = matchKey(row.npc, "barter", give.name, give.qty, get.name, get.qty);
+  const key = matchKey(row.npc, row.town, "barter", give.name, give.qty, get.name, get.qty);
   if (!curatedByDeal.has(key)) curatedByDeal.set(key, { row, index });
 });
 
-/** Every NPC in shops.json, plus any featured barter row with no shop entry. */
+/**
+ * Composite merchant key for every surface that looks an NPC up by name:
+ * filter values, section keys, pinned-group buckets, jump params. Bare names
+ * conflate same-name NPCs across towns; the town half disambiguates while the
+ * display keeps the bare name (suffixed only when ambiguous).
+ */
+export function merchantKey(npc: string, town: string): string {
+  return `${npc}::${town}`;
+}
+
+/** Portrait for a merchant: the NPC object's `icon` override, else null for
+ *  the /npc/<name>.png convention. Memoized with the deal maps. */
+let npcIconCache: Map<string, string> | null = null;
+export function shopNpcIcon(npc: string, town: string): string | null {
+  if (!npcIconCache) {
+    npcIconCache = new Map(loadShopNpcs().flatMap((n) => (n.icon ? [[merchantKey(n.name, n.town), n.icon]] : [])));
+  }
+  return npcIconCache.get(merchantKey(npc, town)) ?? null;
+}
+
+/** Every NPC in shops.json, plus any featured barter row with no shop entry.
+ *
+ *  The file is town-grouped arrays, and the loader preserves file order end
+ *  to end — NPC sequence inside a town and deal sequence inside an NPC are
+ *  file-owned. Town sequence for display follows TOWN_ORDER, not the file.
+ *  Memoized: the module data never changes, and the store, checks and panel
+ *  all read it.
+ */
+let npcsCache: ShopNpc[] | null = null;
 export function loadShopNpcs(): ShopNpc[] {
-  const raw = shopsJson as unknown as Record<string, { town: string; items: RawOption[] }>;
+  if (npcsCache) return npcsCache;
+  const raw = shopsJson as unknown as {
+    towns?: { name?: unknown; npcs?: { name?: unknown; icon?: unknown; items?: RawOption[] }[] }[];
+  };
   const npcs: ShopNpc[] = [];
   const seenCurated = new Set<string>();
-  for (const [npc, shop] of Object.entries(raw)) {
-    if (npc === "$schema" || !shop || !Array.isArray(shop.items)) continue;
-    const deals = shop.items.map((item, index): ShopDeal => {
-      const kind: DealKind = item.kind === "barter" ? "barter" : "shop";
-      const costCurrency = item.cost?.currency ?? "gold";
-      const costAmount = item.cost?.amount ?? null;
-      const outQty = item.get?.amount ?? 1;
-      const exact = curatedByDeal.get(matchKey(npc, kind, costCurrency, costAmount, item.name, outQty));
-      if (exact) seenCurated.add(exact.row.id);
-      return {
-        key: `${npc}::${kind}::${item.name}::${index}`,
-        npc,
-        town: shop.town,
-        name: item.name,
-        kind,
-        costAmount,
-        costCurrency,
-        outQty,
-        limitText: limitText(item.limit, item.scope),
-        limitPeriod: limitPeriod(item.limit),
-        limitTimes: item.limit?.times ?? null,
-        scopeAccount: item.scope === "account",
-        inShopCatalog: true,
-        barterId: exact?.row.id ?? null,
-        pinId: exact?.row.id ?? shopPinId(npc, item.name),
-        priority: exact?.row.priority ?? null,
-        note: exact?.row.note ?? null,
-        curatedIndex: exact?.index ?? -1,
-      };
-    });
-    npcs.push({ name: npc, town: shop.town, deals });
+  for (const townEntry of raw.towns ?? []) {
+    if (typeof townEntry?.name !== "string" || !Array.isArray(townEntry.npcs)) continue;
+    const town = townEntry.name;
+    for (const shop of townEntry.npcs) {
+      if (typeof shop?.name !== "string" || !Array.isArray(shop.items)) continue;
+      const npc = shop.name;
+      const deals = shop.items.map((item, index): ShopDeal => {
+        const kind: DealKind = item.kind === "barter" ? "barter" : "shop";
+        const costCurrency = item.cost?.currency ?? "gold";
+        const costAmount = item.cost?.amount ?? null;
+        const outQty = item.get?.amount ?? 1;
+        const exact = curatedByDeal.get(matchKey(npc, town, kind, costCurrency, costAmount, item.name, outQty));
+        if (exact) seenCurated.add(exact.row.id);
+        return {
+          key: `${town}::${npc}::${kind}::${item.name}::${index}`,
+          npc,
+          town,
+          name: item.name,
+          kind,
+          costAmount,
+          costCurrency,
+          outQty,
+          limitText: limitText(item.limit, item.scope),
+          limitPeriod: limitPeriod(item.limit),
+          limitTimes: item.limit?.times ?? null,
+          scopeAccount: item.scope === "account",
+          inShopCatalog: true,
+          barterId: exact?.row.id ?? null,
+          pinId: exact?.row.id ?? shopPinId(npc, item.name),
+          priority: exact?.row.priority ?? null,
+          note: exact?.row.note ?? null,
+          curatedIndex: exact?.index ?? -1,
+        };
+      });
+      npcs.push({ name: npc, town, icon: typeof shop.icon === "string" ? shop.icon : null, deals });
+    }
   }
   curatedRows.forEach((row, index) => {
     if (seenCurated.has(row.id) || (row.priority !== "must" && row.priority !== "extra")) return;
@@ -246,14 +286,33 @@ export function loadShopNpcs(): ShopNpc[] {
       note: row.note ?? null,
       curatedIndex: index,
     };
-    const npc = npcs.find((entry) => entry.name === row.npc);
+    const npc = npcs.find((entry) => entry.name === row.npc && entry.town === row.town);
     if (npc) npc.deals.unshift(deal);
-    else npcs.push({ name: row.npc, town: row.town, deals: [deal] });
+    else npcs.push({ name: row.npc, town: row.town, icon: null, deals: [deal] });
   });
+  npcsCache = npcs;
   return npcs;
 }
 
-/** The 192 rows the game actually sells, in shops.json order. */
+/**
+ * File-order NPC ranks: NPC sequence inside a town as the file owns it.
+ * Unknown entries (curated-only NPCs with no catalog block) sort after known
+ * ones, zh-Hant between themselves. Town sequence is NOT here — display
+ * follows TOWN_ORDER (compareTowns), which stays the single town authority.
+ */
+let npcRankCache: Map<string, number> | null = null;
+export function shopCatalogRanks(): { npcRank: Map<string, number> } {
+  if (!npcRankCache) {
+    npcRankCache = new Map<string, number>();
+    loadShopNpcs().forEach((n, i) => {
+      const key = merchantKey(n.name, n.town);
+      if (!npcRankCache!.has(key)) npcRankCache!.set(key, i);
+    });
+  }
+  return { npcRank: npcRankCache };
+}
+
+/** The rows the game actually sells, in shops.json order. */
 export function shopDeals(npcs: ShopNpc[]): ShopDeal[] {
   return npcs.flatMap((npc) => npc.deals).filter((deal) => deal.inShopCatalog);
 }

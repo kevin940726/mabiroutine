@@ -8,7 +8,7 @@ import { cn, focusSelectOnMount } from "@/lib/utils";
 import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { costText, getText, loadShopNpcs, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
+import { costText, getText, loadShopNpcs, merchantKey, shopCatalogRanks, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
 import { displayName, parseItemQty } from "@/lib/materials";
 import { ShopGrid } from "@/components/shop/ShopGrid";
 import { compareRows } from "@/components/shop/shared";
@@ -176,6 +176,10 @@ const ALL_SHOP_ITEMS: ShopRow[] = (() => {
   return [...curated, ...rest.filter((item) => item.kind === "barter"), ...rest.filter((item) => item.kind === "shop")];
 })();
 
+// File-order NPC ranks (shops.json owns NPC sequence within a town; town
+// sequence follows TOWN_ORDER). Module-level, memoized inside.
+const { npcRank: NPC_FILE_RANK } = shopCatalogRanks();
+
 /** A pin can point at a curated row that shops.json has no entry for, so build
  *  the row straight from barter.json — same shape as a shop-derived item. */
 function barterRowToItem(row: (typeof barterJson)[number]): ShopRow {
@@ -203,6 +207,18 @@ function barterRowToItem(row: (typeof barterJson)[number]): ShopRow {
     barterId: row.id,
     pinId: row.id,
   };
+}
+
+/** Row passes the merchant filter. Composite key normally; bare-name fallback
+ *  for an unresolved merchant (`npc::` with an empty town) — a jump for a pin
+ *  whose NPC has no catalog group (orphan barter rows), or a legacy reference
+ *  that resolved to nothing. The old name match showed those rows; without the
+ *  fallback the grid lands empty. */
+function merchantMatches(item: ShopRow, merchant: string): boolean {
+  if (merchant === "all") return true;
+  if (merchantKey(item.npc, item.town) === merchant) return true;
+  const sep = merchant.indexOf("::");
+  return sep >= 0 && merchant.slice(sep + 2) === "" && item.npc === merchant.slice(0, sep);
 }
 
 function rowMatches(item: ShopRow, query: string) {
@@ -235,8 +251,16 @@ function groupItems(items: ShopRow[]) {
     group.rows.push(item);
     groups.set(key, group);
   }
-  // Town order is the game's region order (TOWN_ORDER), then name inside a town.
-  return [...groups.values()].sort((a, b) => compareTowns(a.town, b.town) || a.name.localeCompare(b.name, "zh-Hant"));
+  // Order is town (TOWN_ORDER) then the file's NPC order inside a town, so
+  // reordering NPCs in shops.json reorders the dropdown. Unknown entries
+  // (curated-only rows with no catalog block) sort after known ones, zh-Hant
+  // between themselves.
+  const byFileOrder = (a: MerchantGroup, b: MerchantGroup) =>
+    compareTowns(a.town, b.town) ||
+    (NPC_FILE_RANK.get(merchantKey(a.name, a.town)) ?? Number.MAX_SAFE_INTEGER) -
+      (NPC_FILE_RANK.get(merchantKey(b.name, b.town)) ?? Number.MAX_SAFE_INTEGER) ||
+    a.name.localeCompare(b.name, "zh-Hant");
+  return [...groups.values()].sort(byFileOrder);
 }
 
 /** Composition-aware search box: CJK input stays local until committed.
@@ -329,10 +353,13 @@ function SearchControls({ query, onQueryChange }: {
  *  fire a tracker-originated jump (tab switch is App's job, the filter reset is
  *  here); `onNavigateTab` lets the 返回 chip switch back to the tracker. */
 export function MerchantPanel({ jumpRef, onNavigateTab }: {
-  jumpRef?: { current: ((npc: string, pinIds: string[]) => void) | null };
+  jumpRef?: { current: ((npc: string, town: string | undefined, pinIds: string[]) => void) | null };
   onNavigateTab?: (tab: "tracker" | "barter") => void;
 }) {
   const [town, setTown] = useState("all");
+  // `merchant` is a composite `npc::town` key (or "all"), never a bare name:
+  // bare names conflate same-name NPCs across towns. Labels stay bare for
+  // unique names (see npcOptions); state and URLs always carry both halves.
   const [merchant, setMerchant] = useState("all");
   const [query, setQuery] = useState("");
   // The tracker's pin list, shared: pinning here and pinning in the tracker are
@@ -409,12 +436,25 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
     [towns]
   );
   const npcOptions = useMemo(
-    () => [
-      { value: "all", label: "全部 NPC", icon: <span className="grid size-5 shrink-0 place-items-center rounded-full border bg-muted"><Store className="size-3" /></span> },
-      // grouped by town: the list is already town-ordered, so headings
-      // make that visible instead of leaving 36 rows to scan
-      ...groups.map((group) => ({ value: group.name, label: group.name, group: group.town, icon: <NpcFace npc={group.name} size="size-5" /> })),
-    ],
+    () => {
+      // Same-name NPCs in different towns share a label, so their options
+      // carry the town while unique names render bare. Values are always the
+      // composite key: a bare name cannot address one of several same-name
+      // merchants.
+      const nameCount = new Map<string, number>();
+      for (const g of groups) nameCount.set(g.name, (nameCount.get(g.name) ?? 0) + 1);
+      return [
+        { value: "all", label: "全部 NPC", icon: <span className="grid size-5 shrink-0 place-items-center rounded-full border bg-muted"><Store className="size-3" /></span> },
+        // grouped by town: the list is already town-ordered, so headings
+        // make that visible instead of leaving 36 rows to scan
+        ...groups.map((group) => ({
+          value: merchantKey(group.name, group.town),
+          label: (nameCount.get(group.name) ?? 0) > 1 ? `${group.name} · ${group.town}` : group.name,
+          group: group.town,
+          icon: <NpcFace npc={group.name} town={group.town} size="size-5" />,
+        })),
+      ];
+    },
     [groups]
   );
   const items = useMemo(
@@ -432,7 +472,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
       // being dropped.
       const rank = new Map(barterPins.map((id, i) => [id, i]));
       return filterItems([...ALL_SHOP_ITEMS, ...orphans], town, query)
-        .filter((item) => merchant === "all" || item.npc === merchant)
+        .filter((item) => merchantMatches(item, merchant))
         // Applied here so every view below (all merchants, one merchant, and the
         // counts in the header) sees the same list.
         //
@@ -497,14 +537,14 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
     [town, query, merchant, priorityFilter, kindFilter, pinSet, barterPins],
   );
 
-  const selected = merchant === "all" ? null : groups.find((group) => group.name === merchant) ?? null;
+  const selected = merchant === "all" ? null : groups.find((group) => merchantKey(group.name, group.town) === merchant) ?? null;
   // The selected merchant's rows come from the SAME fully-filtered `items` list,
   // not from `options`/`groups`. Those carry only the town filter, so sourcing the
   // grid from them silently dropped 優先度, 類型 and the search box the moment a
   // merchant was picked — the opposite of what openNpc promises ("keeps the current
   // filters ... wants that merchant's 必換 rows, not an unfiltered dump").
   const npcRows = useMemo(
-    () => (merchant === "all" ? [] : items.filter((item) => item.npc === merchant)),
+    () => (merchant === "all" ? [] : items.filter((item) => merchantMatches(item, merchant))),
     [items, merchant]
   );
   // The rows the section below renders: one list, filtered once here so the
@@ -570,6 +610,17 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
     [town, merchant, query, priorityFilter, kindFilter]
   );
 
+  /** Resolve a merchant reference to its group. Jumps and legacy links may
+   *  carry a bare name (no town): those resolve to the first group in file
+   *  order, which is exactly what the old name-only matching did. */
+  const resolveGroup = (npc: string, town?: string) => {
+    const pool = groupItems(ALL_SHOP_ITEMS);
+    return (
+      (town !== undefined ? pool.find((g) => g.name === npc && g.town === town) : undefined) ??
+      pool.find((g) => g.name === npc)
+    );
+  };
+
   /** The in-card jump: go to the merchant that PRODUCES the give, not the row being
    *  read. A same-session state transition, not a URL navigation: the panel is
    *  already mounted, and a reload would lose the shop state the jump depends on.
@@ -591,11 +642,22 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
       setQuery("");
       setPriorityFilter([]);
       setKindFilter("all");
-      setTown("all");
-      setMerchant(npc);
+      // The producing merchant trades it as the GET of one of its deals.
+      // Matched on get-name; the row's own town scopes the merchant, since a
+      // bare name is ambiguous across same-name NPCs.
+      // get is the display string ("凱琳特製全麥麵包 ×3"), so compare the parsed name.
+      // ALL_SHOP_ITEMS is module-level data, so the row resolves synchronously — the
+      // only thing that has to wait is the DOM, which the focusKeys effect handles.
+      // Not found (a curation gap) still lands on the section, minus the flash.
+      const row = ALL_SHOP_ITEMS.find((r) => r.npc === npc && parseItemQty(r.get).name === giveName);
+      const group = resolveGroup(npc, row?.town);
+      setTown(group?.town ?? "all");
+      setMerchant(group ? merchantKey(group.name, group.town) : merchantKey(npc, row?.town ?? ""));
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.searchParams.set("npc", npc);
+        if (group) url.searchParams.set("town", group.town);
+        else url.searchParams.delete("town");
         url.searchParams.delete("item");
         // A later in-shop jump ends the tracker landing: the way back belongs
         // to the newest jump, and this one arms its own snapshot.
@@ -603,13 +665,9 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
         window.history.replaceState(null, "", url.toString());
       }
       // Flash the row that produces the material: the producing merchant trades it as
-      // the GET of one of its deals. Matched on get-name within that merchant, since
-      // the producer leg is a shops.json entry with no barter-row pinId of its own.
-      // get is the display string ("凱琳特製全麥麵包 ×3"), so compare the parsed name.
-      // ALL_SHOP_ITEMS is module-level data, so the row resolves synchronously — the
-      // only thing that has to wait is the DOM, which the focusKeys effect handles.
-      // Not found (a curation gap) still lands on the section, minus the flash.
-      const row = ALL_SHOP_ITEMS.find((r) => r.npc === npc && parseItemQty(r.get).name === giveName);
+      // the GET of one of its deals. `row` above already resolved it (matched on
+      // get-name within that merchant, since the producer leg is a shops.json
+      // entry with no barter-row pinId of its own).
       if (row) flashTiles([row.pinId]);
     },
     [flashTiles, snapshotView]
@@ -631,11 +689,13 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
     if (typeof window === "undefined") return;
     const q = new URLSearchParams(window.location.search);
     const npc = q.get("npc");
+    const townParam = q.get("town") ?? undefined;
     const item = q.get("item");
     const fromTracker = q.get("from") === "tracker";
     if (!npc && !item) return;
     const url = new URL(window.location.href);
     url.searchParams.delete("npc");
+    url.searchParams.delete("town");
     url.searchParams.delete("item");
     url.searchParams.delete("from");
     window.history.replaceState(null, "", url.toString());
@@ -654,23 +714,25 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
         origin: "tracker",
       });
     }
-    // ?item= wins: it names an exact row, and knows its own NPC.
+    // ?item= wins: it names an exact row, and knows its own NPC and town.
     const target = item ? ALL_SHOP_ITEMS.find((row) => row.pinId === item) : undefined;
     if (target) {
-      setTown("all");
-      setMerchant(target.npc);
+      setTown(target.town);
+      setMerchant(merchantKey(target.npc, target.town));
       flashTiles([target.pinId]);
       return;
     }
-    // Fall back to ?npc=, which covers both a bare NPC link and an ?item= whose row
-    // was retired by a data edit. A stale ?item= with NO npc lands on the default
-    // view: there is no merchant to degrade to, and inventing one would be worse
-    // than the unfiltered shop.
+    // Fall back to ?npc= (+ optional ?town= for same-name merchants), which
+    // covers both a bare NPC link and an ?item= whose row was retired by a
+    // data edit. A bare ?npc= with no town lands on the first group in file
+    // order — the old name-only behavior. A stale ?item= with NO npc lands on
+    // the default view: there is no merchant to degrade to, and inventing one
+    // would be worse than the unfiltered shop.
     if (!npc) return;
-    const group = groupItems(ALL_SHOP_ITEMS).find((entry) => entry.name === npc);
+    const group = resolveGroup(npc, townParam);
     if (!group) return;
-    setTown("all");
-    setMerchant(npc);
+    setTown(group.town);
+    setMerchant(merchantKey(group.name, group.town));
   }, [flashTiles]);
 
   /** The tracker jump: a tracker row's icon deep-links to that row's NPC shop and
@@ -678,21 +740,23 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
    *  switch itself is the caller's job (App owns `tab`); this runs while the shop
    *  is still hidden, and the flash/scroll effect fires once Activity shows it.
    *
-   *  Resets EVERYTHING except the merchant: town, search, 優先度 and 類型 all go
-   *  back to unfiltered, so the landed view is that merchant's full section and
-   *  the target cannot be hidden behind a stale filter. The snapshot keeps origin
+   *  Resets everything except the merchant: search, 優先度 and 類型 all go
+   *  back to unfiltered, and town goes to the merchant's own town, so the
+   *  landed view is that merchant's full section and the target cannot be
+   *  hidden behind a stale filter. The snapshot keeps origin
    *  "tracker" so 返回 switches the tab back instead of restoring shop filters.
    *  The URL names the merchant (and the exact row for a single pin) so the
    *  landing is shareable; the mount effect above honors both on a cold load. */
   const viewTaskInShop = useCallback(
-    (npc: string, pinIds: string[]) => {
+    (npc: string, town: string | undefined, pinIds: string[]) => {
       setPreJump({ ...snapshotView(), origin: "tracker" });
       setQuery("");
       setPriorityFilter([]);
       setKindFilter("all");
-      setTown("all");
-      setMerchant(npc);
-      writeShopJumpParams(npc, pinIds);
+      const group = resolveGroup(npc, town);
+      setTown(group?.town ?? "all");
+      setMerchant(group ? merchantKey(group.name, group.town) : merchantKey(npc, town ?? ""));
+      writeShopJumpParams(npc, group?.town, pinIds);
       // Claim the landing guard: the tab is about to show and the one-shot
       // effect runs for the first time — these params are the jump's own, not
       // a cold load, so the effect must leave them alone.
@@ -713,20 +777,35 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
   // is never older than the last paint.
   if (jumpRef) jumpRef.current = viewTaskInShop;
 
-  const writeNpcParam = (name: string) => {
+  const writeNpcParam = (value: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    if (name === "all") url.searchParams.delete("npc");
-    else url.searchParams.set("npc", name);
+    if (value === "all") {
+      url.searchParams.delete("npc");
+      url.searchParams.delete("town");
+    } else {
+      const [npc, town] = value.split("::");
+      url.searchParams.set("npc", npc);
+      if (town) url.searchParams.set("town", town);
+      else url.searchParams.delete("town");
+    }
     // Any merchant change after a landing ends it: a copied URL must not offer
     // a way back to a jump the user already moved on from.
     url.searchParams.delete("from");
     window.history.replaceState(null, "", url.toString());
   };
 
-  const selectNpc = (name: string) => {
-    setMerchant(name);
-    writeNpcParam(name);
+  /** Merchant pick from either dropdown surface: the composite value carries
+   *  its town, which the town filter follows — a merchant's rows all live in
+   *  its town, so the visible rows are unchanged and the town readout is
+   *  truthful instead of 全部城鎮. */
+  const selectNpc = (value: string) => {
+    setMerchant(value);
+    if (value !== "all") {
+      const town = value.split("::")[1];
+      if (town) setTown(town);
+    }
+    writeNpcParam(value);
   };
 
   /** Open a merchant's shop from a tile's portrait band. Same destination as the
@@ -735,9 +814,9 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
    *  that merchant's 必換 rows, not an unfiltered dump. Only 返回 restores what the
    *  jump would have cleared, and arming it is the point — the chip is how you get
    *  back to the list you were scanning. */
-  const openNpc = (npc: string) => {
+  const openNpc = (npc: string, town: string) => {
     setPreJump(snapshotView());
-    selectNpc(npc);
+    selectNpc(merchantKey(npc, town));
   };
 
   // The reset button covers every filter in this row, the two grid filters
@@ -1138,7 +1217,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
       <section>
         <div className="mb-4 flex flex-wrap items-center gap-3 border-b pb-4">
           {selected ? (
-            <NpcFace npc={selected.name} size="size-12" />
+            <NpcFace npc={selected.name} town={selected.town} size="size-12" />
           ) : (
             <span className="grid size-12 place-items-center rounded-full border bg-background"><Store /></span>
           )}

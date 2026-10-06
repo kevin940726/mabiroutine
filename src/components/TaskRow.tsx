@@ -115,7 +115,7 @@ type Props = {
    *
    *  A caller-passed `portrait` node is exempt: the caller owns that slot
    *  entirely, clicks included (PinnedGroups wraps its item art itself). */
-  onViewInShop?: (npc: string, pinIds: string[]) => void;
+  onViewInShop?: (npc: string, town: string | undefined, pinIds: string[]) => void;
 };
 
 export function TaskRow(props: Props) {
@@ -380,7 +380,7 @@ function ReminderBell({ taskId, taskName, lane, className }: { taskId: string; t
  *  limit.times, else the row limit string, else 1). */
 function barterTimes(task: Task): number {
   const get = parseItemQty(task.barterMeta?.get ?? "");
-  return dealTimes(task.npc ?? "", get.name, get.qty, task.barterMeta?.limit);
+  return dealTimes(task.npc ?? "", get.name, get.qty, task.barterMeta?.limit, task.town);
 }
 
 function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless, onViewInShop }: Props) {
@@ -444,7 +444,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
           task.npc && onViewInShop ? (
             <button
               type="button"
-              onClick={() => onViewInShop(task.npc!, [task.id])}
+              onClick={() => onViewInShop(task.npc!, task.town, [task.id])}
               aria-label={`在商店查看${tradeTitle}`}
               title={`在商店查看${tradeTitle}`}
               className={cn(PFP_BUTTON, "rounded-full")}
@@ -840,7 +840,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
           task.npc && onViewInShop ? (
             <button
               type="button"
-              onClick={() => onViewInShop(task.npc!, [task.id])}
+              onClick={() => onViewInShop(task.npc!, task.town, [task.id])}
               aria-label={`在商店查看${tradeTitle}`}
               title={`在商店查看${tradeTitle}`}
               className={cn(PFP_BUTTON, "rounded-full")}

@@ -69,7 +69,7 @@ export default function App() {
   // write-once machinery, not render input — and because the writer
   // (MerchantPanel's render) and the reader (a tracker portrait click) live in
   // different tabs that never render together.
-  const shopJumpRef = useRef<((npc: string, pinIds: string[]) => void) | null>(null);
+  const shopJumpRef = useRef<((npc: string, town: string | undefined, pinIds: string[]) => void) | null>(null);
   /** Tracker portrait click → that row's NPC shop, flashed. The tab switch is
    *  App's (it owns `tab`); the filter reset + flash is the panel's, fired
    *  through the ref while the shop is still hidden — its flash/scroll effect
@@ -79,10 +79,10 @@ export default function App() {
    *  If the ref is empty the shop chunk has not loaded yet (the first second of
    *  app life): leave the same deep link in the URL instead, which the panel's
    *  one-shot landing honors on mount. Either path lands identically. */
-  const goToShopItem = useCallback((npc: string, pinIds: string[]) => {
+  const goToShopItem = useCallback((npc: string, town: string | undefined, pinIds: string[]) => {
     setTab("barter");
-    if (shopJumpRef.current) shopJumpRef.current(npc, pinIds);
-    else writeShopJumpParams(npc, pinIds);
+    if (shopJumpRef.current) shopJumpRef.current(npc, town, pinIds);
+    else writeShopJumpParams(npc, town, pinIds);
   }, []);
   const [addOpen, setAddOpen] = useState(false);
   const [addMounted, setAddMounted] = useState(false); // mount (and fetch) the dialog chunk on first open only

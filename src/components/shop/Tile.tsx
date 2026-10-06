@@ -80,10 +80,10 @@ const STACK = "flex flex-col gap-1 sm:gap-2";
  *  it is in this band on desktop, and the material popover names `npc · town` in full.
  *  Below `sm` the merchant is still identified — by name here and by portrait — while
  *  the row stops paying 17px of height for the town. */
-function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string) => void }) {
+function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string, town: string) => void }) {
   const inner = (
     <>
-      <NpcFace npc={item.npc} size="size-5" />
+      <NpcFace npc={item.npc} town={item.town} size="size-5" />
       <span className="min-w-0 text-[13px] leading-tight">
         <span className="font-semibold text-foreground">{item.npc}</span>
         <span className="hidden text-muted-foreground sm:inline"> · {item.town}</span>
@@ -96,7 +96,7 @@ function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string) 
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        onOpen(item.npc);
+        onOpen(item.npc, item.town);
       }}
       aria-label={`開啟 ${item.npc} 的商店`}
       // `justify-center` because every other band in the tile is centred — the name, the
@@ -167,7 +167,7 @@ export function Tile({
   onTogglePin: (id: string) => void;
   showMerchant: boolean;
   onViewInShop?: (npc: string, giveName: string) => void;
-  onOpenNpc?: (npc: string) => void;
+  onOpenNpc?: (npc: string, town: string) => void;
   focused: boolean;
 }) {
   // the pin button carries its own state; destructuring only what the tile uses

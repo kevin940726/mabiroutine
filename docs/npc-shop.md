@@ -70,6 +70,9 @@ Deliberately **not** doing, and why:
   row is curated, so the namespace is the 94 gold rows, which are unique on
   `npc::name`. If a second gold listing for one NPC and item ever appears, give
   the shop row an explicit `id` instead — widening the key orphans saved pins.
+  (Amendment 2026-10-05: the rule is now first-in-file-keeps-the-bare-id,
+  qualify only the newcomer — same constraint, stated as a procedure — and a
+  `test:shops` gate enforces the uniqueness instead of a comment asserting it.)
 
 ### Traps on this branch
 
@@ -547,7 +550,8 @@ console (see the terminal trap in section 0).
   reusing the app's own matcher, with an `ALLOWED_UNCURATED_BARTER` escape hatch
   for a row that is deliberately uncurated.
 - All 94 gold rows are unique on `npc::name`; none has a null price. This is the
-  invariant that lets the pin id be `shop::<npc>::<name>`.
+  invariant that lets the pin id be `shop::<npc>::<name>`, and `test:shops`
+  now enforces it (check 0b) instead of merely measuring it.
 - Pin counts as shipped: **all 194 pinnable** — 100 under a `barter.json` id,
   94 gold rows under a `shop::` id. 194 distinct pin ids.
 

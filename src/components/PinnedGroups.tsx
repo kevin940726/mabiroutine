@@ -32,6 +32,7 @@ import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { bandId } from "@/lib/dragRules";
 import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
+import { merchantKey, shopNpcIcon } from "@/lib/shops";
 import { CSS } from "@dnd-kit/utilities";
 import { useAppStore, canonicalBarterOrder } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -108,17 +109,21 @@ function itemArtName(t: Task): string {
 /** One parent, laid out as a normal row plus a centred expand strip on its bottom
  *  edge. The strip is always centred: the left-aligned placement was dropped. */
 function Group({
+  groupKey,
   title,
   rows,
   open,
   onToggleOpen,
   onViewInShop,
 }: {
+  /** Composite `npc::town` identity (or "其他"): bare names collide across
+   *  same-name merchants, so drag ids and the group marker use this. */
+  groupKey: string;
   title: string;
   rows: PinRow[];
   open: boolean;
   onToggleOpen: () => void;
-  onViewInShop?: (npc: string, pinIds: string[]) => void;
+  onViewInShop?: (npc: string, town: string | undefined, pinIds: string[]) => void;
 }) {
   const state = parentState(rows);
   const toggleGroup = useGroupToggle();
@@ -150,7 +155,7 @@ function Group({
   // useSortable), and dnd-kit cannot tell them apart — dragging the child moved
   // the parent, and a drop snapped back. `bandId` is namespaced so it can never
   // collide with a real pin id.
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: bandId(title) });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: bandId(groupKey) });
   const gripStyle: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition };
   // Collapse while the band is being dragged, WITHOUT touching `open`: the group
   // reopens by itself on drop, so a drag cannot cost the user their expanded
@@ -301,7 +306,7 @@ function Group({
   // the two variants cannot drift the way the shell did (see rowStyle.ts).
   const portrait = (
     <img
-      src={`/npc/${encodeURIComponent(title)}.png`}
+      src={shopNpcIcon(title, town ?? "") ?? `/npc/${encodeURIComponent(title)}.png`}
       alt=""
       aria-hidden
       loading="lazy"
@@ -314,6 +319,7 @@ function Group({
   // deep-links to its NPC shop and flashes EVERY child at once (see flashTiles):
   // one section, one timer, no per-child state to track.
   const groupNpc = rows.find((r) => r.task.npc)?.task.npc;
+  const groupTown = rows.find((r) => r.task.npc)?.task.town;
   // Above the full-row overlay: every real control rides z-20 over its z-10
   // (grip, eye, strip, tile), and this one must too — without it pointer taps
   // land on the overlay and merely toggle the group. `pointer-events-auto` for
@@ -322,9 +328,9 @@ function Group({
     onViewInShop && groupNpc ? (
       <button
         type="button"
-        onClick={() => onViewInShop(groupNpc, rows.map((r) => r.task.id))}
-        aria-label={`在商店查看${title}的已釘選交易`}
-        title={`在商店查看${title}的已釘選交易`}
+        onClick={() => onViewInShop(groupNpc, groupTown, rows.map((r) => r.task.id))}
+        aria-label={`在商店查看${title}${town ? `（${town}）` : ""}的已釘選交易`}
+        title={`在商店查看${title}${town ? `（${town}）` : ""}的已釘選交易`}
         className={cn(PFP_BUTTON, "rounded-full", "relative z-20 pointer-events-auto")}
       >
         {portrait}
@@ -368,7 +374,7 @@ function Group({
     onViewInShop && r.task.npc ? (
       <button
         type="button"
-        onClick={() => onViewInShop(r.task.npc!, [r.task.id])}
+        onClick={() => onViewInShop(r.task.npc!, r.task.town, [r.task.id])}
         aria-label={`在商店查看${itemName(r.task)}`}
         title={`在商店查看${itemName(r.task)}`}
         className={cn(PFP_BUTTON, "rounded-md")}
@@ -409,7 +415,7 @@ function Group({
   );
 
   return (
-    <div data-pin-group={title} data-pin-group-state={state}>
+    <div data-pin-group={groupKey} data-pin-group-state={state}>
       {/* The parent IS a row: the row's own shell, tinted only on COMPLETION,
           exactly as a row is. Violet appears on the strip and, when open, the
           children block — so a parent is indistinguishable from a row except for
@@ -522,21 +528,23 @@ function useOpenMap() {
 }
 
 /** The grouped pinned layout: one parent per merchant, gold and barter together.
- *  Lone pins stay plain rows — a parent of one is just a row wearing a strip. */
+ *  Lone pins stay plain rows — a parent of one is just a row wearing a strip.
+ *  Buckets key on `npc::town`: bare names would merge same-name merchants
+ *  across towns into one parent (and one drag id). */
 export function PinnedGroups({ rows, onViewInShop }: {
   rows: PinRow[];
   /** Deep-link portraits to the shop (see TaskRow's prop): the parent's face
    *  jumps with every child pinId, a lone pin's face with its own. */
-  onViewInShop?: (npc: string, pinIds: string[]) => void;
+  onViewInShop?: (npc: string, town: string | undefined, pinIds: string[]) => void;
 }) {
   const [open, toggle] = useOpenMap();
   return (
     <div className="space-y-2" data-pin-variant="D">
-      {bucket(rows, (r) => r.task.npc ?? "其他").map(([npc, group]) =>
+      {bucket(rows, (r) => (r.task.npc ? merchantKey(r.task.npc, r.task.town ?? "") : "其他")).map(([key, group]) =>
         group.length === 1 ? (
           <TaskRow key={group[0].task.id} task={group[0].task} value={group[0].value} isAccount={group[0].isAccount} onViewInShop={onViewInShop} />
         ) : (
-          <Group key={npc} title={npc} rows={group} open={open[npc] ?? false} onToggleOpen={() => toggle(npc)} onViewInShop={onViewInShop} />
+          <Group key={key} groupKey={key} title={group[0].task.npc!} rows={group} open={open[key] ?? false} onToggleOpen={() => toggle(key)} onViewInShop={onViewInShop} />
         )
       )}
     </div>
