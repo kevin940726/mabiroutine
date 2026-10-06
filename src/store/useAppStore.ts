@@ -284,10 +284,34 @@ export function shopDealToTask(deal: ShopDeal): Task {
 
 // Default pins are a hand-owned list (src/data/defaultPins.json), NOT derived
 // from barter.json priorities — curate it by hand; watch for must-priority
-// drift when checking sources by hand.
-const DEFAULT_MUST_PINS: string[] = [...new Set((defaultPinsJson.pins ?? []) as string[])].filter((id) =>
+// drift when checking sources by hand. Exported for the pull-aware seeder
+// below (new defaults reach linked stragglers through sync, never migration).
+export const DEFAULT_MUST_PINS: string[] = [...new Set((defaultPinsJson.pins ?? []) as string[])].filter((id) =>
   (barterJson as BarterJsonItem[]).some((b) => b.id === id)
 );
+
+// Pull-aware default seeding (2026-10-06, supersedes the removed v15
+// migrate-time seed). New defaults reach an existing save only for keys the
+// server never saw: local-missing + wire-absent. A retained tombstone
+// (`pin:<id>: null`) means somebody — this device or a peer — unpinned on
+// purpose, and it is respected. Returns the added ids (usually none).
+//
+// Linked pulls only — never migration (a stale save cannot tell "never saw
+// this row" from "a peer unpinned it", but the server can: tombstone retained
+// vs key absent), and never boot (an unlinked save has no wire to consult, so
+// boot seeding would re-add deliberate local unpins every load; unlinked
+// upgraders pin new rows by hand once). Like a sync adoption it touches
+// barterPins only, never the custom drag order.
+export function seedMissingDefaultPins(serverFlat: Record<string, unknown>): string[] {
+  const st = useAppStore.getState();
+  const missing = DEFAULT_MUST_PINS.filter(
+    (id) => !(st.barterPins ?? []).includes(id) && !(`pin:${id}` in serverFlat)
+  );
+  if (missing.length) {
+    useAppStore.setState((s) => ({ barterPins: [...s.barterPins, ...missing] }));
+  }
+  return missing;
+}
 
 const initial: AppState = {
   version: 20,
@@ -666,15 +690,21 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.version = 14;
   }
   if (from < 15) {
-    // v14 → v15: 9/9 barter refresh. (1) Dedupe — 4 `yen-` twins dropped
+    // v14 → v15: 9/9 barter refresh. Dedupe — 4 `yen-` twins dropped
     // from barter.json (exact npc+give+get dupes of col-k1/dun-st6/dun-st7,
     // plus the dungeon-2 near-dupe). Rename-like: user state transfers to
     // the kept twin first (pins, values, hides, provenance — moved verbatim;
     // the twin's own state always wins), then the v6 valid-set prune drops
-    // the removed ids. (2) Seed the new default pins (edern/jennifer/seumas
-    // never existed before, so nobody could have unpinned them on purpose);
-    // stored order kept, deliberate unpins of older ids untouched.
-    // Values otherwise untouched.
+    // the removed ids. Stored order kept. Values otherwise untouched.
+    //
+    // NO new-default seeding here (the 9/9 pins used to append): an upgrade
+    // that seeds pins volunteers them blind and resurrects a peer's unpin on
+    // the next push — proven 2026-10-06 (desktop unpins seumas-finest-bandage,
+    // a pre-refresh mobile upgrades on open, reseeds it, pushes pin:true, the
+    // desktop row comes back). A stale save cannot tell "never saw this row"
+    // from "a peer unpinned it", but the server can (tombstone retained vs
+    // key absent) — so seeding is pull-aware in seedMissingDefaultPins, never
+    // migration-time.
     const RENAMED_BARTER: Record<string, string> = {
       "yen-基利安毒囊3藥品加工設備-21": "col-k1",
       "yen-史帝華強化再燃燒催化劑5-80": "dun-st6",
@@ -717,11 +747,6 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.barterPins = pruneArr(s.barterPins);
     s.taskBuckets = pruneRec(s.taskBuckets);
     if (s.globalTaskOrder) s.globalTaskOrder = pruneRec(s.globalTaskOrder);
-    for (const id of ["edern-silver-alloy-ingot", "jennifer-lean-meat", "seumas-finest-bandage"]) {
-      if (valid.has(id) && !(s.barterPins ?? []).includes(id)) {
-        s.barterPins = [...(s.barterPins ?? []), id];
-      }
-    }
     s.version = 15;
   }
   if (from < 16) {

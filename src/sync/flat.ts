@@ -204,6 +204,25 @@ export function saveBase(sessionId: string, flat: FlatMap): void {
   writeBase({ sessionId, flat });
 }
 
+// Fresh-session creation state: the flat map plus this device's retained
+// tombstones (base nulls) from the previous binding. A POST is a bare flat
+// map with no nulls, so without this a regenerate drops unpin/unhide history
+// and the keys read as "never decided" — the pull-aware seeder
+// (seedMissingDefaultPins) would then re-add a deliberately unpinned default
+// on the next pull, the same resurrection class as the removed v15 upgrade
+// seed (2026-10-06). First links without history carry nothing. Bases
+// effectively never hold cycle-key nulls (diffFlat never emits them — only a
+// pre-rev-3 legacy GET could serve one), so the carry is persistent
+// tombstones in practice.
+export function creationState(flat: FlatMap, previousSessionId: string | null): FlatMap {
+  if (!previousSessionId) return { ...flat };
+  const tombstones: FlatMap = {};
+  for (const [k, v] of Object.entries(loadBase(previousSessionId))) {
+    if (v === null) tombstones[k] = null;
+  }
+  return { ...tombstones, ...flat };
+}
+
 function validCustom(v: unknown): v is Task {
   if (!v || typeof v !== "object") return false;
   const t = v as Partial<Task>;

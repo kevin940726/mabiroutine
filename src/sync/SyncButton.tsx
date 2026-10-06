@@ -9,7 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Link2, Loader2, Copy, RefreshCw } from "lucide-react";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, seedMissingDefaultPins } from "@/store/useAppStore";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import {
@@ -41,6 +41,7 @@ import {
   scrubBase,
   markFullPush,
   takeFullPush,
+  loadLastSessionId,
   toast,
   type LocalSession,
   type ToastDetail,
@@ -53,6 +54,7 @@ import {
   unflattenMerge,
   capOverflowKeys,
   expiredCycleKeys,
+  creationState,
   type FlatMap,
 } from "@/sync/flat";
 
@@ -257,6 +259,14 @@ export const SyncButton = memo(function SyncButton() {
           merged.characters.map((c) => c.id)
         )
       );
+      // Pull-aware default seeding (2026-10-06, supersedes the removed v15
+      // migrate-time seed): adopted state may predate rows this device never
+      // saw. Missing defaults whose keys the server never saw (absent, not
+      // tombstoned) are added and ride the next push; a tombstone means
+      // somebody unpinned on purpose and is respected. Runs after the merge
+      // so a just-flushed local unpin is already on the server and reads as
+      // a tombstone, never as an invitation to re-add.
+      seedMissingDefaultPins(serverView);
       const next = { id: session.id, updatedAt: remote.updatedAt };
       saveSession(next);
       setLinked(next);
@@ -383,7 +393,13 @@ export const SyncButton = memo(function SyncButton() {
     setEnsureError(false);
     try {
       const flat = flattenSnapshot(buildSnapshot());
-      const { id, updatedAt } = await createSession(flat);
+      // Like regenerate, creation goes through creationState: a bare flat
+      // map carries no tombstones, so the previous binding's known deletions
+      // ride along when there is one (see loadLastSessionId) — otherwise a
+      // deliberately unpinned default reads as "never decided" in the new
+      // session and the pull-aware seeder re-adds it everywhere on the next
+      // pull.
+      const { id, updatedAt } = await createSession(creationState(flat, loadLastSessionId()));
       const next = { id, updatedAt };
       saveSession(next);
       setLinked(next);
@@ -442,7 +458,12 @@ export const SyncButton = memo(function SyncButton() {
     try {
       const oldId = linked.id;
       const flat = flattenSnapshot(buildSnapshot());
-      const { id, updatedAt } = await createSession(flat);
+      // A bare flat map carries no tombstones, so creation goes through
+      // creationState (previous binding's known deletions ride along):
+      // otherwise a deliberately unpinned default reads as "never decided"
+      // in the new session and the pull-aware seeder re-adds it everywhere
+      // on the next pull.
+      const { id, updatedAt } = await createSession(creationState(flat, oldId));
       try {
         await deleteSession(oldId);
       } catch {

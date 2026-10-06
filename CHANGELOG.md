@@ -10,6 +10,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ### Fixes
 - Shop and barter sources are back in material popovers: the town-grouped `shops.json` conversion left the route table reading the old npc-keyed shape, which silently dropped every shop/barter leg and turned ~30 materials into 找不到資料 while the grid itself looked fine. A twin-probe tripwire in `test:shops` now fails loudly on any such drift
 - Merchant search no longer matches barter row notes: the note text stays in `barter.json` but out of the query, so a search hits names, prices, NPCs and towns only
+- Unpinning a row no longer comes back after opening an outdated device: the version-upgrade migration used to seed new default pins blindly, so a device that predated the row re-added it on upgrade and pushed it back to the peer (reported: desktop unpins 沙威瑪 → 卓越繃帶, the pre-refresh iOS PWA upgrades on open, the desktop row returns). Upgrades never seed pins now; a missing default is added only after a pull proves the cloud never saw the key (a retained unpin is respected), genuinely new rows still propagate through the first puller, and session creation carries known unpins into the new session (regenerations via the live base, first links via the previous binding). E14 guards the chain. If the row already came back, update the outdated device first, then unpin again. Unpins made while never linked still seed back once — re-unpin after linking and it sticks
 
 ## 2026-10-06 — Quest boards
 

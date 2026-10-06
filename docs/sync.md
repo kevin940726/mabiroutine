@@ -238,6 +238,24 @@ routine polls skip the touch. The 5min repoll pauses after 15min without
     dead buckets stop accumulating: a session holds roughly live keys plus 8
     days of history, not an unbounded log. Unformatted/legacy keys never
     expire — bounded by the one-time pre-rev-3 dump.
+15. **Upgrades never volunteer pins blind — seeding is pull-aware.**
+    The v14→v15 step seeded new default pins eagerly; a stale save cannot tell
+    "never saw this row" from "a peer unpinned it", so a pre-refresh device
+    upgrading on open reseeded the row and its next push flipped the peer's
+    tombstone back to `true` (proven 2026-10-06: desktop unpins
+    seumas-finest-bandage, the outdated mobile upgrades, the desktop row comes
+    back). Migration never seeds now; `seedMissingDefaultPins` adds a missing
+    default only for keys the server never saw (absent, not tombstoned — a
+    tombstone is a deliberate unpin and is respected), running after a
+    successful pull merge (a just-flushed local unpin is already server-side by
+    then, so it reads as a tombstone, never an invitation). Genuinely new rows
+    still propagate: the first puller seeds and pushes, peers adopt.
+    Session creation carries known tombstones into the fresh POST
+    (`creationState` in `flat.ts`): regenerates via the live base, first
+    links via the stashed last-session id — so a new session never reads a
+    linked-era unpin as "never decided". Unlinked upgraders pin new rows by
+    hand once — there is no wire to consult, and boot seeding would re-add
+    deliberate local unpins every load.
 
 ## Trade-offs and residual risks
 
@@ -269,6 +287,10 @@ routine polls skip the touch. The 5min repoll pauses after 15min without
 - `handle_links: preferred` routes tapped links into the installed app
   (Chrome 122+); iOS web apps and mismatched Android browsers still need the
   paste field — buckets are per-browser-partition and no manifest bridges them.
+- Unpins made while a device was never linked leave no record anywhere, so
+  the first link reads them as absent once and the seeder adds them back;
+  re-unpinning sticks, because the null is retained from then on. Same
+  one-time exposure for sessions created before the tombstone carry.
 
 ## Quota budget (Turso free: 500M rows read / 10M rows written / mo)
 
@@ -330,6 +352,9 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | E9 | clearSection zeroes in place, propagates, never resurrects | same |
 | E10 | Removed character stays removed after pull (no ghosts) | same |
 | E11 | Custom kind change re-stamps provenance, keeps the check | same |
+| E12 | Tab order syncs LWW-then-sticks; sorted orders never volunteered nor tombstoned; race resolves by arrival | same |
+| E13 | Merge keeps local pinnedCollapsed, still takes synced hideCompleted | same |
+| E14 | Upgrade straggler can't resurrect a peer unpin; absent keys seed pull-aware; regenerate carries tombstones | same |
 | P | 300 randomized prune runs (stale removed, current kept, idempotent) | real store, seeded |
 | A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
 | E1E | Real tap → server → second device renders checked | real Edge (CDP) |

@@ -8,6 +8,9 @@ import { flattenSnapshot, loadBase, saveBase, unflattenReplace } from "@/sync/fl
 // arrival-ordered server-side, no base guard). Kept OUT of the zustand store
 // on purpose — no schema migration needed.
 const SESSION_KEY = "mabiroutine:session";
+// Dropped binding id (see clearSession): first-link tombstone carry only,
+// never a link by itself.
+const LAST_KEY = "mabiroutine:last-session";
 
 export type LocalSession = { id: string; updatedAt: number };
 
@@ -25,12 +28,42 @@ export function loadSession(): LocalSession | null {
 
 export function saveSession(s: LocalSession): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  try {
+    localStorage.removeItem(LAST_KEY);
+  } catch {
+    // blocked storage — a stale stash only adds already-known tombstones
+  }
   if (typeof window !== "undefined") window.dispatchEvent(new Event("mabiroutine:session-changed"));
 }
 
 export function clearSession(): void {
+  // Stash the dropped id: a later first link (ensureCreated) carries this
+  // binding's retained tombstones into the fresh POST (creationState), so
+  // unpins made while linked survive cancel → re-create. Without the stash
+  // the new session reads them as "never decided" and the pull-aware seeder
+  // adds them back — the same resurrection class as the 2026-10-06 upgrade
+  // seed. Unpins made while never linked leave no record anywhere (no base
+  // ever held them) and still seed back once; re-unpinning sticks.
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    const s = raw ? (JSON.parse(raw) as Partial<LocalSession>) : null;
+    if (s && typeof s.id === "string" && s.id) localStorage.setItem(LAST_KEY, s.id);
+  } catch {
+    // blocked storage — nothing to carry, creation stays bare
+  }
   localStorage.removeItem(SESSION_KEY);
   if (typeof window !== "undefined") window.dispatchEvent(new Event("mabiroutine:session-changed"));
+}
+
+// Previous binding id, for first-link tombstone carry only. Null when never
+// linked (or already re-linked — saveSession clears the stash).
+export function loadLastSessionId(): string | null {
+  try {
+    const raw = localStorage.getItem(LAST_KEY);
+    return typeof raw === "string" && raw ? raw : null;
+  } catch {
+    return null;
+  }
 }
 
 // Snapshot = exactly the persisted slice (same fields as partialize), so a

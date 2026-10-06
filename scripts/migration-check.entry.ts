@@ -426,8 +426,14 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert(weekly.length > 0, `N: at least one weekly barter row exists (found ${weekly.length})`);
 }
 
-// O: v14 save -> v15 appends the 9/9 pins; stored order kept, a deliberate
-// unpin of an older default is NOT reseeded
+// O: v14 save -> v15 deduplicates yen- twins and prunes, but NEVER seeds
+// pins (removed 2026-10-06: an upgrade that seeds volunteers pins blind and
+// resurrects a peer's unpin on the next push — desktop unpins
+// seumas-finest-bandage, a pre-refresh mobile upgrades on open, reseeds it,
+// pushes pin:true, the desktop row comes back). Stored order kept, a
+// deliberate unpin of an older default stays unpinned, and the 9/9 ids stay
+// absent until the pull-aware seeder (seedMissingDefaultPins) adds the ones
+// the server never saw.
 {
   assert(((defaultPinsJson.pins ?? []) as string[]).includes("tir-c1"), "O premise: tir-c1 still a default (update fixture if removed)");
   const out = migratePersisted(
@@ -441,12 +447,14 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   ) as AnyRec;
   assert(out.version === 20, "O: reaches v20");
   const got = out.barterPins as string[];
-  assert(JSON.stringify(got.slice(0, 2)) === JSON.stringify(["dug-t3", "tir-f3"]), "O: stored order kept");
-  assert(
-    got.includes("edern-silver-alloy-ingot") && got.includes("jennifer-lean-meat") && got.includes("seumas-finest-bandage"),
-    "O: 9/9 pins appended"
-  );
+  assert(JSON.stringify(got) === JSON.stringify(["dug-t3", "tir-f3"]), "O: pins untouched (no seeding, stored order kept)");
   assert(!got.includes("tir-c1"), "O: old unpin NOT reseeded");
+  assert(
+    !got.includes("edern-silver-alloy-ingot") &&
+      !got.includes("jennifer-lean-meat") &&
+      !got.includes("seumas-finest-bandage"),
+    "O: 9/9 pins NOT appended at upgrade (pull-aware seeder owns that)"
+  );
   assert(got.length === new Set(got).size, "O: no duplicate pins");
 }
 

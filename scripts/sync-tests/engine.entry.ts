@@ -5,19 +5,22 @@
 // Core property: RESETS NEVER TOMBSTONE. Values carry cycle provenance
 // (taskBuckets); local resets prune stale buckets in memory only; the wire
 // never deletes cycle keys; stale devices cannot destroy peer progress.
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, migratePersisted, seedMissingDefaultPins, DEFAULT_MUST_PINS } from "@/store/useAppStore";
 import {
   flattenSnapshot,
   diffFlat,
   loadBase,
   saveBase,
   unflattenMerge,
+  creationState,
   isCycleKey,
   type FlatMap,
 } from "@/sync/flat";
 import {
   loadSession,
   saveSession,
+  clearSession,
+  loadLastSessionId,
   buildSnapshot,
   applySnapshot,
   setPullHook,
@@ -70,10 +73,12 @@ function snap(
   weekly: string | null
 ): Snap {
   // Current store version: applySnapshot feeds every pull through
-  // migratePersisted, and additive steps (v15 pin seeding) re-fire on stale
-  // versions, phantom-pushing pins and tripping the quietness assertions.
-  // Production pulls always carry the current version after first load, so
-  // the harness seeds it too — migration coverage lives in fixtures (A–O).
+  // migratePersisted. Migration never seeds pins (the v15 upgrade seed that
+  // did was removed 2026-10-06: it volunteered pins blind and resurrected
+  // peer unpins — seeding is pull-aware now, see E14), so no step here can
+  // phantom-push pins and trip the quietness assertions. Production pulls
+  // always carry the current version after first load, so the harness seeds
+  // it too — migration coverage lives in fixtures (A–O).
   return {
     version: 15,
     characters: [{ id: "c1", name: "A", taskValues: { ...values }, hiddenTaskIds: [] }],
@@ -159,6 +164,9 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
       for (const k of expired) delete serverView[k];
     }
     saveBase(session.id, serverView);
+    // runPull mirror: pull-aware default seeding runs after a successful
+    // merge (keep in sync with SyncButton by inspection).
+    seedMissingDefaultPins(serverView);
     pulled = true;
     if (process.env.DBG) console.log("DBG-SAVED", JSON.stringify(Object.keys(serverView)));
   };
@@ -264,7 +272,11 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   const pushesA: FlatMap[] = [];
   setPullHook(makeEngine(server, pushesA));
   const seeded = snap({ [DAILY_CHECK]: true, [DAILY_COUNT]: 5 }, { [DAILY_CHECK]: TODAY, [DAILY_COUNT]: TODAY }, TODAY, THIS_WEEK);
-  seeded.barterPins = ["pin-a"];
+  // Converged pins on both sides: this scenario proves clears converge, not
+  // seeding (E14 owns that) — without them the pull-aware seeder would
+  // correctly treat the absent keys as novelty and the quietness assertion
+  // below would trip on the seed push.
+  seeded.barterPins = ["pin-a", ...DEFAULT_MUST_PINS];
   seedStore(seeded);
   saveSession({ id: SID, updatedAt: 1 });
   saveBase(SID, flattenSnapshot(buildSnapshot()));
@@ -333,7 +345,12 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   const server = { flat: {} as FlatMap };
   const pushes: FlatMap[] = [];
   setPullHook(makeEngine(server, pushes));
-  seedStore(snap({}, {}, TODAY, THIS_WEEK));
+  // Converged default pins on both sides (see E4): this scenario proves GC
+  // silence, not seeding — the crafted server must carry the pins or the
+  // pull-aware seeder correctly treats their absence as novelty.
+  const s6 = snap({}, {}, TODAY, THIS_WEEK);
+  s6.barterPins = [...DEFAULT_MUST_PINS];
+  seedStore(s6);
   saveSession({ id: SID, updatedAt: 1 });
   // No explicit base seed: round 1 pushes the device's own persistent keys
   // while the crafted server carries the expired keys to GC.
@@ -343,6 +360,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
     [`v:c1:${DAILY_CHECK}@${TODAY}`]: true, // current → keep
     "char:c1:name": "A",
     "meta:active": "c1",
+    ...Object.fromEntries(DEFAULT_MUST_PINS.map((id) => [`pin:${id}`, true])),
   };
   await syncAndResets();
   const ns = nullsOf(pushes);
@@ -420,9 +438,11 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   const server = { flat: {} as FlatMap };
   const pushes: FlatMap[] = [];
   setPullHook(makeEngine(server, pushes));
-  seedStore(
-    snap({ [DAILY_CHECK]: true, [DAILY_COUNT]: 5 }, { [DAILY_CHECK]: TODAY, [DAILY_COUNT]: TODAY }, TODAY, THIS_WEEK)
-  );
+  // Converged default pins (see E4): this scenario proves clears stay
+  // cleared, not seeding.
+  const s9 = snap({ [DAILY_CHECK]: true, [DAILY_COUNT]: 5 }, { [DAILY_CHECK]: TODAY, [DAILY_COUNT]: TODAY }, TODAY, THIS_WEEK);
+  s9.barterPins = [...DEFAULT_MUST_PINS];
+  seedStore(s9);
   saveSession({ id: SID, updatedAt: 1 });
   saveBase(SID, flattenSnapshot(buildSnapshot()));
   server.flat = flattenSnapshot(buildSnapshot());
@@ -665,6 +685,78 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
     "E12 race: quiet after converge",
     diffFlat(afterRace, flattenSnapshot({ ...local, characters: xAfter.characters } as Snap))["meta:charorder"] === undefined
   );
+}
+
+// E14: an outdated device must not resurrect a peer's unpin (reported
+// 2026-10-06: desktop unpins seumas-finest-bandage, a pre-refresh mobile
+// upgrades on open, the v15 migrate seed re-adds it, the next push flips the
+// server tombstone back to true and the desktop row comes back). Upgrades
+// never seed; new defaults are added pull-aware only for keys the server
+// never saw (absent, not tombstoned). Genuine novelty still seeds, and
+// regenerates carry tombstones so a fresh session never reads an unpin as
+// "never decided".
+{
+  const SID = "e14-seed";
+  const SEED = "seumas-finest-bandage"; // runtime default (defaultPins.json ∩ barter.json)
+  const server = { flat: {} as FlatMap };
+  // --- part 1: the reported resurrection ---
+  // Peer unpinned: server holds the tombstone. Straggler save predates the
+  // row (v14, pin absent everywhere — never saw it, never unpinned it).
+  server.flat = { "char:c1:name": "A", "meta:active": "c1", [`pin:${SEED}`]: null };
+  isolate();
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  const upgraded = migratePersisted(
+    {
+      version: 14,
+      characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
+      activeCharId: "c1",
+      barterPins: ["tir-f3"],
+    },
+    14
+  ) as Snap;
+  ok("E14 upgrade does not seed pins", !upgraded.barterPins.includes(SEED), upgraded.barterPins);
+  seedStore(upgraded);
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, flattenSnapshot(buildSnapshot())); // base never saw the key either
+  await syncAndResets();
+  await syncAndResets();
+  ok(
+    "E14 straggler never volunteers the unpin",
+    !pushes.some((p) => p[`pin:${SEED}`] === true),
+    pushes.map((p) => Object.keys(p))
+  );
+  ok("E14 tombstone survives the straggler", server.flat[`pin:${SEED}`] === null, server.flat[`pin:${SEED}`]);
+  ok("E14 straggler stays unpinned", !useAppStore.getState().barterPins.includes(SEED), useAppStore.getState().barterPins);
+  // --- part 2: genuine novelty still seeds ---
+  // Same straggler, but the household never saw the row either (key absent):
+  // the pull-aware seeder adds it locally and it propagates on next flush.
+  delete server.flat[`pin:${SEED}`];
+  await syncAndResets();
+  ok("E14 absent key seeds locally", useAppStore.getState().barterPins.includes(SEED), useAppStore.getState().barterPins);
+  await syncAndResets();
+  ok("E14 seeded pin propagates", server.flat[`pin:${SEED}`] === true, server.flat[`pin:${SEED}`]);
+  // --- part 3: regenerate carries tombstones ---
+  // A fresh POST is a bare flat map; without the carried tombstones the new
+  // session would read the unpin as "never decided" and part 2 would re-add it.
+  saveBase("old-session", { [`pin:${SEED}`]: null, "pin:tir-f3": true });
+  const created = creationState({ "pin:tir-f3": true }, "old-session");
+  ok("E14 creation carries the tombstone", created[`pin:${SEED}`] === null && created["pin:tir-f3"] === true, created);
+  ok(
+    "E14 creation without history is bare",
+    JSON.stringify(creationState({ "pin:tir-f3": true }, null)) === JSON.stringify({ "pin:tir-f3": true })
+  );
+  // --- part 4: first links carry the previous binding's tombstones ---
+  // Dropping a link stashes its id for creationState; (re)linking clears the
+  // stash. (Unpins made while never linked leave no record anywhere and still
+  // seed back once — residual, documented in docs/sync.md.)
+  saveSession({ id: "old-session", updatedAt: 1 });
+  clearSession();
+  ok("E14 dropped binding is stashed", loadLastSessionId() === "old-session", loadLastSessionId());
+  const recreated = creationState({ "pin:tir-f3": true }, loadLastSessionId());
+  ok("E14 first link carries stashed tombstones", recreated[`pin:${SEED}`] === null, recreated);
+  saveSession({ id: SID, updatedAt: 2 });
+  ok("E14 re-link clears the stash", loadLastSessionId() === null, loadLastSessionId());
 }
 
 setPullHook(null);
