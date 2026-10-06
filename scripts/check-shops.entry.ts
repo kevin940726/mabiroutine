@@ -214,22 +214,13 @@ eachNpc((town, npc, items) => {
   }
 });
 
-// 2. currencies must be gold, a known item, a barter give/get token,
-// or an allowlisted sourceless token
-const SOURCLESS: Record<string, string> = {
-  // event/dungeon tender with no acquisition route by design (see tracker-data)
-  喵幣: "sourceless tender",
-  // quest reward — name the quest and fill an acquisition leg, then drop this line
-  映夢的鏡子碎片: "source unknown",
-  // source TBD — fill an acquisition leg and drop this line
-  特蕾西的原木音樂盒: "source unknown",
-  不死粉末: "source unknown",
-  解除詛咒藥水: "source unknown",
-  豆乳防風草蛋糕: "source unknown",
-  最高級木材: "source unknown (higher tier of 高級木材)",
-};
+// 2. currencies must be gold, a known item, or a barter give/get token.
+// Quest-sourced tokens (喵幣, 不死粉末, 解除詛咒藥水) resolve through their
+// recipes.json quest stubs like everything else — there is no separate
+// allowlist: if a stub is ever deleted, this gate fails loudly instead of
+// staying green behind an exception.
 const base = (s: string): string => s.split(" ×")[0];
-const known = new Set<string>(["gold", ...Object.keys(recipes), ...Object.keys(SOURCLESS)]);
+const known = new Set<string>(["gold", ...Object.keys(recipes)]);
 for (const r of (barterJson as { rows?: { give?: string; get?: string }[] }).rows ??
   (barterJson as unknown as { give?: string; get?: string }[])) {
   if (typeof r?.give === "string") known.add(base(r.give));

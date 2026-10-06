@@ -540,7 +540,35 @@
   "verified": "tw",
   "routes": [
    {
-    "kind": "quest",
+    "kind": "make",
+    "station": "木材加工設備",
+    "level": "4",
+    "outQty": 3,
+    "components": [
+     {
+      "name": "高級木材+",
+      "qty": 5
+     },
+     {
+      "name": "最高級原木",
+      "qty": 20
+     },
+     {
+      "name": "樹液",
+      "qty": 16
+     }
+    ]
+   }
+  ],
+  "note": "自行加工約需 5 小時"
+ },
+ "最高級原木": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "伐木",
+    "level": "25",
     "outQty": 1
    }
   ]
@@ -1363,6 +1391,15 @@
   ]
  },
  "解除詛咒藥水": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
+ "映夢的鏡子碎片": {
   "verified": "tw",
   "routes": [
    {
