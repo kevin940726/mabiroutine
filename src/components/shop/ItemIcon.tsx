@@ -28,6 +28,7 @@ export function ItemIcon({
   size = "size-12",
   className,
   badge,
+  icon,
 }: {
   /** The item name as the DATA spells it — half-width parens, `+` kept, and NO
    *  quantity (` ×N`). See lib/itemIcon.ts: folding the parens loses 9 blueprints. */
@@ -38,9 +39,14 @@ export function ItemIcon({
   /** The yield's quantity, shown on the frame's bottom-right corner as the game
    *  does. 1 renders nothing: a ×1 mark is noise on most rows. */
   badge?: number;
+  /** Art override: a data-spelled item name whose file to show instead of
+   *  `name`'s (resolved through the same `itemIconPath`, so encoding stays in
+   *  one place). Carries shops.json option `icon` — the scroll rows all point
+   *  at one paper file rather than duplicating it per name. Omit for own art. */
+  icon?: string | null;
 }) {
   const [failed, setFailed] = useState(false);
-  const src = itemIconPath(name);
+  const src = itemIconPath(icon ?? name);
   const showCount = badge != null && badge > 1;
 
   return (

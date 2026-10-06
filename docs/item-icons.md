@@ -117,6 +117,12 @@ decode failure, not a 404 — `onError` still fires).
 Drop `<TW name>.webp` into `public/items/` and rebuild. WebP, 128×128,
 transparency kept; match the existing files. Nothing else to update.
 
+Shared art is a data fact, not a lookup rule: an option whose art lives under
+another name carries `"icon": "<that name>"` (resolved through `itemIconPath`,
+so encoding stays centralized). Every 卷軸 row points at 任務卷軸 rather than
+duplicating the paper file per name, and `pnpm test:shops` fails a scroll
+without one plus an `icon` whose file is missing.
+
 ## Licensing
 
 These are third-party game artwork (© NEXON Korea) used under fan-content

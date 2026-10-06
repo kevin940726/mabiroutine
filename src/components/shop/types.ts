@@ -45,6 +45,9 @@ export type ShopRow = {
   scopeAccount: boolean;
   priority: CuratedPriority | null;
   note: string | null;
+  /** Art override from the option (`icon`): a data-spelled item name whose file
+   *  to show instead of this row's own. Null follows the filename convention. */
+  icon: string | null;
   kind: "shop" | "barter";
   /** Position in barter.json, or -1 when the deal is not curated. */
   curatedIndex: number;

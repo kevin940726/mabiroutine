@@ -513,6 +513,89 @@
               }
             }
           ]
+        },
+        {
+          "name": "任務佈告欄",
+          "items": [
+            {
+              "name": "料理卷軸：煎蛋",
+              "icon": "任務卷軸",
+              "priority": "extra",
+              "cost": {
+                "amount": 300
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：蜘蛛絲",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 300
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：羊毛",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 300
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：血紅藥草",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 300
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "討伐卷軸：狼之森林",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 300
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：小麥",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 300
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：馬鈴薯",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 300
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            }
+          ]
         }
       ]
     },
@@ -1432,6 +1515,89 @@
               }
             }
           ]
+        },
+        {
+          "name": "任務佈告欄",
+          "items": [
+            {
+              "name": "討伐卷軸：女神庭園",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 480
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "料理卷軸：蘋果汁",
+              "icon": "任務卷軸",
+              "priority": "extra",
+              "cost": {
+                "amount": 480
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：咻咻蘑菇",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 480
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：牛奶",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 480
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採礦卷軸：鐵礦石",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 480
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：玉米",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 480
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：洋蔥",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 480
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            }
+          ]
         }
       ]
     },
@@ -1884,6 +2050,78 @@
               }
             }
           ]
+        },
+        {
+          "name": "任務佈告欄",
+          "items": [
+            {
+              "name": "討伐卷軸：冰霜峽谷",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 900
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "料理卷軸：蒸蛤蠣",
+              "icon": "任務卷軸",
+              "priority": "extra",
+              "cost": {
+                "amount": 900
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：箭花",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 900
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：雞蛋",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 900
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：高級原木+",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 900
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：貝類",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 900
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            }
+          ]
         }
       ]
     },
@@ -2323,6 +2561,56 @@
               },
               "limit": {
                 "times": 1
+              }
+            }
+          ]
+        },
+        {
+          "name": "任務佈告欄",
+          "items": [
+            {
+              "name": "採集卷軸：黃豆",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 1000
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "採集卷軸：防風草",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 1000
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "料理卷軸：烤整顆馬鈴薯",
+              "icon": "任務卷軸",
+              "priority": "extra",
+              "cost": {
+                "amount": 1000
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "討伐卷軸：雲海曠野",
+              "icon": "任務卷軸",
+              "cost": {
+                "amount": 1000
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
               }
             }
           ]

@@ -43,6 +43,10 @@ export type Task = {
     town: string;
     limit?: string;
     rawName?: string;
+    /** Art override: a data-spelled item name whose file to show instead of the
+     *  row's own (mirrors ShopRow.icon; named apart from Task.icon, which is
+     *  the emoji glyph). Carried so pinned rows render the same art as tiles. */
+    artName?: string | null;
     /** The cost's numeric amount, for the renderer that draws an icon: `shopMeta.cost`
      *  is the folded display string, which has the amount baked into text. */
     costAmount?: number | null;

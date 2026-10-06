@@ -3,7 +3,10 @@ import shopsJson from "@/data/shops.json";
 import { displayName, parseItemQty } from "@/lib/materials";
 
 export type DealKind = "shop" | "barter";
-export type CuratedPriority = "must" | "extra" | "once" | "situational";
+const SHOP_PRIORITY_LIST = ["must", "extra", "once", "situational"] as const;
+export type CuratedPriority = (typeof SHOP_PRIORITY_LIST)[number];
+
+const SHOP_PRIORITIES: ReadonlySet<string> = new Set(SHOP_PRIORITY_LIST);
 
 export const CURATED_LABEL: Record<CuratedPriority, string> = {
   must: "必換",
@@ -35,6 +38,9 @@ export interface ShopDeal {
   scopeAccount: boolean;
   note: string | null;
   priority: CuratedPriority | null;
+  /** Art override from the option (`icon`): a data-spelled item name whose file
+   *  to show instead of this deal's own. Null follows the filename convention. */
+  icon: string | null;
   barterId: string | null;
   /** the id a pin on this row uses: the curated barter id, or a shop:: id */
   pinId: string;
@@ -59,6 +65,8 @@ interface RawOption {
   get?: { amount?: number };
   limit?: { times?: number; period?: string };
   scope?: string;
+  priority?: string;
+  icon?: string;
 }
 
 type CuratedRow = {
@@ -252,7 +260,8 @@ export function loadShopNpcs(): ShopNpc[] {
           inShopCatalog: true,
           barterId: exact?.row.id ?? null,
           pinId: exact?.row.id ?? shopPinId(npc, item.name),
-          priority: exact?.row.priority ?? null,
+          priority: exact?.row.priority ?? (typeof item.priority === "string" && SHOP_PRIORITIES.has(item.priority) ? (item.priority as CuratedPriority) : null),
+          icon: typeof item.icon === "string" ? item.icon : null,
           note: exact?.row.note ?? null,
           curatedIndex: exact?.index ?? -1,
         };
@@ -284,6 +293,7 @@ export function loadShopNpcs(): ShopNpc[] {
       pinId: row.id,
       priority: row.priority,
       note: row.note ?? null,
+      icon: null,
       curatedIndex: index,
     };
     const npc = npcs.find((entry) => entry.name === row.npc && entry.town === row.town);

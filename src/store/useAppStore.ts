@@ -275,6 +275,7 @@ export function shopDealToTask(deal: ShopDeal): Task {
       // `name` above is `getText(deal)`, folded for reading; the icon needs the
       // data's own spelling, so carry it alongside.
       rawName: deal.name,
+      artName: deal.icon,
       costAmount: deal.costAmount ?? null,
     },
     order: weekly ? 150 : 80,

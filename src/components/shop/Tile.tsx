@@ -272,7 +272,7 @@ export function Tile({
             column child the frame shrinks to its 72px and sits at the left content
             edge (measured 71px off the tile's centre line without it). The count
             rides the frame's bottom-right corner. */}
-        <ItemIcon name={item.rawName} size="size-[72px]" className="self-center" badge={qty} />
+        <ItemIcon name={item.rawName} icon={item.icon} size="size-[72px]" className="self-center" badge={qty} />
 
         <p className="flex items-center justify-center gap-1.5 text-[12px] leading-tight">
           <span className="text-muted-foreground">{limitOf(item)}</span>

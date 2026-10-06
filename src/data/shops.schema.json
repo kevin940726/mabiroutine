@@ -81,6 +81,14 @@
           "enum": ["character", "account"],
           "default": "character",
           "description": "Who the cap binds. account covers the old 伺服器-suffixed caps (in today's data exactly the perChar=false rows) and any future per-account cap. Omit for character."
+        },
+        "priority": {
+          "enum": ["must", "extra", "once", "situational"],
+          "description": "In-game recommendation tier, same vocabulary as barter.json (extra renders the 推薦 chip). Curated barter rows win over this when both exist. Omit for unmarked."
+        },
+        "icon": {
+          "type": "string",
+          "description": "Art override: a data-spelled item name whose public/items file to show instead of this option's own (resolved through itemIconPath, so encoding stays centralized). Omit for own art. Every 卷軸 row points at 任務卷軸 rather than duplicating the paper file per name."
         }
       },
       "additionalProperties": false

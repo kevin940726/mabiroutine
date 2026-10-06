@@ -8,6 +8,8 @@
 import barterJson from "@/data/barter.json";
 import recipesJson from "@/data/recipes.json";
 import shopsJson from "@/data/shops.json";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { parseItemQty, twinTradeLeg } from "@/lib/materials";
 import { TOWN_ORDER } from "@/lib/towns";
 import { loadShopNpcs, merchantKey, shopDeals, shopPinId } from "@/lib/shops";
@@ -103,6 +105,17 @@ for (const t of townList) {
     seen.add(n["name"] as string);
   }
 }
+// Shop-option priority must reach the deal: a curated barter row wins when both
+// exist, otherwise the option's own tier flows through (today exactly the four
+// 推薦 quest-board scrolls). If this count moves, the new mark is either
+// intended (update the count) or a stray tier leaking a chip onto a tile.
+{
+  const marked = shopDeals(loadShopNpcs()).filter((d) => !d.barterId && d.priority !== null);
+  const extras = marked.filter((d) => d.priority === "extra");
+  if (extras.length !== 4) {
+    fail(`expected 4 shop-option extra marks, got ${extras.length}: ${extras.map((d) => d.pinId).join(" | ")}`);
+  }
+}
 // Minted pin ids must be unique: a `shop::<npc>::<name>` id is persisted in
 // users' pins and sync buckets, so two deals sharing one means one pin
 // completing two rows. (Items differ per town today, so this passes on
@@ -125,7 +138,8 @@ for (const t of townList) {
 }
 
 // 1. strict shape per option
-const optKeys = new Set(["name", "kind", "cost", "get", "limit", "scope"]);
+const optKeys = new Set(["name", "kind", "cost", "get", "limit", "scope", "priority", "icon"]);
+const optPriorities = new Set(["must", "extra", "once", "situational"]);
 const costKeys = new Set(["amount", "currency"]);
 const getKeys = new Set(["amount"]);
 const limitKeys = new Set(["times", "period"]);
@@ -210,6 +224,24 @@ eachNpc((town, npc, items) => {
     }
     if (it["scope"] !== undefined && it["scope"] !== "character" && it["scope"] !== "account") {
       fail(`bad scope ${where}: ${it["scope"]}`);
+    }
+    if (it["priority"] !== undefined && !optPriorities.has(it["priority"] as string)) {
+      fail(`bad priority ${where}: ${it["priority"]}`);
+    }
+    // Art override: a data-spelled item name, never empty, whose file must be
+    // on disk (an explicit pointer at nothing is author error, not art lag).
+    // Every scroll row carries one — shared paper art is a data fact, not a
+    // lookup rule, so a 卷軸 name without an icon fails instead of rendering
+    // the placeholder.
+    if (typeof it["name"] === "string" && (it["name"] as string).includes("卷軸") && it["icon"] === undefined) {
+      fail(`scroll without icon ${where} (point it at the shared paper file)`);
+    }
+    if (it["icon"] !== undefined) {
+      if (typeof it["icon"] !== "string" || (it["icon"] as string).trim() === "") {
+        fail(`bad icon ${where}: ${it["icon"]}`);
+      } else if (!existsSync(path.join("public", "items", `${it["icon"]}.webp`))) {
+        fail(`icon target missing ${where}: public/items/${it["icon"]}.webp`);
+      }
     }
   }
 });

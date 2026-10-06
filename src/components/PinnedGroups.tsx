@@ -379,10 +379,10 @@ function Group({
         title={`在商店查看${itemName(r.task)}`}
         className={cn(PFP_BUTTON, "rounded-md")}
       >
-        <ItemIcon name={itemArtName(r.task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />
+        <ItemIcon name={itemArtName(r.task)} icon={r.task.shopMeta?.artName} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />
       </button>
     ) : (
-      <ItemIcon name={itemArtName(r.task)} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />
+      <ItemIcon name={itemArtName(r.task)} icon={r.task.shopMeta?.artName} size={isMobile ? ITEM_ART_MOBILE : ITEM_ART_DESKTOP} />
     );
 
   // The body is TWO lines:
