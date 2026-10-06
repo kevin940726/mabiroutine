@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-06 — Unpin resurrection fix
+
 ### Features
 - Shop tiles no longer repeat the town in the merchant band: every view already names it above the grid (town section headings, the selected merchant's MapPin line, per-merchant headers when town-filtered, and the material popover), so the band is portrait + name at every width and all tiles share one height
 
