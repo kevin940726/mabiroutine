@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-06 — Quest boards
+
 ### Features
 - Finishing a section now pops a small emoji celebration: the moment 每日任務 / 每週任務 (per character) or 帳號共通 (shared) goes all-done, its own task icons burst at the tap that finished it — the puff is the section's visible rows, so hidden rows sit it out. Edge taps fire up-inward so the burst stays on screen. Only row controls can fire it — the check runs inside the tap/drag/keypress handler itself, so background sync, imports and resets never celebrate. It stands down under `prefers-reduced-motion`, and a reset re-arms it by dropping the section below all-done
 - Tapping a tracker row's portrait now deep-links to that row's NPC shop and flashes the row, with a 返回任務追蹤 chip for the way back. A regular trade row's face, a pinned-group parent's face and a group child's item icon are all buttons now (hover brightens first, so the affordance states itself before the click); a parent flashes every child at once. Every jump lands on that merchant's FULL section — town, search, 優先度 and 類型 all reset, so the target can never hide behind a stale filter — and the way back restores the tracker's scroll position. The URL names the landing (`?npc=&item=` plus origin), so a copied link lands identically on a cold load, including its way back. Faceless rows (custom tasks, the icon fallback, pins grouped under 其他 with no merchant) stay inert: with no shop section to land on there is nothing to link to
