@@ -480,9 +480,9 @@
   },
   {
     "id": "木材加工設計圖(3級)",
-    "name": "特蕾西 木材加工設計圖(3級) ×1 ← 幼蟲 ×5",
+    "name": "特蕾西 木材加工設備設計圖(3級) ×1 ← 幼蟲 ×5",
     "give": "幼蟲 ×5",
-    "get": "木材加工設計圖(3級) ×1",
+    "get": "木材加工設備設計圖(3級) ×1",
     "town": "杜加德走廊",
     "priority": "situational",
     "gatherSkill": "杜加德走廊",
@@ -749,8 +749,8 @@
   },
   {
     "id": "dun-s2",
-    "name": "西蒙 防具製作台設計圖(3級) ← 雕琢橄欖石 S ×1",
-    "give": "雕琢橄欖石 S ×1",
+    "name": "西蒙 防具製作台設計圖(3級) ← 雕琢橄欖石S ×1",
+    "give": "雕琢橄欖石S ×1",
     "get": "防具製作台設計圖(3級)",
     "town": "杜巴頓",
     "priority": "once",
@@ -771,7 +771,7 @@
     "priority": "situational",
     "gatherSkill": "杜巴頓",
     "perChar": true,
-    "limit": "每日 10 次",
+    "limit": "每日 1 次",
     "rec": "視需求",
     "verified": "tw",
     "npc": "西蒙",
@@ -791,6 +791,20 @@
     "verified": "tw",
     "npc": "西蒙",
     "note": "有染衣需求時再換。"
+  },
+  {
+    "id": "dun-s5",
+    "name": "西蒙 黃金錠堆 ×2 ← 映夢的鏡子碎片 ×1",
+    "give": "映夢的鏡子碎片 ×1",
+    "get": "黃金錠堆 ×2",
+    "town": "杜巴頓",
+    "priority": "situational",
+    "gatherSkill": "杜巴頓",
+    "perChar": true,
+    "limit": "不限次數",
+    "rec": "視需求",
+    "verified": "tw",
+    "npc": "西蒙"
   },
   {
     "id": "yen-奈麗絲合金鋼錠2特殊鋼錠-3",

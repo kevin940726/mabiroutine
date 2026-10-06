@@ -97,6 +97,25 @@
           ]
         },
         {
+          "name": "迪恩",
+          "items": [
+            {
+              "name": "高級羊毛",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "寵物飼料"
+              },
+              "get": {
+                "amount": 4
+              },
+              "limit": {
+                "times": 10
+              }
+            }
+          ]
+        },
+        {
           "name": "迪莉絲",
           "items": [
             {
@@ -192,6 +211,17 @@
               "limit": {
                 "times": 30,
                 "period": "weekly"
+              }
+            },
+            {
+              "name": "空白樂譜",
+              "kind": "barter",
+              "cost": {
+                "amount": 50,
+                "currency": "羊毛"
+              },
+              "limit": {
+                "times": 1
               }
             },
             {
@@ -595,7 +625,7 @@
               }
             },
             {
-              "name": "木材加工設計圖(3級)",
+              "name": "木材加工設備設計圖(3級)",
               "kind": "barter",
               "cost": {
                 "amount": 5,
@@ -887,6 +917,69 @@
               },
               "limit": {
                 "times": 3
+              }
+            }
+          ]
+        },
+        {
+          "name": "西蒙",
+          "items": [
+            {
+              "name": "染色劑基底",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "高級絲綢"
+              },
+              "limit": {
+                "times": 1
+              }
+            },
+            {
+              "name": "布料加工設備設計圖(3級)",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "幽靈螢火蟲"
+              },
+              "limit": {
+                "times": 1
+              }
+            },
+            {
+              "name": "防具製作台設計圖(3級)",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "雕琢橄欖石S"
+              },
+              "limit": {
+                "times": 1
+              }
+            },
+            {
+              "name": "布料+",
+              "kind": "barter",
+              "cost": {
+                "amount": 100,
+                "currency": "完美繃帶"
+              },
+              "get": {
+                "amount": 10
+              },
+              "limit": {
+                "times": 1
+              }
+            },
+            {
+              "name": "黃金錠堆",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "映夢的鏡子碎片"
+              },
+              "get": {
+                "amount": 2
               }
             }
           ]

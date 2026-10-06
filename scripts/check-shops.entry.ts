@@ -219,6 +219,8 @@ eachNpc((town, npc, items) => {
 const SOURCLESS: Record<string, string> = {
   // event/dungeon tender with no acquisition route by design (see tracker-data)
   喵幣: "sourceless tender",
+  // quest reward — name the quest and fill an acquisition leg, then drop this line
+  映夢的鏡子碎片: "source unknown",
   // source TBD — fill an acquisition leg and drop this line
   特蕾西的原木音樂盒: "source unknown",
   不死粉末: "source unknown",
