@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- Hourly barrier cards now stand down while the game is under maintenance, on both lanes: the open-app page timer skips the hour and arms the next, and the server fanout returns `maintenance` without sending, so no card names an event that cannot happen. The 2026-10-07 06:00–09:00 window exposed the gap: the earlier stand-down covered only the purple-hole lane, so the 06:00 and 07:00 barrier cards still fired. Both lanes now read the same verified `/purple-schedule` windows
+
 ## 2026-10-06 — Unpin resurrection fix
 
 ### Features

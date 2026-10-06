@@ -31,6 +31,13 @@ address-bar chip, site settings) auto-completes with no reload, re-tap, or
 re-confirm. Subscriptions never leave the device (store v18, absent from the
 sync key space). Proven limitation: closed tab = no timer.
 
+Both bell lanes stand down while the game is under maintenance: the verified
+`/purple-schedule` window list is the shared source, and an hour (barrier) or
+spawn (purple) that falls inside one is skipped on both the page timer and the
+server fanout, since a card would name an event the servers are not running.
+The purple lane got this 2026-10-03; the hourly lane got it 2026-10-07, after
+the 06:00–09:00 window showed barrier cards still firing hourly.
+
 A second lane covers 深淵的黑色坑洞 (`purple-hole` — §6, full spec in `docs/purple-hole.md`, runbook in
 `docs/operations.md`):
 separate local subscription list (store v19 `purpleHoleReminders`), separate

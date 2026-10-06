@@ -28,12 +28,19 @@ file to update when operations change. Design rationale lives in
 
 | Cron (UTC) | Taipei | Job | Healthy log line |
 |---|---|---|---|
-| `0 * * * *` | :00 hourly | barrier fanout | `barrier fanout … fanned-out` / `past-cutoff` / `no-subs` |
-| `* * * * *` | every minute | purple tick → fanout when a spawn is within 15 min (pages the lane, ~30 sends/tick) | `purple fanout … fanned-out` / `retry-pending` (page had zero deliveries, held for the next tick) / `no-spawn` / `fired-already` |
+| `0 * * * *` | :00 hourly | barrier fanout | `barrier fanout … fanned-out` / `past-cutoff` / `maintenance` / `no-subs` |
+| `* * * * *` | every minute | purple tick → fanout when a spawn is within 15 min (pages the lane, ~30 sends/tick) | `purple fanout … fanned-out` / `retry-pending` (page had zero deliveries, held for the next tick) / `no-spawn` / `maintenance` / `fired-already` |
 | `17 3,15 * * *` | 11:17 / 23:17 daily | Bahamut watcher → candidates → auto-apply | `purple watch … {"windows": N, "applied": bool}` |
 
 Cron edits take ~15 min to propagate (CF-documented). Tail with
 `pnpm wrangler tail --config workers/mabiroutine-worker/wrangler.jsonc`.
+
+Both fanouts stand down inside a game-maintenance window (`isInMaintenance`
+over the `purple:schedule` windows, the same half-open `[start, end)` list):
+the purple tick and the `:00` barrier tick both return `maintenance` and send
+nothing, and the first tick at or after `end` sends normally. The windows come
+from the purple feed because maintenance is the game's, not one lane's — a card
+sent while the servers are down names an event that cannot happen.
 
 ### Experiment 2026-10-02: barrier tick at :59 (worker only, reverted 2026-10-03)
 

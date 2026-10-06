@@ -469,6 +469,14 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
   if (secIntoHour(now) > EVENT_SEC_PAST_HOUR - CATCHUP_MIN_SEC) {
     return { skipped: true, reason: "past-cutoff", subs: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
   }
+  // Game down: the in-game event cannot happen, so a card would mislead.
+  // Same half-open window list the purple lane stands down on (KV
+  // `purple:schedule`, hardcoded fallback) — read here, never duplicated. The
+  // suppressed hour is a clean miss; the next :00 tick after the window sends.
+  const sched = await readSchedule(env);
+  if (isInMaintenance(now, sched.windows)) {
+    return { skipped: true, reason: "maintenance", subs: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
+  }
   const [listed] = await tursoPipeline(env, [
     {
       sql: "SELECT endpoint, p256dh, auth, link_session, roster_json FROM push_subscriptions WHERE lane = ?",

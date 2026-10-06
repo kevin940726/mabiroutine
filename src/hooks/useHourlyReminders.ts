@@ -14,6 +14,7 @@ import {
   upcomingEventLabel,
 } from "@/lib/hourlyReminders";
 import { serverPushOn } from "@/lib/serverPush";
+import { isInMaintenance } from "@/lib/purpleHole";
 
 const BUILTIN_TASKS = trackerJson as Task[];
 type BarterJsonItem = (typeof barterJson)[number];
@@ -101,6 +102,13 @@ export function useHourlyReminders(enabled: boolean) {
     const fireStep = () => {
       void (async () => {
         if (cancelled) return;
+        // Game down: the event cannot happen, so stand this hour down and arm
+        // the next. Same windows the purple lane stands down on (the feed's
+        // maintenance list, applied at boot by initPurpleFeed).
+        if (isInMaintenance(Date.now())) {
+          armNextHour();
+          return;
+        }
         // Already fired for this hour's event (e.g. foreground bounce right
         // after a fire): skip, don't double-card.
         if (firedEventHour === eventHourOf(Date.now())) {
