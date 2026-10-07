@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-07 — Barter data folded into shops.json
+
 ### Chores
 - `barter.json` retired into `shops.json`: the 107 curated exchanges now live as `kind: barter` options carrying their stable `id`, `priority` tier and verbatim display strings, with display order in the new `src/data/curatedOrder.ts`. Pins, sync buckets and default pins key on the same id strings, so no save migrates and no version bumps. Proven zero-effect: task/route snapshots for all 107 ids are byte-identical before and after, and the gates that used to cross-check two files now assert the single source directly (twin probes, curated completeness, order-list integrity)
 - Follow-up to that retirement: `test:shops` now also asserts each curated leg's display strings match its structured mechanics (give/get item names and per-exchange quantities), so a drift inside one option fails instead of rendering one item on the tracker and resolving another in the shop. `absorbSharedBarter` keys its hide migration off the barter legs only again (the widened `scopeAccount` lookup also matched two gold rows), the dead `gatherSkill` field and the now-unused `isWeeklyLimit` export are gone, and stale `barter.json` / `curatedOrder.json` references in comments and `docs/storage.md` are corrected
