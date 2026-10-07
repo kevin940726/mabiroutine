@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-07 — Flat purple cycle
+
 ### Fixes
 - 團隊副本（格里斯貝恩） desc drops its difficulty list (`入門與困難共用同一次`), which a new 非常困難 tier would keep stale: the row now reads `每週 1 次獎勵。` like 團隊副本（白魅魔）, and `docs/tracker-data.md` states the shared-reward rule as `各難度` instead of naming tiers
 - The purple-hole timetable popover is full opacity even when its row is parked in 已隱藏項目 or manually hidden: it now renders outside the dimmed row, and that row's `opacity` no longer tints the card or offsets it from the calendar icon
