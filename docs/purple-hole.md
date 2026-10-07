@@ -5,12 +5,12 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 
 ## Schedule (feed-owned since 2026-09-18)
 
-- Cycle 36h15m, always — the timer does NOT pause for maintenance (decided
-  2026-10-07). Windows come from the worker feed (`/purple-schedule`, KV
-  `purple:schedule`) and are suppression-only; the hardcoded list is the
-  empty-KV/offline baseline. Client refresh: boot, every 30 min, foreground
-  return, reconnect, popover open, through one throttled single-flight call
-  (see `docs/operations.md` §7).
+- Cycle 36h15m. No observation shows maintenance affecting it, so the pause
+  model was dropped (2026-10-07). Windows come from the worker feed
+  (`/purple-schedule`, KV `purple:schedule`) and are suppression-only (not fed
+  into the grid); the hardcoded list is the empty-KV/offline baseline. Client
+  refresh: boot, every 30 min, foreground return, reconnect, popover open,
+  through one throttled single-flight call (see `docs/operations.md` §7).
 - Spawns: one each in 女神庭園, 冰霜峽谷, 雲海曠野 (row desc, per user 2026-09-17).
 - Anchor: feed-owned, edited on `/admin` (錨點 field), no code push. It is the
   reference spawn the grid is measured from (usually the last observed one);
@@ -40,7 +40,7 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 - Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), local page-timer fires exactly 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 XX 分鐘後出現。` (live minutes: 15 on schedule, fewer on catch-up; no character names — deliberate, decided 09-17, tested end-to-end). Server-lane (closed-app) lead is near-exact by design: first 1-min cron tick inside the window, so 14–15 min (was 1–15 min on the 15-min tick — the 8-min card for the ~14:38 spawn on 2026-09-19 was that old design working). Both lanes stand down inside a maintenance window (`isInMaintenance` on the feed windows): the page timer skips that spawn and arms the next, the server tick reports `maintenance` without moving the fanout cursor, so post-window ticks resume the same spawn's remaining pages.
 - Server-lane paging (2026-09-30): the fanout sends one page (~30 subs) per tick so a single invocation stays under the Workers free-plan 50-subrequest cap, and the `purple:fanout` cursor doubles as the fire-once guard (any 2xx counts as delivered). Before this the one-shot run threw past 50 subs (58 on 2026-09-30) *before* stamping the guard, so the 1-min tick re-sent the first ~48 subs every minute.
 - Maintenance feed + no-commit timetable updates: shipped (phase 2 + 3B) — runbook in `docs/operations.md`.
-- Timer does not pause for maintenance (decided 2026-10-07, dropping the pause model): the cycle is always 36h15m. The 2026-09-30 evidence (a leg that crossed a window landed ~13h from either reading, and the 2026-10-08 spawn is a clean `anchor + 5 × 36h15m`) showed the shift is not a function of the window, so the pause was removed. Maintenance windows are now suppression-only: `isInMaintenance` stands cards down while the game is down, and the schedule runs straight through. Re-anchor by hand when a spawn drifts from the grid (錨點 + 發佈, then 回復自動更新). Quick fixes on `/admin` (§6): 忽略 a window (drop it from suppression), 修正 its bounds, or re-anchor.
+- Pause model dropped (2026-10-07): no observation shows maintenance affecting the cycle, so the grid is a plain `anchor + n × 36h15m`. The 2026-09-30 evidence (a leg that crossed a window landed ~13h from either reading, and the 2026-10-08 spawn is a clean `anchor + 5 × 36h15m`) showed the shift is not a function of the window. Maintenance windows are suppression-only: `isInMaintenance` stands cards down while the game is down; they are not fed into the grid. Re-anchor by hand when a spawn drifts from the grid (錨點 + 發佈, then 回復自動更新). Quick fixes on `/admin` (§6): 忽略 a window (drop it from suppression), 修正 its bounds, or re-anchor.
 - Feed refresh (2026-09-30): boot-only was the gap for always-open apps (the app is never closed, so a long-lived tab could sit on an indefinitely stale timetable). Now refreshed at boot + every 30 min + foreground return + reconnect + popover open, all coalesced through one throttled (60s gap) single-flight call. A no-change response is a no-op apply that notifies nobody.
 - Same local-only rules as the hourly lane: never synced, never sent anywhere, page-open-only.
 
@@ -61,10 +61,10 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
   09:00): Bahamut reposts are snapshots — only the official post is edited on
   overrun. Candidates are therefore *scheduled* windows (earliest-possible);
   whoever confirms checks the newest replies for 延長 bumps first.
-- Legs tile continuously from the anchor at a fixed 36h15m; windows no longer
-  shape them (pause model dropped 2026-10-07). Windows still should not be
-  pruned while they matter for suppression, but they can no longer move a
-  spawn.
+- Legs tile continuously from the anchor at a fixed 36h15m; windows are not fed
+  into them (pause model dropped 2026-10-07). Windows still should not be
+  pruned while they matter for suppression, but they are not part of the
+  schedule.
 - Dropped, not parked: official-API scraper, Wednesday-rule default (the feed
   carries verified windows instead), in-app maintenance override, per-device
   recalibrate button (the maintainer's announcement read is canonical), GH

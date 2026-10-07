@@ -135,7 +135,7 @@ spawn 14:38 → card 14:30 reading 預計 8 分鐘後出現.
 3. **Accept all**: 採用候選 (keeps auto on).
 4. **Rewrite everything**: the flap under 已發佈 (locks auto; resume to undo).
 5. **Anchor drift**: edit 錨點, publish — no code push, all devices follow.
-6. **Maintenance windows** no longer move the schedule (pause model dropped
+6. **Maintenance windows** are not fed into the schedule (pause model dropped
    2026-10-07): they only stand cards down while the game is inside one. Use
    忽略 to drop a window from suppression, 修正 to change its bounds, and
    re-anchor from an observed spawn (錨點 + 發佈, then 回復自動更新) when a

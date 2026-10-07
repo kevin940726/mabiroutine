@@ -956,7 +956,7 @@ details{margin-top:.8rem}summary{cursor:pointer;font-size:.85rem;color:var(--mut
 <div class="btnrow"><button id="saveOvr" class="primary">儲存覆寫</button></div>
 </section>
 <section class="card"><h2>已發佈（唯讀預覽）</h2>
-<p class="foot">這就是玩家現在看到的時刻表。錨點＝上次親眼看到紫洞出沒的時間；維護窗＝遊戲維修的時段（那段時間不發通知，不影響預測時間）。日常修正請用上面的候選和覆寫——這裡很少需要動。</p>
+<p class="foot">這就是玩家現在看到的時刻表。錨點＝上次親眼看到紫洞出沒的時間（時間由錨點推算）；維護窗＝遊戲維修的時段（只影響要不要發通知，不用來算時間）。日常修正請用上面的候選和覆寫——這裡很少需要動。</p>
 <div id="autoLine" class="preview"></div>
 <div id="pubView"></div>
 <details><summary>手動修改全部（很少用到）</summary>

@@ -146,7 +146,7 @@ export default function App() {
   // only when at least one task is subscribed — zero timers otherwise.
   const hasReminders = useAppStore((s) => (s.hourlyReminders ?? []).length > 0);
   useHourlyReminders(hasHydrated && hasReminders);
-  // Purple-hole lane (15-min-early fire): separate flag, separate list.
+  // Purple-hole lane (15-min-early fire): separate list.
   const hasPurpleReminders = useAppStore((s) => (s.purpleHoleReminders ?? []).length > 0);
   usePurpleHoleReminders(hasHydrated && hasPurpleReminders);
   // Reminder-tap landing (?task=&chars=): resolve the character, scroll to

@@ -29,12 +29,13 @@ deploy.
 
 ## Mental model
 
-- The cycle is always **36h15m, with no maintenance pause** (the pause model
-  was dropped 2026-10-07): the next spawn is `anchorMs + n × 36h15m`. `anchorMs`
-  is the last observed spawn and the only input that moves the schedule.
+- The cycle is **36h15m** (the pause model was dropped 2026-10-07: no
+  observation shows maintenance affecting it): the next spawn is
+  `anchorMs + n × 36h15m`. `anchorMs` is the last observed spawn and the only
+  input that moves the schedule.
 - The feed's `windows` are **suppression-only**: a card is skipped while the
   game is inside one (`isInMaintenance`), on both the purple and hourly lanes.
-  They never move a spawn.
+  They are not fed into the grid.
 - Error is asymmetric. A window that is too wide suppresses a card that would
   have landed; too narrow sends a card while the game is down. When unsure of a
   window, exclude it rather than keep it.

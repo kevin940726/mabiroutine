@@ -154,7 +154,7 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   const purpleOn = useAppStore((s) => (s.purpleHoleReminders ?? []).includes(taskId));
   const toggleHourly = useAppStore((s) => s.toggleHourlyReminder);
   const togglePurple = useAppStore((s) => s.togglePurpleReminder);
-  // Server mode per lane (flagged): bell state reads the device endpoint
+  // Server mode per lane (always on): bell state reads the device endpoint
   // map. Both lanes stay armed — visibility decides who fires (visible →
   // local with live done-state, hidden → server), so the two never stack
   // without deleting anything (replaces the D6 heal).

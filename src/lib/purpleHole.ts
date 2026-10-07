@@ -1,11 +1,11 @@
 // 深淵的黑色坑洞 (purple hole) schedule engine — pure functions, no React.
 //
-// Cycle: 36h15m between spawns, always. The timer does NOT pause for
-// maintenance (decided 2026-10-07: the pause model was falsified — see
-// docs/purple-hole.md), so the grid is a plain fixed step:
+// Cycle: 36h15m between spawns. No observation shows maintenance affecting the
+// cycle (the pause read was falsified 2026-09-30 — see docs/purple-hole.md), so
+// the model dropped the pause (2026-10-07) and the grid is a plain fixed step:
 //   next = prev + PERIOD
-// Maintenance windows are used only to stand cards down (`isInMaintenance`),
-// never to move a spawn.
+// Maintenance windows are used only to stand cards down (`isInMaintenance`);
+// they are not fed into the grid.
 //
 // Anchor: the last observed spawn. The /purple-schedule feed owns it; the
 // code value below is only the empty-KV/offline fallback (see "Schedule feed"
@@ -34,12 +34,12 @@ export function taipeiWall(y: number, mo: number, d: number, h: number, mi: numb
  * Hand-owned maintenance list (phase 2A — same discipline as all TW data):
  * dated entries, verified against the 維護公告 (~1 day before routine),
  * spent entries pruned in the same commit that adds new ones. These windows
- * do NOT move the schedule (pause model dropped 2026-10-07): they only stand
- * cards down while the game is down. The feed owns the full verified list and
- * the app/worker prefer it; this dated entry is only the empty-KV/offline
- * suppression baseline. Same-day emergencies go through a code edit + push
- * like everything else — no in-app override by design (the maintainer's
- * announcement read is the canonical source).
+ * are not fed into the schedule (pause model dropped 2026-10-07): they only
+ * stand cards down while the game is down. The feed owns the full verified
+ * list and the app/worker prefer it; this dated entry is only the
+ * empty-KV/offline suppression baseline. Same-day emergencies go through a
+ * code edit + push like everything else — no in-app override by design (the
+ * maintainer's announcement read is the canonical source).
  */
 export const MAINTENANCE_WINDOWS: MaintenanceWindow[] = [
   // 2026-09-30 (Wed) routine, mirrored from the watcher feed (KV
@@ -68,8 +68,8 @@ export function normalizeWindows(windows: MaintenanceWindow[]): MaintenanceWindo
 /**
  * True while the game is inside a maintenance window (half-open [start, end)).
  * Both notification lanes stand down on this: a card fired while the game is
- * down names a spawn that cannot happen. It does NOT move the schedule — the
- * 36h15m cycle runs straight through maintenance (decided 2026-10-07).
+ * down names a spawn that cannot happen. It is not fed into the schedule: the
+ * grid is computed without the windows (pause model dropped 2026-10-07).
  * Suppression is only as good as the window list — unknown maintenance still
  * notifies.
  */
