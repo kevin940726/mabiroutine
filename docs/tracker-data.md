@@ -34,7 +34,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | black-hole | 黑色坑洞 | countdown | 14 | 狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。Tile 顯示剩餘（剩 N / 14）。 | **hardcoded per user**; moved daily→weekly 2026-09-04; max 7→14 2026-09-05; mabitw 7+7 agrees |
 | weekly-goals | 冒險家工會的定期委託 | check | - | 每周完成冒險家工會的定期委託任務至少一次，通關深層地下城 3 次，通關地下城 5 次，通關狩獵場 5 次，週一 06:00 重置。 | user hand-added |
 | abyss | 深淵 | counter | 3 | 每週通關獎勵 3 次，入場次數無限制；週一 06:00 重置。 | nipponhashi 官方原文 |
-| raid-gris | 團隊副本（格里斯貝恩） | counter | 1 | 每個首領每週 1 次獎勵，入門與困難共用同一次。週一 06:00 重置。 | nipponhashi; bobogameguides 已確認 65級+困難已開放 |
+| raid-gris | 團隊副本（格里斯貝恩） | counter | 1 | 每個首領每週 1 次獎勵，各難度共用同一次。週一 06:00 重置。 | nipponhashi; bobogameguides 已確認 65級+困難已開放 |
 | field-boss | 野外首領 | counter | 1 | 每週 1 次討伐戰利品，週一 06:00 重置。之後仍有基本獎勵。每日 12/18/20/22 時出現。 | nipponhashi |
 
 ### 👥 帳號共通

@@ -119,7 +119,7 @@
     "id": "raid-gris",
     "name": "團隊副本（格里斯貝恩）",
     "icon": "🐉",
-    "desc": "每週 1 次獎勵，入門與困難共用同一次。",
+    "desc": "每週 1 次獎勵。",
     "section": "weekly",
     "kind": "weekly",
     "type": "counter",
