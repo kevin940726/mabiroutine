@@ -25,6 +25,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
 import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
+import { healClaimedReminderLanes } from "@/lib/serverPush";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task, TaskSection } from "@/lib/types";
 import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
@@ -149,6 +150,14 @@ export default function App() {
   // Purple-hole lane (15-min-early fire): separate list.
   const hasPurpleReminders = useAppStore((s) => (s.purpleHoleReminders ?? []).length > 0);
   usePurpleHoleReminders(hasHydrated && hasPurpleReminders);
+  // One-shot repair, after hydration: a pre-2026-10-07 sync could clear a
+  // reminder lane while its endpoint claim survived (bell on, page timer
+  // dead). App-level, so a hidden or filtered-out row still heals. See
+  // healClaimedReminderLanes.
+  useEffect(() => {
+    if (!hasHydrated) return;
+    healClaimedReminderLanes();
+  }, [hasHydrated]);
   // Reminder-tap landing (?task=&chars=): resolve the character, scroll to
   // the row, flash it once. Runs for every load — cheap no-op without params.
   useReminderDeepLink(hasHydrated);

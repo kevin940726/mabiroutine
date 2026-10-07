@@ -154,14 +154,30 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   const purpleOn = useAppStore((s) => (s.purpleHoleReminders ?? []).includes(taskId));
   const toggleHourly = useAppStore((s) => s.toggleHourlyReminder);
   const togglePurple = useAppStore((s) => s.togglePurpleReminder);
-  // Server mode per lane (always on): bell state reads the device endpoint
-  // map. Both lanes stay armed — visibility decides who fires (visible →
-  // local with live done-state, hidden → server), so the two never stack
-  // without deleting anything (replaces the D6 heal).
+  // Server mode per lane (always on): the bell reads the device endpoint map.
+  // Both lanes stay armed — visibility decides who fires (visible → local
+  // with live done-state, hidden → server), so the two never stack without
+  // deleting anything (replaces the D6 heal).
   const serverMode = isServerPushMode(lane);
-  // The endpoint map is localStorage, not reactive — bump to re-render it.
+  // The endpoint map is localStorage, not reactive — bump to re-render it
+  // (also used by the permission listener below).
   const [, bump] = useReducer((x: number) => x + 1, 0);
-  const on = serverMode ? serverPushOn(taskId, lane) : lane === "purple" ? purpleOn : hourlyOn;
+  const laneOn = lane === "purple" ? purpleOn : hourlyOn;
+  // The bell reports what will actually fire, not merely what is registered.
+  // A server-capable device is "subscribed" only while the endpoint claim
+  // exists, so reconcileServerPush (a dead/missing live subscription clears
+  // the claim) can still turn the bell off. The local lane alone only counts
+  // where a server lane is impossible (the SW-less fallback) — it must not
+  // mask a broken server subscription. A revoked permission delivers nothing,
+  // so it reads off too; tapping then routes to the re-enable guidance
+  // (onToggle's `!on` path), never a silent unsubscribe.
+  const serverCapable = typeof navigator !== "undefined" && "serviceWorker" in navigator;
+  const subscribed = serverMode ? serverPushOn(taskId, lane) || (laneOn && !serverCapable) : laneOn;
+  const perm = reminderPermission();
+  const on = subscribed && perm === "granted";
+  // Subscribed while the browser blocks it: distinct copy so "off" doesn't
+  // read as "never subscribed".
+  const blocked = subscribed && perm === "denied";
   const toggle = lane === "purple" ? togglePurple : toggleHourly;
   const [coach, setCoach] = useState<CoachMarkKind | null>(null);
   const waiterRef = useRef<AbortController | null>(null);
@@ -182,6 +198,27 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
       else if (lane === "hourly" && serverPushOn(taskId, lane)) void refreshServerRoster(taskId);
     });
   }, [serverMode, taskId, lane]);
+  // Permission is not reactive: re-render when the browser setting flips (site
+  // settings, address-bar chip) so the bell can't keep claiming "on" after a
+  // revoke — or stay off after a grant. Silently no-ops where the Permissions
+  // API lacks the notifications descriptor.
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.permissions?.query) return;
+    let status: PermissionStatus | null = null;
+    let alive = true;
+    navigator.permissions
+      .query({ name: "notifications" as PermissionName })
+      .then((s) => {
+        if (!alive) return;
+        status = s;
+        s.onchange = () => bump();
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      if (status) status.onchange = null;
+    };
+  }, []);
   // Idempotent: the permission watcher and the direct path can both land.
   const subscribe = () => {
     const s = useAppStore.getState();
@@ -248,7 +285,22 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
   // via X, which aborts) is the only opt-out, and flipping the switch in
   // settings auto-completes.
   const guideReenable = async (waiter: AbortController, watch: Promise<boolean>) => {
-    await confirmReenableReminder();
+    const choice = await confirmReenableReminder();
+    if (choice === "unsubscribed") {
+      // The dialog's secondary action. Permission is denied, so the bell reads
+      // off and the ordinary unsubscribe path is unreachable — this is the one
+      // way left to delete the server row (docs promise bell-off deletes all).
+      waiter.abort();
+      await unsubscribeServerPush(taskId, lane);
+      const s = useAppStore.getState();
+      if (lane === "purple") {
+        if ((s.purpleHoleReminders ?? []).includes(taskId)) s.togglePurpleReminder(taskId);
+      } else {
+        if ((s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+      }
+      bump();
+      return;
+    }
     if (reminderPermission() === "granted") {
       if (serverMode) await finalizeServerSubscribe();
       else subscribe();
@@ -349,15 +401,19 @@ function useReminderToggle(taskId: string, taskName: string, lane: ReminderLane)
       // timeout (still "default"): nothing to say, stay unsubscribed
     }
   };
-  return { on, onToggle, coach, dismissCoach };
+  return { on, blocked, onToggle, coach, dismissCoach };
 }
 
 function ReminderBell({ taskId, taskName, lane, className }: { taskId: string; taskName: string; lane: ReminderLane; className?: string }) {
-  const { on, onToggle, coach, dismissCoach } = useReminderToggle(taskId, taskName, lane);
+  const { on, blocked, onToggle, coach, dismissCoach } = useReminderToggle(taskId, taskName, lane);
   const noun = lane === "purple" ? "出沒提醒" : "開場提醒";
+  const tooltip = blocked ? "通知已被瀏覽器停用，點一下重新開啟" : on ? "取消訂閱通知" : "訂閱通知";
+  const label = blocked
+    ? `重新開啟${noun}（通知已被瀏覽器停用）：${taskName}`
+    : `${on ? "取消" : "訂閱"}${noun}：${taskName}`;
   return (
     <>
-      <Tooltip content={on ? "取消訂閱通知" : "訂閱通知"}>
+      <Tooltip content={tooltip}>
         <button
           onClick={() => void onToggle()}
           // Ring, not just bg: the row itself hovers to bg-accent, so a
@@ -365,7 +421,7 @@ function ReminderBell({ taskId, taskName, lane, className }: { taskId: string; t
           // shift read on both card and hovered-row backgrounds (and stay
           // stable under Chrome forced-dark: no blur, translucency, or fade).
           className={className ?? "h-6 w-6 grid place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground hover:ring-1 hover:ring-ring"}
-          aria-label={`${on ? "取消" : "訂閱"}${noun}：${taskName}`}
+          aria-label={label}
           aria-pressed={on}
         >
           {on ? <BellRing className="h-3.5 w-3.5 text-amber-500" /> : <Bell className="h-3.5 w-3.5" />}

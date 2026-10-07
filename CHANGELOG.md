@@ -4,6 +4,12 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-07 — Reminder bell sync fix
+
+### Fixes
+- Reminder bells survive a sync pull: the pull/adopt and backup-import paths rebuilt state from a snapshot that only carries the synced key space, and `normalizePersisted` backfilled the device-local `hourlyReminders` / `purpleHoleReminders` keys the merge never emitted — so a routine sync silently switched that device's bells off and only the peer kept firing (reported as "the hourly notification only fires on one device per sync"). Every apply path now restores an unset device-local lane from the current device, and `test:sync` engine E15 fails if a future store field is left neither synced nor declared device-local
+- The reminder bell now shows what will actually fire, not merely that a row was registered: it reads off when the browser permission is revoked (tapping opens re-enable guidance that also offers 取消訂閱, the only way left to delete the server row while denied) and on for the SW-less local-only case, while a dead device subscription still turns it off as before; it re-renders when the permission flips. A device already damaged by the wipe above self-heals on load — `healClaimedReminderLanes` re-arms a lane whose endpoint claim survived — so no manual re-tap is required (engine E16)
+
 ## 2026-10-07 — Flat purple cycle
 
 ### Fixes

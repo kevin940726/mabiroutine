@@ -1,4 +1,4 @@
-import { useAppStore, migratePersisted } from "@/store/useAppStore";
+import { useAppStore, migratePersisted, preserveDeviceLocalState } from "@/store/useAppStore";
 import type { AppState } from "@/lib/types";
 import { getSession, SyncNotFound, type FlatMap } from "@/sync/api";
 import { flattenSnapshot, loadBase, saveBase, unflattenReplace } from "@/sync/flat";
@@ -114,7 +114,10 @@ export function applySnapshot(snapshot: unknown): boolean {
       snapshot,
       typeof data.version === "number" ? data.version : 0
     );
-    useAppStore.setState({ ...migrated, _hasHydrated: true });
+    // A merged snapshot only represents the synced key space; device-local
+    // fields it never carries must survive the pull (see
+    // DEVICE_LOCAL_STATE_KEYS) or a routine sync silently resets them.
+    useAppStore.setState({ ...preserveDeviceLocalState(migrated, snapshot), _hasHydrated: true });
     return true;
   } catch {
     return false;

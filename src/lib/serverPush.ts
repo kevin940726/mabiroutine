@@ -1,5 +1,7 @@
 import { loadSession } from "@/sync/session";
 import { useAppStore } from "@/store/useAppStore";
+import { isEligibleReminderId } from "@/lib/hourlyReminders";
+import { PURPLE_HOLE_ID } from "@/lib/purpleHole";
 
 // Server-push door (barrier + purple lanes). The bell ↔ /api/push/subscribe
 // round trip; the worker fanout reads the same table per lane.
@@ -32,7 +34,11 @@ function subKey(lane: PushLane, taskId: string): string {
 
 function readSubs(): Record<string, string> {
   try {
-    const raw = window.localStorage.getItem(SUBS_KEY);
+    // Bare `localStorage`, not `window.localStorage`: identical in the browser,
+    // and the global lets the hermetic sync harness (which stubs
+    // globalThis.localStorage) exercise the map. Blocked/unavailable storage
+    // → {} (bell reads off; a subscribe simply won't stick).
+    const raw = localStorage.getItem(SUBS_KEY);
     const v = raw ? (JSON.parse(raw) as unknown) : {};
     return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, string>) : {};
   } catch {
@@ -42,7 +48,6 @@ function readSubs(): Record<string, string> {
 
 /** Bell state: an endpoint is recorded for this task on this device. */
 export function serverPushOn(taskId: string, lane: PushLane = "hourly"): boolean {
-  if (typeof window === "undefined") return false;
   return typeof readSubs()[subKey(lane, taskId)] === "string";
 }
 
@@ -51,7 +56,7 @@ export function setServerPushOn(taskId: string, endpoint: string | null, lane: P
     const m = readSubs();
     if (endpoint) m[subKey(lane, taskId)] = endpoint;
     else delete m[subKey(lane, taskId)];
-    window.localStorage.setItem(SUBS_KEY, JSON.stringify(m));
+    localStorage.setItem(SUBS_KEY, JSON.stringify(m));
   } catch {
     // storage full/blocked: the bell just won't stick — no crash.
   }
@@ -294,4 +299,46 @@ export async function reconcileServerPush(taskId: string, lane: PushLane = "hour
     // fanout prune covers it.
   }
   return true;
+}
+
+/**
+ * Repair the local lanes after the 2026-10-07 wipe. A sync pull used to clear
+ * `hourlyReminders` / `purpleHoleReminders` while the endpoint claim map
+ * survived, leaving the bell showing on but the page timer disarmed — on a
+ * visible tab the server card is suppressed too, so nothing fired on that
+ * device. The map is written only on a successful subscribe and cleared with
+ * the lane on every unsubscribe, so "map claims a lane + store lane missing
+ * the id" is exactly that damage; re-arming is idempotent and the only state
+ * it restores. Never touches the map, so it cannot resurrect a server row.
+ *
+ * Runs once per load AFTER hydration (healing before the persisted — and
+ * already-wiped — array loads would be undone). App-level, not per-bell, so a
+ * hidden/filtered row still heals. A claim on a row that is no longer
+ * eligible is left alone (a removed row can't be resurrected).
+ *
+ * Residual (pre-existing, not this bug): a stale pre-lane tab's lane-less
+ * DELETE can drop the server row while the device subscription lives — the
+ * map stays claimed and this re-arms the local lane, but only a re-tap
+ * restores closed-app delivery. Detecting that needs a server row lookup the
+ * client doesn't have.
+ */
+export function healClaimedReminderLanes(): void {
+  const subs = readSubs();
+  for (const [key, endpoint] of Object.entries(subs)) {
+    if (typeof endpoint !== "string") continue;
+    const i = key.indexOf(":");
+    if (i <= 0) continue; // malformed/legacy key: not a lane claim
+    const lane = key.slice(0, i);
+    const taskId = key.slice(i + 1);
+    if (!taskId) continue;
+    if (lane === "hourly") {
+      if (!isEligibleReminderId(taskId)) continue;
+      const s = useAppStore.getState();
+      if (!(s.hourlyReminders ?? []).includes(taskId)) s.toggleHourlyReminder(taskId);
+    } else if (lane === "purple") {
+      if (taskId !== PURPLE_HOLE_ID) continue;
+      const s = useAppStore.getState();
+      if (!(s.purpleHoleReminders ?? []).includes(taskId)) s.togglePurpleReminder(taskId);
+    }
+  }
 }

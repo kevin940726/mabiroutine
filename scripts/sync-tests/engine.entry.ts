@@ -5,7 +5,7 @@
 // Core property: RESETS NEVER TOMBSTONE. Values carry cycle provenance
 // (taskBuckets); local resets prune stale buckets in memory only; the wire
 // never deletes cycle keys; stale devices cannot destroy peer progress.
-import { useAppStore, migratePersisted, seedMissingDefaultPins, DEFAULT_MUST_PINS } from "@/store/useAppStore";
+import { useAppStore, migratePersisted, seedMissingDefaultPins, DEFAULT_MUST_PINS, DEVICE_LOCAL_STATE_KEYS } from "@/store/useAppStore";
 import {
   flattenSnapshot,
   diffFlat,
@@ -30,6 +30,8 @@ import {
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
 import { GC_DAYS } from "@/lib/cycle";
 import { loadShopNpcs, shopDeals } from "@/lib/shops";
+import { healClaimedReminderLanes, setServerPushOn } from "@/lib/serverPush";
+import { PURPLE_HOLE_ID } from "@/lib/purpleHole";
 
 // A real shops.json pin id, so the adoption test proves the second namespace
 // survives sync rather than assuming it. Recomputed from the catalog so it
@@ -757,6 +759,138 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E14 first link carries stashed tombstones", recreated[`pin:${SEED}`] === null, recreated);
   saveSession({ id: SID, updatedAt: 2 });
   ok("E14 re-link clears the stash", loadLastSessionId() === null, loadLastSessionId());
+}
+
+// E15: device-local fields survive every apply path. Reported 2026-10-07: a
+// routine pull reset the reminder lanes (normalizePersisted backfilled the
+// absent keys to []), so the pulling device's bells silently went off and only
+// the peer still fired — "the hourly notification only fires on one device per
+// sync". The classification check below is the never-again guard: a new store
+// field must be declared synced or device-local, or this fails.
+{
+  isolate();
+  const SID = "e15-local";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  seedStore(snap({}, {}, TODAY, THIS_WEEK));
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  // Peer edited: the server carries a newer value, so the round adopts remote.
+  server.flat = flattenSnapshot(
+    snap({ [DAILY_CHECK]: true }, { [DAILY_CHECK]: TODAY }, TODAY, THIS_WEEK)
+  );
+  useAppStore.setState({ hourlyReminders: ["barrier"], purpleHoleReminders: ["purple-hole"] });
+  await syncAndResets();
+  const st = useAppStore.getState();
+  ok(
+    "E15 pull adopts the remote value",
+    st.characters[0]?.taskValues?.[DAILY_CHECK] === true,
+    st.characters[0]?.taskValues
+  );
+  ok(
+    "E15 pull keeps hourlyReminders",
+    JSON.stringify(st.hourlyReminders) === JSON.stringify(["barrier"]),
+    st.hourlyReminders
+  );
+  ok(
+    "E15 pull keeps purpleHoleReminders",
+    JSON.stringify(st.purpleHoleReminders) === JSON.stringify(["purple-hole"]),
+    st.purpleHoleReminders
+  );
+
+  // Classification guard: every field a migrated store materializes must be
+  // either synced (ride the snapshot) or declared device-local. A new field
+  // that is neither fails here, forcing a deliberate choice instead of a
+  // silent reset on the next pull.
+  const snapshotKeys = new Set(Object.keys(buildSnapshot()));
+  const local = new Set<string>(DEVICE_LOCAL_STATE_KEYS);
+  ok(
+    "E15 device-local keys are absent from the sync snapshot",
+    DEVICE_LOCAL_STATE_KEYS.every((k) => !snapshotKeys.has(k)),
+    [...DEVICE_LOCAL_STATE_KEYS]
+  );
+  const unclassified = Object.keys(migratePersisted({}, 0)).filter(
+    (k) => !snapshotKeys.has(k) && !local.has(k)
+  );
+  ok("E15 every AppState field is synced or device-local", unclassified.length === 0, unclassified);
+
+  // A backup import that explicitly carries a lane must still honor it, while
+  // an absent lane is preserved from this device (not reset to []).
+  useAppStore.getState().importJson(
+    JSON.stringify({ ...snap({}, {}, TODAY, THIS_WEEK), hourlyReminders: ["barrier", "tower"] })
+  );
+  const imported = useAppStore.getState();
+  ok(
+    "E15 import honors an explicit reminder lane",
+    JSON.stringify(imported.hourlyReminders) === JSON.stringify(["barrier", "tower"]),
+    imported.hourlyReminders
+  );
+  ok(
+    "E15 import preserves an absent reminder lane",
+    JSON.stringify(imported.purpleHoleReminders) === JSON.stringify(["purple-hole"]),
+    imported.purpleHoleReminders
+  );
+}
+
+// E16: the bell heals a claimed lane whose local reminder was wiped, without
+// resurrecting anything the user unsubscribed. Scenario (reported 2026-10-07):
+// a sync pull left `mabiroutine:push-subs` claiming `hourly:barrier` while
+// `hourlyReminders` was empty — the bell showed on but the page timer was
+// dead. healClaimedReminderLanes re-arms exactly that pair.
+{
+  isolate();
+  seedStore(snap({}, {}, TODAY, THIS_WEEK));
+  useAppStore.setState({ hourlyReminders: [], purpleHoleReminders: [] });
+  setServerPushOn("barrier", "https://push.example/barrier", "hourly");
+  setServerPushOn(PURPLE_HOLE_ID, "https://push.example/purple", "purple");
+  healClaimedReminderLanes();
+  const st = useAppStore.getState();
+  ok("E16 heals the claimed hourly lane", st.hourlyReminders.includes("barrier"), st.hourlyReminders);
+  ok(
+    "E16 heals the claimed purple lane",
+    st.purpleHoleReminders.includes(PURPLE_HOLE_ID),
+    st.purpleHoleReminders
+  );
+
+  // Legitimate off (unsubscribe clears the claim with the lane): nothing to do.
+  // A local-only lane armed by the SW-less fallback (no claim) is left alone.
+  isolate();
+  seedStore(snap({}, {}, TODAY, THIS_WEEK));
+  useAppStore.setState({ hourlyReminders: [], purpleHoleReminders: [] });
+  healClaimedReminderLanes();
+  ok(
+    "E16 no claim → nothing armed",
+    useAppStore.getState().hourlyReminders.length === 0,
+    useAppStore.getState().hourlyReminders
+  );
+  useAppStore.setState({ hourlyReminders: ["barrier"] });
+  healClaimedReminderLanes();
+  ok(
+    "E16 local-only lane left alone",
+    useAppStore.getState().hourlyReminders.length === 1,
+    useAppStore.getState().hourlyReminders
+  );
+
+  // A claim on a row that is no longer eligible is not resurrected.
+  isolate();
+  seedStore(snap({}, {}, TODAY, THIS_WEEK));
+  useAppStore.setState({ hourlyReminders: [] });
+  setServerPushOn("gone-row", "https://push.example/gone", "hourly");
+  healClaimedReminderLanes();
+  ok(
+    "E16 dead claim not resurrected",
+    !useAppStore.getState().hourlyReminders.includes("gone-row"),
+    useAppStore.getState().hourlyReminders
+  );
+
+  // Idempotent (StrictMode double-invoke / repeated loads): re-running never
+  // toggles an armed lane off.
+  setServerPushOn("barrier", "https://push.example/barrier", "hourly");
+  healClaimedReminderLanes();
+  healClaimedReminderLanes();
+  const healed = useAppStore.getState().hourlyReminders;
+  ok("E16 heal is idempotent", healed.filter((x) => x === "barrier").length === 1, healed);
 }
 
 setPullHook(null);

@@ -68,6 +68,16 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 weekly kinds. Provenance lives in the store (`taskBuckets: tid -> bucket`,
 v13) and rides the wire on every value key.
 
+Device-local fields never ride the wire. `barterCustomOrder` / `globalTaskOrder`
+(order) are carried through the merge from the local device; `hourlyReminders`
+and `purpleHoleReminders` are absent from the merge output entirely, so every
+apply path (`applySnapshot` on a pull/adopt, `importJson` on a backup) restores
+them from the current device when the incoming payload does not set them
+(`DEVICE_LOCAL_STATE_KEYS`). Without that, `normalizePersisted` backfills the
+absent key to its default and a routine pull silently clears the reminder bells
+— only the peer device still fires (2026-10-07; guarded by `test:sync` engine
+E15, which also fails on any new `AppState` field left unclassified).
+
 ## Client engine (`src/sync/SyncButton.tsx`, `src/sync/session.ts`)
 
 - **Push** (debounced 3s, flushed on tab-hide): diff current flat vs retained

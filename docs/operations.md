@@ -168,6 +168,21 @@ pull` regenerates that file and would wipe the value.
 - Visibility split (both lanes): visible tab → local card (SW suppresses
   server); hidden/closed → server card (page skips). Same collapse tag per
   lane, `renotify`, no stacking by design.
+- Bell state (both lanes) reports what will actually fire: on = (endpoint
+  claim present, or a local-only lane on a device that cannot push) AND
+  `Notification.permission === "granted"`. The endpoint map
+  (`mabiroutine:push-subs`) is a device-local claim, reconciled against the
+  live `PushSubscription` on bell mount — a dead sub clears the claim and the
+  bell turns off (the local lane is armed on every subscribe, so it must not
+  mask a broken server lane). The bell re-reads on a Permissions API change; a
+  revoked permission reads off, and tapping opens guidance that also offers
+  取消訂閱 (the only remaining way to delete the row while permission is
+  denied). A sync pull or an old backup that lacks the lane cannot clear it,
+  and on load `healClaimedReminderLanes` re-arms a claimed lane whose local
+  entry is missing (the 2026-10-07 wipe). Residual: a stale pre-lane tab's
+  lane-less DELETE drops the server row while the claim lives — the local lane
+  is re-armed but closed-app delivery needs a re-tap (no client-side row
+  lookup).
 - Flag-off disarms both halves on both flags (server row DELETE + device
   unsubscribe + local entry clear); re-enabling starts clean, one bell tap.
 - Subscribe writes one row per `(endpoint, lane)` (Turso migration v4) —

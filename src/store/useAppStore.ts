@@ -446,6 +446,31 @@ function normalizePersisted(input: unknown): AppState {
   };
 }
 
+// Device-local fields: real per-device choices that never ride the sync key
+// space (flattenSnapshot/partialize keep them off the wire), so a merged
+// snapshot or an old backup that lacks them cannot speak to them.
+// normalizePersisted backfills an absent key to its default, so any path that
+// replaces state from such a snapshot — a routine pull, an adopt, or a backup
+// import — would silently reset them. Reported bug (2026-10-07): a pull turned
+// the reminder bells off, so only the peer device still fired ("the hourly
+// notification only fires on one device per sync"). Every such path restores
+// these from the current device when the incoming payload does not explicitly
+// set them. Extend this list when adding a local-only field; the guard in
+// scripts/sync-tests/engine.entry.ts (E15) fails until the new field is
+// classified as synced or device-local.
+export const DEVICE_LOCAL_STATE_KEYS = ["hourlyReminders", "purpleHoleReminders"] as const;
+
+/** See DEVICE_LOCAL_STATE_KEYS: restore absent device-local fields from the live store. */
+export function preserveDeviceLocalState(next: AppState, incoming: unknown): AppState {
+  const src = (incoming && typeof incoming === "object" ? incoming : {}) as Record<string, unknown>;
+  const cur = useAppStore.getState() as unknown as Record<string, unknown>;
+  const out = { ...next } as Record<string, unknown>;
+  for (const k of DEVICE_LOCAL_STATE_KEYS) {
+    if (!(k in src)) out[k] = cur[k];
+  }
+  return out as AppState;
+}
+
 // Server-shared barter (perChar === false) lives in accountValues (one
 // shared pool: checks OR, counters max across chars capped at the live max).
 // Per-char hides union to the global list. Provenance is per-tid (shared
@@ -1148,7 +1173,7 @@ export const useAppStore = create<Store>()(
           const now = new Date();
           migrated.lastDailyReset = currentDailyBucket(now);
           migrated.lastWeeklyReset = getTaipeiWeekKey(now);
-          set({ ...migrated, _hasHydrated: true });
+          set({ ...preserveDeviceLocalState(migrated, data), _hasHydrated: true });
         } catch (e) {
           alert("匯入失敗：JSON 格式錯誤");
           console.error(e);
