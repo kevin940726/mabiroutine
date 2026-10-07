@@ -314,7 +314,7 @@ export function seedMissingDefaultPins(serverFlat: Record<string, unknown>): str
 }
 
 const initial: AppState = {
-  version: 20,
+  version: 21,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -834,6 +834,32 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     };
     s.version = 20;
   }
+  if (from < 21) {
+    // v20 → v21: the duplicate 特蕾西 blueprint row (id 木材加工設計圖(3級),
+    // situational twin of the once dug-t1) is deleted — one exchange, one pin.
+    // Targeted, not a full valid-set re-prune: the sync E2 contract requires
+    // adoption to stay namespace-agnostic (a dead pin rides the pull and dies
+    // on load, never in the merge), and the harness exercises pulls at a
+    // seeded old version, so a general re-prune here would eat adopted pins
+    // and fail E2. Older saves already passed the v6/v14 full prunes, so the
+    // only newly-dangling id is this one; the next row removal adds its own.
+    const GONE = "木材加工設計圖(3級)";
+    const dropId = (arr?: string[]) => (arr ?? []).filter((id) => id !== GONE);
+    const dropRec = <T,>(rec?: Record<string, T>) =>
+      Object.fromEntries(Object.entries(rec ?? {}).filter(([k]) => k !== GONE)) as Record<string, T>;
+    for (const c of s.characters ?? []) {
+      c.taskValues = dropRec(c.taskValues);
+      c.hiddenTaskIds = dropId(c.hiddenTaskIds);
+    }
+    s.accountValues = dropRec(s.accountValues);
+    s.hiddenAccountTaskIds = dropId(s.hiddenAccountTaskIds);
+    s.barterPins = dropId(s.barterPins);
+    if (s.globalTaskOrder) s.globalTaskOrder = dropRec(s.globalTaskOrder);
+    if (s.taskBuckets) s.taskBuckets = dropRec(s.taskBuckets);
+    s.hourlyReminders = dropId(s.hourlyReminders);
+    s.purpleHoleReminders = dropId(s.purpleHoleReminders);
+    s.version = 21;
+  }
   return s as AppState;
 }
 
@@ -1198,7 +1224,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 20,
+      version: 21,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       // `merge` runs on EVERY rehydration, where `migrate` runs only when the
       // stored version differs from the configured one. That difference is the
