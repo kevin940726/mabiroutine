@@ -7,7 +7,13 @@
 // touch-scroll opens with a pointerdown on page content, so pointerdown would
 // dismiss before any scrolling happens (iOS bug); browsers suppress click
 // after a scroll gesture, so taps still dismiss and scrolls don't.
+//
+// The card renders through a portal to <body>: a parked/hidden tracker row
+// dims its subtree with `opacity`, and opacity < 1 would both tint the card
+// and make that row the containing block for its `position: fixed` (misplacing
+// it), so the card must live outside the row to stay full-opacity and placed.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -168,7 +174,7 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
       >
         <CalendarDays className="h-3.5 w-3.5" />
       </button>
-      {open && pos && (
+      {open && pos && createPortal(
         <div
           ref={cardRef}
           // region, not dialog: read-only panel with no drafts, so it must
@@ -214,7 +220,8 @@ export function SchedulePopover({ taskName }: { taskName: string }) {
             </ul>
             <p className="text-[11px] text-muted-foreground mt-1.5">預測值，實際以遊戲內為準</p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

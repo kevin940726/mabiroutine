@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Fixes
+- The purple-hole timetable popover is full opacity even when its row is parked in 已隱藏項目 or manually hidden: it now renders outside the dimmed row, and that row's `opacity` no longer tints the card or offsets it from the calendar icon
 - Purple-hole timing is now a flat 36h15m cycle: the maintenance pause was removed (the 2026-10-08 spawn is a clean `anchor + 5 × 36h15m`, not the 3h-later value the pause predicted), so maintenance windows only stand notifications down and never move a spawn. The grid is re-set to 2026-10-08 06:59:35 Taipei; devices follow on the next feed refresh
 - Hourly barrier cards now stand down while the game is under maintenance, on both lanes: the open-app page timer skips the hour and arms the next, and the server fanout returns `maintenance` without sending, so no card names an event that cannot happen. The 2026-10-07 06:00–09:00 window exposed the gap: the earlier stand-down covered only the purple-hole lane, so the 06:00 and 07:00 barrier cards still fired. Both lanes now read the same verified `/purple-schedule` windows
 
