@@ -2,7 +2,7 @@
 
 The human owns `src/data/*` by hand. The fetcher scripts are private-local
 only (gitignored, never committed, never published) — the committed tree has
-no scrapers. No agent step writes `tracker.json` / `barter.json` without an
+no scrapers. No agent step writes `tracker.json` / `shops.json` without an
 explicit human "apply this" for the specific rows.
 
 ## When to use
@@ -12,7 +12,7 @@ explicit human "apply this" for the specific rows.
 
 ## Inputs (read first)
 - `docs/tracker-data.md` — single source of truth for TW hardcodes (`barrier 7`, `black-hole 7+7`), sources, and filtering rules.
-- `src/data/tracker.json` / `src/data/barter.json` — the hand-maintained files; diff target, never write target.
+- `src/data/tracker.json` / `src/data/shops.json` (barter legs carry stable `id`s; order in `src/data/curatedOrder.ts`) — the hand-maintained files; diff target, never write target.
 
 ## Steps
 
@@ -21,12 +21,11 @@ explicit human "apply this" for the specific rows.
    yenyen list) and compare against the JSON rows. No `fetch`, no scripts,
    no bulk download.
 2. **Report the diff** — added / removed / changed rows. If counts drift far
-    from `docs/tracker-data.md` (21 tracker, 107 barter), flag for human review.
-3. **Human applies by hand** — edit `src/data/tracker.json` / `src/data/barter.json`
-   directly. Keep hardcodes: `barrier max 7`, `black-hole` max 14 (7+7) —
+    from `docs/tracker-data.md` (22 tracker, 107 curated legs), flag for human review.
+3. **Human applies by hand** — edit `src/data/tracker.json` / `src/data/shops.json`
+   directly. New barter legs need an explicit stable `id`, a `priority`, the verbatim display strings, and a position in `curatedOrder.ts` — the `test:shops` gates fail otherwise. Keep hardcodes: `barrier max 7`, `black-hole` max 14 (7+7) —
    do not re-derive from `韓服社群` fallback text.
    Do not invent `town`/`skill`; never add `verified:"kr"` rows.
-   Write `note` in our own voice (see README 出處與授權 + DATA_LICENSE).
 4. **Verify** — `pnpm build` must pass after hand edits.
 
 ## Non-goals
@@ -36,4 +35,4 @@ explicit human "apply this" for the specific rows.
 
 ## References
 - `docs/tracker-data.md` Filtering Rules + Source terms
-- `src/data/tracker.json` (21 TW rows, hand-owned), `src/data/barter.json` (107 rows, hand-owned)
+- `src/data/tracker.json` (22 TW rows, hand-owned), `src/data/shops.json` (107 curated legs with stable ids, hand-owned)

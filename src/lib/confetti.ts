@@ -6,15 +6,13 @@
 // pointer tracking, no focus reading, and no fallback chain.
 import confetti from "canvas-confetti";
 import trackerJson from "@/data/tracker.json";
-import barterJson from "@/data/barter.json";
 import {
-  barterToTask,
   isServerSharedPinId,
   pinCycleOf,
   shopDealToTask,
   useAppStore,
 } from "@/store/useAppStore";
-import { shopDealsByPinId } from "@/lib/shops";
+import { barterTaskForPin, shopDealsByPinId } from "@/lib/shops";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
 import { isTaskDone } from "@/lib/hourlyReminders";
 import type { Character, Task, TaskSection } from "@/lib/types";
@@ -59,7 +57,6 @@ export function visibleSectionTasks(section: TaskSection, s: CelebrationSnapshot
   for (const t of trackerJson as Task[]) if (t.section === section) take(t);
   for (const t of s.customTasks ?? []) if (t.section === section) take(t);
   if (section === "daily" || section === "weekly") {
-    const barterList = barterJson as unknown as Parameters<typeof barterToTask>[0][];
     const deals = shopDealsByPinId();
     for (const id of s.barterPins ?? []) {
       if (pinCycleOf(id) !== section) continue;
@@ -68,9 +65,9 @@ export function visibleSectionTasks(section: TaskSection, s: CelebrationSnapshot
         ? (s.hiddenAccountTaskIds ?? []).includes(id)
         : (char?.hiddenTaskIds.includes(id) ?? false);
       if (hidden) continue;
-      const b = barterList.find((x) => x.id === id);
-      if (b) {
-        take(barterToTask(b));
+      const t = barterTaskForPin(id);
+      if (t) {
+        take(t);
         continue;
       }
       const deal = deals.get(id);

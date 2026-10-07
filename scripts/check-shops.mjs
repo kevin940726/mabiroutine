@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * shops.json gate (town-grouped shape + uniqueness + currency + dup +
- * no-trade-routes-in-recipes + twin parity + curation).
+ * no-trade-routes-in-recipes + twin probes + curated completeness + order).
  * Bundles scripts/check-shops.entry.ts (real recipes/shops data) with
  * esbuild and runs the assertions in node.
  * Usage: pnpm test:shops (after touching recipes.json, shops.json, or
- * barter.json; in the pnpm check gate since 2026-09-12).
+ * curatedOrder.ts; in the pnpm check gate since 2026-09-12).
  */
 import { buildSync } from "esbuild";
 import { execFileSync } from "node:child_process";

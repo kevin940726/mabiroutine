@@ -235,14 +235,14 @@ need a toggle because both kinds render as tiles and 類型 filters them.
 |---|---|
 | All 194 shop rows, not just the curated barter ones | The old tab showed a flat 107-row curated list, hiding most real trades |
 | A tab renders only when that NPC has that kind of trade | 23 of 36 NPCs are barter-only; a dead 金幣 tab is noise |
-| Default order is `barter.json`, gold last | The curated order is hand-written intent; `shops.json` order is not |
+| Default order is `curatedOrder.ts`, gold last | The curated order is hand-written intent; `shops.json` order is not |
 | No item icons | 167 distinct icons for the shop view; not worth the capture |
 
 ### Files
 
 | File | Role |
 |---|---|
-| `src/lib/shops.ts` | Adapter over `shops.json` + `barter.json`. Curated matching, `ShopDeal` with `curatedIndex` / `barterId` / `scopeAccount`, `costText`, `getText`, `pinId` |
+| `src/lib/shops.ts` | Adapter over `shops.json`. Curated `ShopDeal` with `curatedIndex` / `barterId` / `scopeAccount`, `costText`, `getText`, `pinId` |
 | `src/components/MerchantPanel.tsx` | The whole tab: filters, search, jump/返回, pin resolution and the header. Exports one component |
 | `src/components/shop/types.ts` | `ShopRow`, the one row type the grid and the panel both name. Lives here so neither imports the other |
 | `src/components/shop/NpcFace.tsx` | The NPC portrait with its initial fallback. Moved out of the panel for the same reason |
@@ -266,8 +266,8 @@ need a toggle because both kinds render as tiles and 類型 filters them.
   the panel, the tracker renders it, survives a tab switch and a reload.
 - **The 已選 count is the tracker's count**, so it opens at the seeded default
   pins (9) rather than 0. Intended, but visible.
-- **All 194 rows are pinnable.** The 100 curated barter rows pin under their
-  `barter.json` id; the 94 gold rows pin under a `shop::` id. See section 2.
+- **All rows are pinnable.** Curated barter rows pin under their explicit option
+  `id`; gold rows pin under a `shop::` id. See section 2.
 - **Item names are spelled one way on screen.** Parenthesis width is half-width
   everywhere the user reads, on every screen, matching the data files and the icon
   file names, with a thin space before a name's own `(3級)` suffix, and search
@@ -353,7 +353,7 @@ Worth keeping, because both were reasoned rather than measured.
 
 ### Two things the work list missed, found while building
 
-- **清除本區** resolved pins through `barterJson.find` and skipped anything
+- **清除本區** resolved pins through row-finding and skipped anything
   else, so a gold counter would never have been clearable. `pinCycleOf` and
   `isServerSharedPinId` now resolve both namespaces. (The button was later removed
   from the section header as unused; the `clearSection` store action and the
@@ -367,9 +367,9 @@ Worth keeping, because both were reasoned rather than measured.
 
 ### Id namespace, for whoever edits this next
 
-`barterPins: string[]` holds both `barter.json` ids and `shop::` ids. Valid ids
+`barterPins: string[]` holds both curated exchange ids and `shop::` ids. Valid ids
 come from one helper, `validPinnableIds` in the store, which unions tracker +
-barter + custom + `shopPinIds()`. Every prune step calls it. **If you add a
+curated option ids + custom + `shopPinIds()`. Every prune step calls it. **If you add a
 third id space, that helper is the only place that learns about it** — a step
 that rebuilds the set by hand is how every gold pin gets deleted on the next
 version upgrade. The v5 step is the one deliberate exception: it treats an
@@ -407,9 +407,8 @@ includes the row's index within its NPC and is not a stable id.
   rides an entry `note` (自行加工約需 55 分鐘 / 約需 20 分鐘), the form 傷痕花粉末
   and 銀合金錠 already use; nothing reads it. 食物加工設備 rows carry no `skill`,
   because that station has none; only 食物製作台 rows do.
-- Shop pins carry no 必換 badge. Uncurated barter rows also pin under a `shop::`
-  id and have no priority, so they would never show one.
-- Ordering is barter.json file order, then shops.json order, both spaces sinking
+- Shop pins carry no 必換 badge. Every barter leg carries its tier inline, so there are no uncurated rows left to fall back to a `shop::` id.
+- Ordering is curated-order-list order, then shops.json order, both spaces sinking
   unknown ids to the end so a stale id cannot displace a real one. That is
   decision 3, and it is why the load-time order filter is load-bearing.
 
@@ -525,35 +524,32 @@ and a fixture come back — and the prune steps must already be calling
 
 ## 4. Data facts this depends on
 
-Measured, not assumed. Re-run the counts if `shops.json` or `barter.json` change,
+Measured, not assumed. Re-run the counts if `shops.json` or `curatedOrder.ts` change,
 and measure them by having a script write a UTF-8 file rather than printing to the
 console (see the terminal trap in section 0).
 
-- `shops.json`: 194 rows, 37 NPCs, 8 towns. 94 gold (`kind` omitted), 100 barter.
-- 24 NPCs are barter-only, 13 are mixed, 0 are gold-only.
-- All 100 barter rows match a `barter.json` row, so every barter row is curated and
-  only the 94 gold rows need a `shop::` pin id. This used to be 90 of 98: eight
-  blueprint trades failed to match on bracket width alone, since `shops.json`
-  writes `設計圖(3級)` and `barter.json` wrote `設計圖（3級）`. `matchKey` folds
-  full-width `（）；：，` to half-width for matching only; the data has since been
-  unified to half-width as well, so that fold is now defence.
-- **Zero** curated rows lack a shop entry, and zero shop barter rows lack a
-  curated one, in both directions. The last gap in each direction was closed:
-  阿蘭雯 was absent from `shops.json` entirely, so their two curated trades were
-  injected as curated-only rows and could not be reached by picking the NPC; and
-  their 精靈的痕跡 row then missed on one character, `精靈的痕跡` against
-  `精靈痕跡`, which left a `situational` curated row unreachable anywhere. The
-  user added the NPC to `shops.json`; the character was confirmed in game and the
-  barter row corrected. Note that `pnpm test:shops` passed through **both**
-  defects, because twin cap parity pairs rows by name and a name mismatch is
-  invisible to it — so the check now also fails on an uncurated barter shop row,
-  reusing the app's own matcher, with an `ALLOWED_UNCURATED_BARTER` escape hatch
-  for a row that is deliberately uncurated.
-- All 94 gold rows are unique on `npc::name`; none has a null price. This is the
+- `shops.json`: 225 rows, 43 NPCs, 8 towns. 118 gold (`kind` omitted), 107 barter.
+- 26 NPCs are barter-only, 13 are mixed, 4 are gold-only.
+- Every barter row is curated inline (stable `id`, a `priority`, and the
+  `barter.give` / `get` / `limit` display strings), so only the 118 gold rows
+  need a `shop::` pin id. `barter.json` was retired 2026-10-07: the ids, tiers,
+  display strings and order now live on the options plus `curatedOrder.ts`.
+- **Zero** curated rows lack a shop entry, and zero shop barter rows lack their
+  inline curation, in both directions. `test:shops` asserts it directly now
+  (check 6): a barter leg missing an `id`, a `priority` or display strings
+  fails, and the display strings are checked against the structured mechanics so
+  a rename on one side cannot ship. The gap history the old cross-file check
+  caught is worth keeping: 阿蘭雯 was absent from `shops.json` entirely, so their
+  two curated trades were injected as curated-only rows and could not be reached
+  by picking the NPC; and their 精靈的痕跡 row then missed on one character,
+  `精靈的痕跡` against `精靈痕跡`, which left a `situational` curated row
+  unreachable anywhere. Twin cap parity pairs rows by name and was blind to
+  both — which is why the check no longer depends on a second file.
+- All 118 gold rows are unique on `npc::name`; none has a null price. This is the
   invariant that lets the pin id be `shop::<npc>::<name>`, and `test:shops`
   now enforces it (check 0b) instead of merely measuring it.
-- Pin counts as shipped: **all 194 pinnable** — 100 under a `barter.json` id,
-  94 gold rows under a `shop::` id. 194 distinct pin ids.
+- Pin counts: **all 225 pinnable** — 107 under an explicit option `id`,
+  118 gold rows under a `shop::` id. 225 distinct pin ids.
 
 ---
 

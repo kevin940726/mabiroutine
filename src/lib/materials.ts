@@ -1,4 +1,4 @@
-import barterJson from "@/data/barter.json";
+import { CURATED_ORDER } from "@/data/curatedOrder";
 import recipesJson from "@/data/recipes.json";
 import shopsJson from "@/data/shops.json";
 
@@ -26,7 +26,7 @@ export type RecipeRoute = {
   /** gold per single item (shop only) — checkout total = price × qty */
   price?: number;
   /** cap scope from shops.json (default character) — planning metadata only;
-   *  the tracker authority stays barter.json perChar */
+   *  the tracker authority stays the structured scope */
   scope?: Scope;
   components?: { name: string; qty: number }[];
 };
@@ -112,7 +112,11 @@ const RECIPES = ((): Record<string, RecipeEntry> => {
 export type Scope = "character" | "account";
 
 
-function stringifyLimit(limit: { times?: number; period?: string }, scope?: Scope): string | null {
+/** Rebuilt display cap from a structured limit. Exported for the shops gate,
+ *  which checks every leg's carried display string against its own mechanics
+ *  (twin lookup first; this fallback for legs the twin matcher finds
+ *  ambiguous by design). */
+export function stringifyLimit(limit: { times?: number; period?: string }, scope?: Scope): string | null {
   // Omitted times = uncapped (a bare 1 must be written out).
   if (limit.times == null) return null;
   const period = limit.period ?? "daily";
@@ -126,40 +130,61 @@ function stringifyLimit(limit: { times?: number; period?: string }, scope?: Scop
 }
 
 
-type BarterRow = {
-  id: string;
-  give: string;
-  get: string;
-  npc: string;
-  town?: string;
-  priority: "must" | "extra" | "once" | "situational";
-};
-
-const BARTER_ROWS = barterJson as unknown as BarterRow[];
-
 /** must(必換) > extra(推薦) > once(一次性/首次必換) > situational(視需求/別換). */
-const PRIORITY_RANK: Record<BarterRow["priority"], number> = {
+const PRIORITY_RANK: Record<string, number> = {
   must: 3,
   extra: 2,
   once: 1,
   situational: 0,
 };
 
-/** Standing of a barter leg: best tracked priority + earliest file row.
- *  Null when the exchange isn't a tracked barter row. */
+/** Standing rows sourced from shop options + the curated order list (not the
+ *  retired file): one entry per barter leg carrying an id. Rank from the
+ *  option priority, order from the list position — the same values the rows
+ *  carried, parity-gated in test:shops. */
+type StandingRow = { npc: string; giveName: string; getName: string; rank: number; order: number; priority: string };
+const STANDING: StandingRow[] = (() => {
+  const order = new Map((CURATED_ORDER as string[]).map((id, i) => [id, i]));
+  const rows: StandingRow[] = [];
+  const shops = shopsJson as unknown as {
+    towns?: Array<{ name: string; npcs?: Array<{ name: string; items?: Array<{ name: string; kind?: string; id?: string; priority?: string; cost?: { currency?: string } }> }> }>;
+  };
+  for (const t of shops.towns ?? []) {
+    if (typeof t?.name !== "string" || !Array.isArray(t.npcs)) continue;
+    for (const shop of t.npcs) {
+      if (typeof shop?.name !== "string" || !Array.isArray(shop.items)) continue;
+      for (const it of shop.items) {
+        if (it.kind !== "barter" || typeof it.id !== "string" || typeof it.priority !== "string") continue;
+        rows.push({
+          npc: shop.name,
+          giveName: it.cost?.currency ?? "",
+          getName: it.name,
+          rank: PRIORITY_RANK[it.priority] ?? 0,
+          order: order.get(it.id) ?? Number.MAX_SAFE_INTEGER,
+          priority: it.priority,
+        });
+      }
+    }
+  }
+  return rows;
+})();
+
+/** Standing of a barter leg: best tracked priority + earliest curated row.
+ *  Null when the exchange isn't a tracked barter row. Reads shop options
+ *  (id + priority) and the curated order list — the retired barter.json rows
+ *  carried the same values, parity-gated in test:shops. */
 export function barterStanding(item: string, npc?: string): {
-  rank: number; index: number; priority: BarterRow["priority"] | null;
+  rank: number; index: number; priority: string | null;
 } | null {
   if (!npc) return null;
-  let best: { rank: number; index: number; priority: BarterRow["priority"] | null } | null = null;
-  BARTER_ROWS.forEach((r, i) => {
-    if (r.npc !== npc) return;
-    if (parseItemQty(r.give).name !== item && parseItemQty(r.get).name !== item) return;
-    const rank = PRIORITY_RANK[r.priority] ?? 0;
-    if (!best || rank > best.rank || (rank === best.rank && i < best.index)) {
-      best = { rank, index: i, priority: r.priority };
+  let best: { rank: number; index: number; priority: string | null } | null = null;
+  for (const r of STANDING) {
+    if (r.npc !== npc) continue;
+    if (r.giveName !== item && r.getName !== item) continue;
+    if (!best || r.rank > best.rank || (r.rank === best.rank && r.order < best.index)) {
+      best = { rank: r.rank, index: r.order, priority: r.priority };
     }
-  });
+  }
   return best;
 }
 
@@ -191,10 +216,8 @@ export function parseItemQty(s: string): { name: string; qty: number } {
  * rule below.
  *
  * It also removes a disagreement instead of adding one: every source is half-width
- * (`shops.json`, `barter.json` and all 12 `公共/items/*(3級).webp` files, audited), so
- * folding for display was the only thing producing the wide form. The `MATCH_FOLD` note
- * in `shops.ts` that describes barter.json as full-width is out of date — the data was
- * normalised after it was written.
+ * (`shops.json` and all 12 `公共/items/*(3級).webp` files, audited), so
+ * folding for display was the only thing producing the wide form.
  *
  * `limitText` in `shops.ts` still GENERATES full-width `（伺服器）`; this function is
  * what now narrows it, so limits read half-width too. Limits take NO thin space, because
@@ -240,7 +263,7 @@ export function limitDisplay(s: string): string {
 /** Twin trade leg in the merged route table behind a barter-explorer row:
  *  the shops.json option for (npc, town, received item, outQty). Exact single
  *  match only — ambiguity returns null and the caller falls back to the
- *  barter.json display string. shops.json owns the mechanics, so a matched
+ *  carried display string. shops.json owns the mechanics, so a matched
  *  leg with no limit means uncapped (never "fall back"). Town is optional for
  *  older callers; without it two same-name NPCs' legs collide into null
  *  instead of matching the wrong town's leg. */
@@ -302,7 +325,7 @@ export function routeLabel(r: RecipeRoute): string {
 // explicitly once/situational demote) > shop (all) > craft-fallback (make it
 // yourself from bought mats beats one-shot sources: repeatable) >
 // quest/drop/disassemble > barter once/situational. Barter ties: priority
-// first, then earliest barter.json row.
+// first, then earliest curated row.
 
 export type AssumedLeaf =
   | { kind: "terminal"; routes: RecipeRoute[] }
@@ -499,7 +522,7 @@ export function barterProducers(name: string): RecipeRoute[] {
   if (!hasBarterOnlyRoute(name)) return [];
   const leaf = assumeLeaf(name);
   if (!leaf || leaf.kind === "craft") return [];
-  // bestBarter ranks by barter.json standing (must/extra before once/situational, then
+  // bestBarter ranks by curated standing (must/extra before once/situational, then
   // authored order), so if the data ever grows a second leg the best still wins.
   const legs = leaf.routes.filter((r) => r.kind === "barter" && r.npc);
   return [...legs].sort((a, b) => {

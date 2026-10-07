@@ -2,7 +2,7 @@
 
 Item art lives in `public/items/`, one file per item named after its Traditional
 Chinese item name: `public/items/鹽.webp`. There is no manifest to update — the
-filename is the lookup. 182 files today (128×128 WebP, transparency kept).
+filename is the lookup. 208 files today (128×128 WebP, transparency kept).
 
 ## Resolving a name to a path
 
@@ -21,11 +21,12 @@ never a `displayName`-folded string.
 
 `displayName` (`src/lib/materials.ts`) narrows full-width `（` to `(` for reading, and the files
 keep the data's own spelling: `public/items/武器製作台設計圖(3級).webp`. Measured
-over the 181 distinct names in `shops.json` plus the barter `give` and `get` lines:
+over the 183 distinct names the app looks up (`items[].name` with each row's `icon`
+override substituted, plus the barter `give` and `get` lines):
 
 | | count |
 |---|---|
-| match on the raw form only | **9** (every `(3級)` blueprint) |
+| match on the raw form only | **11** (every `(3級)` blueprint) |
 | match on the folded form only | **0** |
 
 So folding before the lookup loses all 9 and gains nothing. This is the same rule
@@ -38,7 +39,7 @@ Two places had broken this and were fixed by carrying the raw spelling alongside
 display one, rather than by remembering not to fold:
 
 - `ShopRow.rawName` — the tile's title is `getText(deal)`, already folded, and the
-  icon was built from it. Nine rows (`皮革加工設備設計圖(3級)` and friends) asked for
+  icon was built from it. The `(3級)` blueprint rows (`皮革加工設備設計圖(3級)` and friends) asked for
   `…%EF%BC%883%E7%B4%9A%EF%BC%89.webp` against a half-width file on disk. `rawName` is
   `deal.name`, the data's spelling.
 - `shopMeta.rawName` — the same trap for a pinned row, whose `Task.name` is also
@@ -90,10 +91,12 @@ current data no longer reaches. It stays as the designed fallback for the next
 name a data update adds before its file lands, which is why the frame is sized
 unconditionally above.
 
-Counted over the names themselves: `items[].name` in `shops.json` (126 distinct)
-plus `give` / `get` in `barter.json` with the ` ×N` suffix stripped as
-`parseItemQty` does (81 + 89). Union 181 names, 181 covered. There is one spare
-file beyond that union, so the directory holds 182.
+Counted over the names themselves: `items[].name` in `shops.json` is 157 distinct,
+but the 24 quest-board scroll rows point their art at the shared `任務卷軸` file
+through the option's `icon`, so the names actually looked up are 134. Add the
+barter legs' `barter.give` / `barter.get` with the ` ×N` suffix stripped as
+`parseItemQty` does (82 + 89). Union 183 names, 183 covered; 25 spare files, so
+the directory holds 208.
 
 This section used to list sixteen names as missing. That list went stale in two
 steps — 26 icons landed in one batch, then the remainder arrived — and the count

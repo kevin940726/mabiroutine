@@ -11,7 +11,7 @@ import type { SessionMeta } from "./_db/types.js";
 //   v:{charId}:{taskId}@{bucket}  task values (number|boolean), cycle-tagged
 //   acc:{taskId}@{bucket}         account values (same tagging)
 //   hide:{charId}:{taskId} | hide:acc:{taskId}   hidden flags (true)
-//   pin:{barterId}                barter pin membership (true; unpin = false)
+//   pin:{pinId}                   pin membership (true; unpin = false)
 //   custom:{id}                   custom task object | null (tombstone, retained)
 //   char:{id}:name | char:{id}:alive             character fields
 //   meta:active                   active character id

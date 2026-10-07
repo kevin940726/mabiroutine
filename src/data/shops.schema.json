@@ -80,11 +80,26 @@
         "scope": {
           "enum": ["character", "account"],
           "default": "character",
-          "description": "Who the cap binds. account covers the old 伺服器-suffixed caps (in today's data exactly the perChar=false rows) and any future per-account cap. Omit for character."
+          "description": "Who the cap binds. account covers the old 伺服器-suffixed caps (today the 11 server-shared barter legs plus two gold rows) and any future per-account cap. Omit for character."
         },
         "priority": {
           "enum": ["must", "extra", "once", "situational"],
-          "description": "In-game recommendation tier, same vocabulary as barter.json (extra renders the 推薦 chip). Curated barter rows win over this when both exist. Omit for unmarked."
+          "description": "In-game recommendation tier (extra renders the 推薦 chip). Omit for unmarked."
+        },
+        "id": {
+          "type": "string",
+          "description": "Stable pin id for curated exchanges: pins, sync buckets and defaultPins key on this string, so it must never change shape. Omit only for gold rows, which pin under the derived shop:: id."
+        },
+        "barter": {
+          "type": "object",
+          "description": "Legacy display strings for a barter leg, verbatim as authored (×N quirks and 不限次數 kept: the tracker renders these strings, never a recomposition). Present on every barter leg; absent on shop legs.",
+          "properties": {
+            "give": { "type": "string" },
+            "get": { "type": "string" },
+            "limit": { "type": "string" }
+          },
+          "required": ["give", "get", "limit"],
+          "additionalProperties": false
         },
         "icon": {
           "type": "string",

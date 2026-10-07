@@ -10,11 +10,11 @@ import { useAppStore } from "@/store/useAppStore";
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
 import { cycleBucketFor } from "@/lib/cycle";
 import trackerJson from "@/data/tracker.json";
-import barterJson from "@/data/barter.json";
+import { CURATED_ORDER } from "@/data/curatedOrder";
 
 type Task = { id: string; kind: string; section: string; source?: string };
 const BUILTINS = trackerJson as Task[];
-const BARTER_IDS = new Set((barterJson as { id: string }[]).map((b) => b.id));
+const BARTER_IDS = new Set(CURATED_ORDER as string[]);
 
 // Seeded PRNG for reproducibility.
 let seed = 0x9e3779b9;

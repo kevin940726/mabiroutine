@@ -7,7 +7,7 @@
 // THE TRAP: build the path from the RAW name, never a transformed one.
 // `displayName` (materials.ts) rewrites the parens for reading, and the icon files on
 // disk keep the data's own spelling: `public/items/武器製作台設計圖(3級).webp`. Measured
-// over the distinct names in shops.json + barter.json get-lines, NINE names
+// over the distinct names in shops.json (item names + barter give/get lines), NINE names
 // (every `(3級)` blueprint) matched on the raw form only and ZERO on the transformed
 // form only — so transforming before the lookup silently lost all 9 and gained nothing.
 //

@@ -1,18 +1,18 @@
 /* eslint-disable no-console */
 // shops.json integrity: strict shape (mirrors shops.schema.json at runtime),
 // town-grouped arrays in display order, uniqueness gates (towns, npcs per
-// town, minted pin ids), known currencies, null-amount-gold-only, no
+// town, minted pin ids, curated order), known currencies, null-amount-gold-only, no
 // identical-duplicate options, and recipes.json carrying no shop/barter
 // routes (they live here now).
-// Run after touching shops.json, recipes.json, or barter.json: pnpm test:shops
-import barterJson from "@/data/barter.json";
+// Run after touching shops.json, recipes.json, or curatedOrder.ts: pnpm test:shops
+import { CURATED_ORDER } from "@/data/curatedOrder";
 import recipesJson from "@/data/recipes.json";
 import shopsJson from "@/data/shops.json";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { parseItemQty, twinTradeLeg } from "@/lib/materials";
+import { parseItemQty, stringifyLimit, twinTradeLeg } from "@/lib/materials";
 import { TOWN_ORDER } from "@/lib/towns";
-import { loadShopNpcs, merchantKey, shopDeals, shopPinId } from "@/lib/shops";
+import { barterRowName, dealToBarterTask, loadShopNpcs, shopDeals, shopPinId } from "@/lib/shops";
 
 type Route = { kind: string };
 const recipes = recipesJson as Record<string, { routes?: Route[] }>;
@@ -105,6 +105,20 @@ for (const t of townList) {
     seen.add(n["name"] as string);
   }
 }
+// Curated order list: the display order for curated rows. Every curated
+// (id-bearing) option appears exactly once — adding a row forces an explicit
+// placement in the same diff instead of a silent end-of-list drift. Unknown
+// ids keep the MAX_SAFE_INTEGER sink (persisted strays), never a catalog row.
+{
+  const live = shopDeals(loadShopNpcs()).filter((d) => d.id).map((d) => d.id as string);
+  const listed = CURATED_ORDER as string[];
+  if (listed.length !== new Set(listed).size) fail("curatedOrder: duplicate ids");
+  const missing = live.filter((id) => !listed.includes(id));
+  const extra = listed.filter((id) => !live.includes(id));
+  if (missing.length || extra.length) {
+    fail(`curatedOrder: missing ${JSON.stringify(missing)} extra ${JSON.stringify(extra)}`);
+  }
+}
 // Twin probes: every shops.json leg must be reachable in the materials route
 // table through twinTradeLeg. The town-group conversion once left materials.ts
 // reading the old npc-keyed shape, which synthesized zero legs — the grid
@@ -123,6 +137,39 @@ for (const t of townList) {
     if (!twinTradeLeg(npc, name, qty, town)) {
       fail(`twin probe blind: ${town} ${npc} ${name} ×${qty} has no leg in the materials table`);
     }
+  }
+}
+// Task builder smoke: every id-bearing deal builds a barter-shaped Task
+// carrying its own fields (the deep row-vs-deal parity this replaced held
+// through the whole migration: 0/107 drift at every step).
+{
+  const built = shopDeals(loadShopNpcs()).filter((d) => d.id);
+  if (built.length === 0) fail("tasks: no id-bearing deals to build from");
+  for (const d of built) {
+    if (!d.barterText) { fail(`tasks: option ${d.id} lacks barter display strings`); continue; }
+    const t = dealToBarterTask({
+      id: d.id!,
+      name: barterRowName(d.npc, d.barterText.get, d.barterText.give),
+      give: d.barterText.give,
+      get: d.barterText.get,
+      town: d.town,
+      npc: d.npc,
+      priority: d.priority ?? "situational",
+      scopeAccount: d.scopeAccount,
+      limit: d.barterText.limit,
+    });
+    if (t.id !== d.id || t.source !== "barter" || t.town !== d.town || t.npc !== d.npc) {
+      fail(`tasks: builder dropped fields for ${d.id}`);
+    }
+  }
+}
+// Id uniqueness: two options sharing one id would silently collapse two pins.
+{
+  const seen = new Set<string>();
+  for (const d of shopDeals(loadShopNpcs())) {
+    if (!d.id) continue;
+    if (seen.has(d.id)) fail(`duplicate option id ${d.id}`);
+    seen.add(d.id);
   }
 }
 // Shop-option priority must reach the deal: a curated barter row wins when both
@@ -158,8 +205,9 @@ for (const t of townList) {
 }
 
 // 1. strict shape per option
-const optKeys = new Set(["name", "kind", "cost", "get", "limit", "scope", "priority", "icon"]);
+const optKeys = new Set(["name", "kind", "cost", "get", "limit", "scope", "priority", "icon", "id", "barter"]);
 const optPriorities = new Set(["must", "extra", "once", "situational"]);
+const barterTextKeys = new Set(["give", "get", "limit"]);
 const costKeys = new Set(["amount", "currency"]);
 const getKeys = new Set(["amount"]);
 const limitKeys = new Set(["times", "period"]);
@@ -248,6 +296,35 @@ eachNpc((town, npc, items) => {
     if (it["priority"] !== undefined && !optPriorities.has(it["priority"] as string)) {
       fail(`bad priority ${where}: ${it["priority"]}`);
     }
+    // Stable pin id: non-empty, unique file-wide (checked below against the
+    // retired barter ids), never reshaped once pinned. An id without a
+    // priority would silently render situational, so the pair is required
+    // together — no quiet defaults on the pin path.
+    if (it["id"] !== undefined && (typeof it["id"] !== "string" || (it["id"] as string).trim() === "")) {
+      fail(`bad id ${where}: ${it["id"]}`);
+    }
+    if (it["id"] !== undefined && !optPriorities.has(it["priority"] as string)) {
+      fail(`id without priority ${where} (a pin must carry its tier)`);
+    }
+    // Legacy display strings: all three verbatim when present (the tracker
+    // renders them, never a recomposition). Barter legs carry all three;
+    // shop legs carry none.
+    if (it["barter"] !== undefined) {
+      if (!isObj(it["barter"])) fail(`bad barter ${where}`);
+      else {
+        for (const k of keys(it["barter"])) {
+          if (!barterTextKeys.has(k)) fail(`unknown barter key ${where}: ${k}`);
+        }
+        for (const k of ["give", "get", "limit"]) {
+          if (typeof (it["barter"] as Record<string, unknown>)[k] !== "string") {
+            fail(`bad barter.${k} ${where}`);
+          }
+        }
+      }
+    }
+    if ((it["kind"] ?? "shop") !== "barter" && it["barter"] !== undefined) {
+      fail(`barter display on shop leg ${where} (display strings ride barter legs only)`);
+    }
     // Art override: a data-spelled item name, never empty, whose file must be
     // on disk (an explicit pointer at nothing is author error, not art lag).
     // Every scroll row carries one — shared paper art is a data fact, not a
@@ -273,14 +350,15 @@ eachNpc((town, npc, items) => {
 // staying green behind an exception.
 const base = (s: string): string => s.split(" ×")[0];
 const known = new Set<string>(["gold", ...Object.keys(recipes)]);
-for (const r of (barterJson as { rows?: { give?: string; get?: string }[] }).rows ??
-  (barterJson as unknown as { give?: string; get?: string }[])) {
-  if (typeof r?.give === "string") known.add(base(r.give));
-  if (typeof r?.get === "string") known.add(base(r.get));
-}
 eachNpc((_town, _npc, items) => {
   for (const it of items) {
-    if (isObj(it) && typeof it["name"] === "string") known.add(it["name"]);
+    if (!isObj(it)) continue;
+    if (typeof it["name"] === "string") known.add(it["name"]);
+    const b = it["barter"];
+    if (isObj(b)) {
+      if (typeof b["give"] === "string") known.add(base(b["give"]));
+      if (typeof b["get"] === "string") known.add(base(b["get"]));
+    }
   }
 });
 eachNpc((town, npc, items) => {
@@ -297,7 +375,7 @@ eachNpc((town, npc, items) => {
   eachNpc((town, npc, items) => {
     for (const it of items) {
       if (!isObj(it)) continue;
-      const sig = JSON.stringify([town, npc, it["name"], it["kind"] ?? "shop", it["cost"], it["get"] ?? null, it["limit"] ?? null, it["scope"] ?? "character"]);
+      const sig = JSON.stringify([town, npc, it["name"], it["kind"] ?? "shop", it["cost"], it["get"] ?? null, it["limit"] ?? null, it["scope"] ?? "character", it["priority"] ?? null, it["icon"] ?? null, it["id"] ?? null]);
       seen.set(sig, (seen.get(sig) ?? 0) + 1);
     }
   });
@@ -313,67 +391,62 @@ for (const [item, e] of Object.entries(recipes)) {
   }
 }
 
-// 5. twin cap parity: where a barter row has an exact shops twin, the
-// barter display string must equal the twin's rebuilt limit (shops owns
-// mechanics). A twin with no limit pairs with 不限次數 only.
-for (const r of barterJson as unknown as { id?: string; npc?: string; town?: string; get?: string; limit?: string }[]) {
-  if (typeof r?.npc !== "string" || typeof r?.get !== "string") continue;
-  const { name, qty } = parseItemQty(r.get);
-  const twin = twinTradeLeg(r.npc, name, qty, r.town);
-  if (!twin) continue;
-  const want = twin.limit ?? "不限次數";
-  if ((r.limit ?? "") !== want) {
-    fail(`cap divergence ${r.id ?? "?"}: barter ${JSON.stringify(r.limit)} vs shops twin ${JSON.stringify(twin.limit ?? null)}`);
+// 5. twin cap parity: every id-bearing leg must resolve in the materials
+// table, and its carried display limit must equal the rebuilt structured
+// limit (shops owns mechanics). A leg with no structured limit pairs with
+// 不限次數 only. Reachability + value in one check: a leg that drops out of
+// the table (or whose strings drift from its mechanics) fails here, which is
+// what caught the silent route-table collapse before. Legs the twin matcher
+// finds ambiguous by design (same npc+name+outQty twice, e.g. two currencies
+// for one item) skip the table half and check the rebuild direct from the
+// option — same mechanics, no ambiguity involved.
+for (const deal of shopDeals(loadShopNpcs())) {
+  if (!deal.id || !deal.barterText) continue;
+  const twin = twinTradeLeg(deal.npc, deal.name, deal.outQty, deal.town);
+  const want = twin ? (twin.limit ?? "不限次數") : "twin-ambiguous";
+  if (twin && deal.barterText.limit !== want) {
+    fail(`cap divergence ${deal.id}: display ${JSON.stringify(deal.barterText.limit)} vs structured ${JSON.stringify(twin.limit ?? null)}`);
+    continue;
+  }
+  if (!twin) {
+    const opt = { times: deal.limitTimes ?? undefined, period: deal.limitPeriod ?? undefined };
+    const rebuilt = (deal.limitTimes ?? 0) >= 1 ? stringifyLimit(opt, deal.scopeAccount ? "account" : "character") : null;
+    if (deal.barterText.limit !== (rebuilt ?? "不限次數")) {
+      fail(`cap divergence ${deal.id}: display ${JSON.stringify(deal.barterText.limit)} vs structured ${JSON.stringify(rebuilt)}`);
+    }
   }
 }
 
-// 6. every barter row in shops.json must be curated in barter.json. An
-// uncurated one renders as a degraded row: no priority badge, no material
-// breakdown, and it pins under a shop:: id instead of a recipe. This check
-// exists because twin cap parity (check 5) pairs rows by name and is therefore
-// blind to a name mismatch, which is exactly how 精靈的痕跡 / 精靈痕跡 slipped
-// through with the suite green.
-//
-// It deliberately reuses the app's matcher rather than reimplementing the
-// match: a second implementation would drift from src/lib/shops.ts, and drift
-// between the check and the code is the failure being fixed here. The matcher's
-// own behaviour is covered by the migration fixtures instead.
-const ALLOWED_UNCURATED_BARTER: string[] = [
-  // Intentionally uncurated shop barter rows, as "<npc>::<town>::<name>". Empty today.
-  // Listing a row here accepts the degraded rendering on purpose; anything not
-  // listed must have a barter.json entry, so an accidental name or quantity
-  // typo fails the gate instead of quietly losing the badge and the breakdown.
-];
-
-function dealKey(npc: string, town: string, name: string): string {
-  return merchantKey(npc, town) + "::" + name;
-}
-
-// A near miss is a name that shares its first two characters with the shop row,
-// or contains it. Length alone is far too loose for CJK: two unrelated four-char
-// item names differ by zero, so a length rule lists the whole merchant's stock
-// and buries the one entry that was meant.
-const nearMiss = (a: string, b: string): boolean =>
-  a.slice(0, 2) === b.slice(0, 2) || a.includes(b) || b.includes(a);
-
+// 6. curated completeness: every barter leg carries its curation inline —
+// a stable id, a priority tier, and the legacy display strings — so no row
+// renders degraded (no badge, no breakdown, shop:: pin). This replaces the
+// old cross-file curation check: there is no second file to drift from, but
+// the display strings and the structured mechanics are still two copies of
+// one fact, so they are asserted equal here (names and per-exchange
+// quantities). A split would render one item on the tracker and resolve
+// another in the shop, with every other gate green.
 for (const deal of shopDeals(loadShopNpcs())) {
-  if (deal.kind !== "barter" || deal.barterId) continue;
-  const key = dealKey(deal.npc, deal.town, deal.name);
-  if (ALLOWED_UNCURATED_BARTER.includes(key)) continue;
-  // Point at the entry that was probably meant, so the fix is a rename rather
-  // than a search. Same merchant only: a name that matches elsewhere is a
-  // different trade and would be a red herring.
-  const sameMerchant = (barterJson as unknown as { npc?: string; town?: string; get?: string; id?: string }[])
-    .filter((r) => r?.npc === deal.npc && r?.town === deal.town && typeof r.get === "string")
-    .map((r) => ({ r, name: parseItemQty(r.get as string).name }))
-    .filter((c) => nearMiss(c.name, deal.name));
-  const hint = sameMerchant.length
-    ? ` — closest curated entr${sameMerchant.length > 1 ? "ies" : "y"}: ${sameMerchant.map((c) => `${JSON.stringify(c.name)} (${c.r.id})`).join(", ")}`
-    : "";
-  fail(
-    `uncurated barter row ${key}: give ${deal.costCurrency} x${deal.costAmount} yields ${deal.outQty}` +
-      ` has no barter.json entry, so it renders without a priority badge or material breakdown${hint}`
-  );
+  if (deal.kind !== "barter") continue;
+  const key = `${deal.town} ${deal.npc} ${deal.name}`;
+  if (!deal.id) fail(`uncurated barter row ${key}: no stable id, pins fall back to derived keys`);
+  if (!deal.priority) fail(`uncurated barter row ${key}: no priority tier, renders without a badge`);
+  if (!deal.barterText) fail(`uncurated barter row ${key}: no display strings, renders without a breakdown`);
+  if (deal.id && deal.curatedIndex < 0) fail(`uncurated barter row ${key}: id ${deal.id} missing from the curated order list`);
+  if (!deal.barterText) continue;
+  const give = parseItemQty(deal.barterText.give);
+  const get = parseItemQty(deal.barterText.get);
+  if (give.name !== deal.costCurrency) {
+    fail(`display/mechanics drift ${key}: give ${JSON.stringify(give.name)} vs cost.currency ${JSON.stringify(deal.costCurrency)}`);
+  }
+  if (deal.costAmount !== null && give.qty !== deal.costAmount) {
+    fail(`display/mechanics drift ${key}: give qty ${give.qty} vs cost.amount ${deal.costAmount}`);
+  }
+  if (get.name !== deal.name) {
+    fail(`display/mechanics drift ${key}: get ${JSON.stringify(get.name)} vs option name ${JSON.stringify(deal.name)}`);
+  }
+  if (get.qty !== deal.outQty) {
+    fail(`display/mechanics drift ${key}: get qty ${get.qty} vs get.amount ${deal.outQty}`);
+  }
 }
 
 console.log(bad === 0 ? "ALL SHOPS CHECKS PASSED" : `${bad} FAILURES`);

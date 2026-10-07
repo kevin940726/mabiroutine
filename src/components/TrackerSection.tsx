@@ -6,10 +6,9 @@ import { TaskRow } from "@/components/TaskRow";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Task, TaskSection } from "@/lib/types";
 import { summarizeProgress } from "@/lib/progress";
-import { useAppStore, barterToTask, shopDealToTask, canonicalBarterOrder } from "@/store/useAppStore";
-import { merchantKey, shopDealsByPinId } from "@/lib/shops";
+import { useAppStore, shopDealToTask, canonicalBarterOrder } from "@/store/useAppStore";
+import { barterTaskForPin, merchantKey, shopDealsByPinId } from "@/lib/shops";
 import { PURPLE_HOLE_ID, isScheduledToday, nextBadgeLabel } from "@/lib/purpleHole";
-import barterJson from "@/data/barter.json";
 import { DndContext, closestCenter, type DragEndEvent, type Modifier } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { decideDrop, bandId, clampToRange, type DropTarget } from "@/lib/dragRules";
@@ -197,10 +196,10 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
   // pinned subtasks, split by cycle: daily-limit pins render under 每日,
   // weekly-limit pins (每週 N 次) under 每週. Either subsection hides
   // entirely when its cycle has no pins. Order is the user's drag order when
-  // set, else the canonical order (barter.json file order, then shops.json
+  // set, else the canonical order (curated order list, then shops.json
   // order, so new pins slot in).
   //
-  // Two namespaces: a curated pin resolves through barter.json, a pin on a
+  // Two namespaces: a curated pin resolves through its shop option, a pin on a
   // shops.json row through the catalog. Resolving only the first was what made
   // the gold rows unpinnable — an unknown id was dropped here and rendered
   // nowhere, while still counting toward 已釘選.
@@ -210,8 +209,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
     const missing = canonicalBarterOrder(barterPins.filter((id) => !base.includes(id)));
     return [...base, ...missing]
       .map((id) => {
-        const b = (barterJson as unknown as Array<(typeof barterJson)[number]>).find((x) => x.id === id);
-        if (b) return barterToTask(b);
+        const t = barterTaskForPin(id);
+        if (t) return t;
         const deal = shopDealsByPinId().get(id);
         return deal ? shopDealToTask(deal) : null;
       })

@@ -1,6 +1,5 @@
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
 import trackerJson from "@/data/tracker.json";
-import barterJson from "@/data/barter.json";
 import { shopDealsByPinId } from "@/lib/shops";
 
 // Cycle bucketing for task values: a value is tagged with the Taipei day
@@ -11,19 +10,6 @@ import { shopDealsByPinId } from "@/lib/shops";
 
 type Builtin = { id: string; kind: string };
 const BUILTIN_KIND = new Map<string, string>((trackerJson as Builtin[]).map((t) => [t.id, t.kind]));
-// Barter cycle from the row's limit text: 每週 N 次 → weekly (Mon 06:00
-// bucket), everything else → daily. Single source of truth — the store's
-// barterCycleOf delegates here so the two can never drift apart.
-export function isWeeklyLimit(limit?: string): boolean {
-  return /每週\s*\d+\s*次/.test(limit ?? "");
-}
-const BARTER_KIND = new Map<string, string>(
-  (barterJson as { id: string; limit?: string }[]).map((b) => [
-    b.id,
-    isWeeklyLimit(b.limit) ? "weekly" : "daily",
-  ])
-);
-
 const WEEKLY_KINDS = new Set(["weekly", "account-weekly"]);
 
 export function isWeeklyTask(tid: string, customTasks: { id: string; kind: string }[]): boolean {
@@ -35,13 +21,13 @@ export function taskKind(tid: string, customTasks: { id: string; kind: string }[
   if (b) return b;
   const c = customTasks.find((t) => t.id === tid);
   if (c) return c.kind;
-  const bk = BARTER_KIND.get(tid);
-  if (bk) return bk;
-  // Shop-namespace pins (shop::npc::name, the gold rows with no barter.json
-  // entry) read their cycle from the deal's structured limit period — the
+  // Shop-namespace pins (shop::npc::name, the gold rows with no explicit
+  // id) read their cycle from the deal's structured limit period — the
   // same rule the store's pinCycleOf uses. Without this every weekly gold
   // row bucketed daily and was pruned the next morning (seen: 空瓶 at
-  // 瓦爾特, 每週 1 次).
+  // 瓦爾特, 每週 1 次). Retired barter ids resolve through the same deal
+  // lookup: their options carry the structured limit the row string parsed
+  // to (cap parity between the two is probe-gated in test:shops).
   const deal = shopDealsByPinId().get(tid);
   if (deal) return deal.limitPeriod === "weekly" ? "weekly" : "daily";
   return "daily";

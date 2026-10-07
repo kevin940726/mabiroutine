@@ -1,7 +1,7 @@
 import { Activity, lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useAppStore, barterToTask } from "@/store/useAppStore";
+import { useAppStore } from "@/store/useAppStore";
+import { barterTaskForPin } from "@/lib/shops";
 import trackerJson from "@/data/tracker.json";
-import barterJson from "@/data/barter.json";
 import { summarizeProgress } from "@/lib/progress";
 import { writeShopJumpParams } from "@/lib/shopJump";
 import { CharacterTabs, SortableCharMenu } from "@/components/CharacterTabs";
@@ -204,10 +204,7 @@ export default function App() {
     if (!active) return { pct: 0, done: 0, total: 0 };
     const hidden = new Set([...active.hiddenTaskIds, ...hiddenAccountTaskIds]);
     const pinnedBarter = barterPins
-      .map((id) => {
-        const b = (barterJson as unknown as Array<Parameters<typeof barterToTask>[0]>).find((x) => x.id === id);
-        return b ? barterToTask(b) : null;
-      })
+      .map((id) => barterTaskForPin(id))
       .filter((t): t is Task => !!t && !hidden.has(t.id));
     const all = [...BUILTIN_TASKS, ...customTasks, ...pinnedBarter].filter((t) => !hidden.has(t.id) && !excludePurple(t));
     const { done, total, percent } = summarizeProgress(all, (t) =>

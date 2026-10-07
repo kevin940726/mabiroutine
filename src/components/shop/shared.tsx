@@ -213,7 +213,7 @@ export function NpcHeader({ npc, town, count }: { npc: string; town: string; cou
  * Tier order puts 必換 first because it is the one you act on, then 推薦, then
  * 一次性, then 視需求, then unranked. Unranked last because a row with no verdict is
  * not competing for your attention. The authored order is `curatedIndex`, the row's
- * position in barter.json; -1 means no curated entry, so those sort after the ranked
+ * position in the curated order list; -1 means no curated entry, so those sort after the ranked
  * rows in their tier rather than first.
  */
 const PRIORITY_RANK: Record<string, number> = { must: 0, extra: 1, once: 2, situational: 3 };

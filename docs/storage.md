@@ -5,11 +5,11 @@ MabiRoutine's design principle: static game data ships with the app;
 
 ## Two layers, two owners
 
-- Static rows (`tracker.json` / `barter.json`) ship with each deploy and are
+- Static rows (`tracker.json` / `shops.json`) ship with each deploy and are
   never cached by your browser: renames, new descriptions, new `max` values
   take effect on the next deploy.
 - Your progress (checks, counters, pins, custom tasks, hidden rows, order,
-  preferences, barter filters, hourly-reminder subscriptions) lives only in
+  preferences, hourly-reminder subscriptions) lives only in
   your browser: `localStorage` key `mabiroutine:v2`, keyed by row `id`
   against the static rows. Writes are idle-deferred (rapid taps never
   stutter) and force-flushed when you switch tabs or close; in the worst

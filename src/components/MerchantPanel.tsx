@@ -8,14 +8,13 @@ import { cn, focusSelectOnMount } from "@/lib/utils";
 import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { costText, getText, loadShopNpcs, merchantKey, shopCatalogRanks, shopDeals, type CuratedPriority, type ShopDeal } from "@/lib/shops";
+import { costText, getText, loadShopNpcs, merchantKey, shopCatalogRanks, shopDeals, type ShopDeal } from "@/lib/shops";
 import { displayName, parseItemQty } from "@/lib/materials";
 import { ShopGrid } from "@/components/shop/ShopGrid";
 import { compareRows } from "@/components/shop/shared";
 import { writeShopJumpParams } from "@/lib/shopJump";
 import { NpcFace } from "@/components/shop/NpcFace";
 import type { ShopRow } from "@/components/shop/types";
-import barterJson from "@/data/barter.json";
 
 /** How long the jumped-to tile stays tinted. Long enough to find by eye after the
  *  scroll settles, short enough that it stops reading as a selected row. The timer
@@ -164,10 +163,10 @@ function toItem(deal: ShopDeal): ShopRow {
 }
 
 /**
- * Default listing follows the hand-curated barter.json order rather than
- * shops.json: curated barter first, then the barter rows nobody curated, then
- * every gold purchase last. Within each band the source order is kept, so the
- * list is stable instead of reshuffling when data gains rows.
+ * Default listing follows the curated order list rather than
+ * shops.json: curated exchanges first, then every gold purchase last. Within
+ * each band the source order is kept, so the list is stable instead of
+ * reshuffling when data gains rows.
  */
 const ALL_SHOP_ITEMS: ShopRow[] = (() => {
   const items = shopDeals(loadShopNpcs()).map(toItem);
@@ -180,38 +179,9 @@ const ALL_SHOP_ITEMS: ShopRow[] = (() => {
 // sequence follows TOWN_ORDER). Module-level, memoized inside.
 const { npcRank: NPC_FILE_RANK } = shopCatalogRanks();
 
-/** A pin can point at a curated row that shops.json has no entry for, so build
- *  the row straight from barter.json — same shape as a shop-derived item. */
-function barterRowToItem(row: (typeof barterJson)[number]): ShopRow {
-  return {
-    key: `curated-only::${row.id}`,
-    npc: row.npc,
-    town: row.town,
-    title: row.get,
-    // row.get carries the yield inline (`… ×1`), so the icon key is the parsed part.
-    // parseItemQty, not displayName: the raw name keeps its half-width parens.
-    rawName: parseItemQty(row.get).name,
-    give: row.give,
-    get: row.get,
-    cost: row.give,
-    // A curated row's cost is a material string (`皮革+ ×5`), so the parts come from
-    // parsing it rather than from a currency field. Same split as the icon key above.
-    costCurrency: parseItemQty(row.give).name,
-    costAmount: parseItemQty(row.give).qty,
-    limitText: row.limit ?? null,
-    scopeAccount: row.perChar === false,
-    priority: row.priority as CuratedPriority,
-    icon: null,
-    kind: "barter",
-    curatedIndex: -1,
-    barterId: row.id,
-    pinId: row.id,
-  };
-}
-
 /** Row passes the merchant filter. Composite key normally; bare-name fallback
  *  for an unresolved merchant (`npc::` with an empty town) — a jump for a pin
- *  whose NPC has no catalog group (orphan barter rows), or a legacy reference
+ *  whose NPC has no catalog group (dead pin), or a legacy reference
  *  that resolved to nothing. The old name match showed those rows; without the
  *  fallback the grid lands empty. */
 function merchantMatches(item: ShopRow, merchant: string): boolean {
@@ -253,8 +223,7 @@ function groupItems(items: ShopRow[]) {
   }
   // Order is town (TOWN_ORDER) then the file's NPC order inside a town, so
   // reordering NPCs in shops.json reorders the dropdown. Unknown entries
-  // (curated-only rows with no catalog block) sort after known ones, zh-Hant
-  // between themselves.
+  // sort after known ones, zh-Hant between themselves.
   const byFileOrder = (a: MerchantGroup, b: MerchantGroup) =>
     compareTowns(a.town, b.town) ||
     (NPC_FILE_RANK.get(merchantKey(a.name, a.town)) ?? Number.MAX_SAFE_INTEGER) -
@@ -459,19 +428,14 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
   );
   const items = useMemo(
     () => {
-      // Orphans: pins that resolve only through barter.json (a tracker-made pin
-      // for a row shops.json has no entry for). They rode along in the old
-      // pinned-only list; folding them into the pool keeps them visible here
-      // instead of dropping a pin the tracker still counts.
-      const seen = new Set(ALL_SHOP_ITEMS.map((item) => item.pinId));
-      const orphans = (barterJson as (typeof barterJson)[number][])
-        .filter((row) => pinSet.has(row.id) && !seen.has(row.id))
-        .map((row) => barterRowToItem(row));
+      // A pin with no live deal resolves nowhere (dead pin): it stays counted
+      // but renders nothing. Every live id has a deal, so dropping dead ids
+      // from the pool changes no rendered row.
       // Pinning order. Pins lead the list (see below), so `barterPins` IS that
       // order; a row missing from it sorts with the unpinned rest rather than
       // being dropped.
       const rank = new Map(barterPins.map((id, i) => [id, i]));
-      return filterItems([...ALL_SHOP_ITEMS, ...orphans], town, query)
+      return filterItems(ALL_SHOP_ITEMS, town, query)
         .filter((item) => merchantMatches(item, merchant))
         // Applied here so every view below (all merchants, one merchant, and the
         // counts in the header) sees the same list.

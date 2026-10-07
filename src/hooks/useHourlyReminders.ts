@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import trackerJson from "@/data/tracker.json";
-import barterJson from "@/data/barter.json";
-import { barterToTask, useAppStore } from "@/store/useAppStore";
+import { barterTaskForPin } from "@/lib/shops";
+import { useAppStore } from "@/store/useAppStore";
 import type { Task } from "@/lib/types";
 import {
   CATCHUP_MIN_SEC,
@@ -17,7 +17,6 @@ import { serverPushOn } from "@/lib/serverPush";
 import { isInMaintenance } from "@/lib/purpleHole";
 
 const BUILTIN_TASKS = trackerJson as Task[];
-type BarterJsonItem = (typeof barterJson)[number];
 
 // What would fire now, read live from the store. Shared by the scheduler
 // below and the __mabiHourlyFire DevTools handle (main.tsx) — one source
@@ -34,8 +33,9 @@ export function getUndoneReminder(): UndoneReminder | null {
   const byId = new Map<string, Task>();
   for (const t of BUILTIN_TASKS) byId.set(t.id, t);
   for (const t of s.customTasks) byId.set(t.id, t);
-  for (const b of barterJson as BarterJsonItem[]) {
-    if (pinned.has(b.id)) byId.set(b.id, barterToTask(b));
+  for (const id of pinned) {
+    const t = barterTaskForPin(id);
+    if (t) byId.set(id, t);
   }
   // Single-task scope today (barrier), so one taskId/taskName covers the
   // card; a future multi-task scope would need per-group cards instead of

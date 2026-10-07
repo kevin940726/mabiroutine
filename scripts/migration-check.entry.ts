@@ -10,12 +10,11 @@ const mem = new Map<string, string>();
 };
 
 import trackerJson from "@/data/tracker.json";
-import barterJson from "@/data/barter.json";
 import defaultPinsJson from "@/data/defaultPins.json";
 import { getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
-import { loadShopNpcs, shopDeals } from "@/lib/shops";
+import { barterTaskForPin, loadShopNpcs, shopDeals } from "@/lib/shops";
 import { taskKind } from "@/lib/cycle";
-const { migratePersisted, barterToTask } = await import("@/store/useAppStore");
+const { migratePersisted } = await import("@/store/useAppStore");
 
 type AnyRec = Record<string, unknown>;
 function assert(cond: unknown, msg: string): void {
@@ -29,7 +28,7 @@ function assert(cond: unknown, msg: string): void {
 const trackerIds = new Set((trackerJson as { id: string }[]).map((t) => t.id));
 // default pins come from the hand-owned defaultPins.json (sanitized like the store)
 const mustIds = [...new Set((defaultPinsJson.pins ?? []) as string[])].filter((id) =>
-  (barterJson as { id: string }[]).some((b) => b.id === id)
+  shopDeals(loadShopNpcs()).some((d) => d.id === id)
 );
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 
@@ -375,8 +374,8 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
     "yen-史帝華稀有鍊金術再燃燒催-81",
     "yen-貓商人擠著吃的點心愛心幣-43",
   ];
-  const barterIds = new Set((barterJson as { id: string }[]).map((b) => b.id));
-  for (const id of removed) assert(!barterIds.has(id), `M premise: ${id} removed from barter.json (update fixture if re-added)`);
+  const barterIds = new Set(shopDeals(loadShopNpcs()).filter((d) => d.id).map((d) => d.id as string));
+  for (const id of removed) assert(!barterIds.has(id), `M premise: ${id} removed from the catalog (update fixture if re-added)`);
   assert(barterIds.has("dun-st6") && barterIds.has("dungeon-2"), "M premise: dun-st6 + dungeon-2 kept (update fixture if removed)");
   // Current-bucket provenance: normalize keeps every value, so only the v15
   // valid-set prune can drop the removed ids (stale buckets would prune in
@@ -412,18 +411,18 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   for (const id of removed) assert(!(id in buckets), `M: removed id pruned from provenance: ${id}`);
 }
 
-// N: store barterCycleOf (via barterToTask section) and sync taskKind agree
-// on every barter id — a limit-format change must move both together.
+// N: store dealToBarterTask (via barterTaskForPin section) and sync taskKind agree
+// on every curated id — a limit-format change must move both together.
 {
-  const rows = barterJson as { id: string; limit?: string }[];
-  for (const b of rows) {
-    const task = (barterToTask as (b: unknown) => { section: string; kind: string })(b);
-    const syncKind = taskKind(b.id, []);
+  const deals = shopDeals(loadShopNpcs()).filter((d) => d.id && d.barterText);
+  for (const d of deals) {
+    const task = barterTaskForPin(d.id!);
+    const syncKind = taskKind(d.id!, []);
     const syncSection = syncKind === "weekly" ? "weekly" : "daily";
-    assert(task.section === syncSection && task.kind === syncKind, `N: cycle agrees for ${b.id} (${task.section} vs ${syncKind})`);
+    assert(task && task.section === syncSection && task.kind === syncKind, `N: cycle agrees for ${d.id} (${task?.section} vs ${syncKind})`);
   }
-  const weekly = rows.filter((b) => (barterToTask as (b: unknown) => { section: string })(b).section === "weekly").map((b) => b.id);
-  assert(weekly.length > 0, `N: at least one weekly barter row exists (found ${weekly.length})`);
+  const weekly = deals.filter((d) => barterTaskForPin(d.id!)?.section === "weekly").map((d) => d.id);
+  assert(weekly.length > 0, `N: at least one weekly curated row exists (found ${weekly.length})`);
 }
 
 // O: v14 save -> v15 deduplicates yen- twins and prunes, but NEVER seeds
@@ -462,25 +461,25 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 // shape) -> values move to accountValues (checks OR, counters max + capped
 // at the live max), hides union to the global list, per-char copies cleared
 {
-  const shared = (barterJson as { id: string; perChar: boolean }[]).filter((b) => b.perChar === false);
-  const sharedIds = shared.map((b) => b.id);
+  const shared = shopDeals(loadShopNpcs()).filter((d) => d.id && d.scopeAccount);
+  const sharedIds = shared.map((d) => d.id as string);
   for (const id of ["tir-l1", "tir-l2", "col-a1", "col-c2", "col-c3", "tir-l3", "yen-安黛莉凱琳特製全麥麵包1-12", "yen-梅文凱琳特製全麥麵包聖水-44", "強化秘藥乳化劑", "礦山的魔力石-吉爾摩", "曠野的魔力石-吉爾摩"]) {
     assert(sharedIds.includes(id), `P premise: ${id} is perChar=false (update fixture if data changed)`);
   }
   assert(sharedIds.length === 11, `P premise: exactly 11 shared rows (found ${sharedIds.length}, update fixture if data changed)`);
   const taskOf = new Map(
-    shared.map((b) => [b.id, (barterToTask as (b: unknown) => { type: string; max?: number })(b)])
+    shared.map((d) => [d.id, barterTaskForPin(d.id as string) as { type: string; max?: number }])
   );
   assert(taskOf.get("tir-l1")?.type === "check", "P premise: tir-l1 is a check");
   assert(taskOf.get("col-c2")?.type === "counter" && taskOf.get("col-c2")?.max === 5, "P premise: col-c2 counter max 5");
   assert(taskOf.get("col-c3")?.type === "counter" && taskOf.get("col-c3")?.max === 10, "P premise: col-c3 counter max 10");
-  for (const b of shared) {
-    assert((barterToTask as (b: unknown) => { serverShared?: boolean })(b).serverShared === true, `P: serverShared flag set for ${b.id}`);
+  for (const d of shared) {
+    assert(barterTaskForPin(d.id as string)?.serverShared === true, `P: serverShared flag set for ${d.id}`);
   }
-  const perCharRows = (barterJson as { id: string; perChar: boolean }[]).filter((b) => b.perChar !== false);
-  assert(perCharRows.length > 0, "P premise: per-char rows exist");
-  for (const b of perCharRows.slice(0, 3)) {
-    assert((barterToTask as (b: unknown) => { serverShared?: boolean })(b).serverShared !== true, `P: per-char row not flagged: ${b.id}`);
+  const perCharDeals = shopDeals(loadShopNpcs()).filter((d) => d.id && !d.scopeAccount);
+  assert(perCharDeals.length > 0, "P premise: per-char rows exist");
+  for (const d of perCharDeals.slice(0, 3)) {
+    assert(barterTaskForPin(d.id as string)?.serverShared !== true, `P: per-char row not flagged: ${d.id}`);
   }
   const curDay = currentDailyBucket(new Date());
   const out = migratePersisted(
@@ -522,7 +521,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 // custom id) -> v17 resets display order to canonical (null); pins, values,
 // and unrelated state pass through untouched
 {
-  const barterIds = new Set((barterJson as { id: string }[]).map((b) => b.id));
+  const barterIds = new Set(shopDeals(loadShopNpcs()).filter((d) => d.id).map((d) => d.id as string));
   assert(barterIds.has("tir-f3") && barterIds.has("tir-l1"), "Q premise: tir-f3 + tir-l1 exist (update fixture if removed)");
   const out = migratePersisted(
     {
@@ -585,17 +584,17 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 }
 
 // T: v18 save holding shops.json pins -> v19 keeps them, and keeps their
-// progress, even though no barter.json row has their id. This is the trap the
+// progress, even though no curated option has their id. This is the trap the
 // shared validPinnableIds helper exists for: a prune step that rebuilt its set
-// from tracker + barter + custom alone would silently delete every gold pin the
+// from tracker + curated + custom alone would silently delete every gold pin the
 // first time an older save was loaded.
 {
   const goldDeal = shopDeals(loadShopNpcs()).find((d) => d.kind === "shop" && d.limitText !== null);
   const shopPin = goldDeal?.pinId;
   assert(typeof shopPin === "string" && shopPin.startsWith("shop::"), "T premise: a gold pin id exists (update fixture if shops.json lost its gold rows)");
   assert(
-    !(barterJson as { id: string }[]).some((b) => b.id === shopPin),
-    "T premise: that id is not a barter.json id"
+    !shopDeals(loadShopNpcs()).some((d) => d.id === shopPin),
+    "T premise: that id is not a curated option id"
   );
   const out = migratePersisted(
     {
@@ -691,8 +690,9 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 // catalog while dug-t1 still resolves the same exchange.
 {
   const STALE = "木材加工設計圖(3級)";
-  assert(!(barterJson as { id: string }[]).some((b) => b.id === STALE), "V premise: situational duplicate deleted from barter.json");
-  assert((barterJson as { id: string }[]).some((b) => b.id === "dug-t1"), "V premise: once twin dug-t1 survives");
+  const optionIds = new Set(shopDeals(loadShopNpcs()).filter((d) => d.id).map((d) => d.id as string));
+  assert(!optionIds.has(STALE), "V premise: situational duplicate has no option id");
+  assert(optionIds.has("dug-t1"), "V premise: once twin dug-t1 survives");
   const out = migratePersisted(
     {
       version: 20,

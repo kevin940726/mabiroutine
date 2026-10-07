@@ -23,7 +23,7 @@ handled for you.
   draggable into any order;
   each keeps its own progress.
 - 🔄 **A barter explorer that answers "what do I trade today".** Every shop in the
-  game — all 194 gold and barter rows — as a grid of trade tiles, browsable by town
+  game — all 225 gold and barter rows — as a grid of trade tiles, browsable by town
   and NPC, opening on the 必換 and 推薦 tiers you actually act on, ordered by how
   badly you want them. Search by what you have or what you need, and tap any NPC
   portrait to open that merchant's shop. Pin the good ones — gold purchases included

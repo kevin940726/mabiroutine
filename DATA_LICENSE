@@ -1,6 +1,6 @@
 # Data license — CC BY-NC 4.0
 
-`src/data/tracker.json`, `src/data/barter.json` and `src/data/defaultPins.json`
+`src/data/tracker.json`, `src/data/shops.json`, `src/data/curatedOrder.ts` and `src/data/defaultPins.json`
 are licensed under Creative Commons Attribution-NonCommercial 4.0 International
 (CC BY-NC 4.0): https://creativecommons.org/licenses/by-nc/4.0/
 

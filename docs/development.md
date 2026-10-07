@@ -34,19 +34,19 @@ case — switch to `dev:api`.
 
 ## Five-minute tour
 
-- **Game data is hand-owned JSON** — `src/data/tracker.json` (20 rows) +
-  `src/data/barter.json` (107 rows) + `src/data/defaultPins.json` +
-  `src/data/recipes.json` (make/gather/quest/drop routes per item — shop/barter legs live in `shops.json`) +
-  `src/data/shops.json` (NPC → purchase/exchange options, schema'd by
-  `shops.schema.json`). No codegen, no
+- **Game data is hand-owned JSON** — `src/data/tracker.json` (22 rows) +
+  `src/data/shops.json` (NPC → purchase/exchange options incl. the 107 curated legs, each with a stable `id`, schema'd by
+  `shops.schema.json`) +
+  `src/data/curatedOrder.ts` + `src/data/defaultPins.json` +
+  `src/data/recipes.json` (make/gather/quest/drop routes per item — shop/barter legs live in `shops.json`). No codegen, no
   fetchers in this tree (maintainer-only scripts live on your own disk,
   gitignored, never committed). Rules: `docs/tracker-data.md`. Row `id`s are
   stable — saved progress keys off them, so never rename casually. Shopping
   options merge by key (npc+item) at load — file order is display-only
-  (town-grouped for in-game checking); never let a `barter.json` limit string
-  and its shops twin cap disagree (`test:shops` enforces parity).
+  (town-grouped for in-game checking); a leg's carried display limit must match
+  its structured cap (`test:shops` twin parity enforces it).
 - **State is one Zustand store** — `src/store/useAppStore.ts`, persisted to
-  `localStorage` key `mabiroutine:v2` (schema `v20`, migrated on load — see the
+  `localStorage` key `mabiroutine:v2` (schema `v21`, migrated on load — see the
   store checklist in `AGENTS.md` before changing persisted shape).
 - **Resets are Taipei wall-clock** — `src/lib/reset.ts`: daily 06:00 /
   Monday 06:00 `Asia/Taipei`, evaluated lazily + on focus/visibility + 60s tick.
@@ -88,7 +88,7 @@ case — switch to `dev:api`.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
-`barter.json` (shape + currency + dup + no-trade-routes + shop-gold-only + twin cap parity).
+`curatedOrder.ts` (shape + currency + dup + no-trade-routes + shop-gold-only + twin probes + curated completeness).
 Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so

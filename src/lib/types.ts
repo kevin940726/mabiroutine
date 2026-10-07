@@ -21,15 +21,15 @@ export type Task = {
   // barter only
   priority?: BarterPriority;
   npc?: string;
-  // true when the barter row is server-shared (barter.json perChar === false),
-  // or the shop row is account-scoped (shops.json scope === "account"): value +
+  // true when the exchange is server-shared (structured scope: account), or
+  // the shop row is account-scoped (shops.json scope === "account"): value +
   // hide live in the account scope even though the row renders in the
   // daily/weekly pinned subsections.
   serverShared?: boolean;
-  barterMeta?: { give: string; get: string; gatherSkill?: string; limit?: string };
-  // a pin on a shops.json row with no barter.json entry, so there is no
-  // give → get chain to show. Reused by the 8 uncurated barter rows too, which
-  // is why it carries both the cost side and the item.
+  barterMeta?: { give: string; get: string; limit?: string };
+  // a pin on a shops.json row with no exchange chain to show (gold purchase).
+  // Reused across both pin kinds, which is why it carries both the cost side
+  // and the item.
   //
   // `rawName` is the item name as the DATA spells it, because `Task.name` is folded
   // for display (`getText`) and the icon files keep the half-width spelling. A pin
@@ -79,8 +79,8 @@ export type AppState = {
   hiddenAccountTaskIds: string[];
   // barter pins: single global list, applies to every character
   barterPins: string[];
-  // barter display order override: null follows the canonical barter.json
-  // order (priority → town → npc → shops). Set on first drag-reorder; new
+  // barter display order override: null follows the canonical curated order
+  // (priority → town → npc → shops). Set on first drag-reorder; new
   // pins append. Local-only, never synced (like globalTaskOrder).
   barterCustomOrder: string[] | null;
   customTasks: Task[];
@@ -109,20 +109,6 @@ export type AppState = {
   // Separate lane from hourlyReminders: different cadence, different card tag.
   // Same local-only rule — absent from the sync key space.
   purpleHoleReminders: string[];
-};
-
-export type BarterItem = {
-  id: string;
-  name: string;
-  give: string;
-  get: string;
-  town: string;
-  priority: BarterPriority;
-  gatherSkill: string;
-  perChar: boolean;
-  desc?: string;
-  npc?: string;
-  limit?: string;
 };
 
 export const TAIPEI_TZ = "Asia/Taipei";

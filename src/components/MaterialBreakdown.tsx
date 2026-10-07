@@ -6,7 +6,7 @@
 // (共需， × the row's exchange limit — the explorer passes times).
 // Rank: gather > free-craft > barter must/extra/untracked > shop >
 // craft-fallback > quest/drop > barter once/situational; barter ties break by priority then
-// barter.json order. NPC/town/limit names live only in face tooltips
+// curated order. NPC/town/limit names live only in face tooltips
 // (mobile users know their NPCs).
 import { useMemo } from "react";
 import { assumedPlan, displayName, hasBreakdown, parseItemQty } from "@/lib/materials";

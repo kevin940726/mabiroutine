@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- `barter.json` retired into `shops.json`: the 107 curated exchanges now live as `kind: barter` options carrying their stable `id`, `priority` tier and verbatim display strings, with display order in the new `src/data/curatedOrder.ts`. Pins, sync buckets and default pins key on the same id strings, so no save migrates and no version bumps. Proven zero-effect: task/route snapshots for all 107 ids are byte-identical before and after, and the gates that used to cross-check two files now assert the single source directly (twin probes, curated completeness, order-list integrity)
+- Follow-up to that retirement: `test:shops` now also asserts each curated leg's display strings match its structured mechanics (give/get item names and per-exchange quantities), so a drift inside one option fails instead of rendering one item on the tracker and resolving another in the shop. `absorbSharedBarter` keys its hide migration off the barter legs only again (the widened `scopeAccount` lookup also matched two gold rows), the dead `gatherSkill` field and the now-unused `isWeeklyLimit` export are gone, and stale `barter.json` / `curatedOrder.json` references in comments and `docs/storage.md` are corrected
+- Doc/count sweep that had drifted since the shop data grew: AGENTS and `docs/development.md` name the shipped schema `v21` (not `v20`) and the real tracker row count (22); both READMEs, `docs/npc-shop.md` §4 and `skills/update-tracker` are re-measured to 225 shop rows / 43 NPCs / 118 gold / 107 barter, `docs/item-icons.md` to 183 names looked up / 11 raw-only blueprint names / 208 icon files, and `docs/tracker-data.md` to the 11 server-shared barter legs (plus the two scope-account gold rows)
+
 ## 2026-10-07 — Reminder bell sync fix
 
 ### Fixes

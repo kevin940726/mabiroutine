@@ -1,6 +1,7 @@
-import barterJson from "@/data/barter.json";
 import shopsJson from "@/data/shops.json";
-import { displayName, parseItemQty } from "@/lib/materials";
+import { CURATED_ORDER } from "@/data/curatedOrder";
+import { displayName } from "@/lib/materials";
+import type { BarterPriority, Task } from "@/lib/types";
 
 export type DealKind = "shop" | "barter";
 const SHOP_PRIORITY_LIST = ["must", "extra", "once", "situational"] as const;
@@ -40,13 +41,18 @@ export interface ShopDeal {
   /** Art override from the option (`icon`): a data-spelled item name whose file
    *  to show instead of this deal's own. Null follows the filename convention. */
   icon: string | null;
+  /** Stable pin id from the option (`id`): the retired barter.json id string,
+   *  verbatim. Null for gold rows, which pin under the derived shop:: id. */
+  id: string | null;
+  /** Legacy display strings from the option (`barter`): authored give/get/limit
+   *  text, verbatim. The tracker renders these, never a recomposition — the
+   *  quirks (missing ×1, 不限次數) are data facts. Null on shop legs. */
+  barterText: { give: string; get: string; limit: string } | null;
   barterId: string | null;
   /** the id a pin on this row uses: the curated barter id, or a shop:: id */
   pinId: string;
-  /** position in barter.json, or -1 when the deal is not curated */
+  /** position in the curated order list, or -1 when the deal is not curated */
   curatedIndex: number;
-  /** false for a curated row with no matching entry in shops.json */
-  inShopCatalog: boolean;
 }
 
 export interface ShopNpc {
@@ -66,36 +72,23 @@ interface RawOption {
   scope?: string;
   priority?: string;
   icon?: string;
+  id?: string;
+  barter?: { give?: string; get?: string; limit?: string };
 }
 
-type CuratedRow = {
-  id: string;
-  give: string;
-  get: string;
-  npc: string;
-  town: string;
-  priority: CuratedPriority;
-  perChar: boolean;
-  limit?: string;
-};
-
 /**
- * Pin id for a deal with no barter.json row, so there is no recipe to put on a
+ * Pin id for a deal with no explicit option id, so there is no recipe to put on a
  * daily. Content-derived, and deliberately without the cost: a price change in a
  * game patch must not orphan a pin.
  *
- * Only gold rows reach this now. Every barter row in shops.json matches a
- * curated entry, so the `shop::` namespace is exactly the 94 gold rows, and those
- * are unique on `npc::name` — measured, 0 collisions. That is what makes the
+ * Only gold rows reach this now. Every barter leg carries an explicit `id`,
+ * and those are unique file-wide (gated) — measured, 0 collisions. That is what makes the
  * short id sufficient, and it is why this does not need a currency segment: a
  * gold row's currency is always `gold`, so the segment would separate nothing.
  *
- * Two shapes would break it, and neither exists today: a second gold listing for
- * the same NPC and item, or a barter row that stops matching its curated entry
- * (see the punctuation folding in matchKey, which is what previously caused the
- * second). If either appears, give the shop row an explicit `id` rather than
- * widening this key — the id is persisted in users' pins, so changing its shape
- * orphans saved state.
+ * If a second gold listing for the same NPC and item ever appears, give the
+ * shop row an explicit `id` rather than widening this key — the id is
+ * persisted in users' pins, so changing its shape orphans saved state.
  */
 export function shopPinId(npc: string, name: string): string {
   return `shop::${npc}::${name}`;
@@ -106,8 +99,8 @@ let byPinCache: Map<string, ShopDeal> | null = null;
 
 /**
  * Every deal keyed by the id a pin on it uses, so a pin id resolves to its row
- * without re-deriving the match. Covers both namespaces: a curated deal is
- * keyed by its barter.json id, an uncurated one by its shop:: id. Memoized —
+ * without re-deriving anything. Covers both namespaces: a curated deal is
+ * keyed by its explicit option id, an uncurated one by its shop:: id. Memoized —
  * the store, the tracker and the panel all read it.
  */
 export function shopDealsByPinId(): Map<string, ShopDeal> {
@@ -117,10 +110,10 @@ export function shopDealsByPinId(): Map<string, ShopDeal> {
 
 /**
  * The shop-namespace pin ids: the gold rows, which are the only deals with no
- * barter.json entry, and is what a caller validating a pin id needs. Curated rows
- * are excluded because they pin under their barter.json id, which the barter set
- * already covers. Memoized because the store builds this on every load and on
- * every version upgrade.
+ * explicit id, and is what a caller validating a pin id needs. Curated rows
+ * are excluded because they pin under their explicit option id, which the
+ * curated set already covers. Memoized because the store builds this on every
+ * load and on every version upgrade.
  */
 export function shopPinIds(): Set<string> {
   if (!pinIdCache) {
@@ -138,8 +131,8 @@ function limitText(limit?: { times?: number; period?: string }, scope?: string):
 /**
  * Structured twin of limitText's cycle: "weekly" only on an explicit weekly
  * period, "daily" for every other limited row (an absent period renders as
- * 每日 — most limited rows carry none), null when unlimited. Same rule as
- * isWeeklyLimit in cycle.ts, kept local so the dependency arrow stays
+ * 每日 — most limited rows carry none), null when unlimited. Same rule as the
+ * deal lookup in cycle.ts, kept local so the dependency arrow stays
  * one-way (cycle → shops, never back).
  */
 function limitPeriod(limit?: { times?: number; period?: string }): "daily" | "weekly" | null {
@@ -147,51 +140,11 @@ function limitPeriod(limit?: { times?: number; period?: string }): "daily" | "we
   return limit.period === "weekly" ? "weekly" : "daily";
 }
 
-/** Cycle of a barter.json limit string (curated-only rows carry no RawOption). */
-function barterLimitPeriod(limit?: string | null): "daily" | "weekly" | null {
-  if (limit == null) return null;
-  return /每週\s*\d+\s*次/.test(limit) ? "weekly" : "daily";
-}
-
-/**
- * Punctuation folding for matching only, never for display.
- *
- * Both sources now spell `設計圖(3級)` with half-width U+0028/U+0029, so this no longer
- * has anything to do for those names — but it exists because they once disagreed (the
- * note here read that barter.json wrote U+FF08/U+FF09), and eight curated blueprint
- * trades matched their shop row only after folding, so keeping it costs nothing and
- * guards the next disagreement. `×` is deliberately absent: it is the quantity separator
- * `parseItemQty` consumes, so folding it inside a name would risk merging genuinely
- * different items. Any new disagreement between the sources gets a line here, and the
- * reason.
- */
-const MATCH_FOLD: Record<string, string> = {
-  "（": "(", // （
-  "）": ")", // ）
-  "＋": "+", // ＋
-  "；": ";", // ；
-  "：": ":", // ：
-  "，": ",", // ，
-};
-
-function fold(text: string): string {
-  return text.replace(/[（）；：，]/g, (c) => MATCH_FOLD[c]);
-}
-
-function matchKey(npc: string, town: string, kind: DealKind, costCurrency: string, costAmount: number | null, name: string, outQty: number) {
-  // Town is part of the identity: two same-name NPCs in different towns must
-  // never match each other's curated rows, even for identical trades.
-  return [npc, town, kind, fold(costCurrency), costAmount ?? "?", fold(name), outQty].join("::");
-}
-
-const curatedRows = barterJson as unknown as CuratedRow[];
-const curatedByDeal = new Map<string, { row: CuratedRow; index: number }>();
-curatedRows.forEach((row, index) => {
-  const give = parseItemQty(row.give);
-  const get = parseItemQty(row.get);
-  const key = matchKey(row.npc, row.town, "barter", give.name, give.qty, get.name, get.qty);
-  if (!curatedByDeal.has(key)) curatedByDeal.set(key, { row, index });
-});
+/** Curated position by stable pin id, from the curated order list. Unknown
+ *  ids sink last (persisted strays sort after live rows, never among them). */
+const CURATED_ORDER_POS = new Map<string, number>(
+  (CURATED_ORDER as string[]).map((id, i) => [id, i])
+);
 
 /**
  * Composite merchant key for every surface that looks an NPC up by name:
@@ -213,7 +166,7 @@ export function shopNpcIcon(npc: string, town: string): string | null {
   return npcIconCache.get(merchantKey(npc, town)) ?? null;
 }
 
-/** Every NPC in shops.json, plus any featured barter row with no shop entry.
+/** Every NPC in shops.json.
  *
  *  The file is town-grouped arrays, and the loader preserves file order end
  *  to end — NPC sequence inside a town and deal sequence inside an NPC are
@@ -228,7 +181,6 @@ export function loadShopNpcs(): ShopNpc[] {
     towns?: { name?: unknown; npcs?: { name?: unknown; icon?: unknown; items?: RawOption[] }[] }[];
   };
   const npcs: ShopNpc[] = [];
-  const seenCurated = new Set<string>();
   for (const townEntry of raw.towns ?? []) {
     if (typeof townEntry?.name !== "string" || !Array.isArray(townEntry.npcs)) continue;
     const town = townEntry.name;
@@ -240,8 +192,6 @@ export function loadShopNpcs(): ShopNpc[] {
         const costCurrency = item.cost?.currency ?? "gold";
         const costAmount = item.cost?.amount ?? null;
         const outQty = item.get?.amount ?? 1;
-        const exact = curatedByDeal.get(matchKey(npc, town, kind, costCurrency, costAmount, item.name, outQty));
-        if (exact) seenCurated.add(exact.row.id);
         return {
           key: `${town}::${npc}::${kind}::${item.name}::${index}`,
           npc,
@@ -255,56 +205,105 @@ export function loadShopNpcs(): ShopNpc[] {
           limitPeriod: limitPeriod(item.limit),
           limitTimes: item.limit?.times ?? null,
           scopeAccount: item.scope === "account",
-          inShopCatalog: true,
-          barterId: exact?.row.id ?? null,
-          pinId: exact?.row.id ?? shopPinId(npc, item.name),
-          priority: exact?.row.priority ?? (typeof item.priority === "string" && SHOP_PRIORITIES.has(item.priority) ? (item.priority as CuratedPriority) : null),
+          barterId: typeof item.id === "string" ? item.id : null,
+          pinId: typeof item.id === "string" ? item.id : shopPinId(npc, item.name),
+          priority: typeof item.priority === "string" && SHOP_PRIORITIES.has(item.priority) ? (item.priority as CuratedPriority) : null,
           icon: typeof item.icon === "string" ? item.icon : null,
-          curatedIndex: exact?.index ?? -1,
+          id: typeof item.id === "string" ? item.id : null,
+          barterText:
+            typeof item.barter?.give === "string" &&
+            typeof item.barter?.get === "string" &&
+            typeof item.barter?.limit === "string"
+              ? { give: item.barter.give, get: item.barter.get, limit: item.barter.limit }
+              : null,
+          curatedIndex: typeof item.id === "string" ? (CURATED_ORDER_POS.get(item.id) ?? -1) : -1,
         };
       });
       npcs.push({ name: npc, town, icon: typeof shop.icon === "string" ? shop.icon : null, deals });
     }
   }
-  curatedRows.forEach((row, index) => {
-    if (seenCurated.has(row.id) || (row.priority !== "must" && row.priority !== "extra")) return;
-    const give = parseItemQty(row.give);
-    const get = parseItemQty(row.get);
-    const deal: ShopDeal = {
-      key: `curated-only::${row.id}`,
-      npc: row.npc,
-      town: row.town,
-      name: get.name,
-      kind: "barter",
-      costAmount: give.qty,
-      costCurrency: give.name,
-      outQty: get.qty,
-      limitText: row.limit ?? null,
-      limitPeriod: barterLimitPeriod(row.limit),
-      // barter.json carries no structured times — the count parses from the
-      // same limit string limitText echoes verbatim.
-      limitTimes: Number(row.limit?.match(/(\d+)\s*次/)?.[1] ?? 0) || null,
-      scopeAccount: !row.perChar,
-      inShopCatalog: false,
-      barterId: row.id,
-      pinId: row.id,
-      priority: row.priority,
-      icon: null,
-      curatedIndex: index,
-    };
-    const npc = npcs.find((entry) => entry.name === row.npc && entry.town === row.town);
-    if (npc) npc.deals.unshift(deal);
-    else npcs.push({ name: row.npc, town: row.town, icon: null, deals: [deal] });
-  });
   npcsCache = npcs;
   return npcs;
 }
 
 /**
+ * Barter-shaped Task from the legacy display strings carried on the deal —
+ * the single constructor behind every pin → task resolver. Same name shape,
+ * same limit-string parsing, same order numbers as the retired row path
+ * ever produced (proven: 0/107 drift at every migration step).
+ */
+export function dealToBarterTask(input: {
+  id: string;
+  name: string;
+  give: string;
+  get: string;
+  town: string;
+  npc: string | undefined;
+  priority: BarterPriority;
+  scopeAccount: boolean;
+  limit: string;
+}): Task {
+  // 每日/每週 N 次：N>1 → counter；N=1 或 不限次數 → check
+  const dayCount = Number(input.limit.match(/每日\s*(\d+)\s*次/)?.[1] ?? 0);
+  const weekCount = Number(input.limit.match(/每週\s*(\d+)\s*次/)?.[1] ?? 0);
+  const weekly = weekCount > 0;
+  const isCounter = (weekly ? weekCount : dayCount) > 1;
+  const section = weekly ? "weekly" : "daily";
+  return {
+    id: input.id,
+    name: input.name,
+    icon: "🔄",
+    desc: `${input.give} → ${input.get} · ${input.town} · ${input.town}`,
+    section,
+    kind: weekly ? "weekly" : "daily",
+    type: isCounter ? "counter" : "check",
+    max: isCounter ? (weekly ? weekCount : dayCount) : undefined,
+    source: "barter",
+    town: input.town,
+    priority: input.priority,
+    npc: input.npc,
+    serverShared: input.scopeAccount,
+    barterMeta: { give: input.give, get: input.get, limit: input.limit },
+    order: weekly ? 150 : 80, // daily pins sit after builtin daily; weekly pins after builtin weekly
+  };
+}
+
+/**
+ * Canonical barter display name from its parts: `${npc} ${get} ← ${give}`.
+ * Every retired row name matched this shape exactly (zero deviants), so the
+ * composition renders what the stored strings always spelled.
+ */
+export function barterRowName(npc: string, get: string, give: string): string {
+  return `${npc} ${get} ← ${give}`;
+}
+
+/**
+ * Barter-shaped Task for a pin id, resolved through the shop deal carrying
+ * the retired barter id. Null when the id is not a barter leg (gold rows
+ * resolve through shopDealToTask instead) or resolves nowhere (dead pin —
+ * renders nowhere, same as today). The single resolver behind every pin →
+ * task call site, so the file retirement touches callers once.
+ */
+export function barterTaskForPin(id: string): Task | null {
+  const deal = shopDealsByPinId().get(id);
+  if (!deal || !deal.barterText || !deal.id) return null;
+  return dealToBarterTask({
+    id: deal.id,
+    name: barterRowName(deal.npc, deal.barterText.get, deal.barterText.give),
+    give: deal.barterText.give,
+    get: deal.barterText.get,
+    town: deal.town,
+    npc: deal.npc,
+    priority: deal.priority ?? "situational",
+    scopeAccount: deal.scopeAccount,
+    limit: deal.barterText.limit,
+  });
+}
+/**
  * File-order NPC ranks: NPC sequence inside a town as the file owns it.
- * Unknown entries (curated-only NPCs with no catalog block) sort after known
- * ones, zh-Hant between themselves. Town sequence is NOT here — display
- * follows TOWN_ORDER (compareTowns), which stays the single town authority.
+ * Unknown entries sort after known ones, zh-Hant between themselves. Town
+ * sequence is NOT here — display follows TOWN_ORDER, which stays the single
+ * town authority.
  */
 let npcRankCache: Map<string, number> | null = null;
 export function shopCatalogRanks(): { npcRank: Map<string, number> } {
@@ -320,7 +319,7 @@ export function shopCatalogRanks(): { npcRank: Map<string, number> } {
 
 /** The rows the game actually sells, in shops.json order. */
 export function shopDeals(npcs: ShopNpc[]): ShopDeal[] {
-  return npcs.flatMap((npc) => npc.deals).filter((deal) => deal.inShopCatalog);
+  return npcs.flatMap((npc) => npc.deals);
 }
 
 /** Display strings, passed through `displayName` so every surface shapes the parens the

@@ -1,17 +1,15 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import trackerJson from "@/data/tracker.json";
-import barterJson from "@/data/barter.json";
+import { CURATED_ORDER } from "@/data/curatedOrder";
 import defaultPinsJson from "@/data/defaultPins.json";
-import type { AppState, Character, Task, BarterPriority } from "@/lib/types";
-import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, costText, getText, type ShopDeal } from "@/lib/shops";
+import type { AppState, Character, Task } from "@/lib/types";
+import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, costText, getText, barterTaskForPin, type ShopDeal } from "@/lib/shops";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
-import { cycleBucketFor, isWeeklyTask, isWeeklyLimit } from "@/lib/cycle";
+import { cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
 import { flushStorage, idleStorage } from "@/lib/storage";
 
 const BUILTIN_TASKS = trackerJson as Task[];
-
-type BarterJsonItem = (typeof barterJson)[number];
 
 // Account-section tasks are shared state (accountValues), so hiding one hides
 // it for every character. Everything else hides per character.
@@ -121,30 +119,20 @@ type Store = AppState & {
   resetAll: () => void;
 };
 
-// Barter cycle: rows whose limit is 每週 N 次 reset weekly (Mon 06:00),
-// everything else resets daily. Delegates to cycle.ts (the sync bucketing
-// reads the same helper) — one rule, three readers.
-export function barterCycleOf(b: { limit?: string }): "daily" | "weekly" {
-  return isWeeklyLimit(b.limit) ? "weekly" : "daily";
-}
-
-// Server-shared barter: barter.json rows with perChar === false (today 11
-// rows) share one value across every character — checking
+// Server-shared barter: deals with scopeAccount (today 11 rows) share one value
+// across every character — checking
 // on any character checks all of them, like 帳號共通. They keep rendering in
 // the daily/weekly pinned subsections (NOT moved to the account section, so
 // no cycle grouping is introduced there); only their value + hide scope is
-// account-wide. Single source of truth: barter.json perChar.
-const SERVER_SHARED_BARTER_IDS = new Set<string>(
-  (barterJson as BarterJsonItem[]).filter((b) => b.perChar === false).map((b) => b.id)
-);
-
+// account-wide. Single source of truth: the deal's structured scope (the row
+// strings carried the same perChar, parity-gated in test:shops).
 export function isServerSharedBarterId(id: string): boolean {
-  return SERVER_SHARED_BARTER_IDS.has(id);
+  return SHOP_DEALS_BY_PIN.get(id)?.scopeAccount === true;
 }
 
-// One resolver for both pin namespaces. barterPins holds curated barter ids
+// One resolver for both pin namespaces. barterPins holds curated exchange ids
 // and shops.json ids, so every consumer that used to reach straight for
-// barterJson.find() silently skipped the shop half — including clearSection,
+// row-finding silently skipped the shop half — including clearSection,
 // which is why a gold counter would never have been clearable. Deal data is
 // resolved once here instead of at each of those call sites.
 const SHOP_DEALS_BY_PIN = shopDealsByPinId();
@@ -153,8 +141,7 @@ const SHOP_DEALS_BY_PIN = shopDealsByPinId();
 export function pinCycleOf(id: string): "daily" | "weekly" | null {
   const deal = SHOP_DEALS_BY_PIN.get(id);
   if (deal) return deal.limitPeriod === "weekly" ? "weekly" : "daily";
-  const b = (barterJson as BarterJsonItem[]).find((x) => x.id === id);
-  return b ? barterCycleOf(b) : null;
+  return null;
 }
 
 /** True when the row's value and hide live in the account scope. */
@@ -174,18 +161,18 @@ export function isServerSharedPinId(id: string): boolean {
 function validPinnableIds(customTaskIds: string[]): Set<string> {
   return new Set<string>([
     ...(trackerJson as Task[]).map((t) => t.id),
-    ...(barterJson as BarterJsonItem[]).map((b) => b.id),
+    ...shopDeals(loadShopNpcs()).filter((d) => d.id).map((d) => d.id as string),
     ...customTaskIds,
     ...shopPinIds(),
   ]);
 }
 
-// Canonical pin order = barter.json file order (priority → town → npc →
+// Canonical pin order = the curated order list (priority → town → npc →
 // shops), then shops.json rows in shops.json order. Both spaces sink unknown
 // ids to the end instead of interleaving, so a stale id cannot push a real one
 // out of place. Array.sort is stable, so unknown ids keep their input order.
 const BARTER_FILE_INDEX = new Map<string, number>(
-  (barterJson as BarterJsonItem[]).map((b, i) => [b.id, i])
+  (CURATED_ORDER as string[]).map((id, i) => [id, i])
 );
 const SHOP_FILE_INDEX = new Map<string, number>(shopDeals(loadShopNpcs()).map((d, i) => [d.pinId, i]));
 
@@ -205,42 +192,14 @@ export function canonicalBarterOrder(ids: string[]): string[] {
   });
 }
 
-// File position of a barter row (unknown ids sink last). Explorer tiebreak:
+// Position in the curated order list (unknown ids sink last). Explorer tiebreak:
 // priority → town → file index reproduces the canonical order exactly, so
 // the two views cannot diverge no matter how the input is ordered.
 export function barterFileIndex(id: string): number {
   return BARTER_FILE_INDEX.get(id) ?? Number.MAX_SAFE_INTEGER;
 }
 
-// Build tasks from barter json for pinning: they become Tasks lazily
-export function barterToTask(b: BarterJsonItem): Task {
-  // 每日/每週 N 次：N>1 → counter；N=1 或 不限次數 → check
-  const limit = b.limit ?? "";
-  const dayCount = Number(limit.match(/每日\s*(\d+)\s*次/)?.[1] ?? 0);
-  const weekCount = Number(limit.match(/每週\s*(\d+)\s*次/)?.[1] ?? 0);
-  const weekly = weekCount > 0;
-  const isCounter = (weekly ? weekCount : dayCount) > 1;
-  const section = weekly ? "weekly" : "daily";
-  return {
-    id: b.id,
-    name: b.name,
-    icon: "🔄",
-    desc: `${b.give} → ${b.get} · ${b.town} · ${b.gatherSkill}`,
-    section,
-    kind: weekly ? "weekly" : "daily",
-    type: isCounter ? "counter" : "check",
-    max: isCounter ? (weekly ? weekCount : dayCount) : undefined,
-    source: "barter",
-    town: b.town,
-    priority: b.priority as BarterPriority,
-    npc: (b as unknown as { npc?: string }).npc,
-    serverShared: b.perChar === false,
-    barterMeta: { give: b.give, get: b.get, gatherSkill: b.gatherSkill, limit: b.limit },
-    order: weekly ? 150 : 80, // daily pins sit after builtin daily; weekly pins after builtin weekly
-  };
-}
-
-// A pin on a shops.json row. The mirror of barterToTask for a purchase rather
+// A pin on a shops.json row. The mirror of dealToBarterTask for a purchase rather
 // than a recipe: no give → get chain exists, so shopMeta carries the cost side
 // and the yield instead of barterMeta, and TaskRow skips the material
 // breakdown hover card. Account-scoped gold (shops.json scope "account", the
@@ -283,11 +242,11 @@ export function shopDealToTask(deal: ShopDeal): Task {
 }
 
 // Default pins are a hand-owned list (src/data/defaultPins.json), NOT derived
-// from barter.json priorities — curate it by hand; watch for must-priority
+// from curated priorities — curate it by hand; watch for must-priority
 // drift when checking sources by hand. Exported for the pull-aware seeder
 // below (new defaults reach linked stragglers through sync, never migration).
 export const DEFAULT_MUST_PINS: string[] = [...new Set((defaultPinsJson.pins ?? []) as string[])].filter((id) =>
-  (barterJson as BarterJsonItem[]).some((b) => b.id === id)
+  shopDeals(loadShopNpcs()).some((d) => d.id === id)
 );
 
 // Pull-aware default seeding (2026-10-06, supersedes the removed v15
@@ -478,29 +437,31 @@ export function preserveDeviceLocalState(next: AppState, incoming: unknown): App
 // server-side via GC, never read again (same pattern as the v13→v14
 // weekly-challenge move). Values otherwise untouched.
 function absorbSharedBarter(s: AppState): void {
-  const shared = (barterJson as BarterJsonItem[]).filter((b) => b.perChar === false);
-  const taskOf = new Map(shared.map((b) => [b.id, barterToTask(b)]));
+  const shared = shopDeals(loadShopNpcs()).filter((d) => d.scopeAccount && d.barterText && d.id);
+  const taskOf = new Map(shared.map((d) => [d.id!, barterTaskForPin(d.id!)]));
   const numOf = (v: unknown): number => (typeof v === "number" ? v : v === true ? 1 : 0);
   const acc = { ...(s.accountValues ?? {}) } as Record<string, number | boolean>;
-  for (const b of shared) {
-    let best = numOf(acc[b.id]);
+  for (const d of shared) {
+    const id = d.id!;
+    let best = numOf(acc[id]);
     for (const c of s.characters ?? []) {
-      best = Math.max(best, numOf(c.taskValues?.[b.id]));
-      if (c.taskValues) delete c.taskValues[b.id];
+      best = Math.max(best, numOf(c.taskValues?.[id]));
+      if (c.taskValues) delete c.taskValues[id];
     }
     if (best > 0) {
-      const t = taskOf.get(b.id)!;
-      acc[b.id] = t.type === "check" ? true : Math.min(best, t.max ?? best);
+      const t = taskOf.get(id)!;
+      acc[id] = t?.type === "check" ? true : Math.min(best, t?.max ?? best);
     } else {
-      delete acc[b.id];
+      delete acc[id];
     }
   }
   s.accountValues = acc;
+  const sharedIds = new Set(shared.map((d) => d.id!));
   const global = new Set(s.hiddenAccountTaskIds ?? []);
   for (const c of s.characters ?? []) {
     const keep: string[] = [];
     for (const id of c.hiddenTaskIds ?? []) {
-      if (SERVER_SHARED_BARTER_IDS.has(id)) global.add(id);
+      if (sharedIds.has(id)) global.add(id);
       else keep.push(id);
     }
     c.hiddenTaskIds = keep;
@@ -546,7 +507,7 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     // would make a shop:: pin look "valid" to a v4 save and keep it, which is
     // the opposite of what the step is for. Nothing to protect here — a v4
     // save predates the shop browser, so it cannot hold one.
-    const valid = new Set((barterJson as BarterJsonItem[]).map((b) => b.id));
+    const valid = new Set(shopDeals(loadShopNpcs()).filter((d) => d.id).map((d) => d.id as string));
     const hasSynthetic = (arr: string[]) => arr.some((id) => id.startsWith("barter-"));
     if (s.barterPins && (hasSynthetic(s.barterPins) || s.barterPins.some((id) => !valid.has(id)))) {
       const filtered = s.barterPins.filter((id) => valid.has(id));
@@ -562,8 +523,8 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.version = 5;
   }
   if (from < 6) {
-    // v5 → v6: prune references to tracker/barter ids that no longer exist
-    // (tracker.json/barter.json/shops.json are hand-edited; rows can be removed).
+    // v5 → v6: prune references to tracker/curated ids that no longer exist
+    // (tracker.json/shops.json/curatedOrder.ts are hand-edited; rows can be removed).
     // User data always wins — only dangling keys are dropped, values untouched.
     const valid = validPinnableIds((s.customTasks ?? []).map((t) => t.id));
     const pruneArr = (arr?: string[]) => (arr ?? []).filter((id) => valid.has(id));
@@ -967,8 +928,8 @@ export const useAppStore = create<Store>()(
         const isAcc = isAccount;
         const cur = isAcc ? (s.accountValues[taskId] as number) ?? 0 : ((s.getActiveChar()?.taskValues[taskId] as number) ?? 0);
         // need max
-        const task = [...BUILTIN_TASKS, ...s.customTasks, ...(barterJson as BarterJsonItem[]).map(barterToTask)].find(
-          (t) => t.id === taskId
+        const task = [...BUILTIN_TASKS, ...s.customTasks, barterTaskForPin(taskId)].find(
+          (t) => t?.id === taskId
         );
         const max = task?.max ?? 999;
         const next = Math.min(max, Math.max(0, cur + delta));

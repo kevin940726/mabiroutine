@@ -48,9 +48,9 @@ export type ShopRow = {
    *  to show instead of this row's own. Null follows the filename convention. */
   icon: string | null;
   kind: "shop" | "barter";
-  /** Position in barter.json, or -1 when the deal is not curated. */
+  /** Position in the curated order list, or -1 when the deal is not curated. */
   curatedIndex: number;
-  /** barter.json id when this deal is curated. */
+  /** Stable option id when this deal is curated. */
   barterId: string | null;
   /** The id a pin on this row uses — barterId when curated, else a shop:: id. */
   pinId: string;
