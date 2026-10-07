@@ -1,6 +1,6 @@
 ---
 name: Purple-hole schedule correction
-description: Correct the LIVE purple-hole spawn schedule on the worker (anchor, non-shifting maintenance windows, shift amount) through the /admin API. Load when the maintainer wants to fix purple-hole timing.
+description: Correct the LIVE purple-hole spawn schedule on the worker (anchor, suppression windows) through the /admin API. Load when the maintainer wants to fix purple-hole timing.
 metadata:
   opencode/autoinvoke: false
 ---
@@ -9,9 +9,9 @@ metadata:
 
 Admin-only, and it edits **production**: the worker's published schedule that
 every device reads. Load it when the maintainer wants to fix purple-hole spawn
-times (a missed spawn, a maintenance that did not shift the timer, a wrong
-anchor), or just to read the current schedule. It is not app code: no commit,
-no build, no deploy.
+times (a missed spawn, a suppression window that is wrong, a wrong anchor), or
+just to read the current schedule. It is not app code: no commit, no build, no
+deploy.
 
 ## Prereqs
 
@@ -29,11 +29,15 @@ no build, no deploy.
 
 ## Mental model
 
-- The feed's `windows` are **timer-pause intervals**: each one inside a leg
-  stretches that leg by the overlap. `anchorMs` is the last observed spawn.
-- Error is asymmetric. A kept non-pausing window predicts LATE (a missed
-  spawn); dropping a real pause predicts EARLY (a wait). When unsure, exclude
-  the window rather than keep it.
+- The cycle is always **36h15m, with no maintenance pause** (the pause model
+  was dropped 2026-10-07): the next spawn is `anchorMs + n × 36h15m`. `anchorMs`
+  is the last observed spawn and the only input that moves the schedule.
+- The feed's `windows` are **suppression-only**: a card is skipped while the
+  game is inside one (`isInMaintenance`), on both the purple and hourly lanes.
+  They never move a spawn.
+- Error is asymmetric. A window that is too wide suppresses a card that would
+  have landed; too narrow sends a card while the game is down. When unsure of a
+  window, exclude it rather than keep it.
 - The wrapper talks to the worker `/admin` API. All writes are KV, effective
   immediately (when auto is unlocked), and reach devices on the next feed
   refresh (boot, foreground, 30-min tick, or opening the popover).
@@ -61,19 +65,21 @@ If the secret lives in `.env.admin.local`, prefix every command with
 1. **Read first.** `state`, then `predict`. Identify the window by its start
    time (Taipei) among the candidates; never guess a `startMs`.
 2. **Pick the correction.**
-   - Maintenance did not pause the timer → `no-shift <start>`. Adds a
-     tombstone and removes any override at that start, so the window stops
-     stretching legs. Survives watcher auto-apply while the announcement is
+   - A window should not suppress anything → `no-shift <start>`. Adds a
+     tombstone and removes any override at that start, so it leaves the
+     suppression list. Survives watcher auto-apply while the announcement is
      still a candidate.
-   - It paused by a different amount → `shift-amount <start> <effective end>`.
+   - A window's suppression coverage is wrong → `shift-amount <start> <effective end>`.
      The override keeps the announced start and changes only the end.
    - Predictions drifted from an observed spawn → `anchor <observed spawn>`.
-     Publishes the observed spawn with the current windows, then resumes
-     auto-apply if the doc was unlocked (a locked doc stays locked).
+     Publishes the observed spawn (windows unchanged — they do not affect
+     timing), then resumes auto-apply if the doc was unlocked (a locked doc
+     stays locked).
    - The whole published set is wrong → use the `/admin` page's full publish
      (that locks auto; resume from the page when done).
 3. **Confirm the target with the maintainer before writing.** The window is
-   the risky input; a wrong one silently shifts every later prediction.
+   the risky input for suppression; a wrong one quietly hides or shows the
+   wrong cards. The anchor is what moves predictions.
 4. **Sanity-check after the write.** The wrapper prints the new state and
    predictions; check the next spawn moved by the expected amount.
 5. **Tell the maintainer** the change is live and when devices will follow.
@@ -97,5 +103,5 @@ If the secret lives in `.env.admin.local`, prefix every command with
 ## References
 
 - `docs/operations.md` §6 (admin workflows) and `docs/purple-hole.md`
-  (maintenance-pause assumption, why exclusion errs safe).
+  (fixed 36h15m cycle; windows are suppression-only, why exclusion errs safe).
 - `skills/purple-schedule/scripts/purple-admin.mjs` — the only code here.

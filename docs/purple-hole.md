@@ -5,27 +5,28 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 
 ## Schedule (feed-owned since 2026-09-18)
 
-- Cycle 36h15m, timer pauses during maintenance; windows come from the worker
-  feed (`/purple-schedule`, KV `purple:schedule`), hardcoded list is the
+- Cycle 36h15m, always — the timer does NOT pause for maintenance (decided
+  2026-10-07). Windows come from the worker feed (`/purple-schedule`, KV
+  `purple:schedule`) and are suppression-only; the hardcoded list is the
   empty-KV/offline baseline. Client refresh: boot, every 30 min, foreground
   return, reconnect, popover open, through one throttled single-flight call
   (see `docs/operations.md` §7).
 - Spawns: one each in 女神庭園, 冰霜峽谷, 雲海曠野 (row desc, per user 2026-09-17).
-- Anchor: feed-owned, edited on `/admin` (錨點 field), no code push. It was the
-  observed 2026-09-16 14:08 Taipei spawn; the maintainer re-anchored it by hand
-  on 2026-09-30 to 17:44:35 Taipei, the confirmed post-maintenance spawn,
-  because the maintenance shift is not predictable (see the decision below).
-  Moving `PURPLE_ANCHOR_MS` in code only matters for the hardcoded fallback.
+- Anchor: feed-owned, edited on `/admin` (錨點 field), no code push. It is the
+  reference spawn the grid is measured from (usually the last observed one);
+  the next spawn is always `anchor + n × 36h15m`. Drift is corrected by
+  re-anchoring by hand. `PURPLE_ANCHOR_MS` in code is the empty-KV/offline
+  fallback only.
 
 ## Phases (from the original brief, 2026-09-17)
 
 - **Phase 1 (shipped):** local page-timer notification, 36h15m cycle,
   `purple_hole` flag, daily tracker row (max 3/char, spawn-day only),
   timetable popover.
-- **Phase 2 (SHIPPED 2026-09-18):** maintenance-aware predictions — worker
-  watcher parses Bahamut into candidates, auto-applies published windows,
-  per-window admin overrides/tombstones, `/admin` editor. Runbook:
-  `docs/operations.md`.
+- **Phase 2 (SHIPPED 2026-09-18; pause model dropped 2026-10-07):** worker
+  watcher parses Bahamut into candidates, auto-applies published windows, and
+  keeps per-window admin overrides/tombstones — now curating the SUPPRESSION
+  list only. Runbook: `docs/operations.md`.
 - **Phase 3 (B shipped 2026-09-18):** timetable updates without commits —
   the anchor is published through the same feed/admin. Crowd reports (C) stay
   evidence-gated.
@@ -39,7 +40,7 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 - Notification: separate lane (store v19 `purpleHoleReminders`, card tag `mabi-purple`), local page-timer fires exactly 15 min early, catch-up allowed, no silence cutoff. Card title `深淵的黑色坑洞即將出現`; body `女神庭園、冰霜峽谷、雲海曠野各生成一個，預計 XX 分鐘後出現。` (live minutes: 15 on schedule, fewer on catch-up; no character names — deliberate, decided 09-17, tested end-to-end). Server-lane (closed-app) lead is near-exact by design: first 1-min cron tick inside the window, so 14–15 min (was 1–15 min on the 15-min tick — the 8-min card for the ~14:38 spawn on 2026-09-19 was that old design working). Both lanes stand down inside a maintenance window (`isInMaintenance` on the feed windows): the page timer skips that spawn and arms the next, the server tick reports `maintenance` without moving the fanout cursor, so post-window ticks resume the same spawn's remaining pages.
 - Server-lane paging (2026-09-30): the fanout sends one page (~30 subs) per tick so a single invocation stays under the Workers free-plan 50-subrequest cap, and the `purple:fanout` cursor doubles as the fire-once guard (any 2xx counts as delivered). Before this the one-shot run threw past 50 subs (58 on 2026-09-30) *before* stamping the guard, so the 1-min tick re-sent the first ~48 subs every minute.
 - Maintenance feed + no-commit timetable updates: shipped (phase 2 + 3B) — runbook in `docs/operations.md`.
-- Post-maintenance timing is not predictable (updated 2026-09-30): the leg math treats a maintenance window as PAUSING the 36h15m timer, stretching that leg by the overlap. The first leg to cross a window (the 2026-09-30 06:00–10:00 routine) did not land where either reading predicts: the math gave 10-01 20:38 (pauses) or 10-01 16:38 (does not), while the maintainer's confirmed post-maintenance spawn was 2026-09-30 17:44:35, a ~13h21m gap the 4h window cannot explain. So the shift is not trustworthy for post-maintenance timing, and the anchor is re-set by hand (錨點 + 發佈, then 回復自動更新) when it drifts. Error is still asymmetric: a kept non-pausing window predicts LATE (fatal, the card lands after the spawn), dropping a real pause predicts EARLY (cheap, you wait), so exclude a window you are unsure of. Quick fixes on `/admin` (§6): 忽略 the window, 修正 its bounds, or re-anchor.
+- Timer does not pause for maintenance (decided 2026-10-07, dropping the pause model): the cycle is always 36h15m. The 2026-09-30 evidence (a leg that crossed a window landed ~13h from either reading, and the 2026-10-08 spawn is a clean `anchor + 5 × 36h15m`) showed the shift is not a function of the window, so the pause was removed. Maintenance windows are now suppression-only: `isInMaintenance` stands cards down while the game is down, and the schedule runs straight through. Re-anchor by hand when a spawn drifts from the grid (錨點 + 發佈, then 回復自動更新). Quick fixes on `/admin` (§6): 忽略 a window (drop it from suppression), 修正 its bounds, or re-anchor.
 - Feed refresh (2026-09-30): boot-only was the gap for always-open apps (the app is never closed, so a long-lived tab could sit on an indefinitely stale timetable). Now refreshed at boot + every 30 min + foreground return + reconnect + popover open, all coalesced through one throttled (60s gap) single-flight call. A no-change response is a no-op apply that notifies nobody.
 - Same local-only rules as the hourly lane: never synced, never sent anywhere, page-open-only.
 
@@ -60,9 +61,10 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
   09:00): Bahamut reposts are snapshots — only the official post is edited on
   overrun. Candidates are therefore *scheduled* windows (earliest-possible);
   whoever confirms checks the newest replies for 延長 bumps first.
-- Legs tile continuously from the anchor, so every post-anchor window
-  permanently shapes later legs — never prune them from verified (corrects an
-  early "mathematically inert" claim); only pre-anchor windows are truly inert.
+- Legs tile continuously from the anchor at a fixed 36h15m; windows no longer
+  shape them (pause model dropped 2026-10-07). Windows still should not be
+  pruned while they matter for suppression, but they can no longer move a
+  spawn.
 - Dropped, not parked: official-API scraper, Wednesday-rule default (the feed
   carries verified windows instead), in-app maintenance override, per-device
   recalibrate button (the maintainer's announcement read is canonical), GH
@@ -79,7 +81,7 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 
 ## Done
 
-- [x] Schedule engine (`purpleHole.ts`): anchor, legs, maintenance stretch, bucket check, flag
+- [x] Schedule engine (`purpleHole.ts`): anchor, fixed 36h15m grid, suppression windows, bucket check, flag
 - [x] Tracker row + off-day parking + 非出沒日 note with next spawn
 - [x] Spawn-time badges → twin 已過/下次 plain-text lines
 - [x] Timetable popover (calendar icon, scroll-follow, 時刻表 wording)
@@ -94,10 +96,10 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 - [x] First server purple card observed 2026-09-19 (~14:38 spawn, 8-min lead — closed-app proof, variable lead confirmed by design)
 - [x] Client auto-refresh: boot + 30 min + foreground + reconnect + popover open (2026-09-30)
 - [x] Maintenance fallback pruned to the current routine: spent 9/23 prediction dropped, 9/30 watcher-verified window (06:00–10:00) mirrored (2026-09-30)
+- [x] Pause model dropped (2026-10-07): the cycle is a fixed 36h15m, windows are suppression-only, and the grid was re-set (next spawn 2026-10-08 06:59:35)
 
 ## Todos
 
-- [ ] Maintenance-shift model (2026-09-30 evidence): the first leg to cross a window showed the shift is not predictable from the window alone (confirmed post-maintenance spawn 17:44:35 vs 20:38/16:38 predicted; see the decision above), so the anchor is re-set by hand. Decide the durable model: keep auto-shift plus manual re-anchor (current), default new candidates to no-shift (err early), or add an explicit per-window shift flag. Until then the admin quick fix stands (忽略 / 修正 / re-anchor)
 - [ ] Optional: surface `updatedAt` freshness (`預測更新於 …`) in the popover — data already travels on the feed
 - [ ] Phase 3C crowd reports — evidence-gated, not started
 

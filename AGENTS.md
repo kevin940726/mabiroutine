@@ -86,5 +86,5 @@ or keep the gitignored `.env.admin.local` at the repo root and load it per
 command with `node --env-file=.env.admin.local …` (never commit, log, or pass it
 as an argument; not the root `.env.local`, which `vercel env pull` overwrites).
 A schedule correction never needs `git push` or `worker:deploy`. Runbook:
-`docs/operations.md` §6; the pause assumption and why excluding a window errs
-safe: `docs/purple-hole.md`.
+`docs/operations.md` §6; the suppression-only window model, why excluding a
+window errs safe, and the fixed 36h15m grid: `docs/purple-hole.md`.

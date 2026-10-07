@@ -8,8 +8,8 @@
 //
 //   state                             read-only: verified + candidates + overrides
 //   predict [n]                       read-only: next n spawns (from /purple-schedule)
-//   no-shift <start Taipei>           tombstone a window (maintenance did NOT pause)
-//   shift-amount <start> <end Taipei> override a window's end (pause differs)
+//   no-shift <start Taipei>           tombstone a window (stop suppressing on it)
+//   shift-amount <start> <end Taipei> override a window's end (suppression coverage)
 //   anchor <spawn Taipei>             re-anchor to an observed spawn, then resume auto
 //   promote                           accept all watcher candidates
 //   auto <true|false>                 lock / resume auto-apply
@@ -98,9 +98,9 @@ async function predict(n) {
     const mod = await import(new URL("../../../src/lib/purpleHole.ts", import.meta.url).href);
     mod.setPurpleTimetable(doc.anchorMs, doc.windows);
     const now = Date.now();
-    const first = mod.firstIndexAfter(now, doc.windows, doc.anchorMs);
+    const first = mod.firstIndexAfter(now, doc.anchorMs);
     for (let k = first - 1; k < first - 1 + n; k++) {
-      const t = mod.nthOccurrence(k, doc.windows, doc.anchorMs);
+      const t = mod.nthOccurrence(k, doc.anchorMs);
       console.log(`${k === first ? "next->" : "      "} ${fmt(t)}${t <= now ? "  (past)" : ""}`);
     }
   } catch (e) {
@@ -142,7 +142,7 @@ if (cmd === "state") {
   if (!win) die(`no window or override starts at ${fmt(startMs)}; candidates: ${candHint(st)}`);
   // Drop any override at that start too: resolveWindows appends overrides even
   // when the matching candidate is tombstoned, so a leftover override would
-  // keep shifting the legs.
+  // keep re-adding the window to the suppression list.
   const overrides = (st.overrides?.overrides ?? []).filter((o) => o.startMs !== startMs);
   const tombstones = (st.overrides?.tombstones ?? []).filter((t) => t.startMs !== startMs);
   tombstones.push({ startMs: win.startMs, endMs: win.endMs });

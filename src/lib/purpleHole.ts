@@ -1,21 +1,20 @@
 // 深淵的黑色坑洞 (purple hole) schedule engine — pure functions, no React.
 //
-// Cycle: 36h15m between spawns. The timer PAUSES during game maintenance,
-// so each leg stretches by the maintenance overlapping it:
-//   next = prev + PERIOD + overlap(prev, next)
-// Phase 1 ships with MAINTENANCE_WINDOWS = [] (unpredictable); the pause
-// math is already here so a future window feed just fills the list.
+// Cycle: 36h15m between spawns, always. The timer does NOT pause for
+// maintenance (decided 2026-10-07: the pause model was falsified — see
+// docs/purple-hole.md), so the grid is a plain fixed step:
+//   next = prev + PERIOD
+// Maintenance windows are used only to stand cards down (`isInMaintenance`),
+// never to move a spawn.
 //
-// Anchor (observed in-game): 2026-09-16 14:08 Taipei → predicts
-// 2026-09-18 02:23. Correct drift by moving the anchor in code until the
-// admin feed (phase 2B) publishes it — then the worker's /purple-schedule
-// doc wins and the code values below are only the offline fallback
-// (see "Schedule feed" near the end of this file).
+// Anchor: the last observed spawn. The /purple-schedule feed owns it; the
+// code value below is only the empty-KV/offline fallback (see "Schedule feed"
+// near the end of this file).
 
 export const PURPLE_HOLE_ID = "purple-hole";
 
-/** Observed spawn 2026-09-16 14:08 Taipei (= 06:08 UTC); the whole timetable derives from this. */
-export const PURPLE_ANCHOR_MS = Date.UTC(2026, 8, 16, 6, 8, 0);
+/** Last observed spawn 2026-09-30 17:44:35 Taipei (= 09:44:35 UTC); the whole timetable derives from this. */
+export const PURPLE_ANCHOR_MS = Date.UTC(2026, 8, 30, 9, 44, 35);
 
 /** 36h15m in ms. */
 export const PURPLE_PERIOD_MS = (36 * 60 + 15) * 60 * 1000;
@@ -34,28 +33,26 @@ export function taipeiWall(y: number, mo: number, d: number, h: number, mi: numb
 /**
  * Hand-owned maintenance list (phase 2A — same discipline as all TW data):
  * dated entries, verified against the 維護公告 (~1 day before routine),
- * spent entries pruned in the same commit that adds new ones. Same-day
- * emergencies go through a code edit + push like everything else — no
- * in-app override by design (the maintainer's announcement read is the
- * canonical source).
+ * spent entries pruned in the same commit that adds new ones. These windows
+ * do NOT move the schedule (pause model dropped 2026-10-07): they only stand
+ * cards down while the game is down. The feed owns the full verified list and
+ * the app/worker prefer it; this dated entry is only the empty-KV/offline
+ * suppression baseline. Same-day emergencies go through a code edit + push
+ * like everything else — no in-app override by design (the maintainer's
+ * announcement read is the canonical source).
  */
 export const MAINTENANCE_WINDOWS: MaintenanceWindow[] = [
   // 2026-09-30 (Wed) routine, mirrored from the watcher feed (KV
   // `purple:schedule`, updatedBy "watcher"): 06:00–10:00 Taipei, a 4h window,
-  // longer than the usual 2.5–3h. The feed owns the full verified list and
-  // the app prefers it; this dated entry only keeps the empty-KV/offline
-  // baseline truthful for the current routine. Spent entries are pruned in
-  // the same commit that adds new ones — the spent 9/23 prediction is gone.
-  // Errs short on purpose: an overstated window skews predictions LATE
-  // (miss), an understated one skews EARLY (wait).
+  // longer than the usual 2.5–3h.
   { startMs: taipeiWall(2026, 9, 30, 6, 0), endMs: taipeiWall(2026, 9, 30, 10, 0) },
 ];
 
 /**
  * Sort + merge overlapping/adjacent windows. Extension reposts overlap the
  * original window (e.g. 06:00–08:30 then 08:00–09:00) — summed raw, the
- * overlap double-counts and legs overshoot. All leg math runs on merged
- * windows; callers must not sum raw lists.
+ * overlap double-counts. All suppression runs on merged windows; callers must
+ * not sum raw lists.
  */
 export function normalizeWindows(windows: MaintenanceWindow[]): MaintenanceWindow[] {
   const sorted = [...windows].sort((a, b) => a.startMs - b.startMs);
@@ -71,9 +68,10 @@ export function normalizeWindows(windows: MaintenanceWindow[]): MaintenanceWindo
 /**
  * True while the game is inside a maintenance window (half-open [start, end)).
  * Both notification lanes stand down on this: a card fired while the game is
- * down names a spawn that cannot happen, and post-window timing is
- * hand-corrected anyway (2026-09-30 evidence). Suppression is only as good
- * as the window list — unknown maintenance still notifies.
+ * down names a spawn that cannot happen. It does NOT move the schedule — the
+ * 36h15m cycle runs straight through maintenance (decided 2026-10-07).
+ * Suppression is only as good as the window list — unknown maintenance still
+ * notifies.
  */
 export function isInMaintenance(
   nowMs: number,
@@ -87,11 +85,12 @@ export function isInMaintenance(
 }
 
 // Active timetable: the code values above until a schedule feed doc applies.
-// Every public entry point defaults to this snapshot (anchor AND windows),
-// so a feed update shifts badges, popover, and fire times with no caller
-// changes; explicit args keep working for probes and tests. The worker
-// imports this module too (one math module, two runtimes) — the snapshot
-// is per-runtime, and the worker reads KV directly instead of this.
+// Every schedule entry point defaults to this snapshot's anchor, and
+// `isInMaintenance` defaults to its windows, so a feed update moves the grid
+// and the suppression list with no caller changes; explicit args keep working
+// for probes and tests. The worker imports this module too (one math module,
+// two runtimes) — the snapshot is per-runtime, and the worker reads KV
+// directly instead of this.
 export type PurpleTimetable = { anchorMs: number; windows: MaintenanceWindow[] };
 
 let activeAnchorMs = PURPLE_ANCHOR_MS;
@@ -128,70 +127,14 @@ export function resetPurpleTimetable(): void {
   activeWindows = null;
 }
 
-function totalOverlap(aMs: number, bMs: number, windows: MaintenanceWindow[]): number {
-  let total = 0;
-  for (const w of windows) {
-    total += Math.max(0, Math.min(bMs, w.endMs) - Math.max(aMs, w.startMs));
-  }
-  return total;
-}
-
-/** Forward leg: occurrence after `fromMs`, stretched by overlapping maintenance. */
-export function nextAfter(fromMs: number, windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS): number {
-  // Merged: each extension pulls the end into at most the next window, so
-  // the fixed point converges in ≤ windows+1 steps; 8 caps pathological
-  // input instead of looping.
-  const ws = normalizeWindows(windows);
-  let end = fromMs + PURPLE_PERIOD_MS;
-  for (let i = 0; i < 8; i++) {
-    const stretched = fromMs + PURPLE_PERIOD_MS + totalOverlap(fromMs, end, ws);
-    if (stretched === end) return end;
-    end = stretched;
-  }
-  return end;
-}
-
-/** Backward leg: occurrence before `toMs` (inverse of nextAfter). */
-export function prevBefore(toMs: number, windows: MaintenanceWindow[] = MAINTENANCE_WINDOWS): number {
-  const ws = normalizeWindows(windows);
-  let p = toMs - PURPLE_PERIOD_MS;
-  for (let i = 0; i < 8; i++) {
-    const corrected = toMs - PURPLE_PERIOD_MS - totalOverlap(p, toMs, ws);
-    if (corrected === p) return p;
-    p = corrected;
-  }
-  return p;
-}
-
 /** nth occurrence relative to the anchor (0 = anchor, negative = past). */
-export function nthOccurrence(
-  n: number,
-  windows: MaintenanceWindow[] = activeTimetableWindows(),
-  anchorMs: number = activeAnchorMs
-): number {
-  if (n === 0) return anchorMs;
-  if (n > 0) {
-    let t = anchorMs;
-    for (let k = 0; k < n; k++) t = nextAfter(t, windows);
-    return t;
-  }
-  let t = anchorMs;
-  for (let k = 0; k < -n; k++) t = prevBefore(t, windows);
-  return t;
+export function nthOccurrence(n: number, anchorMs: number = activeAnchorMs): number {
+  return anchorMs + n * PURPLE_PERIOD_MS;
 }
 
 /** Index of the first occurrence strictly after `nowMs`. */
-export function firstIndexAfter(
-  nowMs: number,
-  windows: MaintenanceWindow[] = activeTimetableWindows(),
-  anchorMs: number = activeAnchorMs
-): number {
-  // Estimate ignoring maintenance, then walk to the truth (maintenance only
-  // shifts forward, so the estimate is never ahead by more than the windows).
-  let k = Math.floor((nowMs - anchorMs) / PURPLE_PERIOD_MS);
-  while (nthOccurrence(k + 1, windows, anchorMs) <= nowMs) k++;
-  while (nthOccurrence(k, windows, anchorMs) > nowMs) k--;
-  return k + 1;
+export function firstIndexAfter(nowMs: number, anchorMs: number = activeAnchorMs): number {
+  return Math.floor((nowMs - anchorMs) / PURPLE_PERIOD_MS) + 1;
 }
 
 /** Past `past` + next `future` occurrences around now (ascending). */
@@ -199,12 +142,11 @@ export function occurrencesAround(
   nowMs: number = Date.now(),
   past = 2,
   future = 3,
-  windows: MaintenanceWindow[] = activeTimetableWindows(),
   anchorMs: number = activeAnchorMs
 ): number[] {
-  const first = firstIndexAfter(nowMs, windows, anchorMs);
+  const first = firstIndexAfter(nowMs, anchorMs);
   const out: number[] = [];
-  for (let k = first - past; k < first + future; k++) out.push(nthOccurrence(k, windows, anchorMs));
+  for (let k = first - past; k < first + future; k++) out.push(nthOccurrence(k, anchorMs));
   return out;
 }
 
@@ -220,10 +162,9 @@ export function dailyBucketStartMs(nowMs: number = Date.now()): number {
 /** True when at least one occurrence falls in the current daily bucket. */
 export function isScheduledToday(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = activeTimetableWindows(),
   anchorMs: number = activeAnchorMs
 ): boolean {
-  return bucketOccurrence(nowMs, windows, anchorMs) !== null;
+  return bucketOccurrence(nowMs, anchorMs) !== null;
 }
 
 /**
@@ -232,14 +173,13 @@ export function isScheduledToday(
  */
 export function bucketOccurrence(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = activeTimetableWindows(),
   anchorMs: number = activeAnchorMs
 ): number | null {
   const start = dailyBucketStartMs(nowMs);
   const end = start + 24 * 60 * 60 * 1000;
-  const first = firstIndexAfter(start - PURPLE_PERIOD_MS * 2, windows, anchorMs);
+  const first = firstIndexAfter(start - PURPLE_PERIOD_MS * 2, anchorMs);
   for (let k = first; ; k++) {
-    const t = nthOccurrence(k, windows, anchorMs);
+    const t = nthOccurrence(k, anchorMs);
     if (t >= end) return null;
     if (t >= start) return t;
   }
@@ -248,10 +188,9 @@ export function bucketOccurrence(
 /** First occurrence strictly after now. */
 export function nextOccurrence(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = activeTimetableWindows(),
   anchorMs: number = activeAnchorMs
 ): number {
-  return nthOccurrence(firstIndexAfter(nowMs, windows, anchorMs), windows, anchorMs);
+  return nthOccurrence(firstIndexAfter(nowMs, anchorMs), anchorMs);
 }
 
 
@@ -271,16 +210,15 @@ export const SPAWN_FRESH_MS = 15 * 60 * 1000;
 export type PurpleBadge = { past: string | null; next: string | null };
 export function purpleBadge(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = activeTimetableWindows(),
   anchorMs: number = activeAnchorMs
 ): PurpleBadge | null {
-  const t = bucketOccurrence(nowMs, windows, anchorMs);
+  const t = bucketOccurrence(nowMs, anchorMs);
   if (t === null) return null;
   // Absolute "MM/DD HH:mm": relative words (昨日/明日) lie to late-night
   // players sitting on the wrong side of midnight from the 06:00 bucket.
   if (t > nowMs) return { past: null, next: formatTaipei(t) };
   if (t > nowMs - SPAWN_FRESH_MS) return { past: formatTaipei(t), next: null };
-  return { past: formatTaipei(t), next: formatTaipei(nextOccurrence(nowMs, windows, anchorMs)) };
+  return { past: formatTaipei(t), next: formatTaipei(nextOccurrence(nowMs, anchorMs)) };
 }
 
 /**
@@ -295,23 +233,21 @@ export type PurpleLive =
   | { kind: "stale"; pastMs: number; nextMs: number };
 export function purpleLive(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = activeTimetableWindows(),
   anchorMs: number = activeAnchorMs
 ): PurpleLive | null {
-  const t = bucketOccurrence(nowMs, windows, anchorMs);
+  const t = bucketOccurrence(nowMs, anchorMs);
   if (t === null) return null;
   if (t > nowMs) return { kind: "upcoming", nextMs: t };
   if (t > nowMs - SPAWN_FRESH_MS) return { kind: "live", endsMs: t + SPAWN_FRESH_MS };
-  return { kind: "stale", pastMs: t, nextMs: nextOccurrence(nowMs, windows, anchorMs) };
+  return { kind: "stale", pastMs: t, nextMs: nextOccurrence(nowMs, anchorMs) };
 }
 
 /** "09-18 02:23"-style label for the next upcoming spawn (off-day note). */
 export function nextBadgeLabel(
   nowMs: number = Date.now(),
-  windows: MaintenanceWindow[] = activeTimetableWindows(),
   anchorMs: number = activeAnchorMs
 ): string {
-  return formatTaipei(nextOccurrence(nowMs, windows, anchorMs));
+  return formatTaipei(nextOccurrence(nowMs, anchorMs));
 }
 
 /** "MM/DD HH:mm" in Taipei. */

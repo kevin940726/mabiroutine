@@ -781,11 +781,10 @@ export function resolveWindows(
  * Records still observed stay (the candidate still needs correcting);
  * future records stay. Tombstones expire by the suppressed window's end.
  *
- * Deliberately NOT pruned: spent CANDIDATE windows. Legs tile continuously
- * from the anchor, so every post-anchor window permanently shapes later
- * legs — pruning one un-does a real pause and shifts all future predictions
- * earlier (this corrects the old "mathematically inert" claim in the
- * phase-2 doc). Only pre-anchor windows are truly inert.
+ * Deliberately NOT pruned: spent CANDIDATE windows. They are the watcher's
+ * history and no longer shape anything — windows are suppression-only since
+ * the pause model was dropped (2026-10-07), so pruning one cannot move a
+ * prediction. Kept for the admin view.
  */
 export function pruneOverrideRecords(
   ov: PurpleOverrides,
@@ -957,7 +956,7 @@ details{margin-top:.8rem}summary{cursor:pointer;font-size:.85rem;color:var(--mut
 <div class="btnrow"><button id="saveOvr" class="primary">儲存覆寫</button></div>
 </section>
 <section class="card"><h2>已發佈（唯讀預覽）</h2>
-<p class="foot">這就是玩家現在看到的時刻表。錨點＝上次親眼看到紫洞出沒的時間；維護窗＝遊戲維修的時段（那段時間計時暫停，預測順延）。日常修正請用上面的候選和覆寫——這裡很少需要動。</p>
+<p class="foot">這就是玩家現在看到的時刻表。錨點＝上次親眼看到紫洞出沒的時間；維護窗＝遊戲維修的時段（那段時間不發通知，不影響預測時間）。日常修正請用上面的候選和覆寫——這裡很少需要動。</p>
 <div id="autoLine" class="preview"></div>
 <div id="pubView"></div>
 <details><summary>手動修改全部（很少用到）</summary>
@@ -1088,11 +1087,7 @@ export async function runPurpleFanout(env: Env): Promise<PurpleFanoutReport> {
   if (isInMaintenance(now, sched.windows)) {
     return { skipped: true, reason: "maintenance", spawn: null, subs: 0, sent: 0, pruned: 0 };
   }
-  const spawn = nthOccurrence(
-    firstIndexAfter(now, sched.windows, sched.anchorMs),
-    sched.windows,
-    sched.anchorMs
-  );
+  const spawn = nthOccurrence(firstIndexAfter(now, sched.anchorMs), sched.anchorMs);
   // Defensive-only: firstIndexAfter is strictly-after by construction, so
   // spawn is always future here — the branch exists so a future refactor of
   // the index math can never turn into a late card.
