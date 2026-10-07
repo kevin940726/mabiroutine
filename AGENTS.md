@@ -30,7 +30,7 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   update those files too — never let README/docs describe a previous version.
   Code comments for internal-only changes. Dev-only details (commands, project
   structure, verification) live in `docs/development.md`, never in the READMEs.
-- Newest first: add bullets under the top `## Unreleased — …` section, grouped into `### Features` / `### Fixes` / `### Chores`. Every push to `main` deploys to prod, so when you push, rename that section to `## <YYYY-MM-DD> — <short label>` and start a fresh `## Unreleased`. No commit hashes in headings or bullets — they go stale when history is rewritten (amend/rebase).
+- Newest first: add bullets under the top `## Unreleased` section, grouped into `### Features` / `### Fixes` / `### Chores`. Only `main` deploys to prod (the pre-push hook blocks every other ref), so the cut happens BEFORE a push to `main`, as part of it: when such a push is approved and `Unreleased` is non-empty, commit a `chore: date the changelog` cut first (`## <YYYY-MM-DD> — <short label>`, label from the range's content, fresh `## Unreleased` on top) and push everything together. Cutting pre-push ships one deploy per release instead of two, and the section covers exactly the pushed range — a post-push cut risks sweeping in someone else's intervening commits, and a failed push leaves the cut sitting locally where a retry ships it, never published against work that didn't go. Skip the cut when `Unreleased` is empty. No commit hashes in headings or bullets — they go stale when history is rewritten (amend/rebase).
 - Changelog language: English always. Traditional Chinese appears only when quoting actual UI/copy text or when a term has no English counterpart; otherwise write `english (中文)` side-by-side if both help. (Older entries predate this rule — leave them.)
 - User-facing changes → `### Features` / `### Fixes`; internal/agent-only changes → `### Chores`.
 - If you spot a past commit with no entry, backfill it in the next commit — never let the gap grow.
@@ -66,6 +66,13 @@ Measured on PowerShell 7.6.6, Windows:
 - Especially for new features: report the diff + verification from the
   working tree, and wait. Review, then commit, then push — three separate
   user decisions, in that order.
+- Branch names follow the pushable convention, because the local pre-push hook
+  (`.git/hooks/pre-push`, uncommitted by design) blocks every ref except
+  `main`, `fix/*`, `feat/*` and `prototype/*`: name a branch for where it may
+  go, so a push never dies on the hook. `archive/*`, `backup/*`, `wip/*` and
+  unfamiliar names stay local by design — public history is filtered, and a
+  same-name branch in another clone may carry what this one must not publish.
+  One-off exception: `git push --no-verify`, consciously, never by habit.
 
 ## Pre-push Gate (agents: run this before every push)
 
