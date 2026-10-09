@@ -10,52 +10,17 @@ handled for you.
 
 👉 **Try it: https://mabiroutine.vercel.app/** — no account needed.
 
-## Why you'll keep it open
+## Features
 
-- ☀️ **Dailies, weeklies, account chores — one page.** 週幾地下城, 每日挑戰,
-  深層地下城, 兼職, 亡靈之塔… plus 召喚結界, 黑色坑洞, 深淵,
-  格里斯貝恩… plus account-wide Stella Pick, shop freebies, guild and friend
-  challenges. Tap to check off, watch the bar fill.
-- ⏰ **Resets handled for you.** Daily 06:00 / Monday 06:00 (Asia/Taipei), with
-  a live countdown in the header. Done items reset on their own — just come
-  back and play.
-- 👥 **Up to 6 characters, fully separated.** One tab per character, renameable and
-  draggable into any order;
-  each keeps its own progress.
-- 🔄 **A barter explorer that answers "what do I trade today".** Every shop in the
-  game — all 225 gold and barter rows — as a grid of trade tiles, browsable by town
-  and NPC, opening on the 必換 and 推薦 tiers you actually act on, ordered by how
-  badly you want them. Search by what you have or what you need, and tap any NPC
-  portrait to open that merchant's shop. Pin the good ones — gold purchases included
-  — and they show up in your dailies, each with what it costs and how many times you
-  can buy it. Tap a material you hand over to see the deal behind it: who makes it,
-  what they take and give in the exchange, the total you need and how often you may
-  trade, with a link straight to that merchant's tile. The breakdown also opens from
-  a hover card that never moves the checklist.
-- ✏️ **Make it yours.** Custom tasks, drag-to-reorder everything, hide what you
-  never do, dark mode. With a sync link the layout follows: row order and
-  pinned order are shared, so a drag on one device lands on the others.
-- 🔗 **Optional sync across devices.** No account, no password — one link joins
-  your phone and desktop, edits merge themselves. Or skip it: everything works
-  offline-first in your browser either way.
-- 📲 **Installs like an app.** Android/desktop install button, iOS home-screen
-  ready, works offline.
-- 🔔 **A nudge before 召喚結界, if you want it.** Tap the bell on 不祥的召喚結界
-  and get one quiet notification at :00 Taipei sharp (~2.5 min before the XX:02:30
-  start, with the in-game ping) when it's still undone — the open app uses a local
-  timer, a hidden or closed app is covered by server push (iPhone needs the
-     Home-Screen app first). 深淵的黑色坑洞 has its own bell, up to 15 min before each
-   predicted spawn (exactly 15 with the app open; the closed-app server push lands
-   on the first 1-min tick inside the window, so 14–15 min). Each device subscribes separately; reminders are best-effort,
-   an occasional miss is normal. No in-app quiet hours by design — silence nights
-   in the OS instead (iOS Focus / per-PWA notification settings, Android per-site
-   toggles).
-- 🔒 **Private by default.** Your progress lives in your browser
-  (localStorage), not in our database. No tracking, no ads. The only exception
-  is push you subscribe to yourself: that device's push endpoint (plus keys)
-  is stored server-side so cards can be delivered (barrier cards with a sync
-  link also read that day's done-state live to name names, backed by a stored
-  roster snapshot for fallback names); unsubscribing deletes it all.
+- ☀️ Dailies, weeklies, and account-wide tasks (dungeons, challenges, jobs, tower, events, guild/friend) on one page; tap to check off.
+- ⏰ Resets automatically daily and weekly at 06:00 Taipei, with a live countdown in the header.
+- 👥 Up to 6 characters, one tab each, renameable and reorderable, with separate progress.
+- 🔄 All 225 gold and barter trades, browsable by town and NPC, with have/need search, pinning to dailies, and a per-trade material breakdown.
+- ✏️ Custom tasks, drag reordering, hiding, and dark mode; a sync link also shares row and pinned order.
+- 🔗 Optional cross-device sync by link, no account; everything still works offline without it.
+- 📲 Installable on Android and desktop, iOS home-screen ready, and works offline.
+- 🔔 Optional reminder bells for 不祥的召喚結界 and 深淵的黑色坑洞, local while the app is open and server push while closed; per device, best-effort.
+- 🔒 Progress stays in your browser (localStorage), not our database, with no tracking or ads; only push subscriptions you enable are stored server-side.
 
 ## Sources & licenses
 
