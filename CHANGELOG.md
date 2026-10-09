@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-09 — Stale-device sync fix
+
 ### Fixes
 - An outdated device can no longer replay old progress over a newer one: opening the app pulls first and pushes only keys the cloud has not changed since this device last synced, and a key both devices changed resolves to the cloud's value. Reported 2026-10-09 (an iOS PWA opened after a day and reverted the desktop's newer weekly counter and a pin): that device's edits had never reached the server, and arrival order could not tell them from fresh taps made on the peer. The same rule closes the remaining full-push path where a fresh-tab link could re-pin a deliberately unpinned row. No protocol change; existing links keep working
 - The sync baseline now persists in the same storage write as the state it describes (state first), so a crash right after a sync can no longer leave a base claiming the device already saw the cloud while memory still held yesterday's copy and replayed it on the next open
