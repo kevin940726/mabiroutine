@@ -17,13 +17,16 @@ picture.
 
 - Given linked and the peer pushed newer values, when I cold-boot online,
   then the peer's values render as soon as the boot pull lands (session GET
-  preloaded, overlapping JS bootstrap); my own unpushed edits still win by
-  arrival order (flush-first).
+  preloaded, overlapping JS bootstrap); my own unpushed edits still land, and
+  a key both sides changed since my last sync adopts the peer's value (the
+  base arbitrates contests, decision 16 — arrival alone cannot tell a stale
+  leftover from a fresh tap).
 - Given I am offline, when I launch, then my last local state renders
   immediately with no error; sync resumes on next foreground or within 60s.
 - Maps to: `index.html` preload → `takePreloaded` (`src/sync/api.ts`) →
   `pullNow` (`src/sync/SyncButton.tsx`) → `syncAndResets`
-  (`src/sync/session.ts`); `docs/sync.md` Pull. Gate: browser wake-pull E2E.
+  (`src/sync/session.ts`); `docs/sync.md` Round. Gate: browser wake-pull E2E,
+  E18.
 
 ## S2 — Either device's taps converge, no dialogs
 
@@ -31,12 +34,15 @@ As a user with two devices, when I check/uncheck/clear on either one, the
 other shows it, so I never reconcile by hand.
 
 - Given disjoint edits on both devices, when each backgrounds/foregrounds
-  (or 60s passes), then both converge; same-key races resolve silently by
-  arrival order (accepted: end state wins over intent audit).
+  (or 60s passes), then both converge; same-key contests resolve silently in
+  favor of the cloud (the base arbitrates, decision 16), while a live-tab
+  auto-push still lands by arrival (accepted: end state wins over intent
+  audit).
 - Given I uncheck or zero something, when the peer pulls, then it shows
   unchecked/zero — never resurrected by my own earlier value.
-- Maps to: `pushNow` (`src/sync/SyncButton.tsx`) + `flat.ts` key space;
-  `docs/sync.md` Push, findings #1/#2/#4. Gate: E4, E8, E9, tap→render E2E.
+- Maps to: `pushNow` + `planRound` (`src/sync/round.ts`) + `flat.ts` key
+  space; `docs/sync.md` Round, findings #1/#2/#4. Gate: E4, E8, E9, E17–E20,
+  tap→render E2E.
 
 ## S3 — A late-waking device never wipes its peer
 
@@ -50,7 +56,7 @@ device's current progress, so I can leave a device in a drawer without fear.
   for a cycle key ever crosses the wire (expiry is read-time, by bucket).
 - Maps to: `syncAndResets` pull-first (`src/sync/session.ts`) + forced hook
   (`pullNow`, `src/sync/SyncButton.tsx`), `flat.ts` bucket tagging + `diffFlat`
-  silences; `docs/sync.md` Reset, findings #5/#12. Gate: E1, E8, P.
+  silences; `docs/sync.md` Reset, findings #5/#12. Gate: E1, E8, E17, P.
 
 ## S4 — A sync link onboards the new device safely
 

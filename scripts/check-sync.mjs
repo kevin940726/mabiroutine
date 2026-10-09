@@ -7,11 +7,14 @@
  * stays green offline.
  *
  * Suites:
- *  engine     T3–T6 syncAndResets scenarios (suppression, propagation,
- *             adopt/import stamping, resetAll) — the retention-critical path
+ *  engine     E1–E20 syncAndResets scenarios (suppression, propagation,
+ *             adopt/import stamping, resetAll, contested-key arbitration) —
+ *             the retention-critical path
  *  prop-reset 300 randomized checkResets key-collection exactness runs
  *  quota      Q1–Q5 telemetry counting + touch beacon + idle window
  *             (pins the quota model in docs/sync.md)
+ *  flush      state-before-base ordering in one storage flush (real
+ *             src/lib/storage.ts) — pins docs/sync.md decisions 16/17
  *  tabs       T1 stale-tab tombstones + T2 cap-overflow (vm-realm tabs,
  *             real flat.ts — fails on pre-fix code, see docs/sync.md)
  *  api-live   dev-API concurrency/upgrades/failure paths (needs dev:api)
@@ -94,6 +97,22 @@ function run(file, args = []) {
   const out = path.join(cache, "quota.mjs");
   buildSync({
     entryPoints: ["scripts/sync-tests/quota.entry.ts"],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    outfile: out,
+    alias: { "@": "./src" },
+    logLevel: "error",
+  });
+  run(out);
+}
+
+// flush (storage ordering): real storage.ts, logging localStorage
+{
+  section("flush (state before base in one write)");
+  const out = path.join(cache, "flush.mjs");
+  buildSync({
+    entryPoints: ["scripts/sync-tests/flush.entry.ts"],
     bundle: true,
     platform: "node",
     format: "esm",

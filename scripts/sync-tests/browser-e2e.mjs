@@ -7,6 +7,9 @@
 //     debounced push, mount pull, merge, render).
 //  E2 focus convergence: a second tab focuses later — server value intact,
 //     tab shows checked (no phantom tombstone on wake-pull).
+//  E3 contested key: a device boots with an unsynced local counter whose base
+//     predates the peer's newer server value — the round drops the leftover,
+//     adopts the server value, and never pushes the stale one.
 //
 // Needs an app + API base: local `pnpm dev:api` by default, or a preview
 // deployment via SYNC_TEST_BASE. Protected previews need a Vercel automation
@@ -202,8 +205,10 @@ try {
   await evaluate(tabB.sessionId, linkSession(SID));
   await gotoApp(tabB.sessionId); // mount pull adopts
   await waitFor(tabB.sessionId, `!!document.querySelector('${CHECK_SEL}')`);
-  // A fresh device keeps its own empty character active (its meta:active push
-  // wins by arrival) — the adopted check lives on the adopted character tab.
+  // A fresh device's own empty character differs from the peer's; the remote
+  // `meta:active` now wins the contest (decision 16), so B usually lands on
+  // the adopted tab already. The forced activation + reload below keeps the
+  // render assertion deterministic either way.
   // 1) merge correctness: some character in B's persist holds the check…
   const holder = await waitFor(tabB.sessionId, `
     (() => { try {
@@ -238,6 +243,70 @@ try {
   await new Promise((r) => setTimeout(r, 8000)); // focus pull + push cycle
   const g2 = await apiGet();
   ok("E2 server value survives wake-pull", Object.entries(g2.state ?? {}).some(([k, v]) => k.startsWith(`v:${cidA}:parttime@`) && v === true), "parttime@*");
+
+  // --- E3: contested key — an unsynced leftover loses to the peer's value ---
+  // Server tower = 3 (a peer's later edit). A device boots with base tower = 1
+  // and a local tower = 9 that never pushed: both sides changed the key since
+  // this device last synced, so the round drops the local 9 and adopts 3.
+  {
+    const bucket = Object.keys(g2.state ?? {}).find((k) => k.startsWith(`v:${cidA}:parttime@`))?.split("@")[1] ?? "";
+    ok("E3 bucket resolved", bucket.length > 0, bucket);
+    await fetch(API, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...AUTH },
+      body: JSON.stringify({ id: SID, changes: { [`v:${cidA}:tower@${bucket}`]: 3 } }),
+    });
+    const ctxC = (await send("Target.createBrowserContext", {})).browserContextId;
+    const tabC = await newTab(ctxC);
+    // Document-start seeding: the crafted state and base land before the app's
+    // own hydrated write, so nothing races over them.
+    const craft = `(() => {
+      const CID = ${JSON.stringify(cidA)};
+      const SID = ${JSON.stringify(SID)};
+      localStorage.setItem('mabiroutine:v2', JSON.stringify({
+        state: {
+          version: 21,
+          characters: [{ id: CID, name: 'A', taskValues: { tower: 9 }, hiddenTaskIds: [] }],
+          activeCharId: CID,
+          accountValues: {},
+          hiddenAccountTaskIds: [],
+          barterPins: [],
+          barterCustomOrder: null,
+          customTasks: [],
+          lastDailyReset: ${JSON.stringify(bucket)},
+          lastWeeklyReset: null,
+          prefs: { hideCompleted: false, pinnedCollapsed: { daily: false, weekly: false } },
+          globalTaskOrder: {},
+          taskBuckets: { tower: ${JSON.stringify(bucket)} },
+          hourlyReminders: [],
+          purpleHoleReminders: []
+        },
+        version: 21
+      }));
+      localStorage.setItem('mabiroutine:flatbase', JSON.stringify({
+        sessionId: SID,
+        flat: {
+          ['v:' + CID + ':tower@' + ${JSON.stringify(bucket)}]: 1,
+          ['char:' + CID + ':name']: 'A',
+          'meta:active': CID
+        },
+        ts: 0
+      }));
+      localStorage.setItem('mabiroutine:session', JSON.stringify({ id: SID, updatedAt: 0 }));
+    })()`;
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: craft }, tabC.sessionId);
+    await gotoApp(tabC.sessionId);
+    await waitFor(tabC.sessionId, `!!document.querySelector('[data-task-id="tower"]')`, 20000).catch(() => null);
+    await new Promise((r) => setTimeout(r, 9000)); // boot round + debounced flush settle
+    const g3 = await apiGet();
+    const serverTower = (g3.state ?? {})[`v:${cidA}:tower@${bucket}`];
+    ok("E3 server keeps the peer value", serverTower === 3, `tower=${JSON.stringify(serverTower)}`);
+    const localTower = await evaluate(
+      tabC.sessionId,
+      `(() => { try { const p = JSON.parse(localStorage.getItem('mabiroutine:v2')); const c = p.state.characters.find(c => c.id === ${JSON.stringify(cidA)}); return c ? c.taskValues.tower : 'NO-CHAR'; } catch (e) { return 'ERR'; } })()`
+    );
+    ok("E3 device adopted the peer value", localTower === 3, `local tower=${JSON.stringify(localTower)}`);
+  }
 } catch (e) {
   console.log(`FAIL: browser-e2e harness: ${e.message}`);
   failures += 1;

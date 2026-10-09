@@ -32,6 +32,9 @@ function spawnTab(ls, ss) {
     console,
     localStorage: ls,
     sessionStorage: ss,
+    // storage.ts schedules an idle write; the harness flushes synchronously
+    // (writeBase flushes), so the scheduled callback never needs to fire.
+    setTimeout: () => 0,
   };
   sandbox.exports = sandbox.module.exports;
   vm.createContext(sandbox);

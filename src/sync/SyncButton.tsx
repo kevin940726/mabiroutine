@@ -49,7 +49,7 @@ import {
 import {
   flattenSnapshot,
   diffFlat,
-  loadBase,
+  loadBaseDoc,
   saveBase,
   unflattenMerge,
   capOverflowKeys,
@@ -57,6 +57,7 @@ import {
   creationState,
   type FlatMap,
 } from "@/sync/flat";
+import { planRound } from "@/sync/round";
 
 function errorMessage(e: unknown): string {
   if (e instanceof SyncTooLarge) return "進度過大，無法同步";
@@ -92,6 +93,9 @@ export const SyncButton = memo(function SyncButton() {
   busyRef.current = busy;
   const lastPullAt = useRef(0);
   const inflightRef = useRef<Promise<void> | null>(null);
+  // Debounced push in flight (mirrors flushNow) — a round awaits it before
+  // reading the base so the plan can never race a blind push.
+  const pushInflight = useRef<Promise<FlatMap | null> | null>(null);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushFails = useRef(0);
   const pulledSessionRef = useRef<string | null>(null);
@@ -131,16 +135,19 @@ export const SyncButton = memo(function SyncButton() {
   }
 
   // Background auto-push: while linked, any progress change pushes its key
-  // diff after a quiet window. Absolute sets only — the server stamps arrival
-  // order, so pushes never conflict. Resolves the pushed key-set ({} when
-  // already in sync) or null when nothing was sent (offline/failure/busy):
-  // callers must not treat remote state as newer than unsent local edits.
-  async function pushNow(): Promise<FlatMap | null> {
+  // diff after a quiet window. Absolute sets only. This path reads no remote:
+  // a live-tab edit is uncontested in practice, and every scheduled round
+  // applies the base-arbitrated filter below. Resolves the pushed key-set
+  // ({} when already in sync) or null when nothing was sent
+  // (offline/failure/busy): callers must not treat remote state as newer than
+  // unsent local edits. Wrapped by pushNow, which serializes it against
+  // rounds so a wake's stale diff can never escape unfiltered.
+  async function flushNow(): Promise<FlatMap | null> {
     const session = linkedRef.current;
     if (!session || busyRef.current) return null;
+    const baseDoc = loadBaseDoc(session.id);
     const flat = flattenSnapshot(buildSnapshot());
-    const base = loadBase(session.id);
-    const changes = takeFullPush() ? { ...flat } : diffFlat(base, flat);
+    const changes = takeFullPush() ? { ...flat } : diffFlat(baseDoc?.flat ?? {}, flat);
     // Order-key guard (decision 4b): withhold before the first pull for the
     // binding (nobody volunteers canon blind), and never send the key when
     // flatten omits it — an id-sorted local order means "no information",
@@ -157,7 +164,8 @@ export const SyncButton = memo(function SyncButton() {
       const next = { id: session.id, updatedAt };
       saveSession(next);
       setLinked(next);
-      saveBase(session.id, { ...base, ...changes });
+      // ts stays the last GET's: a later round re-reads once to stay honest.
+      saveBase(session.id, { ...(baseDoc?.flat ?? {}), ...changes });
       pushFails.current = 0;
       return changes;
     } catch (e) {
@@ -171,19 +179,63 @@ export const SyncButton = memo(function SyncButton() {
     }
   }
 
-  // Pull round: flush local edits first (arrival = order, so ours land
-  // before we adopt remote), then adopt remote wholesale — safe, because the
-  // flush guarantees every local key already exists remotely. The acknowledged
-  // push is folded over the GET result: a lagged-replica or cached read that
-  // predates our own write must never resurrect a pre-push absence (the merge
-  // would adopt it and the next push would tombstone it — a permanent wipe).
-  // Mid-flight edits abort the apply; the scheduled push + next pull converge.
-  // Legacy (v1 blob) sessions upgrade via one full push, then proceed.
+  // A round owns the flush decision while it runs: its plan must see the base
+  // the push produced, and the push must see the base the round adopted. Join
+  // rather than race — a blind push interleaved with a round could carry the
+  // exact stale diff the plan filters. Flushes are also chained against each
+  // other (a hide-flush and a debounced timer can fire together), so a round
+  // awaits the whole chain, not just the newest flush.
+  async function enqueueFlush(): Promise<FlatMap | null> {
+    const prev = pushInflight.current ?? Promise.resolve();
+    const run = prev.then(() => flushNow(), () => flushNow());
+    pushInflight.current = run;
+    try {
+      return await run;
+    } finally {
+      if (pushInflight.current === run) pushInflight.current = null;
+    }
+  }
+
+  async function pushNow(): Promise<FlatMap | null> {
+    if (inflightRef.current) await inflightRef.current;
+    return enqueueFlush();
+  }
+
+  // PATCH the plan's accepted keys with the shared failure accounting. True
+  // when the push landed (or there was nothing to push); false when the caller
+  // must not adopt remote (unlanded local diffs would be lost).
+  async function pushPlanned(session: LocalSession, keys: FlatMap): Promise<boolean> {
+    try {
+      await patchSession(session.id, keys, { touch: shouldTouch(session.id) });
+      pushFails.current = 0;
+      return true;
+    } catch (e) {
+      if (e instanceof SyncNotFound) {
+        dropDeadLink();
+        return false;
+      }
+      pushFails.current += 1;
+      if (pushFails.current === 3) toast("自動同步失敗，請檢查網路");
+      return false;
+    }
+  }
+
+  // Round: probe → GET → plan → PATCH → merge. The base (last synced flat,
+  // decision 16) is the arbiter: a local change is pushed only while the
+  // remote still carries the base's value for that key; every contested key
+  // adopts the remote's value instead of replaying this device's older copy.
+  // That is what keeps an outdated device (unsynced leftovers, a base that
+  // outlived its memory) from beating a peer by arrival order — arrival
+  // cannot tell stale from fresh. The accepted push overlays the GET result;
+  // a mid-flight edit lands the pre-edit diff through the same filter and
+  // skips the apply (the edit stays local for the next round), so a stale
+  // diff can never fall through to the blind auto-push. Legacy (v1 blob)
+  // sessions upgrade via one full push, then proceed.
   // force (hook path: syncAndResets ordering + explicit same-session opens):
   // bypass the 10s background throttle. syncAndResets orders reset-after-pull,
   // so a throttled no-op pull would let checkResets prune BEFORE the fresh
   // adopt lands — on rollover boots the prune even trips the mid-flight guard
-  // below and discards the mount pull's apply, leaving stale state until the
+  // below and discards the mount round's apply, leaving stale state until the
   // next trigger (up to 60s). Overlapping forced runs still serialize via
   // syncAndResets' shared promise.
   async function runPull(force: boolean): Promise<void> {
@@ -193,22 +245,29 @@ export const SyncButton = memo(function SyncButton() {
     if (!force && now - lastPullAt.current < 10_000) return;
     lastPullAt.current = now;
     try {
-      const pushed = await pushNow();
-      if (pushed === null) return;
-      // Freshness probe first (quota §) — but ONLY when the flush sent
-      // nothing: our binding timestamp is a last-write mark, not an
-      // adopt high-water mark, so after pushing we must full-GET to adopt
-      // peer keys our write didn't carry (skipping here would starve
-      // adoption forever — every round would see only its own timestamp).
-      // Clean polls are the quota driver, so this keeps nearly all of the
-      // win. knownTs reads localStorage — pushNow saves synchronously while
-      // the ref lags a render. At the 6-char cap the probe is bypassed too:
-      // cap-slice base-scrubbing needs the full body, and a skipped pull
-      // followed by a push could tombstone a sliced char.
-      const pushedClean = Object.keys(pushed).length === 0;
+      // An in-flight debounced push must land before the plan reads the base;
+      // otherwise the round could adopt a remote the push then overwrites.
+      if (pushInflight.current) await pushInflight.current;
+      const baseDoc = loadBaseDoc(session.id);
+      const base = baseDoc?.flat ?? {};
+      const localFlat = flattenSnapshot(buildSnapshot());
+      const changes = diffFlat(base, localFlat);
+      if (pulledSessionRef.current !== session.id || !("meta:charorder" in localFlat)) {
+        delete changes["meta:charorder"];
+      }
+      const clean = Object.keys(changes).length === 0;
       const atCap = buildSnapshot().characters.length >= 6;
-      if (pushedClean && !atCap) {
-        const knownTs = loadSession()?.updatedAt ?? session.updatedAt;
+      if (clean && !atCap) {
+        // Freshness probe first (quota §) — ONLY when there is nothing to
+        // push: a clean local against an unmoved server has nothing to adopt,
+        // and contested keys cannot exist. The base's own `ts` is the
+        // reference (not the binding's ack, which races the debounced state
+        // write): the base only advances with the state it describes, so a
+        // lost adoption cannot make this probe skip forever. At the 6-char
+        // cap the probe is bypassed too: cap-slice base-scrubbing needs the
+        // full body, and a skipped round followed by a push could tombstone a
+        // sliced char.
+        const knownTs = baseDoc?.ts ?? 0;
         try {
           const meta = await getSessionMeta(session.id);
           if (!meta.legacy && meta.updatedAt <= knownTs) return;
@@ -224,17 +283,34 @@ export const SyncButton = memo(function SyncButton() {
       let remote = await getSession(session.id, { touch: shouldTouch(session.id) });
       if (remote.legacy !== undefined) {
         markFullPush();
-        const full = await pushNow();
+        const full = await enqueueFlush();
         if (full === null) return;
-        Object.assign(pushed, full);
         remote = await getSession(session.id, { touch: shouldTouch(session.id) });
       }
       if (!remote.state || typeof remote.state !== "object" || Array.isArray(remote.state)) return;
-      if (JSON.stringify(flattenSnapshot(buildSnapshot())) !== before) return;
-      const serverView = { ...(remote.state as FlatMap), ...pushed };
+      if (JSON.stringify(flattenSnapshot(buildSnapshot())) !== before) {
+        // Edited mid-flight: adopting the GET would replace the edit, but the
+        // pre-edit diff must not be left for the debounced auto-push to replay
+        // blind either. Land it through the same contest filter, then advance
+        // the base only by what was pushed; the edit itself stays a local diff
+        // for the next round, where it is fresh by definition.
+        const plan = planRound(base, changes, remote.state as FlatMap);
+        if (Object.keys(plan.push).length > 0 && (await pushPlanned(session, plan.push))) {
+          saveBase(session.id, { ...base, ...plan.push });
+        }
+        return;
+      }
+      const plan = planRound(base, changes, remote.state as FlatMap);
+      if (Object.keys(plan.push).length > 0 && !(await pushPlanned(session, plan.push))) {
+        return; // unlanded local diffs: adopting would drop them
+      }
+      const serverView = plan.view;
       const merged = unflattenMerge(serverView, buildSnapshot(), useAppStore.getState().version);
       if (!applySnapshot(merged)) return;
-      saveBase(session.id, serverView);
+      // ts is the GET's timestamp, not our PATCH ack: any later write (theirs
+      // or ours) must re-trigger a read, so a peer write inside the
+      // probe-to-PATCH window can never be skipped forever.
+      saveBase(session.id, serverView, remote.updatedAt);
       pulledSessionRef.current = session.id;
       // GC: tombstone cycle keys past the retention window. Real deletes of
       // values no device reads anymore — bounds the server hash; racing

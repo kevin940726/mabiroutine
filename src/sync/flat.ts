@@ -1,6 +1,7 @@
 import type { AppState, Character, Task } from "@/lib/types";
 import type { SyncSnapshot } from "@/sync/session";
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
+import { flushStorage, queueStorageWrite } from "@/lib/storage";
 import {
   parseCycleKey,
   isCycleKey,
@@ -58,6 +59,7 @@ export { parseCycleKey, isCycleKey, expiredCycleKeys };
 export type FlatMap = Record<string, unknown>;
 
 const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+export { eq };
 
 export function flattenSnapshot(s: SyncSnapshot): FlatMap {
   const now = new Date();
@@ -126,34 +128,41 @@ export function diffFlat(base: FlatMap, now: FlatMap): FlatMap {
   return changes;
 }
 
-// Per-session sync base (last synced flat, nulls included). Switching
-// sessions resets it — first push then sends the full map (always safe).
+// Per-session sync base (last synced flat, nulls included) plus the server
+// `updatedAt` that flat was read at (`ts`, used by the freshness probe). The
+// base is the arbiter for contested keys (planRound, docs/sync.md decision
+// 16): the engine pushes a local change only while the remote still carries
+// the base's value for that key. Switching sessions resets it — the first
+// round then pushes the keys only this device knows (always safe).
 //
 // The base is PER TAB, not per browser: localStorage is shared across tabs
 // but each tab has its own memory, so a shared base lets a suspended tab wake
 // up, diff its stale memory against another tab's fresh base, and tombstone
 // live keys it simply never saw (a same-browser "late wake" no marker can
 // catch — no reset is involved). Tab bases live in sessionStorage with an
-// in-memory fallback; the shared localStorage copy is only the seed for tabs
-// born later (so a fresh tab doesn't full-push over keys a peer tombstoned
-// while this browser was away) — never read after seeding.
+// in-memory fallback; the shared localStorage copy is the seed for tabs born
+// later — and it is queued through the shared storage flush (state first,
+// base second, src/lib/storage.ts) so a process death can never persist a
+// base that describes a state this device never had (decision 17).
 const BASE_KEY = "mabiroutine:flatbase";
 const TAB_BASE_KEY = "mabiroutine:flattab";
 
-type BaseDoc = { sessionId: string; flat: FlatMap };
+type BaseDoc = { sessionId: string; flat: FlatMap; ts: number };
 
-function validBaseDoc(d: unknown): d is BaseDoc {
-  if (!d || typeof d !== "object") return false;
+// Pre-ts docs (and hand-written ones) default to ts 0: the next probe reads
+// the remote once, which is always safe.
+function normalizeBaseDoc(d: unknown): BaseDoc | null {
+  if (!d || typeof d !== "object") return null;
   const b = d as Partial<BaseDoc>;
-  return typeof b.sessionId === "string" && !!b.flat && typeof b.flat === "object";
+  if (typeof b.sessionId !== "string" || !b.flat || typeof b.flat !== "object") return null;
+  return { sessionId: b.sessionId, flat: b.flat, ts: typeof b.ts === "number" ? b.ts : 0 };
 }
 
 function readSharedBase(): BaseDoc | null {
   try {
     const raw = localStorage.getItem(BASE_KEY);
     if (!raw) return null;
-    const parsed: unknown = JSON.parse(raw);
-    return validBaseDoc(parsed) ? parsed : null;
+    return normalizeBaseDoc(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -168,8 +177,7 @@ function readTabBase(): BaseDoc | null {
     if (typeof sessionStorage === "undefined") return memBase;
     const raw = sessionStorage.getItem(TAB_BASE_KEY);
     if (!raw) return null; // fresh tab → seed from shared, never another realm's memory
-    const parsed: unknown = JSON.parse(raw);
-    return validBaseDoc(parsed) ? parsed : null;
+    return normalizeBaseDoc(JSON.parse(raw));
   } catch {
     return memBase; // blocked storage → memory only (per-realm, no cross-tab bleed)
   }
@@ -178,30 +186,45 @@ function readTabBase(): BaseDoc | null {
 function writeBase(doc: BaseDoc): void {
   memBase = doc;
   try {
+    // The shared copy flushes with the store state (state first): a crash can
+    // leave it older than memory (safe — the next round re-pushes), never
+    // fresher (which replayed stale local state). A failed state write aborts
+    // the flush, so the base cannot land without the state it describes.
+    queueStorageWrite(BASE_KEY, JSON.stringify(doc));
+    flushStorage();
+  } catch {
+    // private mode — next round degrades to a fuller diff, still correct
+  }
+  try {
+    // Tab copy LAST: if the process dies between the two writes, the tab base
+    // (read first on load) is older than the persisted state, which the
+    // contest filter absorbs. Writing it first could leave it fresher than
+    // the state — the inversion decision 17 exists to prevent.
     if (typeof sessionStorage !== "undefined") sessionStorage.setItem(TAB_BASE_KEY, JSON.stringify(doc));
   } catch {
     // memory only — next load re-seeds from shared
   }
-  try {
-    localStorage.setItem(BASE_KEY, JSON.stringify(doc));
-  } catch {
-    // private mode — next push degrades to full map, still correct
-  }
 }
 
-export function loadBase(sessionId: string): FlatMap {
+export function loadBaseDoc(sessionId: string): BaseDoc | null {
   const tab = readTabBase();
-  if (tab && tab.sessionId === sessionId) return tab.flat;
+  if (tab && tab.sessionId === sessionId) return tab;
   const shared = readSharedBase();
   if (shared && shared.sessionId === sessionId) {
     writeBase(shared);
-    return shared.flat;
+    return shared;
   }
-  return {};
+  return null;
 }
 
-export function saveBase(sessionId: string, flat: FlatMap): void {
-  writeBase({ sessionId, flat });
+export function loadBase(sessionId: string): FlatMap {
+  return loadBaseDoc(sessionId)?.flat ?? {};
+}
+
+// ts is preserved when omitted: push-only and scrub updates do not re-read the
+// remote, so the next probe must still fetch once to stay honest.
+export function saveBase(sessionId: string, flat: FlatMap, ts?: number): void {
+  writeBase({ sessionId, flat, ts: ts ?? loadBaseDoc(sessionId)?.ts ?? 0 });
 }
 
 // Fresh-session creation state: the flat map plus this device's retained

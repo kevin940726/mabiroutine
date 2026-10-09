@@ -29,6 +29,7 @@ import {
 } from "@/sync/session";
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
 import { GC_DAYS } from "@/lib/cycle";
+import { planRound } from "@/sync/round";
 import { loadShopNpcs, shopDeals } from "@/lib/shops";
 import { healClaimedReminderLanes, setServerPushOn } from "@/lib/serverPush";
 import { PURPLE_HOLE_ID } from "@/lib/purpleHole";
@@ -123,8 +124,12 @@ function nullsOf(pushes: FlatMap[]): string[] {
   return pushes.flatMap((p) => Object.entries(p).filter(([, v]) => v === null).map(([k]) => k));
 }
 
-// Faithful pull-round port of SyncButton.pullNow (incl. GC), minus UI refs.
-// NOTE: keep in sync with pullNow by inspection — divergence risk documented.
+// Faithful round port of SyncButton runPull (incl. planRound + GC), minus UI
+// refs. The decision core (planRound) is the real module; this port only wires
+// the stubbed I/O. NOTE: keep in sync with runPull by inspection — divergence
+// risk documented. The async interleavings runPull guards against (mid-flight
+// edits, the freshness probe, push/round serialization) cannot occur
+// synchronously here, so the port runs the guard, plan, and push in one pass.
 function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   // Order-withhold mirror (SyncButton pulledSessionRef + omit-strip): the
   // tab-order key is stripped from pushes until this engine's first pull
@@ -134,20 +139,22 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   return async function fakePull(): Promise<void> {
     const session = loadSession();
     if (!session) return;
-    const flat = flattenSnapshot(buildSnapshot());
     const base = loadBase(session.id);
+    const flat = flattenSnapshot(buildSnapshot());
     const changes = diffFlat(base, flat);
     if (!pulled || !("meta:charorder" in flat)) delete changes["meta:charorder"];
     if (process.env.DBG) console.log("DBG-PULL", JSON.stringify({ baseKeys: Object.keys(base), changeKeys: Object.keys(changes) }));
-    if (Object.keys(changes).length) {
-      pushes.push({ ...changes });
-      server.flat = { ...server.flat, ...changes };
-      saveBase(session.id, { ...base, ...changes });
-    }
     const before = JSON.stringify(flattenSnapshot(buildSnapshot()));
     const remote = { ...server.flat };
+    const plan = planRound(base, changes, remote);
+    if (process.env.DBG && plan.dropped.length) console.log("DBG-DROPPED", JSON.stringify(plan.dropped));
+    if (Object.keys(plan.push).length) {
+      pushes.push({ ...plan.push });
+      server.flat = { ...server.flat, ...plan.push };
+      saveBase(session.id, { ...base, ...plan.push });
+    }
     if (JSON.stringify(flattenSnapshot(buildSnapshot())) !== before) return;
-    const serverView = { ...remote, ...changes };
+    const serverView = plan.view;
     const merged = unflattenMerge(serverView, buildSnapshot(), useAppStore.getState().version);
     if (!applySnapshot(merged)) throw new Error("applySnapshot failed");
     // GC port: tombstone expired cycle keys, drop from the view.
@@ -891,6 +898,108 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   healClaimedReminderLanes();
   const healed = useAppStore.getState().hourlyReminders;
   ok("E16 heal is idempotent", healed.filter((x) => x === "barrier").length === 1, healed);
+}
+
+// E17: contested keys go to the remote (2026-10-09, reported: a day-old iOS
+// PWA replayed its weekly counter and a pin over the desktop's newer ones).
+// The device's edits never reached the server (base predates them); the peer
+// cleared the weekly and unpinned since. The base arbitrates: remote wins.
+{
+  isolate();
+  const SID = "e17-contested";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  const seeded = snap({ [WEEKLY]: 5 }, { [WEEKLY]: THIS_WEEK }, YESTERDAY, THIS_WEEK);
+  seeded.barterPins = ["pin-x"];
+  seedStore(seeded);
+  saveSession({ id: SID, updatedAt: 1 });
+  // Base predates the local edits: they were never pushed.
+  saveBase(SID, flattenSnapshot(snap({}, {}, YESTERDAY, THIS_WEEK)));
+  // Peer since: cleared the weekly, unpinned.
+  server.flat = {
+    ...flattenSnapshot(snap({ [WEEKLY]: 0 }, { [WEEKLY]: THIS_WEEK }, TODAY, THIS_WEEK)),
+    "pin:pin-x": null,
+  };
+  await syncAndResets();
+  ok("E17 no contested push", pushes.length === 0, pushes);
+  ok("E17 peer weekly survives", server.flat[`v:c1:${WEEKLY}@${THIS_WEEK}`] === 0, server.flat[`v:c1:${WEEKLY}@${THIS_WEEK}`]);
+  ok("E17 peer unpin survives", server.flat["pin:pin-x"] === null, server.flat["pin:pin-x"]);
+  const tv17 = useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>;
+  ok("E17 device adopts peer", tv17?.[WEEKLY] === 0 && !useAppStore.getState().barterPins.includes("pin-x"), { tv: tv17, pins: useAppStore.getState().barterPins });
+  const n17 = pushes.length;
+  await syncAndResets();
+  const later17 = pushes.slice(n17);
+  ok(
+    "E17 later rounds never push the contested keys",
+    later17.every((p) => !Object.keys(p).some((k) => k.includes(WEEKLY)) && p["pin:pin-x"] !== true),
+    later17
+  );
+}
+
+// E18: a genuinely fresh local edit still wins — the remote has not moved for
+// that key since the base, so it is uncontested.
+{
+  isolate();
+  const SID = "e18-fresh";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  const seeded = snap({}, {}, TODAY, THIS_WEEK);
+  seeded.barterPins = [...DEFAULT_MUST_PINS];
+  seedStore(seeded);
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  server.flat = { ...flattenSnapshot(buildSnapshot()) };
+  useAppStore.getState().toggleCheck(DAILY_CHECK, false);
+  await syncAndResets();
+  ok("E18 fresh edit pushed", pushes.some((p) => p[`v:c1:${DAILY_CHECK}@${TODAY}`] === true), pushes);
+  ok("E18 server has the edit", server.flat[`v:c1:${DAILY_CHECK}@${TODAY}`] === true, server.flat[`v:c1:${DAILY_CHECK}@${TODAY}`]);
+  ok("E18 device keeps the edit", (useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>)?.[DAILY_CHECK] === true);
+}
+
+// E19: an empty base (fresh-tab / full-push world) must not replay local
+// values over what the server already holds — the old full push re-pinned a
+// peer's deliberate unpin; the base-arbitrated plan respects the tombstone
+// while still pushing keys only this device knows.
+{
+  isolate();
+  const SID = "e19-emptybase";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  const seeded = snap({}, {}, TODAY, THIS_WEEK);
+  seeded.barterPins = ["pin-x", "pin-keep"];
+  seedStore(seeded);
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, {});
+  server.flat = { "pin:pin-x": null, "char:c1:name": "A", "meta:active": "c1" };
+  await syncAndResets();
+  ok("E19 tombstone respected", server.flat["pin:pin-x"] === null, server.flat["pin:pin-x"]);
+  ok("E19 local-only key still pushed", server.flat["pin:pin-keep"] === true, server.flat["pin:pin-keep"]);
+  ok("E19 no pin-x re-push", pushes.every((p) => p["pin:pin-x"] !== true), pushes);
+}
+
+// E20: a value with no provenance reads as the current bucket (flatten's
+// fallback) — the plan must still drop it against a remote that changed the
+// key, so a laundered stale value can never overwrite newer peer progress.
+{
+  isolate();
+  const SID = "e20-laundered";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  const seeded = snap({ [DAILY_CHECK]: true }, { [DAILY_CHECK]: YESTERDAY }, YESTERDAY, THIS_WEEK);
+  delete (seeded.taskBuckets as Record<string, string>)[DAILY_CHECK];
+  seedStore(seeded);
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, {});
+  server.flat = {
+    ...flattenSnapshot(snap({ [DAILY_CHECK]: false }, { [DAILY_CHECK]: TODAY }, TODAY, THIS_WEEK)),
+  };
+  await syncAndResets();
+  ok("E20 laundered stale does not overwrite", server.flat[`v:c1:${DAILY_CHECK}@${TODAY}`] === false, server.flat[`v:c1:${DAILY_CHECK}@${TODAY}`]);
+  ok("E20 device adopts the remote", (useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>)?.[DAILY_CHECK] === false);
 }
 
 setPullHook(null);

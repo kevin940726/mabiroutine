@@ -41,6 +41,9 @@ MabiRoutine's design principle: static game data ships with the app;
   backup first). With sync, opening the app pulls the other device's latest
   first (launch shows their checks as soon as the boot pull lands; offline
   you get your last local state) — stories S1/S5, mechanism in `docs/sync.md`.
+  A key both devices changed since this device last synced resolves to the
+  cloud's value, so a device opening with old, unsynced state cannot replay it
+  over the other device's newer progress.
 - Importing an old backup: works as usual — missing fields are filled and
   dangling keys cleared on the spot; extra fields in the backup are dropped on
   the next save.

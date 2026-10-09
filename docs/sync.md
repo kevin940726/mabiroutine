@@ -78,38 +78,47 @@ absent key to its default and a routine pull silently clears the reminder bells
 — only the peer device still fires (2026-10-07; guarded by `test:sync` engine
 E15, which also fails on any new `AppState` field left unclassified).
 
-## Client engine (`src/sync/SyncButton.tsx`, `src/sync/session.ts`)
+## Client engine (`src/sync/SyncButton.tsx`, `src/sync/session.ts`, `src/sync/round.ts`)
 
-- **Push** (debounced 3s, flushed on tab-hide): diff current flat vs retained
-  **per-tab** base (sessionStorage `flattab`, seeded once from the shared
-  localStorage `flatbase`) → PATCH changed keys. Two silences: base-keys
-  already null stay silent (tombstones send exactly once), and **cycle keys
-  never tombstone** (they expire by bucket — a stale device physically
-  cannot delete anything). Resolves the pushed key-set ({} when clean) or
-  null when nothing was sent — callers must not treat remote state as newer
-  than unsent local edits. (→ S2)
-- **Pull** (mount, tab-visible, window-focus, 5min foreground repoll — the
+- **Auto-push** (debounced 3s, flushed on tab-hide): diff current flat vs
+  retained **per-tab** base (sessionStorage `flattab`, seeded once from the
+  shared localStorage `flatbase`) → PATCH changed keys. It reads no remote: a
+  live-tab edit is uncontested in practice, and every scheduled round applies
+  the base-arbitrated filter below. Two silences: base-keys already null stay
+  silent (tombstones send exactly once), and **cycle keys never tombstone**
+  (they expire by bucket — a stale device physically cannot delete anything).
+  Resolves the pushed key-set ({} when clean) or null when nothing was sent —
+  callers must not treat remote state as newer than unsent local edits. It is
+  serialized against rounds (a push joins an in-flight round, a round awaits
+  an in-flight push), so a wake's stale diff can never escape unfiltered
+  between a round's GET and its merge. (→ S2)
+- **Round** (mount, tab-visible, window-focus, 5min foreground repoll — the
   single periodic timer, owned here; App owns wake ordering only — two timers
   would double every poll; 10s throttle — hook-driven pulls via `syncAndResets`
   bypass the throttle so reset-after-pull ordering holds on boot; a throttled
   no-op pull would let `checkResets` prune before the adopt lands and trip
   the mid-flight guard; mount GET preloaded by an `index.html` inline fetch
   so the round trip overlaps JS bootstrap — consume-once, id-matched, 60s
-  TTL, live-GET fallback; concurrent pulls join one in-flight run):
-  flush first (arrival = order, so local edits land before adopting
-  remote), abort if still dirty, then a freshness probe (`GET ?meta=1`,
-  timestamp-only) when the flush sent nothing — unchanged polls skip the full
-  GET entirely (the binding timestamp is a last-write mark, not an adopt
-  high-water mark, so post-push rounds always full-GET or adoption starves;
-  6-char-cap rounds always full-GET so cap-slice scrubbing never lags a push),
-  abort if edited mid-flight, fold the acknowledged push over the GET result
-  (a lagged/cached read must never resurrect a pre-push absence — this also
-   covers the preloaded pre-flush read), apply wholesale via `unflattenMerge`
-   (current-bucket values only, remote tab order authoritative when present —
-   decision 4b — local ordering only as the no-information fallback), GC expired cycle keys
-  (tombstone once past the 8-day retention), save base. TTL renewal rides a
-daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
-routine polls skip the touch. The 5min repoll pauses after 15min without
+  TTL, live-GET fallback; concurrent rounds join one in-flight run):
+  diff current flat vs the base, then a freshness probe (`GET ?meta=1`,
+  timestamp-only) **only when the diff is clean** — the probe reads the
+  base's own `ts` (the server `updatedAt` the base was read at), not the
+  binding's push ack, so a lost adoption cannot make the probe skip forever;
+  unchanged clean polls skip the full GET entirely (6-char-cap rounds always
+  full-GET so cap-slice scrubbing never lags a push), then GET, then
+  `planRound` (decision 16): a local diff is pushed only while the remote
+  still carries the base's value for that key, and a key both sides changed
+  adopts the remote. The accepted push overlays the GET result (a lagged/
+  cached read must never resurrect a pre-push absence — this also covers the
+  preloaded pre-flush read); a mid-flight edit lands the pre-edit diff through
+  the same plan and skips the apply (the edit stays local for the next round,
+  so it cannot fall through to the blind auto-push), apply wholesale via
+  `unflattenMerge` (current-bucket values only, remote tab order authoritative when present —
+  decision 4b — local ordering only as the no-information fallback), GC expired cycle keys
+  (tombstone once past the 8-day retention), save base + `ts` through the same
+  storage flush as the store state (decision 17). TTL renewal rides a
+  daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
+  routine polls skip the touch. The 5min repoll pauses after 15min without
   input (pointer/key/wheel/touch, focus, visibility all count as attention);
   the idle→active crossing runs the full pull-then-reset round so a return
   across 06:00/Monday prunes after adopting. Offline (boot included):
@@ -138,7 +147,8 @@ routine polls skip the touch. The 5min repoll pauses after 15min without
    increment semantics that's a lost update (truth 7); under set semantics
    both intents ("I saw 5, I want 6") are satisfied. With the stated
    tolerance, per-key LWW converges correctly. Same-key concurrency resolves
-   by arrival order — silent, deterministic, accepted.
+   silently and deterministically: a key contested at round time goes to the
+   remote (decision 16), a live-tab auto-push lands by arrival.
 2. **Toggles must be absolute.** The UI knows current state, so it sends
    `= true/false`, never "flip". RMW shape eliminated at the source.
 3. **Deletes are booleans, never removals.** Unpin/unhide/remove-character
@@ -169,7 +179,8 @@ routine polls skip the touch. The 5min repoll pauses after 15min without
    removal leaving a sorted remainder) never tombstones shared canon via
    the null path, either. Sequential upgrades
    converge on the first volunteer; a volunteer-vs-volunteer race resolves
-   by server arrival order, then sticks. Strict parse
+   through decision 16's base rule (the first push is the remote the second
+   device contests, so the second adopts it), then sticks. Strict parse
    (any empty/dupe segment rejects the key): absence always means "no
    information" and falls back to local order / id-sorted adopt, which is
    also the stale-client shield — pre-upgrade peers tombstone unknown keys
@@ -193,10 +204,13 @@ routine polls skip the touch. The 5min repoll pauses after 15min without
     last-reset markers witness their age, and a stale marker drops them
     (2026-09-07: an upgrade landing after the Monday reset otherwise keeps
     last week's checks all week, then sync adopts them everywhere).
-6. **Timestamp trust is the load-bearing remainder — solved by arrival
-   order.** Phone clocks skew, so wall time is out; HLCs would bloat user
-   state. A single server's receive order is total and matches real order
-   for alternating-device use. No versions, no clocks, no 409s.
+ 6. **Timestamp trust is the load-bearing remainder — arrival order breaks
+    ties, the base breaks contests (superseded in part by #16).** Phone clocks
+    skew, so wall time is out; HLCs would bloat user state. A single server's
+    receive order is total and matches real order for alternating-device use.
+    It stops matching when a device pushes late (unsynced leftovers replaying
+    on a later wake), which is what #16's base arbitration exists to catch.
+    No versions, no clocks, no 409s.
 7. **Base map is per-session and minimal.** First push after session switch
    sends the full map (always safe); `null`s persist in base so tombstones
    aren't re-sent.
@@ -266,19 +280,59 @@ routine polls skip the touch. The 5min repoll pauses after 15min without
     linked-era unpin as "never decided". Unlinked upgraders pin new rows by
     hand once — there is no wire to consult, and boot seeding would re-add
     deliberate local unpins every load.
+16. **Contested keys go to the remote; the base is the arbiter (2026-10-09 —
+    supersedes the arrival-wins half of #6).** A round builds the local diff
+    against the base, then `planRound` (`src/sync/round.ts`) keeps a change
+    only while the remote still carries the base's value for that key; a key
+    both sides changed since this device last synced adopts the remote. The
+    reported wipe: a day-old iOS PWA (its weekly counter and pin edits never
+    reached the server) opened after the desktop had cleared/unpinned, pushed
+    its leftovers, and arrival order replayed them over the desktop. Arrival
+    cannot distinguish "I just tapped this" from "this sat unsynced"; the base
+    can (the server saw the base's value or it did not), and the remote bias
+    is the one that can never replay an outdated device's state over a peer's
+    newer progress. It also generalizes E14: an empty/fresh base no longer
+    full-pushes values over rows the server already decided (a peer's unpin
+    survives every first-link path). Cost: a genuinely later local edit
+    reverts when the same key changed on a peer since this device's last
+    sync — without clocks the two cases are indistinguishable, and the
+    deterministic remote-wins tie keeps both sides converged with no
+    ping-pong. `dropped` names the contested keys for tests and debugging;
+    the user-visible rule stays silent.
+17. **The persisted base ships in the same flush as the state it describes
+    (2026-10-09).** `writeBase` queues the shared `flatbase` doc through
+    `src/lib/storage.ts` and flushes with the store write, state first, base
+    second (one pass, insertion-ordered); a failed state write aborts the
+    flush, so the base can never land alone. The per-tab copy is written last,
+    after the shared flush, so a crash between the two leaves it older than
+    the persisted state (the contest filter absorbs a re-push) rather than
+    fresher. A crash can leave the shared base older than memory (the next
+    round re-pushes; safe) but never fresher: a base fresher than the
+    persisted state made the next boot read a day-old local state as "changed
+    since the base" and replay it over the peer. The base also carries the
+    server `updatedAt` it was read at (`ts`), which the freshness probe uses
+    instead of the binding's ack — a lost adoption can no longer make the
+    probe skip forever. Pre-ts docs load as `ts: 0` (one extra GET, always
+    safe).
 
 ## Trade-offs and residual risks
 
-- Same-key concurrent edits resolve by arrival with no trace. By design
-  tolerance; add per-key versions to GET only if a real complaint arrives.
+- Same-key concurrent edits resolve silently and deterministically: a round's
+  contested keys go to the remote (decision 16), a live-tab auto-push lands by
+  arrival. The residual cost is the mirror case: a genuinely later local edit
+  reverts when the same key changed on a peer since this device's last sync
+  (no clocks, so the two cases cannot be told apart). Deterministic and
+  convergent; add edit timestamps to the wire only if that trade ever bites.
 - A stale device's own values can arrive tagged with the CURRENT bucket if
   its provenance was laundered at upgrade (fixed 2026-09-07: stale reset
   markers now drop provenance-less values instead of stamping them). With no
-  witness (null markers on versionless imports) stamp-current remains, and a
-  yesterday value on a never-since-opened device reads as today's until the
-  first prune tick. Self-heals within one tick; never destructive.
+  witness (null versions on versionless imports) stamp-current remains, but
+  decision 16 keeps it harmless: a laundered value is contested whenever the
+  remote changed the key, so it can no longer overwrite newer progress.
 - Mixed-version window: pre-rev-3 devices read/write untagged keys, so they
   neither see nor destroy rev-3 values (but cannot adopt them either).
+  Pre-decision-16 devices push blind: an outdated build can still replay its
+  leftovers until it refreshes (the protection is client-side, per device).
   Update all devices promptly; old keys age out via GC... untagged keys are
   never GC'd (no parseable bucket) — bounded by the one-time pre-rev-3 dump.
 - Tombstones grow on deletes that are never reused (deleted customs/chars).
@@ -309,7 +363,9 @@ storage — blocked (no overage) on exceed. Rows written is the binding metric,
 protected deliberately (in-memory rate limiter, no SQL counter, cap check via
 `sessions.field_count` instead of a row scan). Per pull: 1 probe-row read, plus
 a full GET of ~230 rows only when changed; per push: the changed keys only, 0
-when clean (diff short-circuits). Single 5min timer — no second interval
+when clean (diff short-circuits). A push burst costs one full GET at the next
+poll, because the base's `ts` only advances with a GET (decision 17) — then
+the probe skips again. Single 5min timer — no second interval
 anywhere (a duplicate would double every poll). Headroom
 (`docs/sql-migration.md` Quota estimate): 1000 heavy 2-device users reach ~48%
 of reads (~2x headroom, not an order of magnitude); writes are the ceiling —
@@ -362,14 +418,25 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | E9 | clearSection zeroes in place, propagates, never resurrects | same |
 | E10 | Removed character stays removed after pull (no ghosts) | same |
 | E11 | Custom kind change re-stamps provenance, keeps the check | same |
-| E12 | Tab order syncs LWW-then-sticks; sorted orders never volunteered nor tombstoned; race resolves by arrival | same |
+| E12 | Tab order syncs LWW-then-sticks; sorted orders never volunteered nor tombstoned; a contest adopts the remote order | same |
 | E13 | Merge keeps local pinnedCollapsed, still takes synced hideCompleted | same |
 | E14 | Upgrade straggler can't resurrect a peer unpin; absent keys seed pull-aware; regenerate carries tombstones | same |
+| E15 | Device-local lanes (reminder bells) survive pull/import; every store field classified synced or local | same |
+| E16 | A claimed reminder lane re-arms only when its claim survived and the row is eligible | same |
+| E17 | A day-old device's unsynced weekly + pin edits lose to the peer's later clear/unpin; quiet after adopt | same, contested-key plan |
+| E18 | A genuinely fresh local edit still pushes and lands (remote unchanged for that key) | same |
+| E19 | Empty base (fresh link) respects a peer tombstone while pushing local-only keys | same |
+| E20 | Provenance-less stale value cannot overwrite a remote that changed the key | same |
+| F1 | State-before-base ordering in one storage flush; read-through; remove | real `storage.ts`, logging localStorage |
 | P | 300 randomized prune runs (stale removed, current kept, idempotent) | real store, seeded |
 | A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
 | E1E | Real tap → server → second device renders checked | real Edge (CDP) |
 | E2E | Wake-pull leaves server value intact | same |
 
 Teeth: removing the cycle-key exemption from `diffFlat` fails E1/E4/E5 with
-the exact production wipe payload (`v:c1:parttime@…: null` on reset). Live
-suites SKIP loudly without `pnpm dev:api`/Edge; hermetic suites always run.
+the exact production wipe payload (`v:c1:parttime@…: null` on reset). Removing
+the `planRound` contest filter fails E17/E19/E20 with the stale replay
+payload; reordering the flush to base-first fails F1; a push that bypasses
+the push/round serialization can still be caught by E17's contested-set
+assertions in the round port. Live suites SKIP loudly without `pnpm dev:api`/
+Edge; hermetic suites always run.
