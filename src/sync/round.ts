@@ -18,6 +18,8 @@ export type RoundDecision = {
   view: FlatMap | null;
   /** Keys the remote had changed too, so the remote value is adopted. */
   dropped: string[];
+  /** Keys the remote changed since the base and this device did not touch. */
+  adopted: string[];
 };
 
 // Overloads keep the caller's knowledge: with a remote in hand the view is
@@ -25,12 +27,18 @@ export type RoundDecision = {
 export function planRound(base: FlatMap, changes: FlatMap, remote: null): RoundDecision & { view: null };
 export function planRound(base: FlatMap, changes: FlatMap, remote: FlatMap): RoundDecision & { view: FlatMap };
 export function planRound(base: FlatMap, changes: FlatMap, remote: FlatMap | null): RoundDecision {
-  if (remote === null) return { push: { ...changes }, view: null, dropped: [] };
+  if (remote === null) return { push: { ...changes }, view: null, dropped: [], adopted: [] };
   const push: FlatMap = {};
   const dropped: string[] = [];
+  const adopted: string[] = [];
+  for (const [k, v] of Object.entries(remote)) {
+    if (k in changes) continue;
+    if (eq(v, base[k])) continue;
+    adopted.push(k);
+  }
   for (const [k, v] of Object.entries(changes)) {
     if (eq(remote[k], base[k])) push[k] = v;
     else dropped.push(k);
   }
-  return { push, view: { ...remote, ...push }, dropped };
+  return { push, view: { ...remote, ...push }, dropped, adopted };
 }

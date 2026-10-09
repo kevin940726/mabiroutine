@@ -306,6 +306,18 @@ try {
       `(() => { try { const p = JSON.parse(localStorage.getItem('mabiroutine:v2')); const c = p.state.characters.find(c => c.id === ${JSON.stringify(cidA)}); return c ? c.taskValues.tower : 'NO-CHAR'; } catch (e) { return 'ERR'; } })()`
     );
     ok("E3 device adopted the peer value", localTower === 3, `local tower=${JSON.stringify(localTower)}`);
+    const journal = await evaluate(
+      tabC.sessionId,
+      `(() => { try { return JSON.parse(window.__mabiSyncJournal()); } catch (e) { return null; } })()`
+    );
+    const droppedTower = Array.isArray(journal)
+      ? journal.some((e) => Array.isArray(e.dropped) && e.dropped.some((d) => typeof d.key === "string" && d.key.includes(":tower@") && d.local === 9 && d.base === 1 && d.remote === 3))
+      : false;
+    const pushedTower = Array.isArray(journal)
+      ? journal.some((e) => Array.isArray(e.pushed) && e.pushed.some((p) => typeof p.key === "string" && p.key.includes(":tower@")))
+      : false;
+    ok("E3 journal records the dropped contest", droppedTower, JSON.stringify(journal).slice(0, 300));
+    ok("E3 journal never records a tower push", !pushedTower, JSON.stringify(journal).slice(0, 300));
   }
 } catch (e) {
   console.log(`FAIL: browser-e2e harness: ${e.message}`);

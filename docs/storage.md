@@ -14,7 +14,10 @@ MabiRoutine's design principle: static game data ships with the app;
   against the static rows. Writes are idle-deferred (rapid taps never
   stutter) and force-flushed when you switch tabs or close; in the worst
   case you lose ~1.5 seconds of input. Reminder subscriptions are
-  per-device local-only — never synced, never sent anywhere.
+  per-device local-only — never synced, never sent anywhere. A local-only
+  sync journal (`mabiroutine:syncjournal`) keeps the last 50 sync rounds
+  (pushed, dropped and adopted keys) for diagnosing a sync conflict; it is
+  per-device and never leaves the browser.
 
 ## When the app updates (auto-migrate, nothing to do)
 

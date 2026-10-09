@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- Local-only sync journal (`mabiroutine:syncjournal`, `__mabiSyncJournal()`): each device keeps its last 50 sync rounds with the keys pushed, the contested keys dropped (local/base/remote side by side) and the remote keys adopted, so a future conflict is reconstructable from the device itself. Never sent anywhere, no UI
+
 ## 2026-10-10 — Row and pinned order sync
 
 ### Features

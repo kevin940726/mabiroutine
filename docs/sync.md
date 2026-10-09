@@ -411,7 +411,15 @@ Local dev (`file:` database) costs nothing. Preview shares the production Turso
 DB (solo-maintainer decision), so run live suites pre-release or on
 sync-touching branches only; hermetic suites are the everyday gate. Per-device
 telemetry (`localStorage mabiroutine:syncstats`, `__mabiSyncStats()` in DevTools,
-Q1–Q5 gate) validates the model against the Turso dashboard.
+Q1–Q5 gate) validates the model against the Turso dashboard. The same pattern
+carries the **local sync journal** (`mabiroutine:syncjournal`,
+`__mabiSyncJournal()`): the last 50 rounds per device with the pushed keys, the
+contested keys dropped (local/base/remote side by side) and the remote keys
+adopted — never sent anywhere, no UI. It covers rounds and auto-pushes (not the
+8-day cycle-key GC), and because it lives per device the session-id prefix only
+groups entries by session. It is the only witness that can reconstruct a
+conflict after the fact (the server keeps end state only, and request logs
+carry no bodies).
 
 > Historical (Redis era: Upstash free 500K cmds/mo). Per request ≈ rate-limit
 > INCR + work (HGETALL/HSET) + TTL EXPIRE only on the daily touch beacon.

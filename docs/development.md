@@ -149,15 +149,18 @@ list — so they need no rule of their own.
   - `engine.entry.ts` — bucketed-key scenarios: local reset never
     tombstones, adoption filters by tag, legacy keys inert, delete split
     (cycle silent vs persistent tombstoned once), resetAll, GC, the
-    production stale-evening-device scenario, and contested-key arbitration
+    production stale-evening-device scenario, contested-key arbitration
     (a stale device's unsynced leftovers lose to the peer, a fresh edit still
     wins, an empty base respects a peer tombstone, a laundered value cannot
-    overwrite); real store + real flat/session/reset functions and the real
-    `planRound`, modeled server, stubbed storage.
+    overwrite), and row/pin order keys (E21/E22); real store + real
+    flat/session/reset functions and the real `planRound`, modeled server,
+    stubbed storage.
   - `quota.entry.ts` — Q1–Q5: per-kind telemetry counting, the daily touch
     beacon, and the idle window.
   - `flush.entry.ts` — state-before-base ordering in one storage flush
     through the real `saveBase`, plus read-through and remove semantics.
+  - `journal.entry.ts` — the local sync journal: round-trip, per-list and
+    ring caps, corruption recovery, empty-round skip.
   - `prop-reset.ts` — 300 seeded-random prune runs: stale-bucket values
     removed, current kept, idempotent, non-value fields untouched.
   - `tabs.cjs` — poisoned-base stale tab + cap-overflow in vm-realm tabs

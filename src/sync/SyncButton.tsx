@@ -59,6 +59,7 @@ import {
   type FlatMap,
 } from "@/sync/flat";
 import { planRound } from "@/sync/round";
+import { journalPush, journalRound } from "@/sync/journal";
 
 function errorMessage(e: unknown): string {
   if (e instanceof SyncTooLarge) return "進度過大，無法同步";
@@ -165,6 +166,7 @@ export const SyncButton = memo(function SyncButton() {
       // ts stays the last GET's: a later round re-reads once to stay honest.
       saveBase(session.id, { ...(baseDoc?.flat ?? {}), ...changes });
       pushFails.current = 0;
+      journalPush({ sessionId: session.id, remoteTs: updatedAt, pushed: changes });
       return changes;
     } catch (e) {
       if (e instanceof SyncNotFound) {
@@ -291,9 +293,20 @@ export const SyncButton = memo(function SyncButton() {
         // the base only by what was pushed; the edit itself stays a local diff
         // for the next round, where it is fresh by definition.
         const plan = planRound(base, changes, remote.state as FlatMap);
-        if (Object.keys(plan.push).length > 0 && (await pushPlanned(session, plan.push))) {
-          saveBase(session.id, { ...base, ...plan.push });
-        }
+        const landed = Object.keys(plan.push).length === 0 || (await pushPlanned(session, plan.push));
+        if (!landed) return;
+        if (Object.keys(plan.push).length > 0) saveBase(session.id, { ...base, ...plan.push });
+        journalRound({
+          sessionId: session.id,
+          remoteTs: remote.updatedAt,
+          base,
+          changes,
+          remote: remote.state as FlatMap,
+          pushed: plan.push,
+          dropped: plan.dropped,
+          adopted: plan.adopted,
+          aborted: true,
+        });
         return;
       }
       const plan = planRound(base, changes, remote.state as FlatMap);
@@ -303,6 +316,16 @@ export const SyncButton = memo(function SyncButton() {
       const serverView = plan.view;
       const merged = unflattenMerge(serverView, buildSnapshot(), useAppStore.getState().version);
       if (!applySnapshot(merged)) return;
+      journalRound({
+        sessionId: session.id,
+        remoteTs: remote.updatedAt,
+        base,
+        changes,
+        remote: remote.state as FlatMap,
+        pushed: plan.push,
+        dropped: plan.dropped,
+        adopted: plan.adopted,
+      });
       // ts is the GET's timestamp, not our PATCH ack: any later write (theirs
       // or ours) must re-trigger a read, so a peer write inside the
       // probe-to-PATCH window can never be skipped forever.
@@ -310,7 +333,8 @@ export const SyncButton = memo(function SyncButton() {
       pulledSessionRef.current = session.id;
       // GC: tombstone cycle keys past the retention window. Real deletes of
       // values no device reads anymore — bounds the server hash; racing
-      // tabs dedupe via base-advance and tombstones-once.
+      // tabs dedupe via base-advance and tombstones-once. Not journalled:
+      // maintenance deletes of inert >8-day cycle keys, not a user push.
       const expired = expiredCycleKeys(serverView);
       if (expired.length) {
         try {

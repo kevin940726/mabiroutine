@@ -13,8 +13,10 @@
  *  prop-reset 300 randomized checkResets key-collection exactness runs
  *  quota      Q1–Q5 telemetry counting + touch beacon + idle window
  *             (pins the quota model in docs/sync.md)
- *  flush      state-before-base ordering in one storage flush (real
- *             src/lib/storage.ts) — pins docs/sync.md decisions 16/17
+ *  flush      state-before-base ordering in one storage flush through the
+ *             real saveBase (docs/sync.md decision 17)
+ *  journal    local sync journal round-trip, ring cap, corruption recovery
+ *             (docs/sync.md diagnostics)
  *  tabs       T1 stale-tab tombstones + T2 cap-overflow (vm-realm tabs,
  *             real flat.ts — fails on pre-fix code, see docs/sync.md)
  *  api-live   dev-API concurrency/upgrades/failure paths (needs dev:api)
@@ -113,6 +115,22 @@ function run(file, args = []) {
   const out = path.join(cache, "flush.mjs");
   buildSync({
     entryPoints: ["scripts/sync-tests/flush.entry.ts"],
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    outfile: out,
+    alias: { "@": "./src" },
+    logLevel: "error",
+  });
+  run(out);
+}
+
+// journal (local diagnostics): real journal.ts, stubbed localStorage
+{
+  section("journal (round-trip, ring cap, corruption)");
+  const out = path.join(cache, "journal.mjs");
+  buildSync({
+    entryPoints: ["scripts/sync-tests/journal.entry.ts"],
     bundle: true,
     platform: "node",
     format: "esm",

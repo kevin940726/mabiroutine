@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
 import { statsSummary } from './sync/stats.ts'
+import { readJournal, clearJournal } from './sync/journal.ts'
 import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
 import { getUndonePurpleReminder } from './hooks/usePurpleHoleReminders.ts'
 import {
@@ -18,6 +19,18 @@ import { PURPLE_HOLE_ID, PURPLE_TAG, formatTaipei, initPurpleFeed, msUntilPurple
 // __mabiSyncStats() in DevTools for per-day request/command estimates.
 if (typeof window !== 'undefined') {
   (window as unknown as { __mabiSyncStats?: () => string }).__mabiSyncStats = statsSummary;
+}
+
+// Sync journal reader (docs/sync.md diagnostics): __mabiSyncJournal() returns
+// the last rounds' pushed/dropped/adopted keys as JSON, __mabiSyncJournalClear()
+// empties it. Local-only, never sent anywhere.
+if (typeof window !== 'undefined') {
+  const w = window as unknown as {
+    __mabiSyncJournal?: () => string;
+    __mabiSyncJournalClear?: () => void;
+  };
+  w.__mabiSyncJournal = () => JSON.stringify(readJournal());
+  w.__mabiSyncJournalClear = clearJournal;
 }
 
 // Purple schedule feed (phase 2B): apply the cached doc now, then refresh at
