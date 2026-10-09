@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-10 — Row and pinned order sync
+
 ### Features
 - Row order now follows you across linked devices, top to bottom: the tracker list (built-in and custom rows) and the 已釘選 pinned band each sync as an order map, so a drag on one device lands on the others. Creation order is the seed (a device that adopted rows keeps the creator's layout instead of an id-sorted one), the generated fallback layout is never volunteered over a real one, and the pinned fold plus group expansion stay per-device because they are view state, not order
 
