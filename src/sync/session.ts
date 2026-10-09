@@ -94,8 +94,8 @@ export function buildSnapshot(): SyncSnapshot {
     accountValues: s.accountValues,
     hiddenAccountTaskIds: s.hiddenAccountTaskIds,
     barterPins: s.barterPins,
-    // Read for merge-carry only — flattenSnapshot never emits it, so the
-    // order stays per-device local (like globalTaskOrder).
+    // Emitted as meta:pinorder (a rank map) since 2026-10-09. Carried here so
+    // the merge can fall back to the local array when the key is absent.
     barterCustomOrder: s.barterCustomOrder,
     customTasks: s.customTasks,
     lastDailyReset: s.lastDailyReset,

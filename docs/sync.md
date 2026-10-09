@@ -60,6 +60,12 @@ char:{cid}:name  character name
 meta:active      active character id
 meta:charorder   character tab order, comma-joined cids (string — the API
                  rejects array values; last writer wins, then sticks, see decision 4b)
+meta:taskorder   tracker row order, id -> number (object, 8KB cap). Authored
+                 entries only: built-in overrides plus custom numbers; the merge
+                 unions with the remote winning per id, and a generated id-sorted
+                 custom band is never volunteered (decision 4c)
+meta:pinorder    pinned band order, pin id -> rank (object). Absent = the
+                 canonical curated/shops order (decision 4d)
 pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 ```
 
@@ -68,15 +74,16 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 weekly kinds. Provenance lives in the store (`taskBuckets: tid -> bucket`,
 v13) and rides the wire on every value key.
 
-Device-local fields never ride the wire. `barterCustomOrder` / `globalTaskOrder`
-(order) are carried through the merge from the local device; `hourlyReminders`
-and `purpleHoleReminders` are absent from the merge output entirely, so every
+Device-local fields never ride the wire. `hourlyReminders` and
+`purpleHoleReminders` are absent from the merge output entirely, so every
 apply path (`applySnapshot` on a pull/adopt, `importJson` on a backup) restores
 them from the current device when the incoming payload does not set them
 (`DEVICE_LOCAL_STATE_KEYS`). Without that, `normalizePersisted` backfills the
 absent key to its default and a routine pull silently clears the reminder bells
 — only the peer device still fires (2026-10-07; guarded by `test:sync` engine
 E15, which also fails on any new `AppState` field left unclassified).
+`prefs.pinnedCollapsed` (the 已釘選 fold) and the never-persisted group
+expansion stay local the same way: they are view state, not order.
 
 ## Client engine (`src/sync/SyncButton.tsx`, `src/sync/session.ts`, `src/sync/round.ts`)
 
@@ -113,8 +120,9 @@ E15, which also fails on any new `AppState` field left unclassified).
   preloaded pre-flush read); a mid-flight edit lands the pre-edit diff through
   the same plan and skips the apply (the edit stays local for the next round,
   so it cannot fall through to the blind auto-push), apply wholesale via
-  `unflattenMerge` (current-bucket values only, remote tab order authoritative when present —
-  decision 4b — local ordering only as the no-information fallback), GC expired cycle keys
+  `unflattenMerge` (current-bucket values only, remote order authoritative when
+  present — decisions 4b-4d — local ordering only as the no-information
+  fallback, and local-only order entries kept so they keep propagating), GC expired cycle keys
   (tombstone once past the 8-day retention), save base + `ts` through the same
   storage flush as the store state (decision 17). TTL renewal rides a
   daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
@@ -156,11 +164,13 @@ E15, which also fails on any new `AppState` field left unclassified).
    No GC needed: reset-cleared keys are revived by reuse, and
    never-reused keys (deleted customs/chars) are bytes at this scale.
    Stale replicas cannot resurrect — the tombstone's newer seq wins.
-4. **Ordering is per-device local, never synced — except character tabs.**
+4. **Ordering was per-device local (superseded per surface by 4b-4d).**
    Drag order, pin order. Cross-device order merge is index soup even with
    ranks; local order is also arguably better UX (different screens,
-   different ideal orders). Cost: reordering on desktop doesn't move phone
-   rows. Accepted.
+   different ideal orders). Reversed 2026-10-09 for every user-visible list
+   after linked devices kept drifting: one user wants one layout, and the
+   adopt-time fallbacks produced orders no device could realign. Still local:
+   the pinned fold and the ephemeral group expansion (view state, not order).
    4b. **Character tabs sync via `meta:charorder` (2026-09-23, supersedes #4
    for tabs only).** The id-sorted fresh-adopt fallback split linked devices
    permanently — creator kept creation order, adopter got id-sorted, with no
@@ -187,6 +197,27 @@ E15, which also fails on any new `AppState` field left unclassified).
    on push, so mixed-version households degrade to the old behavior until
    all devices refresh, then converge. Local add/remove still propagates
    (unknown ids append id-sorted, dead ids filter against the live set).
+   4c. **Tracker rows sync via `meta:taskorder` (2026-10-09, S6).** Built-in and
+   custom rows, one top-to-bottom layout. The value is an id -> number map of
+   authored entries only: built-in overrides plus every custom row's number
+   (rows with no entry fall back to their data order, identical on every
+   build). Merge is a union with the remote winning per id, and local-only
+   entries keep propagating, so a partial map heals on the next push instead
+   of ping-ponging. The charorder artifact rule carries over: the adopt
+   fallback lays customs out id-sorted, and a custom band that sorts by number
+   into id order (2+ rows) is withheld, so a generated layout can never
+   overwrite a chosen one; once canon is adopted the band stops being
+   id-sorted and the device volunteers again. A definite `custom:{id} = null`
+   tombstone drops its entry; unknown ids without one ride along so a newer
+   build's rows survive a version skew.
+   4d. **Pinned rows sync via `meta:pinorder` (2026-10-09, S6).** The flat
+   `barterCustomOrder` array drives the merchant bands, the children inside
+   them, and the daily/weekly split, so one rank map (pin id -> rank) syncs
+   the whole 已釘選 layout. Absent = canonical (curated order, then shops file
+   order): a device that never dragged says nothing, and nothing ever
+   generates an array, so no artifact guard is needed. A remote map wins for
+   the ids it names; pins known locally but absent from the map follow in
+   local array order, and a remote unpin filters the entry out.
  5. **Resets are read-time expiry, never deletes** (rev 3 — supersedes the
     marker-gating of #11). Every wiped session traced to one domain decision:
     resets as write-time deletes. Rev 3 tags every value with its cycle
@@ -317,6 +348,10 @@ E15, which also fails on any new `AppState` field left unclassified).
 
 ## Trade-offs and residual risks
 
+- Order is one shared layout now: a drag on any device moves the rows (or
+  pins) on every device, and simultaneous drags resolve to one side by the
+  same per-key rules as every other value. Local-only order entries are kept
+  through a merge, so a partial map keeps propagating instead of ping-ponging.
 - Same-key concurrent edits resolve silently and deterministically: a round's
   contested keys go to the remote (decision 16), a live-tab auto-push lands by
   arrival. The residual cost is the mirror case: a genuinely later local edit
@@ -427,6 +462,8 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | E18 | A genuinely fresh local edit still pushes and lands (remote unchanged for that key) | same |
 | E19 | Empty base (fresh link) respects a peer tombstone while pushing local-only keys | same |
 | E20 | Provenance-less stale value cannot overwrite a remote that changed the key | same |
+| E21 | Row order syncs (meta:taskorder): withhold, creation-order volunteer, generated band never volunteered, union heals partials, tombstones drop, malformed ignored | same |
+| E22 | Pin order syncs (meta:pinorder): withhold, canon adopted, canonical null says nothing, local-only pins append, unpinned drops, malformed ignored | same |
 | F1 | State-before-base ordering in one storage flush; read-through; remove | real `storage.ts`, logging localStorage |
 | P | 300 randomized prune runs (stale removed, current kept, idempotent) | real store, seeded |
 | A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
@@ -438,5 +475,9 @@ the exact production wipe payload (`v:c1:parttime@…: null` on reset). Removing
 the `planRound` contest filter fails E17/E19/E20 with the stale replay
 payload; reordering the flush to base-first fails F1; a push that bypasses
 the push/round serialization can still be caught by E17's contested-set
-assertions in the round port. Live suites SKIP loudly without `pnpm dev:api`/
+assertions in the round port. On the order keys: removing the custom-band guard
+from `flattenSnapshot` fails E21 (the artifact band starts volunteering);
+dropping the per-id union from `unflattenMerge` fails E21's local-only-override
+check; skipping the local-only pin append fails E22's canon-plus-append check.
+Live suites SKIP loudly without `pnpm dev:api`/
 Edge; hermetic suites always run.

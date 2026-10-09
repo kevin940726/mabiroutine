@@ -7,9 +7,9 @@
  * stays green offline.
  *
  * Suites:
- *  engine     E1–E20 syncAndResets scenarios (suppression, propagation,
- *             adopt/import stamping, resetAll, contested-key arbitration) —
- *             the retention-critical path
+ *  engine     E1–E22 syncAndResets scenarios (suppression, propagation,
+ *             adopt/import stamping, resetAll, contested-key arbitration,
+ *             row/pin order sync) — the retention-critical path
  *  prop-reset 300 randomized checkResets key-collection exactness runs
  *  quota      Q1–Q5 telemetry counting + touch beacon + idle window
  *             (pins the quota model in docs/sync.md)

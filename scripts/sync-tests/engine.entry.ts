@@ -9,6 +9,7 @@ import { useAppStore, migratePersisted, seedMissingDefaultPins, DEFAULT_MUST_PIN
 import {
   flattenSnapshot,
   diffFlat,
+  guardOrderKeys,
   loadBase,
   saveBase,
   unflattenMerge,
@@ -89,11 +90,16 @@ function snap(
     accountValues: {},
     hiddenAccountTaskIds: [],
     barterPins: [],
+    // Explicit empties, not undefined: seedStore JSON-round-trips, and an
+    // undefined field drops out of the parsed object, so zustand's top-level
+    // merge would keep the PREVIOUS test block's value (a leaked row/pin order
+    // made an artifact-band fixture look authored).
+    barterCustomOrder: null,
     customTasks: [],
     lastDailyReset: daily,
     lastWeeklyReset: weekly,
     prefs: { hideCompleted: false },
-    globalTaskOrder: undefined,
+    globalTaskOrder: {},
     barterFilters: { ...FILTERS },
     taskBuckets: { ...buckets },
   };
@@ -131,10 +137,10 @@ function nullsOf(pushes: FlatMap[]): string[] {
 // edits, the freshness probe, push/round serialization) cannot occur
 // synchronously here, so the port runs the guard, plan, and push in one pass.
 function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
-  // Order-withhold mirror (SyncButton pulledSessionRef + omit-strip): the
-  // tab-order key is stripped from pushes until this engine's first pull
-  // completes, and whenever flatten omits it, so no device volunteers canon
-  // blind or tombstones it via the null path.
+  // Order-withhold mirror (SyncButton pulledSessionRef + omit-strip): order
+  // keys are stripped from pushes until this engine's first pull completes,
+  // and whenever flatten omits one, so no device volunteers canon blind or
+  // tombstones it via the null path. The real helper is shared, not copied.
   let pulled = false;
   return async function fakePull(): Promise<void> {
     const session = loadSession();
@@ -142,7 +148,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
     const base = loadBase(session.id);
     const flat = flattenSnapshot(buildSnapshot());
     const changes = diffFlat(base, flat);
-    if (!pulled || !("meta:charorder" in flat)) delete changes["meta:charorder"];
+    guardOrderKeys(changes, flat, pulled);
     if (process.env.DBG) console.log("DBG-PULL", JSON.stringify({ baseKeys: Object.keys(base), changeKeys: Object.keys(changes) }));
     const before = JSON.stringify(flattenSnapshot(buildSnapshot()));
     const remote = { ...server.flat };
@@ -621,8 +627,8 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
     );
   }
   // --- per-device prefs survive a merge ---------------------------------------
-  // pinnedCollapsed is a per-device fold and is absent from the sync key space,
-  // like drag order. Merge must carry the LOCAL value through instead of
+  // pinnedCollapsed is a per-device fold and is absent from the sync key space
+  // (view state, not order). Merge must carry the LOCAL value through instead of
   // rebuilding prefs from the flat map (which dropped it on every pull, masked
   // only by normalizePersisted's backfill). hideCompleted IS synced, so it must
   // still come from the server view.
@@ -1000,6 +1006,280 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   await syncAndResets();
   ok("E20 laundered stale does not overwrite", server.flat[`v:c1:${DAILY_CHECK}@${TODAY}`] === false, server.flat[`v:c1:${DAILY_CHECK}@${TODAY}`]);
   ok("E20 device adopts the remote", (useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>)?.[DAILY_CHECK] === false);
+}
+
+// E21: top-level row order syncs (meta:taskorder, decision 4c). Built-in and
+// custom rows keep one layout across linked devices, seeded from creation
+// order. The map is a union: the remote wins per id, local-only entries keep
+// propagating, and the adopter's generated id-sorted custom band is never
+// volunteered. Built-in overrides ride the same map, so a drag that moves a
+// data row lands too. Seeded at the current store version: migrations are
+// covered by fixtures A-O and the v17 step would otherwise reset barter order
+// mid-scenario.
+{
+  const SID = "e21-roworder";
+  const server = { flat: {} as FlatMap };
+  const STORE_VERSION = 21;
+  const pack = (z9: number, a2: number, m5: number) => [
+    { id: "cu-z9", name: "C-z9", kind: "daily", section: "custom", type: "check", order: z9 },
+    { id: "cu-a2", name: "C-a2", kind: "daily", section: "custom", type: "check", order: a2 },
+    { id: "cu-m5", name: "C-m5", kind: "daily", section: "custom", type: "check", order: m5 },
+  ];
+  const orderOf = () =>
+    useAppStore.getState().customTasks.slice().sort((a, b) => a.order - b.order).map((t) => t.id);
+  // --- device A (creator): customs in creation order, one built-in dragged up
+  isolate();
+  const pushesA: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesA));
+  seedStore({
+    ...snap({}, {}, TODAY, THIS_WEEK),
+    version: STORE_VERSION,
+    customTasks: pack(230, 240, 250),
+    globalTaskOrder: { [DAILY_COUNT]: 5 },
+  });
+  saveSession({ id: SID, updatedAt: 1 });
+  await syncAndResets();
+  ok(
+    "E21 first round withholds row order",
+    !pushesA.some((p) => "meta:taskorder" in p) && !("meta:taskorder" in server.flat),
+    pushesA.map((p) => Object.keys(p))
+  );
+  await syncAndResets();
+  const mapA = server.flat["meta:taskorder"] as Record<string, number> | undefined;
+  ok(
+    "E21 creator pushes its row order",
+    !!mapA && mapA["cu-z9"] === 230 && mapA["cu-a2"] === 240 && mapA["cu-m5"] === 250 && mapA[DAILY_COUNT] === 5,
+    mapA
+  );
+  // --- device B (adopter): the adopt fallback's exact layout (a2=10, m5=20,
+  // z9=30 — id-sorted numbers, which is what the guard withholds)
+  isolate();
+  const pushesB: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesB));
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), version: STORE_VERSION, customTasks: pack(30, 10, 20) });
+  saveSession({ id: SID, updatedAt: 2 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  await syncAndResets();
+  ok(
+    "E21 adopter takes the creator custom order",
+    JSON.stringify(orderOf()) === JSON.stringify(["cu-z9", "cu-a2", "cu-m5"]),
+    orderOf()
+  );
+  ok("E21 adopter takes the builtin override", useAppStore.getState().globalTaskOrder?.[DAILY_COUNT] === 5);
+  ok(
+    "E21 generated band never volunteered",
+    !pushesB.some((p) => "meta:taskorder" in p),
+    pushesB.map((p) => p["meta:taskorder"])
+  );
+  const nB = pushesB.length;
+  await syncAndResets();
+  ok("E21 pair quiet after converge", pushesB.length === nB, pushesB.slice(nB));
+  // --- device A again: still canon, still quiet
+  isolate();
+  const pushesA2: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesA2));
+  seedStore({
+    ...snap({}, {}, TODAY, THIS_WEEK),
+    version: STORE_VERSION,
+    customTasks: pack(230, 240, 250),
+    globalTaskOrder: { [DAILY_COUNT]: 5 },
+  });
+  saveSession({ id: SID, updatedAt: 3 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  await syncAndResets();
+  await syncAndResets();
+  ok("E21 creator quiet on canon", pushesA2.length === 0, pushesA2);
+  // --- fresh adopt lands in the pushed layout, built-in override included
+  isolate();
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), version: STORE_VERSION });
+  ok("E21 fresh adopt ok", adoptState({ state: { ...server.flat } }));
+  ok(
+    "E21 fresh adopt takes pushed row order",
+    JSON.stringify(orderOf()) === JSON.stringify(["cu-z9", "cu-a2", "cu-m5"]),
+    orderOf()
+  );
+  ok("E21 fresh adopt takes builtin override", useAppStore.getState().globalTaskOrder?.[DAILY_COUNT] === 5);
+  // --- unit level: absent, partial, malformed, tombstoned
+  const local = {
+    ...snap({}, {}, TODAY, THIS_WEEK),
+    customTasks: pack(230, 240, 250),
+    globalTaskOrder: { [DAILY_COUNT]: 5 },
+  };
+  const noKey = { ...flattenSnapshot(local) } as FlatMap;
+  delete noKey["meta:taskorder"];
+  const m0 = unflattenMerge(noKey, local, STORE_VERSION);
+  ok(
+    "E21 absent key keeps local order",
+    JSON.stringify(m0.customTasks.map((t) => t.order)) === JSON.stringify([230, 240, 250]),
+    m0.customTasks.map((t) => t.order)
+  );
+  const partial = { ...flattenSnapshot(local), "meta:taskorder": { [DAILY_COUNT]: 5 } } as FlatMap;
+  const mPartial = unflattenMerge(partial, local, STORE_VERSION);
+  ok(
+    "E21 partial map keeps local-only customs",
+    JSON.stringify(mPartial.customTasks.map((t) => t.order)) === JSON.stringify([230, 240, 250]),
+    mPartial.customTasks.map((t) => t.order)
+  );
+  ok(
+    "E21 partial map heals on the next emit",
+    ((flattenSnapshot(mPartial as Snap)["meta:taskorder"] as Record<string, number>) ?? {})["cu-m5"] === 250
+  );
+  for (const [label, bad] of [
+    ["array", [1, 2]],
+    ["non-number", { "cu-z9": "x" }],
+    ["empty key", { "": 1 }],
+  ] as const) {
+    const m = unflattenMerge({ ...flattenSnapshot(local), "meta:taskorder": bad } as FlatMap, local, STORE_VERSION);
+    ok(
+      `E21 malformed row order ignored (${label})`,
+      JSON.stringify(m.customTasks.map((t) => t.order)) === JSON.stringify([230, 240, 250]),
+      m.customTasks.map((t) => t.order)
+    );
+  }
+  const tomb = { ...flattenSnapshot(local), "custom:cu-z9": null } as FlatMap;
+  const mTomb = unflattenMerge(tomb, local, STORE_VERSION);
+  ok(
+    "E21 removed custom drops its order entry",
+    !("cu-z9" in (mTomb.globalTaskOrder ?? {})) && mTomb.customTasks.every((t) => t.id !== "cu-z9"),
+    mTomb.globalTaskOrder
+  );
+  // --- artifact deferral teeth: the exact adopt-fallback shape (id-sorted
+  // numbers) must emit nothing, and a fresh session must never receive it.
+  // The unit check is what fails if the guard is removed; the round below adds
+  // the integration path (empty base, so an unguarded artifact WOULD push).
+  const artifactLocal = { ...snap({}, {}, TODAY, THIS_WEEK), customTasks: pack(30, 10, 20) };
+  const artifactFlat = flattenSnapshot(artifactLocal);
+  ok("E21 artifact band emits no row order", !("meta:taskorder" in artifactFlat), artifactFlat["meta:taskorder"]);
+  // --- per-id union teeth: a remote partial map must not wipe a local-only
+  // builtin override (the custom fallback alone would hide a missing union).
+  const withOverride = { ...local, globalTaskOrder: { [DAILY_COUNT]: 5, "deep-dungeon": 7 } };
+  const partialNoOverride = { ...flattenSnapshot(local), "meta:taskorder": { [DAILY_COUNT]: 5 } } as FlatMap;
+  const mUnion = unflattenMerge(partialNoOverride, withOverride, STORE_VERSION);
+  ok(
+    "E21 local-only override survives a partial map",
+    mUnion.globalTaskOrder?.["deep-dungeon"] === 7,
+    mUnion.globalTaskOrder
+  );
+  isolate();
+  const pushesG: FlatMap[] = [];
+  const freshServer = { flat: {} as FlatMap };
+  setPullHook(makeEngine(freshServer, pushesG));
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), version: STORE_VERSION, customTasks: pack(30, 10, 20) });
+  saveSession({ id: SID, updatedAt: 6 });
+  saveBase(SID, {});
+  await syncAndResets();
+  await syncAndResets();
+  ok(
+    "E21 artifact band never volunteered",
+    !pushesG.some((p) => "meta:taskorder" in p) && !("meta:taskorder" in freshServer.flat),
+    pushesG.map((p) => p["meta:taskorder"])
+  );
+}
+
+// E22: pinned band order syncs (meta:pinorder, decision 4d). One flat array
+// drives the merchant bands, the children inside them, and the daily/weekly
+// split, so one rank map syncs the whole 已釘選 layout. Absent = canonical
+// (nothing to say); a remote map wins for the ids it names, and pins this
+// device knows but the map does not follow it in local array order.
+{
+  const SID = "e22-pinorder";
+  const server = { flat: {} as FlatMap };
+  const STORE_VERSION = 21;
+  const P1 = DEFAULT_MUST_PINS[0] ?? "";
+  const P2 = DEFAULT_MUST_PINS[1] ?? "";
+  const P3 = SHOP_PIN;
+  const AUTHORED = [P3, P1, P2];
+  const pinsOf = () => useAppStore.getState().barterCustomOrder ?? [];
+  // --- device A (creator): one drag authored the full pinned list
+  isolate();
+  const pushesA: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesA));
+  seedStore({
+    ...snap({}, {}, TODAY, THIS_WEEK),
+    version: STORE_VERSION,
+    barterPins: [...AUTHORED],
+    barterCustomOrder: [...AUTHORED],
+  });
+  saveSession({ id: SID, updatedAt: 1 });
+  await syncAndResets();
+  ok(
+    "E22 first round withholds pin order",
+    !pushesA.some((p) => "meta:pinorder" in p) && !("meta:pinorder" in server.flat),
+    pushesA.map((p) => Object.keys(p))
+  );
+  await syncAndResets();
+  const mapA = server.flat["meta:pinorder"] as Record<string, number> | undefined;
+  ok("E22 creator pushes its pin order", !!mapA && mapA[P3] === 10 && mapA[P1] === 20 && mapA[P2] === 30, mapA);
+  // --- device B (adopter): same pins, canonical (null) order
+  isolate();
+  const pushesB: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushesB));
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), version: STORE_VERSION, barterPins: [P1, P2, P3] });
+  saveSession({ id: SID, updatedAt: 2 });
+  saveBase(SID, flattenSnapshot(buildSnapshot()));
+  await syncAndResets();
+  ok(
+    "E22 adopter takes the canon pin order",
+    JSON.stringify(pinsOf().filter((id) => AUTHORED.includes(id))) === JSON.stringify(AUTHORED),
+    pinsOf()
+  );
+  ok(
+    "E22 untouched device volunteers no pin order",
+    !pushesB.some((p) => "meta:pinorder" in p),
+    pushesB.map((p) => p["meta:pinorder"])
+  );
+  const nB = pushesB.length;
+  await syncAndResets();
+  ok("E22 pair quiet after converge", pushesB.length === nB, pushesB.slice(nB));
+  // --- unit level
+  const local = { ...snap({}, {}, TODAY, THIS_WEEK), barterPins: [P1, P2, P3], barterCustomOrder: [...AUTHORED] };
+  const canon = { ...flattenSnapshot(local) } as FlatMap;
+  const canonical = { ...snap({}, {}, TODAY, THIS_WEEK), barterPins: [P1, P2] };
+  ok("E22 canonical (null) emits no pin order", !("meta:pinorder" in flattenSnapshot(canonical)));
+  const adopter = {
+    ...snap({}, {}, TODAY, THIS_WEEK),
+    barterPins: [P1, P2, P3, "pin-d"],
+    barterCustomOrder: [P1, P2, P3, "pin-d"],
+  };
+  // A real round pushes local keys before merging, so the local-only pin is
+  // already on the server; model that with its pin key.
+  const merged = unflattenMerge({ ...canon, "pin:pin-d": true } as FlatMap, adopter, STORE_VERSION);
+  ok(
+    "E22 canon wins and local-only pin appends",
+    JSON.stringify(merged.barterCustomOrder) === JSON.stringify([P3, P1, P2, "pin-d"]),
+    merged.barterCustomOrder
+  );
+  const noKey = { ...flattenSnapshot(adopter) } as FlatMap;
+  delete noKey["meta:pinorder"];
+  const m0 = unflattenMerge(noKey, adopter, STORE_VERSION);
+  ok(
+    "E22 absent key keeps local pin order",
+    JSON.stringify(m0.barterCustomOrder) === JSON.stringify([P1, P2, P3, "pin-d"]),
+    m0.barterCustomOrder
+  );
+  const unpinned = { ...canon, [`pin:${P3}`]: null } as FlatMap;
+  const mu = unflattenMerge(unpinned, local, STORE_VERSION);
+  ok("E22 unpinned pin drops from the canon", !(mu.barterCustomOrder ?? []).includes(P3), mu.barterCustomOrder);
+  for (const [label, bad] of [
+    ["array", [1]],
+    ["non-number", { [P1]: "x" }],
+  ] as const) {
+    const m = unflattenMerge({ ...canon, "meta:pinorder": bad } as FlatMap, local, STORE_VERSION);
+    ok(
+      `E22 malformed pin order ignored (${label})`,
+      JSON.stringify(m.barterCustomOrder) === JSON.stringify(AUTHORED),
+      m.barterCustomOrder
+    );
+  }
+  // --- fresh adopt lands in the pushed pin layout
+  isolate();
+  seedStore({ ...snap({}, {}, TODAY, THIS_WEEK), version: STORE_VERSION });
+  ok("E22 fresh adopt ok", adoptState({ state: { ...canon } }));
+  ok(
+    "E22 fresh adopt takes the pushed pin order",
+    JSON.stringify(pinsOf().filter((id) => AUTHORED.includes(id))) === JSON.stringify(AUTHORED),
+    pinsOf()
+  );
 }
 
 setPullHook(null);

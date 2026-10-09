@@ -16,10 +16,12 @@ import type { SessionMeta } from "./_db/types.js";
 //   char:{id}:name | char:{id}:alive             character fields
 //   meta:active                   active character id
 //   meta:charorder                character tab order, comma-joined cids
+//   meta:taskorder                tracker row order, id -> number
+//   meta:pinorder                 pinned band order, pin id -> rank
 //   pref:hideCompleted | filter:{prio,town,skill,pinned}
-// Drag order, pin order, and reset markers stay per-device local and never
-// sync; character tabs do (meta:charorder, last writer wins, then sticks) so
-// linked devices converge instead of splitting permanently at adopt time.
+// Order keys (charorder, taskorder, pinorder) sync so linked devices keep one
+// layout; reset markers stay per-device local. The server stays schema-agnostic
+// here — it only enforces prefixes, size and shape.
 //
 // Storage (docs/sql-migration.md): one `sessions` probe row per session plus
 // one `kv` row per flat key, written as ONE atomic unit per PATCH — concurrent

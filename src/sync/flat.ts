@@ -28,10 +28,17 @@ export { parseCycleKey, isCycleKey, expiredCycleKeys };
 //                    string cap). Last writer wins, then sticks — volunteered
 //                    only by non-sorted orders, withheld before the first pull.
 //                    See parseCharOrder.
+//   meta:taskorder   top-level row order, id -> number (object; the API takes
+//                    objects up to 8KB). Authored entries only: built-in
+//                    overrides plus every custom row's number. Union on merge
+//                    with the remote winning per id, and the custom band is
+//                    withheld while it looks generated (see flattenSnapshot).
+//   meta:pinorder    pinned band order, pin id -> rank (object). Absent means
+//                    the canonical curated/shops order.
 //   pref:hideCompleted
 //
 // pinnedCollapsed (the 已釘選 fold, prefs.pinnedCollapsed) is NOT synced: a fold is a
-// per-device view choice, the same category as drag order below. The merge path
+// per-device view choice, like the ephemeral group expansion. The merge path
 // therefore carries the LOCAL value through (`...local.prefs`) rather than
 // rebuilding prefs from the flat map — rebuilding dropped it on every pull, and
 // only normalizePersisted's backfill kept the UI from seeing undefined. Replace
@@ -49,17 +56,87 @@ export { parseCycleKey, isCycleKey, expiredCycleKeys };
 // Old-bucket keys age out server-side via GC (expiredCycleKeys, tombstoned
 // once past the retention window). Buckets are fixed-width date strings.
 //
-// Deliberately NOT synced (per-device local): drag order, pin order,
-// globalTaskOrder, reset markers (each device resets itself by Taipei clock;
-// those deletes are memory-only and healed by the next pull's re-adopt).
-// Character tabs ARE synced (meta:charorder) — the adopt-time id-sorted
-// layout split linked devices permanently with no way to realign (no
-// reorder UI), so order rides the wire; everything else above stays local.
+// Ordering rides the wire for every user-visible list now: character tabs
+// (meta:charorder), tracker rows (meta:taskorder), pinned rows
+// (meta:pinorder). The original all-local call (decision 4) left linked
+// devices with different layouts; decisions 4b-4d reverse it per surface,
+// because the adopt-time fallbacks produced layouts no device could realign.
+// Still per-device: reset markers (each device resets itself by Taipei clock;
+// those deletes are memory-only and healed by the next pull's re-adopt), the
+// pinned fold (prefs.pinnedCollapsed), and group expansion (ephemeral, never
+// persisted at all).
 
 export type FlatMap = Record<string, unknown>;
 
 const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 export { eq };
+
+// Order-map value cap, mirrored from api/session.ts MAX_VALUE_BYTES (a longer
+// value would 400 the whole PATCH). Realistic row and pin maps are a few
+// hundred bytes; the check guards a pathological local globalTaskOrder full of
+// dead ids.
+const MAX_ORDER_MAP_BYTES = 8 * 1024;
+
+// Insertion-order-stable copy: `eq` compares JSON.stringify, so an emitted map
+// must serialize identically on every device holding the same ranks.
+function sortedNumberMap(map: Record<string, number>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const id of Object.keys(map).sort()) out[id] = map[id];
+  return out;
+}
+
+// Rank values are spaced so a later insert can land between two existing rows
+// without renumbering a band.
+const ORDER_STEP = 10;
+
+// Rank ascending, id ascending for ties — deterministic on every device.
+function byRankThenId(a: string, b: string, rank: (id: string) => number): number {
+  return rank(a) - rank(b) || (a < b ? -1 : 1);
+}
+
+// Parse a synced order map (meta:taskorder / meta:pinorder). Strict: any
+// non-finite value, empty key or prototype-pollution name rejects the whole
+// key, and the caller falls back to local order — absence always means "no
+// information", never "empty order" (the stale-client shield, same as
+// parseCharOrder).
+function parseOrderMap(v: unknown): Record<string, number> | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const out: Record<string, number> = {};
+  for (const [id, n] of Object.entries(v)) {
+    if (!id || id === "__proto__" || id === "constructor" || id === "prototype") return null;
+    if (typeof n !== "number" || !Number.isFinite(n)) return null;
+    out[id] = n;
+  }
+  return out;
+}
+
+// An order entry for a definitely-deleted custom (custom:{id} = null) must not
+// ride along on later pushes. An unknown id without a tombstone stays: this
+// build cannot tell a row added by a newer build from a dead one, and dropping
+// it would flip the key during a version skew. Returns the input when nothing
+// is dropped (the common path allocates nothing).
+function withoutTombstonedCustoms(flat: FlatMap, order: Record<string, number>): Record<string, number> {
+  let out: Record<string, number> | null = null;
+  for (const [k, v] of Object.entries(flat)) {
+    if (v === null && k.startsWith("custom:")) {
+      if (!out) out = { ...order };
+      delete out[k.slice("custom:".length)];
+    }
+  }
+  return out ?? order;
+}
+
+// Order-key push guard (decisions 4b-4d), shared by SyncButton and the test
+// engine port: no order key is volunteered before the binding's first pull
+// (nobody contests canon blind), and each is stripped whenever flatten omits
+// it — omission means "no information", so diffFlat's null path must not
+// tombstone shared canon.
+export const ORDER_KEYS = ["meta:charorder", "meta:taskorder", "meta:pinorder"] as const;
+export function guardOrderKeys(changes: FlatMap, flat: FlatMap, pulledForBinding: boolean): void {
+  for (const k of ORDER_KEYS) {
+    if (!pulledForBinding || !(k in flat)) delete changes[k];
+  }
+}
 
 export function flattenSnapshot(s: SyncSnapshot): FlatMap {
   const now = new Date();
@@ -101,6 +178,48 @@ export function flattenSnapshot(s: SyncSnapshot): FlatMap {
   const orderSorted = sortedIds(charOrder);
   if (charOrder.length > 0 && charOrder.some((id, i) => id !== orderSorted[i])) {
     flat["meta:charorder"] = charOrder.join(",");
+  }
+  // Row order (meta:taskorder, decision 4c): authored positions only, not the
+  // whole list. A built-in with no override keeps its data order (shared by
+  // every build); a custom always has a number (creation assignment, a drag, or
+  // an adopted canon). Merge unions per id with the remote winning, so
+  // local-only entries keep propagating instead of being replaced wholesale.
+  //
+  // Artifact deferral, the charorder rule in map form: the adopt fallback lays
+  // customs out id-sorted, and a generated band must never overwrite a chosen
+  // one. When 2+ customs sort by number into id order, the custom entries are
+  // withheld. After a real canon is adopted the band stops being id-sorted, so
+  // the device starts volunteering normally and the pair goes quiet.
+  const rowOrder: Record<string, number> = {};
+  for (const [id, n] of Object.entries(s.globalTaskOrder ?? {})) {
+    if (Number.isFinite(n)) rowOrder[id] = n;
+  }
+  for (const t of customs) {
+    if (Number.isFinite(t.order) && !(t.id in rowOrder)) rowOrder[t.id] = t.order;
+  }
+  const customBand = customs.map((t) => t.id).filter((id) => id in rowOrder);
+  if (customBand.length >= 2) {
+    const byNumber = [...customBand].sort((a, b) => byRankThenId(a, b, (id) => rowOrder[id]));
+    const byId = sortedIds(customBand);
+    if (byNumber.every((id, i) => id === byId[i])) for (const id of customBand) delete rowOrder[id];
+  }
+  if (Object.keys(rowOrder).length > 0) {
+    const sorted = sortedNumberMap(rowOrder);
+    if (JSON.stringify(sorted).length <= MAX_ORDER_MAP_BYTES) flat["meta:taskorder"] = sorted;
+  }
+  // Pinned order (meta:pinorder, decision 4d): the display sequence as ranks.
+  // null = canonical (curated order, then shops file order), i.e. nothing to
+  // say; the first drag snapshots the full pinned list and every later change
+  // rides here. A map keeps CJK and `::` pin ids delimiter-safe, and the 8KB
+  // value cap sits far above a realistic pin count.
+  const pinnedOrder = (s.barterCustomOrder ?? []).filter((id) => (s.barterPins ?? []).includes(id));
+  if (pinnedOrder.length > 0) {
+    const ranks: Record<string, number> = {};
+    pinnedOrder.forEach((id, i) => {
+      ranks[id] = (i + 1) * ORDER_STEP;
+    });
+    const sorted = sortedNumberMap(ranks);
+    if (JSON.stringify(sorted).length <= MAX_ORDER_MAP_BYTES) flat["meta:pinorder"] = sorted;
   }
   if (s.prefs) flat["pref:hideCompleted"] = s.prefs.hideCompleted === true;
   return flat;
@@ -389,13 +508,32 @@ export function unflattenReplace(flat: FlatMap, version: number): AppState & { v
     if (m && validCustom(v)) customs.push(v);
   }
   const buckets = bucketize(flat, customs);
+  // Order canon when the session carries one: adopt the authored numbers and
+  // fill rows it does not mention after the max. Without it, keep the
+  // deterministic id-sorted fallback (pre-upgrade sessions).
+  const parsedOrder = parseOrderMap(flat["meta:taskorder"]);
+  const remoteOrder = parsedOrder ? withoutTombstonedCustoms(flat, parsedOrder) : null;
   customs.sort((a, b) => (a.id < b.id ? -1 : 1));
-  const withOrder = customs.map((t, i) => ({ ...t, order: (i + 1) * 10 }));
+  let maxOrder = 0;
+  for (const n of Object.values(remoteOrder ?? {})) if (n > maxOrder) maxOrder = n;
+  const withOrder = customs.map((t) => {
+    const n = remoteOrder?.[t.id];
+    if (typeof n === "number") return { ...t, order: n };
+    maxOrder += ORDER_STEP;
+    return { ...t, order: maxOrder };
+  });
+  const remotePinOrder = parseOrderMap(flat["meta:pinorder"]);
   const pins = sortedIds(
     Object.entries(flat)
       .filter(([k, v]) => v === true && k.startsWith("pin:"))
       .map(([k]) => k.slice(4))
   );
+  // Pinned order: the pushed ranks when present (a linked device lands in the
+  // creator's pin layout); null means canonical, and the display appends pins
+  // the array does not mention in curated order, exactly as it does today.
+  const pinOrder = remotePinOrder
+    ? pins.filter((id) => id in remotePinOrder).sort((a, b) => byRankThenId(a, b, (id) => remotePinOrder[id]))
+    : null;
   const characters = buildCharacters(buckets, parseCharOrder(flat["meta:charorder"]) ?? []);
   const active =
     typeof flat["meta:active"] === "string" && characters.some((c) => c.id === flat["meta:active"])
@@ -416,6 +554,7 @@ export function unflattenReplace(flat: FlatMap, version: number): AppState & { v
     accountValues,
     hiddenAccountTaskIds: pickTrue(flat, "hide:acc:"),
     barterPins: pins,
+    barterCustomOrder: pinOrder && pinOrder.length > 0 ? pinOrder : null,
     customTasks: withOrder,
     taskBuckets,
     lastDailyReset: currentDailyBucket(now),
@@ -426,8 +565,9 @@ export function unflattenReplace(flat: FlatMap, version: number): AppState & { v
     // rather than left for normalizePersisted to backfill, so the literal
     // satisfies `prefs` on its own and the cast below is not hiding a hole.
     prefs: { hideCompleted: flat["pref:hideCompleted"] === true, pinnedCollapsed: { daily: false, weekly: false } },
-    // NOTE: globalTaskOrder intentionally omitted — ordering is per-device
-    // local; applySnapshot keeps the current value when the key is absent.
+    // The pushed row order becomes this device's canon (built-in overrides and
+    // custom numbers; custom rows also carry their number on the row itself).
+    globalTaskOrder: remoteOrder ?? undefined,
   } as AppState & { version: number };
 }
 
@@ -472,6 +612,16 @@ export function unflattenMerge(
   const buckets = bucketize(flat, local.customTasks ?? []);
   const localOrder = (local.characters ?? []).map((c) => c.id);
   const characters = buildCharacters(buckets, parseCharOrder(flat["meta:charorder"]) ?? localOrder);
+  // Row order (meta:taskorder): union with the remote winning per id. Local-only
+  // entries survive, so an authored order keeps propagating after a partial map
+  // (the peer withheld its generated custom band); a definite custom tombstone
+  // drops its entry. A custom in neither map keeps its local number, and a
+  // remote-only row without one appends after the max.
+  const remoteOrder = parseOrderMap(flat["meta:taskorder"]) ?? {};
+  const mergedRowOrder: Record<string, number> = {};
+  for (const [id, n] of Object.entries(local.globalTaskOrder ?? {})) if (Number.isFinite(n)) mergedRowOrder[id] = n;
+  for (const [id, n] of Object.entries(remoteOrder)) mergedRowOrder[id] = n;
+  const rowOrder = withoutTombstonedCustoms(flat, mergedRowOrder);
   // Names for brand-new chars come from the bucket; order preserved above.
   const remoteCustoms = new Map<string, Task>();
   for (const [k, v] of Object.entries(flat)) {
@@ -480,15 +630,25 @@ export function unflattenMerge(
   }
   const localById = new Map((local.customTasks ?? []).map((t) => [t.id, t]));
   const merged: Task[] = [];
+  let maxOrder = 0;
   for (const t of local.customTasks ?? []) {
     const r = remoteCustoms.get(t.id);
-    if (r) merged.push({ ...r, order: t.order });
+    if (!r) continue;
+    const n = rowOrder[t.id];
+    const order = Number.isFinite(n) ? n : t.order;
+    if (Number.isFinite(order)) maxOrder = Math.max(maxOrder, order);
+    merged.push({ ...r, order });
   }
-  let maxOrder = merged.reduce((m, t) => Math.max(m, t.order ?? 0), 0);
   for (const id of sortedIds([...remoteCustoms.keys()])) {
     if (localById.has(id)) continue;
-    maxOrder += 10;
-    merged.push({ ...remoteCustoms.get(id)!, order: maxOrder });
+    const n = rowOrder[id];
+    if (Number.isFinite(n)) {
+      maxOrder = Math.max(maxOrder, n);
+      merged.push({ ...remoteCustoms.get(id)!, order: n });
+    } else {
+      maxOrder += ORDER_STEP;
+      merged.push({ ...remoteCustoms.get(id)!, order: maxOrder });
+    }
   }
   const members = new Set(
     Object.entries(flat)
@@ -499,6 +659,30 @@ export function unflattenMerge(
     ...(local.barterPins ?? []).filter((id) => members.has(id)),
     ...sortedIds([...members]).filter((id) => !(local.barterPins ?? []).includes(id)),
   ];
+  // Pinned order (meta:pinorder): the remote sequence is canon for the pins it
+  // names; pins this device knows but the map does not follow it in local array
+  // order. No map keeps the local array (filtered to live pins); untouched
+  // stays null (canonical).
+  const remotePinOrder = parseOrderMap(flat["meta:pinorder"]);
+  const pinSet = new Set(pins);
+  let barterCustomOrder: string[] | null = local.barterCustomOrder ?? null;
+  if (remotePinOrder) {
+    const rank = new Map<string, number>();
+    let maxRank = 0;
+    for (const [id, n] of Object.entries(remotePinOrder)) {
+      if (!pinSet.has(id)) continue;
+      rank.set(id, n);
+      if (n > maxRank) maxRank = n;
+    }
+    for (const id of barterCustomOrder ?? []) {
+      if (!pinSet.has(id) || rank.has(id)) continue;
+      maxRank += ORDER_STEP;
+      rank.set(id, maxRank);
+    }
+    barterCustomOrder = [...rank.keys()].sort((a, b) => byRankThenId(a, b, (id) => rank.get(id) ?? 0));
+  } else if (barterCustomOrder) {
+    barterCustomOrder = barterCustomOrder.filter((id) => pinSet.has(id));
+  }
   const active =
     typeof flat["meta:active"] === "string" &&
     characters.some((c) => c.id === flat["meta:active"])
@@ -518,18 +702,12 @@ export function unflattenMerge(
     accountValues,
     hiddenAccountTaskIds: pickTrue(flat, "hide:acc:"),
     barterPins: pins,
-    // Per-device layout, never flattened: carry local through the merge
-    // (same as globalTaskOrder below), pruned to surviving pins so
-    // remotely-unpinned ids don't linger. Untouched stays null.
-    barterCustomOrder:
-      local.barterCustomOrder == null
-        ? null
-        : local.barterCustomOrder.filter((id) => pins.includes(id)),
+    barterCustomOrder,
     customTasks: merged,
     taskBuckets,
     lastDailyReset: local.lastDailyReset ?? null,
     lastWeeklyReset: local.lastWeeklyReset ?? null,
     prefs: { ...local.prefs, hideCompleted: flat["pref:hideCompleted"] === true },
-    globalTaskOrder: local.globalTaskOrder,
+    globalTaskOrder: rowOrder,
   } as AppState & { version: number };
 }

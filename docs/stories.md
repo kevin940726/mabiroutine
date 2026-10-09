@@ -84,3 +84,31 @@ taps, so a dead zone never costs me progress.
 - Maps to: `src/sync/api.ts` `offline()` guards, `src/lib/storage.ts`
   idle-deferred persist; `docs/sync.md` Pull (silent catch). Gate: offline
   shell render verified live.
+
+## S6 — Every device keeps one layout
+
+As a user who tracks on two devices, when I arrange rows or pinned trades on
+either one, the other shows the same top-to-bottom order, so I never wonder
+why my phone looks different.
+
+- Given two linked devices with different custom-row orders, when both sync,
+  then the adopter lands in the creator's creation order, and a generated
+  (id-sorted) fallback layout is never volunteered over a chosen one.
+- Given I drag a tracker row, when the other device pulls, then its list
+  matches; built-in drags ride the same map as custom rows.
+- Given I drag or reorder the 已釘選 band, when the other device pulls, then
+  the merchant bands, their children, and the daily/weekly split all match.
+- Given I remove a custom row, when the peer pulls, then its order entry drops
+  with the row (no resurfacing).
+- Given a pre-upgrade peer, an absent key, or a malformed value, when it
+  syncs, then local order stands as the no-information fallback; order keys
+  are withheld until the binding's first pull and are never tombstoned by
+  flatten omitting them.
+- Given I fold a pinned section or expand a merchant group, when the other
+  device pulls, then its view state is unchanged: folds and expansion are
+  per-device view state, not order.
+
+- Maps to: `meta:taskorder` / `meta:pinorder` in `src/sync/flat.ts` (flatten
+  emit, strict parse, union merge, generated-band deferral) and
+  `guardOrderKeys` at the two push sites in `src/sync/SyncButton.tsx`;
+  `docs/sync.md` decisions 4c/4d. Gate: E21, E22.

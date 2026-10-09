@@ -33,7 +33,8 @@ handled for you.
   trade, with a link straight to that merchant's tile. The breakdown also opens from
   a hover card that never moves the checklist.
 - ✏️ **Make it yours.** Custom tasks, drag-to-reorder everything, hide what you
-  never do, dark mode.
+  never do, dark mode. With a sync link the layout follows: row order and
+  pinned order are shared, so a drag on one device lands on the others.
 - 🔗 **Optional sync across devices.** No account, no password — one link joins
   your phone and desktop, edits merge themselves. Or skip it: everything works
   offline-first in your browser either way.

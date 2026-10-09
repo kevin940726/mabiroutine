@@ -49,6 +49,7 @@ import {
 import {
   flattenSnapshot,
   diffFlat,
+  guardOrderKeys,
   loadBaseDoc,
   saveBase,
   unflattenMerge,
@@ -148,14 +149,11 @@ export const SyncButton = memo(function SyncButton() {
     const baseDoc = loadBaseDoc(session.id);
     const flat = flattenSnapshot(buildSnapshot());
     const changes = takeFullPush() ? { ...flat } : diffFlat(baseDoc?.flat ?? {}, flat);
-    // Order-key guard (decision 4b): withhold before the first pull for the
-    // binding (nobody volunteers canon blind), and never send the key when
-    // flatten omits it — an id-sorted local order means "no information",
-    // and diffFlat would otherwise tombstone shared canon via the null path
-    // (e.g. a removal leaving a sorted remainder on an established device).
-    if (pulledSessionRef.current !== session.id || !("meta:charorder" in flat)) {
-      delete changes["meta:charorder"];
-    }
+    // Order-key guard (decisions 4b-4d): no order key is volunteered before
+    // the binding's first pull (nobody volunteers canon blind), and a key
+    // flatten omits is stripped rather than tombstoned (omission means "no
+    // information", never "empty order").
+    guardOrderKeys(changes, flat, pulledSessionRef.current === session.id);
     if (Object.keys(changes).length === 0) return {};
     try {
       const updatedAt = await patchSession(session.id, changes as FlatMap, {
@@ -252,9 +250,7 @@ export const SyncButton = memo(function SyncButton() {
       const base = baseDoc?.flat ?? {};
       const localFlat = flattenSnapshot(buildSnapshot());
       const changes = diffFlat(base, localFlat);
-      if (pulledSessionRef.current !== session.id || !("meta:charorder" in localFlat)) {
-        delete changes["meta:charorder"];
-      }
+      guardOrderKeys(changes, localFlat, pulledSessionRef.current === session.id);
       const clean = Object.keys(changes).length === 0;
       const atCap = buildSnapshot().characters.length >= 6;
       if (clean && !atCap) {

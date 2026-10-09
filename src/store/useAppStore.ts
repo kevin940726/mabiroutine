@@ -1052,6 +1052,10 @@ export const useAppStore = create<Store>()(
         set((s) => {
           const nextBuckets = { ...s.taskBuckets };
           delete nextBuckets[id];
+          // Also drop the row's order entry: globalTaskOrder rides the wire
+          // (meta:taskorder), so a stale number would keep resurfacing.
+          const nextGlobalOrder = s.globalTaskOrder ? { ...s.globalTaskOrder } : undefined;
+          if (nextGlobalOrder) delete nextGlobalOrder[id];
           return {
             customTasks: s.customTasks.filter((t) => t.id !== id),
             // also clean values
@@ -1064,6 +1068,7 @@ export const useAppStore = create<Store>()(
             hiddenAccountTaskIds: (s.hiddenAccountTaskIds ?? []).filter((x) => x !== id),
             barterPins: s.barterPins.filter((x) => x !== id),
             taskBuckets: nextBuckets,
+            globalTaskOrder: nextGlobalOrder,
           };
         }),
       toggleHidden: (taskId) =>
@@ -1119,8 +1124,8 @@ export const useAppStore = create<Store>()(
           return { barterCustomOrder: [...ordered, ...missing] };
         }),
 
-      // Local-only: toggling never touches the sync layer (the field is
-      // absent from the sync key space, like ordering).
+      // Local-only: toggling never touches the sync layer (never synced,
+      // unlike the order keys).
       toggleHourlyReminder: (taskId) => {
         set((s) => ({
           hourlyReminders: (s.hourlyReminders ?? []).includes(taskId)

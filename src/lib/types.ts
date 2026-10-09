@@ -81,7 +81,7 @@ export type AppState = {
   barterPins: string[];
   // barter display order override: null follows the canonical curated order
   // (priority → town → npc → shops). Set on first drag-reorder; new
-  // pins append. Local-only, never synced (like globalTaskOrder).
+  // pins append. Synced as meta:pinorder (a rank map) since 2026-10-09.
   barterCustomOrder: string[] | null;
   customTasks: Task[];
   lastDailyReset: string | null; // ISO
@@ -90,11 +90,12 @@ export type AppState = {
     hideCompleted: boolean;
     /** Whether each 商店 / 以物易物 已釘選 section is folded shut. Per section,
      *  per DEVICE: a fold is about how much room the screen has, and the pinned
-     *  list itself is global, so this is deliberately NOT synced (same call as
-     *  globalTaskOrder). Defaults open. */
+     *  list itself is global, so this is deliberately NOT synced. Defaults
+     *  open. */
     pinnedCollapsed: { daily: boolean; weekly: boolean };
   };
-  // for reorder: global order for builtins + custom
+  // for reorder: order overrides for builtin rows plus custom row numbers.
+  // Synced as meta:taskorder (a union map with the remote winning per id).
   globalTaskOrder?: Record<string, number>;
   // Cycle provenance: taskId -> the Taipei bucket the value was set in
   // (shared by taskValues + accountValues; buckets are per-task-cycle, so
@@ -102,7 +103,7 @@ export type AppState = {
   // and are pruned locally — resets never delete from the sync layer.
   taskBuckets: Record<string, string>;
   // Event (:00 Taipei fire) reminder subscriptions, per task id. LOCAL-ONLY by
-  // design: never synced (like ordering), never sent to any server — the MVP
+  // design: never synced (unlike the row/pin order keys), never sent to any server — the MVP
   // fires from a page timer while the app is open.
   hourlyReminders: string[];
   // Purple-hole (36h15m cycle, 15-min-early fire) subscriptions, per task id.
