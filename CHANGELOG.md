@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- `scripts/clean-item-icon.py` added: turns an in-game item-icon capture into the repo's 128×128 transparent WebP, stripping the rarity glow/backdrop and inpainting the stack count off the art. Used for the two fossil captures, which carried both; the source captures stay gitignored in `suggestions/`
+
 ## 2026-10-11 — Playwright browser E2E
 
 ### Chores
