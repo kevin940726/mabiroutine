@@ -7,7 +7,7 @@ Simple NPC pfp crop: 4-side exact -> 76 square -> circle (transparent)
   Larger squares are downscaled to 76x76 (same framing, head scale matches
   the existing portraits); smaller squares are never upscaled, else error.
 - Then circle (transparent outside, head on transparent)
-Keep original resolution, no upscale to 256.
+Output: 76x76 circle, WebP quality 85 (never upscaled).
 """
 import sys
 from pathlib import Path
@@ -75,8 +75,8 @@ def process_one(src: Path):
     # keep square as is (green bg + head), circle will make outside transparent only
     out = circle_crop(square)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    dst = OUT_DIR / (src.stem + ".png")
-    out.save(dst, "PNG")
+    dst = OUT_DIR / (src.stem + ".webp")
+    out.save(dst, "WEBP", quality=85, method=6)
     print(f"[ok] {src.name} -> {dst.name} {out.size}")
     return True
 

@@ -157,7 +157,7 @@ export function merchantKey(npc: string, town: string): string {
 }
 
 /** Portrait for a merchant: the NPC object's `icon` override, else null for
- *  the /npc/<name>.png convention. Memoized with the deal maps. */
+ *  the /npc/<name>.webp convention. Memoized with the deal maps. */
 let npcIconCache: Map<string, string> | null = null;
 export function shopNpcIcon(npc: string, town: string): string | null {
   if (!npcIconCache) {

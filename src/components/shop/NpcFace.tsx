@@ -10,12 +10,12 @@ import { shopNpcIcon } from "@/lib/shops";
  * panel).
  *
  * `town` scopes the portrait to one same-name NPC: the NPC object's `icon`
- * override wins when present, else the /npc/<name>.png convention (shared
+ * override wins when present, else the /npc/<name>.webp convention (shared
  * names share the file until an override says otherwise).
  */
 export function NpcFace({ npc, town, size = "size-10" }: { npc: string; town?: string; size?: string }) {
   const [failed, setFailed] = useState(false);
-  const src = (town && shopNpcIcon(npc, town)) || `/npc/${encodeURIComponent(npc)}.png`;
+  const src = (town && shopNpcIcon(npc, town)) || `/npc/${encodeURIComponent(npc)}.webp`;
   if (failed) {
     return <span className={cn("grid shrink-0 place-items-center rounded-full border bg-muted text-sm font-semibold", size)}>{npc.slice(0, 1)}</span>;
   }

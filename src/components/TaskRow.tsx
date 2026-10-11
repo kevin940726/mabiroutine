@@ -506,7 +506,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
               className={cn(PFP_BUTTON, "rounded-full")}
             >
               <img
-                src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+                src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
                 alt=""
                 aria-hidden
                 loading="lazy"
@@ -516,7 +516,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
             </button>
           ) : (
             <img
-              src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+              src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
               alt=""
               aria-hidden
               loading="lazy"
@@ -902,25 +902,25 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
               className={cn(PFP_BUTTON, "rounded-full")}
             >
               <img
-                src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+                src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
                 alt=""
                 aria-hidden
                 className={PFP_DESKTOP}
                 loading="lazy"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = "/npc/placeholder.png";
+                  (e.target as HTMLImageElement).src = "/npc/placeholder.webp";
                   setNpcImgError(false);
                 }}
               />
             </button>
           ) : (
             <img
-              src={`/npc/${encodeURIComponent(task.npc!)}.png`}
+              src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
               alt={task.npc!}
               className={PFP_DESKTOP}
               loading="lazy"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = "/npc/placeholder.png";
+                (e.target as HTMLImageElement).src = "/npc/placeholder.webp";
                 setNpcImgError(false);
               }}
             />

@@ -63,12 +63,12 @@ function Pfp({ npc, town, limit, price }: { npc: string; town?: string; limit?: 
       }
     >
       <img
-        src={`/npc/${encodeURIComponent(npc)}.png`}
+        src={`/npc/${encodeURIComponent(npc)}.webp`}
         alt={npc}
         loading="lazy"
         onError={(e) => {
           const img = e.target as HTMLImageElement;
-          if (!img.src.endsWith("/npc/placeholder.png")) img.src = "/npc/placeholder.png";
+          if (!img.src.endsWith("/npc/placeholder.webp")) img.src = "/npc/placeholder.webp";
         }}
         className="h-4 w-4 shrink-0 rounded-full border border-border/50 bg-muted object-cover"
       />

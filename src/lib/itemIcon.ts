@@ -22,7 +22,7 @@
 // EXISTENCE IS NOT CHECKED HERE. The set of icons is expected to lag the data (art is
 // dropped in by hand), so "no art yet" is a normal state rather than an error. The name
 // is turned into a URL and the `<img>` reports absence through `onError`, exactly as
-// `/npc/<name>.png` has always worked (NpcFace.tsx:11-25) — there is no runtime manifest
+// `/npc/<name>.webp` has always worked (NpcFace.tsx:11-25) — there is no runtime manifest
 // on either side, and the browser cannot stat a file before requesting it. Every caller
 // therefore needs a DESIGNED fallback; see `ItemIcon`.
 

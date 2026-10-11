@@ -306,7 +306,7 @@ function Group({
   // the two variants cannot drift the way the shell did (see rowStyle.ts).
   const portrait = (
     <img
-      src={shopNpcIcon(title, town ?? "") ?? `/npc/${encodeURIComponent(title)}.png`}
+      src={shopNpcIcon(title, town ?? "") ?? `/npc/${encodeURIComponent(title)}.webp`}
       alt=""
       aria-hidden
       loading="lazy"

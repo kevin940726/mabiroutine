@@ -113,7 +113,7 @@ data spells them with half-width parens like the nine that DO have files, so the
 were simply absent rather than mismatched. They have files now.
 
 There is no runtime existence check beyond the `<img>`'s own `onError`, which is
-how `/npc/<name>.png` has always worked: the browser cannot know a file is absent
+how `/npc/<name>.webp` has always worked: the browser cannot know a file is absent
 without requesting it, so the miss is discovered by the request failing (Vite's dev
 server answers an unmatched path with `index.html` at **200**, so the failure is a
 decode failure, not a 404 — `onError` still fires).
