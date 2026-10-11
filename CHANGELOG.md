@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-11 — Playwright browser E2E
+
 ### Chores
 - The two browser E2E suites now drive a Chromium pinned by the lockfile instead of whichever Edge the machine happened to have: the shop suite (`pnpm test:shop-e2e`) and the sync suite's `browser-e2e`. The assertions, the SKIP-loudly contract and the env surface (`APP_URL`, `SYNC_TEST_BASE`, `SYNC_TEST_BYPASS`) are unchanged; what changes is that the browser build and the layout engine S2 measures are now the same on every machine rather than a property of the host, and that the suites can actually run on macOS and Linux, where the old lookup of Windows Edge paths always skipped. `playwright` is pinned exactly, because its Chromium revision is tied to the version, and `pnpm install` does not fetch the browser (the package ships no postinstall) — run `pnpm exec playwright install chromium` once, and both suites name that command when the binary is missing
 - Three harness bugs surfaced while porting and are fixed with it: the migration cases now seed their v19 save at document-start instead of into an app that has already booted, because the store's idle-deferred writer could land its own default-state write over the seed afterwards (which is why S1 was reading a default character); a run that cannot create its session no longer reports `BROWSER E2E PASSED` with exit 0, so a real failure is no longer reported as a pass; and the sync suite's E3 init script skips opaque origins, since Playwright runs init scripts on the initial `about:blank` too, where a bare `localStorage` write raises a page error on every run
