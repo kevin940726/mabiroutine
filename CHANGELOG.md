@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-12 — New merchants and WebP portraits
+
 ### Features
 - 杜巴頓 gains two merchants. 伊文 trades 魔物討伐證明 for 無主的召喚結界戰利品 (150, 每週 5 次), 無主的黑色坑洞戰利品 (50, 每週 10 次), 符文碎片 ×10 (20, 每週 20 次), 不死粉末 (100, 每週 5 次), 解除詛咒藥水 (100, 每週 10 次), 遙遠的星辰印章 (200, 每週 1 次, 必換), 強化再燃燒催化劑 (300, 每週 1 次, 推薦), 菁英鍊金術再燃燒催化劑 (400, 每週 1 次, 推薦) and 大塊肉 (100, 每週 1 次, account-wide, 視需求); 茉莉 trades 深淵的化石 for 赤紅深淵的化石 ×60 (100, 每週 2 次, 必換). Six icons ship with them (無主的召喚結界戰利品, 無主的黑色坑洞戰利品, 符文碎片, 遙遠的星辰印章, 菁英鍊金術再燃燒催化劑, 大塊肉); 魔物討伐證明 has no icon in the catalog source, so it gets one from an in-game capture cleaned to a 128px transparent WebP (like 喵幣 and 愛心幣) and now takes the same icon-cost render path; 深淵的化石 and 赤紅深淵的化石 likewise come from captures with their stack number and rarity glow cleaned off, so every name these merchants touch has art. 伊文 and 茉莉's portraits also ship, cropped from raw captures to 76px circles like every other merchant
 
