@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- A town-filtered shop grid names each merchant correctly again: the section header was handed the internal `npc::town` identity, so it rendered `佛格斯::堤爾克那` and requested a portrait at that composite path, which 404s into the initial-letter fallback. The header now reads the bare name and town off its rows (and passes the town through, so a future per-NPC portrait override resolves). `test:shop-e2e` gains S4, a town-filtered case that fails on the composite key
+
 ## 2026-10-12 — New merchants and WebP portraits
 
 ### Features

@@ -1138,8 +1138,13 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
       )}
 
       {/* 優先度 and 類型 are grid filters, so the template needs five columns or the
-          reset button wraps under the last control */}
-      <div className={cn("grid gap-2", "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]")}>
+          reset button wraps under the last control. `data-shop-filters` is the
+          E2E's stable handle on this toolbar (the floating pill carries the same
+          dropdowns, so an unscoped `aria-label=城鎮` matches two controls). */}
+      <div
+        data-shop-filters
+        className={cn("grid gap-2", "sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]")}
+      >
           <MenuSelect
             value={town}
             ariaLabel="城鎮"

@@ -196,7 +196,7 @@ export const limitOf = (i: ShopRow) => (i.limitText ?? "不限次數").replace("
 export function NpcHeader({ npc, town, count }: { npc: string; town: string; count: number }) {
   return (
     <div className="mb-3 flex items-center gap-3 border-b pb-2">
-      <NpcFace npc={npc} size="size-10" />
+      <NpcFace npc={npc} town={town} size="size-10" />
       <div className="min-w-0 flex-1">
         <h3 className="truncate text-base font-semibold text-foreground">{npc}</h3>
         <p className="text-[11px] text-muted-foreground">
@@ -310,7 +310,11 @@ export function TradeGrid({
         <section key={key}>
           {/* a single-section view has no header, so its tiles' bands carry the name */}
           {single ? null : byNpc ? (
-            <NpcHeader npc={key} town={rows[0]?.town ?? ""} count={rows.length} />
+            // `key` is the composite `npc::town` identity the section buckets on; the
+            // header needs the DISPLAY name, so read it back off the rows. (Feeding the
+            // key here rendered `npc::town` as both the label and the portrait path,
+            // which 404'd into the initial-letter fallback.)
+            <NpcHeader npc={rows[0]?.npc ?? key} town={rows[0]?.town ?? ""} count={rows.length} />
           ) : (
             <h3 className="mb-2 flex items-baseline gap-1.5 text-xs font-semibold text-muted-foreground">
               <span>{key}</span>

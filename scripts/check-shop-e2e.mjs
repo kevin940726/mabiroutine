@@ -291,6 +291,45 @@ const checkPinnedFold = async (page) => {
   }
 };
 
+// --- S4: a town-filtered grid shows the BARE merchant name and its portrait ---
+// The grid buckets its sections by the composite `npc::town` identity, but the
+// header must render the display name. It was once fed the key, so a town-filtered
+// view read `佛格斯::堤爾克那` and requested
+// /npc/佛格斯%3A%3A堤爾克那.webp (404 -> placeholder). Asserts the exact bare
+// name and the resolved portrait, which both fail on the composite-key bug.
+const checkTownFiltered = async (page) => {
+  // checkPinnedFold reloads the page, which lands on the tracker tab: reopen the shop.
+  await ev(page, `(() => {
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    const shop = tabs.find((t) => (t.textContent || '').includes('商店'));
+    if (shop) shop.click();
+  })()`);
+  await page.waitForSelector("[data-shop-tile]");
+  await settle(500);
+
+  // Scope to the toolbar grid: the floating pill carries the same 城鎮 dropdown.
+  await page.locator('[data-shop-filters] button[aria-label="城鎮"]').click();
+  await page.getByRole('menuitemradio', { name: '堤爾克那', exact: true }).click();
+  await settle(700);
+
+  const res = await ev(page, `(() => {
+    const h3s = [...document.querySelectorAll('section h3')].map((h) => (h.textContent || '').trim());
+    const srcs = [...document.querySelectorAll('section img[src*="/npc/"]')].map((i) => {
+      const s = i.getAttribute('src') || '';
+      try { return decodeURIComponent(s); } catch { return s; }
+    });
+    return { h3s, srcs };
+  })()`);
+  ok("S4 a town filter sections the grid by merchant", res.h3s.length > 0, JSON.stringify(res.h3s));
+  ok("S4 a merchant header shows the bare name (堤爾克那 has 佛格斯)", res.h3s.includes("佛格斯"), JSON.stringify(res.h3s));
+  ok("S4 no merchant header leaks the npc::town key", res.h3s.every((t) => !t.includes("::")), JSON.stringify(res.h3s));
+  ok(
+    "S4 佛格斯's portrait resolves to /npc/佛格斯.webp",
+    res.srcs.some((s) => s.endsWith("/npc/佛格斯.webp")) && res.srcs.every((s) => s.endsWith(".webp")),
+    JSON.stringify(res.srcs)
+  );
+};
+
 async function main() {
   await checkPrereqs();
   const browser = await launch();
@@ -310,6 +349,7 @@ async function main() {
     await checkMigration(migrationPage);
     await checkShopGrid(migrationPage);
     await checkPinnedFold(migrationPage);
+    await checkTownFiltered(migrationPage);
 
     const withFold = structuredClone(V19_SAVE);
     withFold.state.prefs.pinnedCollapsed = { daily: true, weekly: false };
