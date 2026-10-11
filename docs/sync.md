@@ -475,7 +475,7 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | F1 | State-before-base ordering in one storage flush; read-through; remove | real `storage.ts`, logging localStorage |
 | P | 300 randomized prune runs (stale removed, current kept, idempotent) | real store, seeded |
 | A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
-| E1E | Real tap → server → second device renders checked | real Edge (CDP) |
+| E1E | Real tap → server → second device renders checked | real Chromium (Playwright) |
 | E2E | Wake-pull leaves server value intact | same |
 
 Teeth: removing the cycle-key exemption from `diffFlat` fails E1/E4/E5 with
@@ -487,5 +487,6 @@ assertions in the round port. On the order keys: removing the custom-band guard
 from `flattenSnapshot` fails E21 (the artifact band starts volunteering);
 dropping the per-id union from `unflattenMerge` fails E21's local-only-override
 check; skipping the local-only pin append fails E22's canon-plus-append check.
-Live suites SKIP loudly without `pnpm dev:api`/
-Edge; hermetic suites always run.
+Live suites SKIP loudly without `pnpm dev:api` or
+the Playwright Chromium (`pnpm exec playwright install chromium`); hermetic
+suites always run.

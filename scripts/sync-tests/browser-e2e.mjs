@@ -1,6 +1,10 @@
-// Real-browser sync E2E (E1–E2). Drives MS Edge over CDP — zero npm deps
-// (Node global WebSocket + fetch). Two isolated browser contexts = two
-// devices (separate storage); a second tab in one context = same-browser tab.
+// Real-browser sync E2E (E1–E3). Drives Playwright's pinned Chromium — `pnpm
+// install` does not fetch the binary, so run once:
+//
+//   pnpm exec playwright install chromium
+//
+// Two isolated browser contexts = two devices (separate storage); a second tab
+// in one context = same-browser tab.
 //
 //  E1 propagation: tap 兼職 (parttime) on device A → server holds it →
 //     device B boots linked and shows it checked (full real stack: UI tap,
@@ -16,12 +20,10 @@
 // bypass in SYNC_TEST_BYPASS: API calls carry it as a header, and the page is
 // loaded with the bypass query + `x-vercel-set-bypass-cookie=true` so the app's
 // own in-page fetches are authorized too. Preview shares the production Turso
-// database (docs/sql-migration.md). Needs Edge. SKIP (exit 0, loud) otherwise.
+// database (docs/sql-migration.md). Needs the Playwright Chromium. SKIP
+// (exit 0, loud) otherwise.
 // Throwaway session, deleted afterwards. Budget ~2 min.
-import { spawn } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { chromium } from "playwright";
 
 const BASE = (process.env.SYNC_TEST_BASE || "http://localhost:52608").replace(/\/+$/, "");
 const APP = `${BASE}/`;
@@ -31,11 +33,8 @@ const AUTH = BYPASS ? { "x-vercel-protection-bypass": BYPASS } : {};
 const APP_URL = BYPASS
   ? `${APP}?x-vercel-protection-bypass=${encodeURIComponent(BYPASS)}&x-vercel-set-bypass-cookie=true`
   : APP;
-const DEBUG_PORT = 9333;
-const EDGE_CANDIDATES = [
-  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-];
+// The one browser window the old CDP harness sized for every context.
+const VIEWPORT = { width: 390, height: 844 };
 
 class Skip extends Error {}
 const skip = (why) => {
@@ -53,125 +52,69 @@ const ok = (name, cond, extra = "") => {
 async function main() {
 try {
 
-// --- prereqs ---
-const edge = EDGE_CANDIDATES.find((p) => fs.existsSync(p));
-if (!edge) skip("(Edge not found)");
+// --- prereqs: app reachable, then the pinned Chromium present ---
+let code;
 try {
-  const code = await fetch(APP, { method: "HEAD", headers: AUTH }).then((r) => r.status);
-  if (code !== 200) skip(`(test base ${BASE} answered ${code})`);
+  code = await fetch(APP, { method: "HEAD", headers: AUTH }).then((r) => r.status);
 } catch {
   skip(`(needs the app reachable at ${BASE} — local: \`pnpm dev:api\`)`);
 }
+if (code !== 200) skip(`(test base ${BASE} answered ${code})`);
+
+// `pnpm install` does not fetch the browser (the package has no postinstall),
+// so on a fresh clone this is the loud, actionable skip rather than a crash.
+let browser;
+try {
+  browser = await chromium.launch({ headless: true });
+} catch (e) {
+  if (/Executable doesn't exist|playwright install/i.test(String(e?.message))) {
+    skip("(Playwright Chromium not installed — run `pnpm exec playwright install chromium`)");
+  }
+  throw e;
+}
 
 // --- throwaway session ---
-const created = await fetch(API, {
-  method: "POST",
-  headers: { "content-type": "application/json", ...AUTH },
-  body: JSON.stringify({ state: {} }),
-}).then((r) => r.json());
-const SID = created.id;
-if (!SID) {
-  if (created.error && /too many sessions/i.test(created.error)) {
-    console.log("SKIP: browser-e2e create budget spent (10/hr/IP) — retry later");
-    process.exitCode = 0; // nothing to clean: no session, Edge not launched yet
+let SID;
+const cleanup = async () => {
+  if (SID) {
+    try { await fetch(API, { method: "DELETE", headers: { "content-type": "application/json", ...AUTH }, body: JSON.stringify({ id: SID }) }); } catch { /* gone */ }
+  }
+  try { await browser.close(); } catch { /* gone */ }
+};
+
+let skipped = false;
+try {
+  const created = await fetch(API, {
+    method: "POST",
+    headers: { "content-type": "application/json", ...AUTH },
+    body: JSON.stringify({ state: {} }),
+  }).then((r) => r.json());
+  SID = created.id;
+  if (!SID) {
+    if (created.error && /too many sessions/i.test(created.error)) {
+      console.log("SKIP: browser-e2e create budget spent (10/hr/IP) — retry later");
+      skipped = true;
+      return;
+    }
+    console.log("FAIL: could not create session", JSON.stringify(created));
+    failures += 1;
     return;
   }
-  console.log("FAIL: could not create session", JSON.stringify(created));
-  process.exitCode = 1;
-  return;
-}
-const apiGet = () => fetch(`${API}?id=${SID}`, { headers: AUTH }).then((r) => r.json());
+  const apiGet = () => fetch(`${API}?id=${SID}`, { headers: AUTH }).then((r) => r.json());
 
-// --- Edge + CDP ---
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), "mabiroutine-e2e-"));
-const proc = spawn(edge, [
-  "--headless=new",
-  "--disable-gpu",
-  "--no-first-run",
-  "--disable-extensions",
-  `--window-size=390,844`,
-  `--remote-debugging-port=${DEBUG_PORT}`,
-  `--user-data-dir=${profile}`,
-  "about:blank",
-], { stdio: "ignore" });
-
-const cleanup = async () => {
-  try { await fetch(API, { method: "DELETE", headers: { "content-type": "application/json", ...AUTH }, body: JSON.stringify({ id: SID }) }); } catch { /* gone */ }
-  try { proc.kill(); } catch { /* gone */ }
-  try { fs.rmSync(profile, { recursive: true, force: true }); } catch { /* locked */ }
-};
-process.on("exit", () => { try { proc.kill(); } catch { /* x */ } });
-
-let ws;
-try {
-  // wait for debugger
-  let version = null;
-  for (let i = 0; i < 100; i++) {
-    try {
-      version = await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/version`).then((r) => r.json());
-      break;
-    } catch { await new Promise((r) => setTimeout(r, 200)); }
-  }
-  if (!version) throw new Error("debugger never came up");
-
-  ws = new WebSocket(version.webSocketDebuggerUrl);
-  await new Promise((res, rej) => {
-    ws.onopen = res;
-    ws.onerror = rej;
-  });
-
-  let seq = 0;
-  const pending = new Map();
-  const loadWaiters = new Map(); // sessionId -> resolve
-  ws.onmessage = (ev) => {
-    const m = JSON.parse(String(ev.data));
-    if (m.id && pending.has(m.id)) {
-      const { res, rej } = pending.get(m.id);
-      pending.delete(m.id);
-      if (m.error) rej(new Error(JSON.stringify(m.error)));
-      else res(m.result);
-    } else if (m.method === "Page.loadEventFired" && loadWaiters.has(m.sessionId)) {
-      loadWaiters.get(m.sessionId)();
-      loadWaiters.delete(m.sessionId);
-    }
-  };
-  const send = (method, params = {}, sessionId) =>
-    new Promise((res, rej) => {
-      const id = ++seq;
-      pending.set(id, { res, rej });
-      ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
-    });
-  const evaluate = async (sessionId, expression) => {
-    const r = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId);
-    if (r.exceptionDetails) throw new Error(`page eval threw: ${expression.slice(0, 120)} ${JSON.stringify(r.exceptionDetails).slice(0, 200)}`);
-    return r.result?.value;
-  };
-  const waitLoad = (sessionId, ms = 20000) =>
-    new Promise((res, rej) => {
-      const t = setTimeout(() => { loadWaiters.delete(sessionId); rej(new Error("load timeout")); }, ms);
-      loadWaiters.set(sessionId, () => { clearTimeout(t); res(); });
-    });
-  const waitFor = async (sessionId, expr, ms = 25000, step = 500) => {
+  const settle = (ms) => new Promise((r) => setTimeout(r, ms));
+  const evaluate = (page, expression) => page.evaluate(expression);
+  const waitFor = async (page, expr, ms = 25000, step = 500) => {
     const end = Date.now() + ms;
     for (;;) {
-      const v = await evaluate(sessionId, expr);
+      const v = await evaluate(page, expr);
       if (v) return v;
       if (Date.now() > end) throw new Error(`waitFor timeout: ${expr.slice(0, 120)}`);
-      await new Promise((r) => setTimeout(r, step));
+      await settle(step);
     }
   };
-  const newTab = async (contextId) => {
-    const { targetId } = await send("Target.createTarget", { url: "about:blank", ...(contextId ? { browserContextId: contextId } : {}) });
-    const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
-    await send("Page.enable", {}, sessionId);
-    await send("Runtime.enable", {}, sessionId);
-    return { targetId, sessionId };
-  };
-  const gotoApp = async (sessionId) => {
-    const w = waitLoad(sessionId);
-    await send("Page.navigate", { url: APP_URL }, sessionId);
-    await w;
-  };
+  const newPage = (context) => context.newPage();
+  const gotoApp = (page) => page.goto(APP_URL, { waitUntil: "load" });
   const linkSession = (sid) =>
     `localStorage.setItem('mabiroutine:session', JSON.stringify({id:'${sid}',updatedAt:0}))`;
   const CHECK_SEL = `[data-task-id="parttime"] [role="checkbox"]`;
@@ -180,37 +123,37 @@ try {
   const charIdOf = `JSON.parse(localStorage.getItem('mabiroutine:v2')).state.characters[0].id`;
 
   // --- E1: device A taps, device B boots and shows it ---
-  const ctxA = (await send("Target.createBrowserContext", {})).browserContextId;
-  const ctxB = (await send("Target.createBrowserContext", {})).browserContextId;
-  const tabA = await newTab(ctxA);
-  await gotoApp(tabA.sessionId);
-  await evaluate(tabA.sessionId, linkSession(SID));
-  await gotoApp(tabA.sessionId); // reload linked: boot pull + reset settle
-  await waitFor(tabA.sessionId, `!!document.querySelector('${CHECK_SEL}')`);
-  await new Promise((r) => setTimeout(r, 5000)); // boot reset + marker push settle
-  const before = await evaluate(tabA.sessionId, checkedOf(CHECK_SEL));
-  await evaluate(tabA.sessionId, `document.querySelector('${CHECK_SEL}').click()`);
-  await waitFor(tabA.sessionId, `${checkedOf(CHECK_SEL)}!==${JSON.stringify(before)}`);
-  const cidA = await evaluate(tabA.sessionId, charIdOf);
+  const ctxA = await browser.newContext({ viewport: VIEWPORT });
+  const ctxB = await browser.newContext({ viewport: VIEWPORT });
+  const tabA = await newPage(ctxA);
+  await gotoApp(tabA);
+  await evaluate(tabA, linkSession(SID));
+  await gotoApp(tabA); // reload linked: boot pull + reset settle
+  await waitFor(tabA, `!!document.querySelector('${CHECK_SEL}')`);
+  await settle(5000); // boot reset + marker push settle
+  const before = await evaluate(tabA, checkedOf(CHECK_SEL));
+  await evaluate(tabA, `document.querySelector('${CHECK_SEL}').click()`);
+  await waitFor(tabA, `${checkedOf(CHECK_SEL)}!==${JSON.stringify(before)}`);
+  const cidA = await evaluate(tabA, charIdOf);
   let serverVal = null;
   for (let i = 0; i < 14; i++) { // debounced push (3s) + margin
     const g = await apiGet();
     if (Object.entries(g.state ?? {}).some(([k, v]) => k.startsWith(`v:${cidA}:parttime@`) && v === true)) { serverVal = true; break; }
-    await new Promise((r) => setTimeout(r, 1000));
+    await settle(1000);
   }
   ok("E1 tap reached server", serverVal === true, `v:${cidA}:parttime@*`);
 
-  const tabB = await newTab(ctxB);
-  await gotoApp(tabB.sessionId);
-  await evaluate(tabB.sessionId, linkSession(SID));
-  await gotoApp(tabB.sessionId); // mount pull adopts
-  await waitFor(tabB.sessionId, `!!document.querySelector('${CHECK_SEL}')`);
+  const tabB = await newPage(ctxB);
+  await gotoApp(tabB);
+  await evaluate(tabB, linkSession(SID));
+  await gotoApp(tabB); // mount pull adopts
+  await waitFor(tabB, `!!document.querySelector('${CHECK_SEL}')`);
   // A fresh device's own empty character differs from the peer's; the remote
   // `meta:active` now wins the contest (decision 16), so B usually lands on
   // the adopted tab already. The forced activation + reload below keeps the
   // render assertion deterministic either way.
   // 1) merge correctness: some character in B's persist holds the check…
-  const holder = await waitFor(tabB.sessionId, `
+  const holder = await waitFor(tabB, `
     (() => { try {
       const p = JSON.parse(localStorage.getItem('mabiroutine:v2'));
       const hit = p.state.characters.find(c => c.taskValues && c.taskValues.parttime === true);
@@ -218,29 +161,29 @@ try {
     } catch (e) { return false; } })()`, 20000);
   ok("E1 device B merged the check", typeof holder === "string", String(holder));
   // 2) render: activate that character, reload, checkbox reads checked.
-  await evaluate(tabB.sessionId, `
+  await evaluate(tabB, `
     (() => { const p = JSON.parse(localStorage.getItem('mabiroutine:v2'));
       p.state.activeCharId = '${holder}';
       localStorage.setItem('mabiroutine:v2', JSON.stringify(p)); })()`);
-  await gotoApp(tabB.sessionId);
-  await waitFor(tabB.sessionId, `!!document.querySelector('${CHECK_SEL}')`);
+  await gotoApp(tabB);
+  await waitFor(tabB, `!!document.querySelector('${CHECK_SEL}')`);
   let shownB;
   try {
-    shownB = await waitFor(tabB.sessionId, `${checkedOf(CHECK_SEL)}==='true'`, 20000);
+    shownB = await waitFor(tabB, `${checkedOf(CHECK_SEL)}==='true'`, 20000);
   } catch {
-    shownB = `TIMEOUT attr=${await evaluate(tabB.sessionId, checkedOf(CHECK_SEL))}`;
+    shownB = `TIMEOUT attr=${await evaluate(tabB, checkedOf(CHECK_SEL))}`;
   }
   ok("E1 device B shows checked", shownB === true, String(shownB));
 
   // --- E2: second tab in A wakes later — value intact everywhere ---
-  const tabA2 = await newTab(ctxA);
-  await gotoApp(tabA2.sessionId);
-  await waitFor(tabA2.sessionId, `!!document.querySelector('${CHECK_SEL}')`);
-  const shownA2 = await waitFor(tabA2.sessionId, `${checkedOf(CHECK_SEL)}==='true'`);
+  const tabA2 = await newPage(ctxA);
+  await gotoApp(tabA2);
+  await waitFor(tabA2, `!!document.querySelector('${CHECK_SEL}')`);
+  const shownA2 = await waitFor(tabA2, `${checkedOf(CHECK_SEL)}==='true'`);
   ok("E2 second tab shows checked", shownA2 === "true" || shownA2 === true, String(shownA2));
   // focus original tab (wake-pull) and confirm the server value survives it
-  await send("Page.bringToFront", {}, tabA.sessionId).catch(() => ({}));
-  await new Promise((r) => setTimeout(r, 8000)); // focus pull + push cycle
+  await tabA.bringToFront().catch(() => ({}));
+  await settle(8000); // focus pull + push cycle
   const g2 = await apiGet();
   ok("E2 server value survives wake-pull", Object.entries(g2.state ?? {}).some(([k, v]) => k.startsWith(`v:${cidA}:parttime@`) && v === true), "parttime@*");
 
@@ -256,58 +199,62 @@ try {
       headers: { "content-type": "application/json", ...AUTH },
       body: JSON.stringify({ id: SID, changes: { [`v:${cidA}:tower@${bucket}`]: 3 } }),
     });
-    const ctxC = (await send("Target.createBrowserContext", {})).browserContextId;
-    const tabC = await newTab(ctxC);
+    const ctxC = await browser.newContext({ viewport: VIEWPORT });
     // Document-start seeding: the crafted state and base land before the app's
     // own hydrated write, so nothing races over them.
-    const craft = `(() => {
-      const CID = ${JSON.stringify(cidA)};
-      const SID = ${JSON.stringify(SID)};
+    //
+    // The protocol guard is not decorative: init scripts also run on the initial
+    // about:blank, where localStorage is access-denied, so an unguarded write
+    // raises a page error on every run (verified). Cheaper to skip than to
+    // wrap the whole body in a catch that would also swallow a real failure on
+    // the app origin.
+    await ctxC.addInitScript(({ cid, sid, bucket }) => {
+      if (!/^https?:$/.test(location.protocol)) return; // opaque origin: nothing to seed
       localStorage.setItem('mabiroutine:v2', JSON.stringify({
         state: {
           version: 21,
-          characters: [{ id: CID, name: 'A', taskValues: { tower: 9 }, hiddenTaskIds: [] }],
-          activeCharId: CID,
+          characters: [{ id: cid, name: 'A', taskValues: { tower: 9 }, hiddenTaskIds: [] }],
+          activeCharId: cid,
           accountValues: {},
           hiddenAccountTaskIds: [],
           barterPins: [],
           barterCustomOrder: null,
           customTasks: [],
-          lastDailyReset: ${JSON.stringify(bucket)},
+          lastDailyReset: bucket,
           lastWeeklyReset: null,
           prefs: { hideCompleted: false, pinnedCollapsed: { daily: false, weekly: false } },
           globalTaskOrder: {},
-          taskBuckets: { tower: ${JSON.stringify(bucket)} },
+          taskBuckets: { tower: bucket },
           hourlyReminders: [],
           purpleHoleReminders: []
         },
         version: 21
       }));
       localStorage.setItem('mabiroutine:flatbase', JSON.stringify({
-        sessionId: SID,
+        sessionId: sid,
         flat: {
-          ['v:' + CID + ':tower@' + ${JSON.stringify(bucket)}]: 1,
-          ['char:' + CID + ':name']: 'A',
-          'meta:active': CID
+          ['v:' + cid + ':tower@' + bucket]: 1,
+          ['char:' + cid + ':name']: 'A',
+          'meta:active': cid
         },
         ts: 0
       }));
-      localStorage.setItem('mabiroutine:session', JSON.stringify({ id: SID, updatedAt: 0 }));
-    })()`;
-    await send("Page.addScriptToEvaluateOnNewDocument", { source: craft }, tabC.sessionId);
-    await gotoApp(tabC.sessionId);
-    await waitFor(tabC.sessionId, `!!document.querySelector('[data-task-id="tower"]')`, 20000).catch(() => null);
-    await new Promise((r) => setTimeout(r, 9000)); // boot round + debounced flush settle
+      localStorage.setItem('mabiroutine:session', JSON.stringify({ id: sid, updatedAt: 0 }));
+    }, { cid: cidA, sid: SID, bucket });
+    const tabC = await newPage(ctxC);
+    await gotoApp(tabC);
+    await waitFor(tabC, `!!document.querySelector('[data-task-id="tower"]')`, 20000).catch(() => null);
+    await settle(9000); // boot round + debounced flush settle
     const g3 = await apiGet();
     const serverTower = (g3.state ?? {})[`v:${cidA}:tower@${bucket}`];
     ok("E3 server keeps the peer value", serverTower === 3, `tower=${JSON.stringify(serverTower)}`);
     const localTower = await evaluate(
-      tabC.sessionId,
+      tabC,
       `(() => { try { const p = JSON.parse(localStorage.getItem('mabiroutine:v2')); const c = p.state.characters.find(c => c.id === ${JSON.stringify(cidA)}); return c ? c.taskValues.tower : 'NO-CHAR'; } catch (e) { return 'ERR'; } })()`
     );
     ok("E3 device adopted the peer value", localTower === 3, `local tower=${JSON.stringify(localTower)}`);
     const journal = await evaluate(
-      tabC.sessionId,
+      tabC,
       `(() => { try { return JSON.parse(window.__mabiSyncJournal()); } catch (e) { return null; } })()`
     );
     const droppedTower = Array.isArray(journal)
@@ -323,15 +270,20 @@ try {
   console.log(`FAIL: browser-e2e harness: ${e.message}`);
   failures += 1;
 } finally {
-  try { ws?.close(); } catch { /* x */ }
   await cleanup();
 }
 
-console.log(failures === 0 ? "BROWSER E2E PASSED" : `${failures} FAILURES`);
-process.exitCode = failures === 0 ? 0 : 1;
+if (!skipped) {
+  console.log(failures === 0 ? "BROWSER E2E PASSED" : `${failures} FAILURES`);
+  process.exitCode = failures === 0 ? 0 : 1;
+} else {
+  console.log("BROWSER E2E SKIPPED");
+}
 } catch (e) {
-  if (e instanceof Skip) process.exitCode = 0;
-  else throw e;
+  if (e instanceof Skip) {
+    console.log("BROWSER E2E SKIPPED");
+    process.exitCode = 0;
+  } else throw e;
 }
 }
 

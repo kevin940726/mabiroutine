@@ -10,6 +10,10 @@ mechanism second); protocol details in `docs/sync.md`; data rules in
 
 - Node 24 + `pnpm` (repo pins `pnpm@11.8.0` via `packageManager` — Corepack or
   `npm i -g pnpm` works).
+- Playwright's pinned Chromium, only for the browser suites:
+  `pnpm exec playwright install chromium`. `pnpm install` does not fetch it
+  (the package ships no postinstall), and both browser suites SKIP loudly
+  without it. UI work needs no browser.
 - No other services needed for UI work. Cloud sync runs on SQL: a local
   `file:` database in dev, Turso in deployed environments (`api/_db/`). Local
   work needs no credentials (see Full stack below).
@@ -95,14 +99,14 @@ data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens
 it is pinned rather than left to a comment; see `docs/item-icons.md`.
 Shop rule: `pnpm test:shop-e2e` before a release, and after touching the store's
 migration, the shop grid, or the pinned-section fold. It drives the real app in
-Edge over CDP and asserts what the unit gates cannot: a real v19 save migrating on
-load (and an existing fold NOT being stomped), the grid rendering 4 columns at a
-desktop width with the discriminating 1100px case that tells the container rule
-apart from a viewport one, and the pinned-section fold surviving a reload. Needs
-`pnpm dev` (default `:5173`, override with `APP_URL=`) plus Edge, and SKIPs loudly
-without either, so it is NOT in `pnpm check` — a browser suite that needs a dev
-server does not belong in the offline gate. `APP_URL=http://localhost:5188 pnpm
-test:shop-e2e` points it at another port.
+Playwright's pinned Chromium and asserts what the unit gates cannot: a real v19
+save migrating on load (and an existing fold NOT being stomped), the grid
+rendering 4 columns at a desktop width with the discriminating 1100px case that
+tells the container rule apart from a viewport one, and the pinned-section fold
+surviving a reload. Needs `pnpm dev` (default `:5173`, override with `APP_URL=`)
+plus that Chromium, and SKIPs loudly without either, so it is NOT in `pnpm check`
+— a browser suite that needs a dev server does not belong in the offline gate.
+`APP_URL=http://localhost:5188 pnpm test:shop-e2e` points it at another port.
 Drag rule: `pnpm test:drag` after touching `src/lib/dragRules.ts` or a drag
 handler. It asserts the hierarchy (`scripts/check-drag-rules.entry.ts`, bundled
 like the others): children reorder only within their own merchant group, rows
@@ -173,8 +177,9 @@ list — so they need no rule of their own.
     same-key LWW, legacy upgrades, failure paths, no-store headers. Inspects
     the SQL backend via `backend.mjs` (Turso over HTTP, local file DB for dev
     servers).
-  - `browser-e2e.mjs` — real Edge over CDP: tap→server→second-device
-    render, wake-pull convergence. Needs `pnpm dev:api` + Edge.
+  - `browser-e2e.mjs` — real Chromium (Playwright): tap→server→second-device
+    render, wake-pull convergence. Needs `pnpm dev:api` + the Playwright
+    Chromium (`pnpm exec playwright install chromium`).
   - Live suites SKIP loudly (exit 0) without their deps; hermetic suites
     always run. `pnpm test:sync --skip-live` for offline.
   - `SYNC_TEST_BASE` points the live suites at another base (default local

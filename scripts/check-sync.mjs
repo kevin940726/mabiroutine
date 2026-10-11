@@ -3,8 +3,8 @@
  * Sync regression gate: every suite that guards the sync engine.
  * Hermetic suites always run (real store/flat/session code, stubbed
  * storage/server — no network). Live suites SKIP loudly when their
- * dependency (dev:api on :52608, Edge) is absent, so `pnpm check`
- * stays green offline.
+ * dependency (dev:api on :52608, Playwright Chromium) is absent, so
+ * `pnpm check` stays green offline.
  *
  * Suites:
  *  engine     E1–E22 syncAndResets scenarios (suppression, propagation,
@@ -20,7 +20,8 @@
  *  tabs       T1 stale-tab tombstones + T2 cap-overflow (vm-realm tabs,
  *             real flat.ts — fails on pre-fix code, see docs/sync.md)
  *  api-live   dev-API concurrency/upgrades/failure paths (needs dev:api)
- *  browser    real-Edge two-context E2E (needs dev:api + Edge)
+ *  browser    real-Chromium two-context E2E (needs dev:api + Playwright
+ *             Chromium, installed with `pnpm exec playwright install chromium`)
  *
  * Usage: pnpm test:sync [--skip-live]
  */
@@ -152,7 +153,7 @@ function run(file, args = []) {
 if (!skipLive) {
   section("api-live (dev API)");
   run("scripts/sync-tests/api-live.mjs");
-  section("browser (real Edge E2E)");
+  section("browser (real Chromium E2E)");
   run("scripts/sync-tests/browser-e2e.mjs");
 } else {
   console.log("\n(live suites skipped by --skip-live)");

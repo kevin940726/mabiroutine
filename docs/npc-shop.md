@@ -203,8 +203,10 @@ Each of these cost real time and will again.
   loudly without `pnpm dev:api`; they do not cover this code.
 - Browser checks were done with `playwright-core` driving the already-running
   dev server, in throwaway scripts under
-  `C:\Users\User\AppData\Local\Temp\opencode\pwtest\`. Nothing test-related is
-  committed; the repo has no browser test harness for this.
+  `C:\Users\User\AppData\Local\Temp\opencode\pwtest\`. Nothing was committed for
+  that work; a committed harness (`pnpm test:shop-e2e`,
+  `scripts/check-shop-e2e.mjs`) landed later on the same Playwright stack and now
+  covers these paths.
 - Useful selectors: the NPC field is `getByRole("button", { name: "NPC" })`, the
   town field `name: "城鎮"`, the multi-select `name: "優先度"` (options are
   `menuitemcheckbox`), the kind field `name: "交易類型"` (options are
