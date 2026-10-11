@@ -123,6 +123,16 @@ decode failure, not a 404 — `onError` still fires).
 Drop `<TW name>.webp` into `public/items/` and rebuild. WebP, 128×128,
 transparency kept; match the existing files. Nothing else to update.
 
+When a name has no clean source at all, capture it in-game and turn that capture
+into the file: `python scripts/clean-item-icon.py <capture.png>` writes
+`public/items/<capture name>.webp`, stripping the rarity glow/backdrop behind the
+item and the stack count printed over its corner, then feathering and scaling to
+128. Name the capture after the item, since its filename is the lookup. It is
+optional dev tooling like `scripts/crop-npc.py` — not part of the build or any
+gate — and needs Pillow, numpy, scipy and opencv-python. `--out` overrides the
+destination, and `--number-x/--number-y` move the count's search box if a capture
+places it elsewhere.
+
 Shared art is a data fact, not a lookup rule: an option whose art lives under
 another name carries `"icon": "<that name>"` (resolved through `itemIconPath`,
 so encoding stays centralized). Every 卷軸 row points at 任務卷軸 rather than

@@ -10,6 +10,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ### Chores
 - Count sweep for the new 杜巴頓 merchants: both READMEs 235 trades; `docs/npc-shop.md` §4 235 rows / 45 NPCs / 118 gold / 117 barter (28 barter-only, 13 mixed, 4 gold-only) and 235 pin ids; `docs/item-icons.md` 192 names looked up / 192 covered / 217 icon files; `skills/update-tracker` 117 curated legs; `docs/tracker-data.md` 12 server-shared barter legs (`伊文 大塊肉` joins the list). `recipes.json` gains the 深淵的化石 quest token (茉莉's cost), so the currency gate resolves it the way it resolves 魔物討伐證明
 - `scripts/clean-item-icon.py` added: turns an in-game item-icon capture into the repo's 128×128 transparent WebP, stripping the rarity glow/backdrop and inpainting the stack count off the art. Used for the two fossil captures, which carried both; the source captures stay gitignored in `suggestions/`
+- Review follow-up on this batch: `scripts/clean-item-icon.py`'s docstring no longer names the private icon pipeline (the public tree must not reference it), the two counts the sweep missed are corrected (`docs/development.md` 117 curated legs, `shops.schema.json` 12 server-shared legs), and the script is documented as optional capture tooling in `docs/item-icons.md`
 
 ## 2026-10-11 — Playwright browser E2E
 

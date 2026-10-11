@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 """Captured item icon -> the repo's 128x128 transparent WebP.
 
-`mabimobi-icons/optimize.py` (private) turns a *clean* 256px source into the
-128px WebP `public/items/` wants. Some items have no clean source anywhere
-(mabimobi.life, the official site, the fan DBs), so they are captured in-game
-instead — and a capture carries two things the icon must not:
+Some items have no clean art source, so they are captured in-game instead. A
+capture carries two things the icon must not:
 
   - the game's rarity glow and backdrop behind the item, and
   - the stack count printed over the item's lower-right corner.
 
-This script strips both and exports to the same contract as optimize.py:
-128x128, WebP quality 85, method 6, alpha kept.
+This script strips both and exports the format `public/items/` uses: 128x128,
+WebP quality 85, method 6, alpha kept.
 
 How it decides:
   - background = the purple rarity glow (`B-G>18 & R>=G & B>R`) plus the
@@ -30,8 +28,8 @@ box is exposed as `--number-x/--number-y`.
 
 Requires: Pillow, numpy, scipy, opencv-python.
 
-    python scripts/clean-item-icon.py public/npc-raw/shot.png
-    python scripts/clean-item-icon.py shot.png --out public/items/深淵的化石.webp
+    python scripts/clean-item-icon.py capture.png
+    python scripts/clean-item-icon.py capture.png --out public/items/深淵的化石.webp
 """
 import argparse
 import os

@@ -39,7 +39,7 @@ case — switch to `dev:api`.
 ## Five-minute tour
 
 - **Game data is hand-owned JSON** — `src/data/tracker.json` (22 rows) +
-  `src/data/shops.json` (NPC → purchase/exchange options incl. the 107 curated legs, each with a stable `id`, schema'd by
+  `src/data/shops.json` (NPC → purchase/exchange options incl. the 117 curated legs, each with a stable `id`, schema'd by
   `shops.schema.json`) +
   `src/data/curatedOrder.ts` + `src/data/defaultPins.json` +
   `src/data/recipes.json` (make/gather/quest/drop routes per item — shop/barter legs live in `shops.json`). No codegen, no
