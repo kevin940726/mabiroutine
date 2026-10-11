@@ -37,7 +37,7 @@ export type ShopRow = {
   /** Display cost: the coin for gold purchases, the material for barter. */
   cost: string;
   /** The cost's parts, for a renderer that shows an icon instead of a word. Gold,
-   *  喵幣 and 愛心幣 take the icon form; every other currency keeps `cost`. */
+   *  喵幣, 愛心幣 and 魔物討伐證明 take the icon form; every other currency keeps `cost`. */
   costCurrency: string;
   costAmount: number | null;
   limitText: string | null;

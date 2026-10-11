@@ -4,7 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- 杜巴頓 gains two merchants. 伊文 trades 魔物討伐證明 for 無主的召喚結界戰利品 (150, 每週 5 次), 無主的黑色坑洞戰利品 (50, 每週 10 次), 符文碎片 ×10 (20, 每週 20 次), 不死粉末 (100, 每週 5 次), 解除詛咒藥水 (100, 每週 10 次), 遙遠的星辰印章 (200, 每週 1 次, 必換), 強化再燃燒催化劑 (300, 每週 1 次, 推薦), 菁英鍊金術再燃燒催化劑 (400, 每週 1 次, 推薦) and 大塊肉 (100, 每週 1 次, account-wide, 視需求); 茉莉 trades 深淵的化石 for 赤紅深淵的化石 ×60 (100, 每週 2 次, 必換). Six icons ship with them (無主的召喚結界戰利品, 無主的黑色坑洞戰利品, 符文碎片, 遙遠的星辰印章, 菁英鍊金術再燃燒催化劑, 大塊肉); 魔物討伐證明 has no icon in the catalog source, so it gets one from an in-game capture cleaned to a 128px transparent WebP (like 喵幣 and 愛心幣) and now takes the same icon-cost render path; 深淵的化石 and 赤紅深淵的化石 likewise come from captures with their stack number and rarity glow cleaned off, so every name these merchants touch has art. 伊文 and 茉莉's portraits also ship, cropped from raw captures to 76px circles like every other merchant
+
 ### Chores
+- Count sweep for the new 杜巴頓 merchants: both READMEs 235 trades; `docs/npc-shop.md` §4 235 rows / 45 NPCs / 118 gold / 117 barter (28 barter-only, 13 mixed, 4 gold-only) and 235 pin ids; `docs/item-icons.md` 192 names looked up / 192 covered / 217 icon files; `skills/update-tracker` 117 curated legs; `docs/tracker-data.md` 12 server-shared barter legs (`伊文 大塊肉` joins the list). `recipes.json` gains the 深淵的化石 quest token (茉莉's cost), so the currency gate resolves it the way it resolves 魔物討伐證明
 - `scripts/clean-item-icon.py` added: turns an in-game item-icon capture into the repo's 128×128 transparent WebP, stripping the rarity glow/backdrop and inpainting the stack count off the art. Used for the two fossil captures, which carried both; the source captures stay gitignored in `suggestions/`
 
 ## 2026-10-11 — Playwright browser E2E

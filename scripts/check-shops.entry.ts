@@ -344,7 +344,7 @@ eachNpc((town, npc, items) => {
 });
 
 // 2. currencies must be gold, a known item, or a barter give/get token.
-// Quest-sourced tokens (喵幣, 不死粉末, 解除詛咒藥水) resolve through their
+// Quest-sourced tokens (喵幣, 魔物討伐證明, 深淵的化石, 不死粉末, 解除詛咒藥水) resolve through their
 // recipes.json quest stubs like everything else — there is no separate
 // allowlist: if a stub is ever deleted, this gate fails loudly instead of
 // staying green behind an exception.

@@ -8,17 +8,17 @@ import { ItemIcon } from "./ItemIcon";
 import { NpcFace } from "./NpcFace";
 import type { ShopRow } from "./types";
 
-/** A price, as the shop shows it: gold is the coin glyph, and 喵幣 / 愛心幣 use their
- *  own art in place of the word.
+/** A price, as the shop shows it: gold is the coin glyph, and the signature token
+ *  currencies (喵幣 / 愛心幣 / 魔物討伐證明) use their own art in place of the word.
  *
  *  The `×` is dropped for the icon form. Gold never had one (`🪙1,500`), and once the
  *  currency is a picture the count reads as the amount rather than as a multiplier of
  *  an invisible noun — `[喵幣]20,000`, not `[喵幣] ×20,000`. The text form keeps its
  *  `×` because there the word needs the separator (`生皮 ×3`).
  *
- *  Everything else is unchanged. The other 96 non-gold cost currencies (生皮, 合金鋼錠,
- *  布料+ …) DO have icon files, but a cost line drawn as art for all of them was more
- *  than was asked for, so only the two coin currencies and gold take this path.
+ *  Everything else is unchanged. The other non-gold cost currencies (生皮, 合金鋼錠,
+ *  布料+ …) mostly DO have icon files, but a cost line drawn as art for all of them was
+ *  more than was asked for, so only these token currencies and gold take this path.
  *
  *  `size` is small — a cost sits on a text line, not in a 72px frame, so it renders at
  *  the surrounding line's scale rather than the tile art's. */
@@ -40,7 +40,7 @@ export function Cost({
       </span>
     );
   }
-  if (currency === "喵幣" || currency === "愛心幣") {
+  if (currency === "喵幣" || currency === "愛心幣" || currency === "魔物討伐證明") {
     return (
       <span className="inline-flex items-center gap-1 tabular-nums">
         <ItemIcon name={currency} size={size} />
@@ -392,12 +392,13 @@ export const GRID_CONTAINER = "@container/shop";
 export function TradeLine({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: string, giveName: string) => void }) {
   const { name, qty } = parseItemQty(item.give);
   const times = dealTimes(item.npc, name, qty, item.limitText ?? undefined, item.town);
-  // A barter row whose give IS an icon currency (喵幣 / 愛心幣) is really a purchase
-  // priced in that coin, not a material trade: 貓商人's 鱸魚, 毒囊 and both 魔力石
-  // rows hand over 喵幣 above and yield the item below. Those render through `Cost`,
-  // so the price reads as art with no `×` — the same shape gold has had all along —
-  // rather than as the word `喵幣 ×20,000`. Everything else, including a material
-  // that merely HAS art (生皮, 布料+), keeps the text form.
+  // A barter row whose give IS a signature token currency (喵幣 / 愛心幣 / 魔物討伐證明)
+  // is really a purchase priced in that token, not a material trade: 貓商人's 鱸魚,
+  // 毒囊 and both 魔力石 rows hand over 喵幣 above and yield the item below, and every
+  // 伊文 row is priced in 魔物討伐證明. Those render through `Cost`, so the price reads
+  // as art with no `×` — the same shape gold has had all along — rather than as the
+  // word `喵幣 ×20,000`. Everything else, including a material that merely HAS art
+  // (生皮, 布料+), keeps the text form.
   //
   // The test reads `costCurrency`, NOT `parseItemQty(give).name`, and the difference
   // is not cosmetic: `give` for these rows is `喵幣 ×20,000`, and `parseItemQty`'s
@@ -407,7 +408,7 @@ export function TradeLine({ item, onViewInShop }: { item: ShopRow; onViewInShop?
   // every other caller parses a yield (`×10`), never a price. Reading the row's own
   // currency field avoids needing the parse at all.
   const pricedInIcon =
-    item.costCurrency === "喵幣" || item.costCurrency === "愛心幣";
+    item.costCurrency === "喵幣" || item.costCurrency === "愛心幣" || item.costCurrency === "魔物討伐證明";
   if (!hasBreakdown(name)) {
     return (
       <span className="text-[14px] font-semibold text-foreground">

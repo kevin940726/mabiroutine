@@ -530,8 +530,8 @@ Measured, not assumed. Re-run the counts if `shops.json` or `curatedOrder.ts` ch
 and measure them by having a script write a UTF-8 file rather than printing to the
 console (see the terminal trap in section 0).
 
-- `shops.json`: 225 rows, 43 NPCs, 8 towns. 118 gold (`kind` omitted), 107 barter.
-- 26 NPCs are barter-only, 13 are mixed, 4 are gold-only.
+- `shops.json`: 235 rows, 45 NPCs, 8 towns. 118 gold (`kind` omitted), 117 barter.
+- 28 NPCs are barter-only, 13 are mixed, 4 are gold-only.
 - Every barter row is curated inline (stable `id`, a `priority`, and the
   `barter.give` / `get` / `limit` display strings), so only the 118 gold rows
   need a `shop::` pin id. `barter.json` was retired 2026-10-07: the ids, tiers,
@@ -550,8 +550,8 @@ console (see the terminal trap in section 0).
 - All 118 gold rows are unique on `npc::name`; none has a null price. This is the
   invariant that lets the pin id be `shop::<npc>::<name>`, and `test:shops`
   now enforces it (check 0b) instead of merely measuring it.
-- Pin counts: **all 225 pinnable** — 107 under an explicit option `id`,
-  118 gold rows under a `shop::` id. 225 distinct pin ids.
+- Pin counts: **all 235 pinnable** — 117 under an explicit option `id`,
+  118 gold rows under a `shop::` id. 235 distinct pin ids.
 
 ---
 

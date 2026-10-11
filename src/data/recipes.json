@@ -1867,6 +1867,15 @@
    }
   ]
  },
+ "深淵的化石": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "quest",
+    "outQty": 1
+   }
+  ]
+ },
  "鮮奶油": {
   "verified": "tw",
   "routes": [

@@ -2,7 +2,7 @@
 
 Item art lives in `public/items/`, one file per item named after its Traditional
 Chinese item name: `public/items/鹽.webp`. There is no manifest to update — the
-filename is the lookup. 208 files today (128×128 WebP, transparency kept).
+filename is the lookup. 217 files today (128×128 WebP, transparency kept).
 
 ## Resolving a name to a path
 
@@ -21,7 +21,7 @@ never a `displayName`-folded string.
 
 `displayName` (`src/lib/materials.ts`) narrows full-width `（` to `(` for reading, and the files
 keep the data's own spelling: `public/items/武器製作台設計圖(3級).webp`. Measured
-over the 183 distinct names the app looks up (`items[].name` with each row's `icon`
+over the 192 distinct names the app looks up (`items[].name` with each row's `icon`
 override substituted, plus the barter `give` and `get` lines):
 
 | | count |
@@ -87,23 +87,26 @@ own content height and a conditional frame would simply make that tile shorter i
 of being stretched to look right. The fixed frame is what keeps the heights equal.
 
 **Every name the app looks up now has art**, so the placeholder is a state the
-current data no longer reaches. It stays as the designed fallback for the next
-name a data update adds before its file lands, which is why the frame is sized
+current data no longer reaches. It stays as the designed fallback for the next name
+a data update adds before its file lands, which is why the frame is sized
 unconditionally above.
 
-Counted over the names themselves: `items[].name` in `shops.json` is 157 distinct,
+Counted over the names themselves: `items[].name` in `shops.json` is 167 distinct,
 but the 24 quest-board scroll rows point their art at the shared `任務卷軸` file
-through the option's `icon`, so the names actually looked up are 134. Add the
+through the option's `icon`, so the names actually looked up are 144. Add the
 barter legs' `barter.give` / `barter.get` with the ` ×N` suffix stripped as
-`parseItemQty` does (82 + 89). Union 183 names, 183 covered; 25 spare files, so
-the directory holds 208.
+`parseItemQty` does (84 + 99). Union 192 names, 192 covered; 25 spare files, so
+the directory holds 217.
 
 This section used to list sixteen names as missing. That list went stale in two
-steps — 26 icons landed in one batch, then the remainder arrived — and the count
-below the line is now zero rather than fourteen. The history is worth keeping
-because the two facts it shows are still live: only names in `shops.json` reach a
-tile, and a name inside barter deal text renders as plain text, so a gap there has
-no visible placeholder until a trade line gains art.
+steps — 26 icons landed in one batch, then the remainder arrived — and for a while
+the count below the line was zero. Adding 伊文 and 茉莉's weekly trades brought
+three back, all three already filled from in-game captures (魔物討伐證明 and the two
+fossils, whose stack number and rarity glow were cleaned off): none of the three had
+a source in the icon catalog at all. The history is worth keeping because the two
+facts it shows are still live: only names in `shops.json` reach a tile, and a name
+inside barter deal text renders as plain text, so a gap there has no visible
+placeholder until a trade line gains art.
 
 The three `(3級)` blueprints were the leftover end of the raw-name trap above: the
 data spells them with half-width parens like the nine that DO have files, so they

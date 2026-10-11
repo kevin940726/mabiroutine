@@ -129,7 +129,7 @@ function MerchantBand({ item, onOpen }: { item: ShopRow; onOpen?: (npc: string, 
  *
  *  Gold is a bare coin amount; barter is the whole `你給 X → 你拿 Y` trade line,
  *  whose hover card is the tile's only way into the material breakdown. A barter row
- *  priced in 喵幣 or 愛心幣 is drawn as that coin's art by `TradeLine` (see there). */
+ *  priced in 喵幣, 愛心幣 or 魔物討伐證明 is drawn as that token's art by `TradeLine` (see there). */
 function Price({ item, onViewInShop }: { item: ShopRow; onViewInShop?: (npc: string, giveName: string) => void }) {
   if (item.kind === "shop") {
     return (
