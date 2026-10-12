@@ -165,7 +165,9 @@ Two more, about how the path itself is built:
 `pnpm test:fallbacks` is the gate: it fails on ANY `src` assignment under
 `src/`, `api/` or `workers/`, on an NPC `shops.json` names without a portrait,
 on a hardcoded `/npc/` or `/items/` filename with no file, and on a missing (or
-untracked) `placeholder.png` shim.
+untracked) `placeholder.png` shim. The operational half of that incident, how it
+was diagnosed from the provider's own metrics and the order to respond in, is
+`docs/operations.md` §10.
 
 ### Caching: why art is not revalidated on every render
 

@@ -24,6 +24,33 @@ A cap that pauses is the backstop, not the fix: it converts a surprise into an
 outage you were warned about. The fix for anything client-side is §7's device
 budget, and for anything server-side it is a bounded loop in our own code.
 
+### Capacity verdict: this app fits Hobby at its current scale
+
+Measured over the eight clean days before the 2026-10-12 incident (Oct 3-10),
+against Hobby's first-unit allowances:
+
+| Cap | This app, measured | Hobby | Headroom |
+|---|---|---|---|
+| Edge requests | ~17.6k/day (14k-25k) | 1,000,000/month (~33k/day) | ~1.9x |
+| Fast Data Transfer | ~139 MB/day | 100 GB/month | ~25x |
+| Function invocations | ~4.8k/day | 1,000,000/month | ~7x |
+
+Deploys are the other line item, and they are cheap since art got a real browser
+cache lifetime: the last measured wave was ~150 requests across 24 online
+clients, where the hour before that change was ~25,000. The other eight projects
+on the team share the same budget and cost ~52k/month together.
+
+So the app should run on Hobby comfortably, with the caveat that edge requests
+are the cap that matters and the one to watch: the dashboard usage page shows the
+same daily totals these numbers came from (`vercel metrics` is what produced them
+here, and that endpoint is Pro-only). Two things would change the arithmetic
+rather than fit inside it: traffic growing by a couple of times, or another
+feature whose steady state is itself hundreds of thousands of requests a month. A
+runaway client is no longer one of them, because §7's device budget bounds one
+per device and §10 is the response if the daily total ramps anyway. Hobby also
+carries a personal, non-commercial use policy, which is a separate question from
+the cap and only matters if this app is ever monetized.
+
 | Endpoint | Access | Contract |
 |---|---|---|
 | `GET /` | public | `{ok, worker}` health |
@@ -310,3 +337,53 @@ pull` regenerates that file and would wipe the value.
   `docs/ledger/` until the 2026-09-18 fold deleted those files — full text
   recoverable from git history (e.g. `git log -- docs/ledger/server-push.md`).
   Nothing in code referenced them, so deletion changed no behavior.
+- Incidents: §10 is the 2026-10-12 usage-drain write-up (recognition, the
+  diagnosis commands, the response order, and the two facts that cost time).
+  Its mechanism lives in `docs/item-icons.md` § The fallback rule; the guard it
+  produced is §7.
+
+## 10. When usage drains (the 2026-10-12 incident, and the runbook it left)
+
+The mechanism is documented where the bug was (`docs/item-icons.md` § The
+fallback rule: an `onError` that assigned `img.src` to a URL a deploy had
+deleted). This section is the operational half: how it looked, how to diagnose a
+repeat on either plan, and the order to respond in.
+
+### What it looked like
+
+From the provider's own numbers:
+
+| Time (UTC) | Edge requests | What was happening |
+|---|---|---|
+| Oct 11 baseline | 12-25k/day (400-1,000/hour) | normal traffic |
+| Oct 11 17:00 | 25,018 in the hour | a deploy: clients refetch the shell |
+| Oct 11 21:00 | 3,847 | a loop ignites as overnight tabs wake |
+| Oct 11 22:00 - Oct 12 06:00 | 265k-332k per HOUR, flat | nine hours of drain |
+| Oct 12 06:58:29 | paused | Hobby's 1M/month cap: `softBlock: FAIR_USE_LIMITS_EXCEEDED`, `blockedDueToOverageType: "edgeRequest"` |
+| Oct 12 07:00-12:30 | 28-50k/hour | the same tabs hammering 402s while the deployment was disabled |
+| Oct 12 12:33 | fix deployed | the shim's 200 ended it: the next 5-minute bucket read 51, against 3,200-4,400 before |
+
+2.81M requests against a 1M cap. One path named the culprit: `/npc/placeholder.png`
+took 11,099 requests in a single 15-minute bucket. It was **not an attack**: Web
+Analytics was flat and organic (171-527 visitors/day, TW/HK, no spike) and
+pageviews stopped exactly at the block.
+
+### Diagnosing a spike
+
+- **On Pro**: `vercel metrics vercel.request.count --project mabiroutine --since 6h -g 5m --group-by request_path --json` is the fastest read, and is what named the path above. Add `--all` for the whole team. `vercel alerts` and `vercel firewall overview` exist but answer nothing until rules are configured.
+- **On Hobby**: `vercel metrics` is `payment_required` (Observability Plus), `vercel usage` 404s, `vercel firewall overview` 402s, and runtime logs keep 1 hour instead of 1 day. Only the dashboard usage page and Web Analytics remain, which is why the incident took hours to reconstruct.
+- Either way, compare against the yardstick: this app's normal is 400-1,000 requests/hour. 200k+/hour is a loop, not traffic. The team shares one budget across nine projects, but the other eight are dormant (~52k/month), so a spike is always `mabiroutine`. §1 carries the plan arithmetic behind that yardstick.
+
+### Responding, in order
+
+1. Name the path (`--group-by request_path`). One asset taking thousands of requests is a client loop.
+2. **Ship the shim before the fix** when a deploy renamed or deleted a URL that live clients still reference: restoring the old path (e.g. `public/npc/placeholder.png`) ends a loop in tabs you cannot reload. The code fix alone never reaches an already-open tab.
+3. Ship the fix and its gate in the same push (`test:fallbacks`, `test:budget`), changelog entry included, saying what the meter cost.
+4. Only then decide the plan: upgrading lifts the block, waiting ~30 days lets the window roll off. Upgrading does NOT deploy work a blocked push parked (ours produced no deployment at all until the upgrade landed).
+5. After the block lifts, deploy and verify by observation: the shim returns 200, art carries `max-age=86400`, and the served `/sw.js` imports `sw-budget.js`.
+6. Watch the daily total, not hourly noise, and expect a deploy wave (25k requests in the hour before the art cache headers existed, far less now).
+
+Two facts that cost time: the metrics pipeline lags a few minutes, so the newest
+bucket can read 0 while the window is merely young; and a paused deployment
+answers 402 to everything, including the shim, so a "still broken" check taken
+during the pause proves nothing.
