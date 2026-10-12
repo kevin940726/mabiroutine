@@ -11,6 +11,8 @@
 import { useMemo } from "react";
 import { assumedPlan, displayName, hasBreakdown, parseItemQty } from "@/lib/materials";
 import { Tooltip } from "@/components/ui/tooltip";
+import { ArtImg } from "@/components/ArtImg";
+import { NPC_PLACEHOLDER_SRC, npcIconPath } from "@/lib/npcIcon";
 
 /** No toggle when the breakdown would just echo the give (trivial self-only
  *  leaf) — or when the assumed path is gather-only (vacuous: a lone skill
@@ -62,14 +64,11 @@ function Pfp({ npc, town, limit, price }: { npc: string; town?: string; limit?: 
         </>
       }
     >
-      <img
-        src={`/npc/${encodeURIComponent(npc)}.webp`}
+      <ArtImg
+        src={npcIconPath(npc)}
+        fallbackSrc={NPC_PLACEHOLDER_SRC}
         alt={npc}
         loading="lazy"
-        onError={(e) => {
-          const img = e.target as HTMLImageElement;
-          if (!img.src.endsWith("/npc/placeholder.webp")) img.src = "/npc/placeholder.webp";
-        }}
         className="h-4 w-4 shrink-0 rounded-full border border-border/50 bg-muted object-cover"
       />
     </Tooltip>

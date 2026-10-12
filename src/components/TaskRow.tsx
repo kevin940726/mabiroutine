@@ -15,6 +15,8 @@ import { formatCountdown } from "@/lib/reset";
 import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
 import { useNow } from "@/hooks/useNow";
 import { SchedulePopover } from "@/components/SchedulePopover";
+import { ArtImg } from "@/components/ArtImg";
+import { NPC_PLACEHOLDER_SRC, npcIconPath } from "@/lib/npcIcon";
 
 /**
  * Purple-hole spawn badges, live: a 1s ticker recomputes countdown text, so
@@ -839,8 +841,10 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
   const isBarter = task.source === "barter";
   const isShop = task.source === "shop";
   const isTrade = isBarter || isShop;
-  const [npcImgError, setNpcImgError] = useState(false);
-  const showNpc = isTrade && task.npc && !npcImgError;
+  // No "portrait is broken" flag on this row, unlike the mobile one: the
+  // desktop portraits fall back through `ArtImg`, whose failure is terminal
+  // (one swap, no retry) and needs no second render.
+  const showNpc = isTrade && !!task.npc;
   const getRes = isBarter ? (task.barterMeta?.get ?? "").replace(/ ×\d+$/, "") : "";
   const tradeTitle = displayName(isBarter ? getRes : task.name);
   return (
@@ -901,28 +905,22 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
               title={`在商店查看${tradeTitle}`}
               className={cn(PFP_BUTTON, "rounded-full")}
             >
-              <img
-                src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
+              <ArtImg
+                src={npcIconPath(task.npc!)}
+                fallbackSrc={NPC_PLACEHOLDER_SRC}
                 alt=""
                 aria-hidden
                 className={PFP_DESKTOP}
                 loading="lazy"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = "/npc/placeholder.webp";
-                  setNpcImgError(false);
-                }}
               />
             </button>
           ) : (
-            <img
-              src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
+            <ArtImg
+              src={npcIconPath(task.npc!)}
+              fallbackSrc={NPC_PLACEHOLDER_SRC}
               alt={task.npc!}
               className={PFP_DESKTOP}
               loading="lazy"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = "/npc/placeholder.webp";
-                setNpcImgError(false);
-              }}
             />
           )
         ) : (

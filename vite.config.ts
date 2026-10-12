@@ -57,6 +57,11 @@ export default defineConfig({
         // to show.
         globIgnores: [
           '**/npc-raw/**',
+          // Pre-rename clients still fall back to /npc/placeholder.png, so the
+          // file is kept in public/ as a compat shim (see the 2026-10-12
+          // changelog entry and `pnpm test:fallbacks`); nothing in this build
+          // requests it, so it stays out of the precache.
+          '**/npc/placeholder.png',
           // iOS startup splash: 32 files, fetched directly by iOS on install
           // (cached by the OS) — precaching them would bloat every SW update
           // for art no in-app route ever requests.

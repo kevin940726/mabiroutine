@@ -118,6 +118,72 @@ without requesting it, so the miss is discovered by the request failing (Vite's 
 server answers an unmatched path with `index.html` at **200**, so the failure is a
 decode failure, not a 404 — `onError` still fires).
 
+## The fallback rule
+
+An art load that fails must be TERMINAL: render the designed fallback from
+component state, never assign `src`. `ArtImg` (`src/components/ArtImg.tsx`) is
+the shared shape (a failure latch keyed by `src`, and the fallback render
+carries no handler at all); `NpcFace` and `ItemIcon` are the same idea
+specialised to their own frames.
+
+This is not a style preference. An `onError` that assigns `src` re-runs the
+load when the fallback target is missing too, and that second failure re-enters
+the same handler, so the pair loops for as long as the tab is open and the
+network answers. Measured in Chromium on 2026-10-12 with the edge's RTT
+simulated: 161 loads in 10s at 50ms and 64 in 10s at 150ms, from ONE `<img>`,
+with no cap and nothing louder than the 404s in the console.
+
+It cost the team its whole quota once. The WebP rename above deleted
+`/npc/placeholder.png`, the exact URL `TaskRow`'s desktop portraits assigned
+from `onError`; one image across the 13.5 hours between that deploy and the
+pause is 300k-800k requests, and the Hobby plan's Edge Requests cap is 1M/month,
+after which every project on the team is paused. `MaterialBreakdown` survived
+only because it happened to guard the assignment. `TaskRow` did not, and the
+guard is the kind of detail that drifts when the URL either side of it changes.
+
+Two consequences for anything that touches art:
+
+- **The fallback target must ship in the same deploy as the code that names
+  it.** `public/npc/placeholder.png` stays as a compat shim for pre-rename
+  clients; `/npc/placeholder.webp` is the one current code uses.
+- **Renaming an art path poisons clients that are already rendered.** Keep the
+  old path resolvable (a shim, or a redirect) instead of assuming every client
+  reloads: the Service Worker hands an open tab new caches WITHOUT reloading
+  it, so old code keeps running against the new tree.
+
+Two more, about how the path itself is built:
+
+- **One builder, one placeholder.** `src/lib/npcIcon.ts` owns `npcIconPath()`
+  and `NPC_PLACEHOLDER_SRC`, the way `lib/itemIcon.ts` owns the item side and
+  for the same reason. Four call sites used to hand-build `/npc/<name>.webp`,
+  and that is how one of them kept naming the old placeholder after the rename.
+- **A latched failure belongs to the URL, not the component.** `ArtImg` keys
+  its latch by `src` so a reused element (the breakdown hover card renders one
+  per trigger) still tries a healthy portrait, while the URL that failed is
+  never retried.
+
+`pnpm test:fallbacks` is the gate: it fails on ANY `src` assignment under
+`src/`, `api/` or `workers/`, on an NPC `shops.json` names without a portrait,
+on a hardcoded `/npc/` or `/items/` filename with no file, and on a missing (or
+untracked) `placeholder.png` shim.
+
+### Caching: why art is not revalidated on every render
+
+Vercel's default for a non-hashed static file is `public, max-age=0,
+must-revalidate`, so the BROWSER revalidates every render at the edge, and an
+edge request is counted whether it answers 200 or 304. With this app's traffic
+(roughly 10k pageviews a month, a few dozen art files per view) that default
+alone walks the account toward the 1M cap. `vercel.json` therefore sets
+`Cache-Control: public, max-age=86400, stale-while-revalidate=604800` on
+`/items/` and `/npc/`: art is a new URL when it is added, so it appears at once,
+and an in-place correction lands within a day.
+
+Art is deliberately NOT in the Service Worker precache (`webp` is outside
+`globPatterns`, and the shim is in `globIgnores`): precaching would make every
+deploy refetch the whole set, which is the same quota spend from the other
+direction. `/npc/` has a StaleWhileRevalidate runtime route; `/items/` rides the
+HTTP cache.
+
 ## Adding an icon
 
 Drop `<TW name>.webp` into `public/items/` and rebuild. WebP, 128×128,

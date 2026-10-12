@@ -88,7 +88,7 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:drag` + `test:migrations` + `test:sync` + `build`. All seven must pass.
+`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:drag` + `test:migrations` + `test:sync` + `build`. All eight must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
@@ -97,6 +97,14 @@ Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so
 it is pinned rather than left to a comment; see `docs/item-icons.md`.
+Fallback rule: `pnpm test:fallbacks` after touching any art `<img>`, its
+fallback, or an art path. It fails on ANY `src` assignment under `src/`, `api/`
+or `workers/` (the unbounded-retry shape that drained the account's edge
+requests on 2026-10-12: an assignment to a URL that is missing re-enters the
+handler), on an NPC `shops.json` names without a portrait, on a hardcoded
+`/npc/` or `/items/` filename with no file on disk, and on the
+`public/npc/placeholder.png` shim missing or untracked by git; see
+`docs/item-icons.md`.
 Shop rule: `pnpm test:shop-e2e` before a release, and after touching the store's
 migration, the shop grid, or the pinned-section fold. It drives the real app in
 Playwright's pinned Chromium and asserts what the unit gates cannot: a real v19

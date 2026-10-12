@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { shopNpcIcon } from "@/lib/shops";
+import { npcIconPath } from "@/lib/npcIcon";
 
 /**
  * An NPC's portrait, falling back to their initial when the image is missing.
@@ -15,7 +16,7 @@ import { shopNpcIcon } from "@/lib/shops";
  */
 export function NpcFace({ npc, town, size = "size-10" }: { npc: string; town?: string; size?: string }) {
   const [failed, setFailed] = useState(false);
-  const src = (town && shopNpcIcon(npc, town)) || `/npc/${encodeURIComponent(npc)}.webp`;
+  const src = (town && shopNpcIcon(npc, town)) || npcIconPath(npc);
   if (failed) {
     return <span className={cn("grid shrink-0 place-items-center rounded-full border bg-muted text-sm font-semibold", size)}>{npc.slice(0, 1)}</span>;
   }

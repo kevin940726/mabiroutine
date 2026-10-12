@@ -4,6 +4,13 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- A missing portrait can no longer retry without bound. Every `onError` that assigned `img.src` (the desktop pinned-trade rows and the material-breakdown faces) now goes through `ArtImg`, which latches the failure against the URL and renders the fallback once: the load either succeeds or falls back, and it can never re-enter the handler. Those two sites and `NpcFace` also take their path from a single builder, `src/lib/npcIcon.ts` (`npcIconPath` + `NPC_PLACEHOLDER_SRC`), so the portrait path and its placeholder are named in one place instead of hand-built per call site. This is what paused every project on the team on 2026-10-12. The WebP portrait rename deleted `/npc/placeholder.png`, the exact URL those handlers assigned, and a reassignment to a missing URL re-enters the same handler forever: measured in Chromium with the edge's RTT simulated, 161 loads in 10s at 50ms and 64 in 10s at 150ms from ONE image, i.e. 300k-800k edge requests over the 13.5 hours between that deploy and the pause, against the Hobby plan's 1M/month Edge Requests cap. `public/npc/placeholder.png` ships again as a compat shim so a client still running the pre-rename shell lands on two requests instead of looping
+- Art (`/items/`, `/npc/`) now carries `Cache-Control: public, max-age=86400, stale-while-revalidate=604800` instead of Vercel's `max-age=0, must-revalidate` default, so a render stops re-requesting every portrait and icon from the edge (an edge request is counted whether it answers 200 or 304). Art is a new URL when it is added, so additions stay instant; an in-place correction lands within a day
+
+### Chores
+- `pnpm test:fallbacks` (`scripts/check-art-fallbacks.mjs`, wired into `pnpm check`) pins the failure path of art loads: no `src` assignment anywhere under `src/`, `api/` or `workers/`, every NPC name `shops.json` references has a portrait, every hardcoded `/npc/` or `/items/` filename resolves to a file, and the compat shim is present AND tracked by git. `docs/item-icons.md` gains the fallback rule and the caching rationale, `docs/development.md` and `AGENTS.md` list the new gate, and the Service Worker ignores the shim so it stays out of the precache
+
 ## 2026-10-12 — Town-filtered header fix
 
 ### Fixes
