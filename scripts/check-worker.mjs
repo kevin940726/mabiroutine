@@ -34,7 +34,7 @@ fs.rmSync(outdir, { recursive: true, force: true });
 // quoting for no gain.
 const wranglerBin = path.resolve("node_modules/wrangler/bin/wrangler.js");
 if (!fs.existsSync(wranglerBin)) {
-  console.log(`FAIL: ${wranglerBin} is missing — run \`pnpm install\` first.`);
+  console.log(`FAIL: ${wranglerBin} is missing — run \`pnpm install\`, or wrangler moved its bin (check its "bin" field).`);
   process.exit(1);
 }
 try {

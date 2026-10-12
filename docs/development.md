@@ -109,14 +109,17 @@ Budget rule: `pnpm test:budget` after touching `public/sw-budget.js`, the
 workbox `runtimeCaching`/`importScripts` config, or anything that changes what
 the Service Worker intercepts. It runs the real worker script in a vm realm and
 asserts the guard's contract (never intercepts below the tiers, trips where it
-says, answers only the four covered classes, fails open everywhere else, and
-reports trips). The `importScripts` entry is load-bearing: the budget listener
-must register before the generated `registerRoute` calls, so a change that moves
-it into a route, or into `injectManifest`'s generated worker, silently hands the
-fetch event back to Workbox and disarms the guard. It also fails any network call
-under `src/` made outside the two sanctioned funnels (`sync/api.ts` for
-`/api/session`, `src/lib/net.ts` for the push registry and the purple feed), so a
-new request path cannot land uncounted. See `docs/operations.md` §7.
+says, and past a trip gives every same-origin class a real or retryable answer:
+`/api/` 429, navigations from the preload or pages cache else the network,
+images from cache else a pixel, everything else from cache else a 503, with
+cross-origin untouched). The `importScripts` entry is load-bearing: the budget
+listener must register before the generated `registerRoute` calls, so a change
+that moves it into a route, or into `injectManifest`'s generated worker,
+silently hands the fetch event back to Workbox and disarms the guard. It also
+fails any network call under `src/` made outside the three sanctioned request
+sites (`sync/api.ts` for `/api/session`, `src/lib/net.ts` for the push registry,
+`purpleHole.ts` for its own throttled feed fetch), so a new request path cannot
+land uncounted. See `docs/operations.md` §7.
 Worker rule: `pnpm test:worker` after touching `workers/` or any `src/lib` module
 the Worker imports. It bundles the Worker with `wrangler deploy --dry-run`
 (uploads nothing, no auth) because the Worker has no tsconfig: `tsc -b` never

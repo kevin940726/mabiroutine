@@ -209,22 +209,39 @@ pull` regenerates that file and would wipe the value.
   Worker is the only place that sees every same-origin request the page makes,
   so it counts them per device and, past a tier, stops spending requests instead
   of the user's patience. Tiers: 400 requests/minute, 4,000 per 30 minutes,
-  6,000 per 6 hours. Past a tier, and for 5 minutes after the last trip, four
-  request classes are answered locally: images from cache else a transparent
-  pixel, `/api/` as 429 (the state the sync layer already renders), navigations
-  from the `pages` cache else the network, scripts/styles from cache else the
-  network. Everything else fails open, cross-origin is never touched, and until
-  a tier is crossed the script never intercepts anything, so the Workbox routes
-  behave exactly as they do without it. Read a device:
-  `__mabiBudget()` (its trips, including the path that crossed) and
-  `__mabiBudgetAsk()` (live counters and the tiers). Trips are local-only and
-  silent to the user: a tripped device still works.
+  6,000 per 6 hours. Past a tier, and for 5 minutes after the last trip, every
+  same-origin class gets a real or a retryable answer instead of a request:
+  `/api/` as 429 (the state the sync layer already renders), navigations from
+  the navigation preload or the `pages` cache and only then the network, images
+  from cache else a transparent pixel, and everything else (scripted fetches,
+  which have no `destination`, plus fonts, chunks and any future class) from
+  cache else a 503 with `Retry-After`. The one class allowed to reach the
+  network while over budget is an uncached navigation, because a blank first
+  load is worse than a request and the pages cache makes that case
+  self-limiting. Cross-origin is never touched, and until a tier is crossed the
+  script never intercepts anything, so the Workbox routes behave exactly as they
+  do without it. Read a device: `__mabiBudget()` (its trips, including the path
+  that crossed) and `__mabiBudgetAsk()` (live counters and the tiers). Trips are
+  local-only and silent to the user: a tripped device still works, though an
+  uncached chunk refused with 503 can break a load until the trip clears.
+- The prevention claim is Chromium-specific, and worth keeping honest: a fetch
+  event answered by one listener is not handed to later listeners at all, which
+  is why the Workbox routes neither fetch nor throw on a claimed request
+  (measured: 8 requests past a tier of 5 cost exactly 5 network hits, and a
+  cached portrait was served at 0). The spec instead dispatches later listeners
+  and throws `InvalidStateError` on a second `respondWith`, so on an engine that
+  follows the spec a matching route's strategy could still spend one backfill per
+  blocked request. Owning those caches in the guard instead of in Workbox routes
+  is the fix if that ever shows up.
 - The tiers are generous on purpose, about 10x a heavy real session, and they
   exist to catch a loop at the incident's rate (16 req/s trips the 1-minute tier
   in ~25 seconds), not to throttle browsing. Tighten them only after a week of
   `__mabiBudgetAsk()` readings; they are calibratable at runtime through the
   worker's `mabi-budget-config` message, which is also how the browser proof
-  drives them.
+  drives them. The 1-minute tier is exact (raw timestamps, bounded by the tier
+  itself); the 30-minute and 6-hour tiers are per-minute buckets, so a
+  multi-hour storm cannot grow the worker's memory the way one timestamp per
+  request would, at the cost of up to a minute of over-count at their edge.
 - Counted network funnel and the three sanctioned request sites: every network
   call under `src/` goes through one of three places, and `pnpm test:budget`
   fails a call made anywhere else. `sync/api.ts` owns `/api/session` (per-kind
@@ -262,11 +279,20 @@ pull` regenerates that file and would wipe the value.
   base plus a privacy review. Not this year on current information.
 - [ ] Device-budget coverage gaps, accepted with the guard (2026-10-12): a
   first-ever visit (no worker installed yet) and cross-origin requests are
-  ungoverned, and the rolling windows live in memory, so a loop that paces
-  itself under every tier AND survives worker restarts is not caught. Calibrate
-  from `__mabiBudgetAsk()` after a week. If a ceiling ever matters again, the
-  next step is a Cloudflare Worker in front of the domain, where every request
-  (assets included, attacker traffic included) passes our own code.
+  ungoverned; the rolling windows live in memory, so a loop that paces itself
+  under every tier AND survives worker restarts is not caught; an uncached
+  navigation is deliberately allowed through, which self-limits after one load
+  once the `pages` cache holds the shell; and the zero-cost claim for a blocked
+  request is Chromium-measured (see §7). Calibrate from `__mabiBudgetAsk()`
+  after a week. If a ceiling ever matters again, the next step is a Cloudflare
+  Worker in front of the domain, where every request (assets included, attacker
+  traffic included) passes our own code.
+- [ ] Barrier fanout cap has no rotation (2026-10-12, only reachable above 500
+  hourly subscribers): `MAX_BARRIER_SENDS_PER_RUN` slices the first 500 rows of a
+  query with no `ORDER BY`, so if the cap ever engages, the same prefix is served
+  every run and the remainder never receives a card. Add rotation (or select by
+  least-recently-sent) before that lane reaches the cap; `capped` in the cron log
+  line is what would say it happened.
 - [ ] Deliberately NOT built (2026-10-12), revisit only on evidence: a GLOBAL
   server-side budget on `/api/*`. The per-IP fixed-window limiter already bounds
   one client (10 creates/min, 60 reads/min) and the device budget bounds a

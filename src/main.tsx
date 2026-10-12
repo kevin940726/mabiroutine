@@ -39,7 +39,7 @@ if (typeof window !== 'undefined') {
 // device went over its tier; we keep the trip locally. __mabiBudget() reads
 // those stored trips, __mabiBudgetAsk() asks the worker for its live counters.
 // Local-only, and quiet by design: a tripped device still works, it just stops
-// spending requests. See docs/operations.md § The device request budget.
+// spending requests. See docs/operations.md §7.
 if (typeof window !== 'undefined') {
   const w = window as unknown as {
     __mabiBudget?: () => string;

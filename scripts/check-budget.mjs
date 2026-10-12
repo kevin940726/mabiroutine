@@ -18,7 +18,7 @@
  * intercepting, breaking a Workbox route) must be provable offline, in the same
  * spirit as the other entry gates. The browser-level proof that the real
  * generated worker still routes and renders is separate: see
- * docs/operations.md § The device request budget.
+ * docs/operations.md §7.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -104,7 +104,7 @@ function loadRealm(opts = {}) {
     contexts,
     listeners,
     /** Fire a fetch event; returns { responded, response? } (response resolved lazily). */
-    async fire({ url, destination = "", mode = "", method = "GET" }) {
+    async fire({ url, destination = "", mode = "", method = "GET", preload }) {
       const request = { url, destination, mode, method };
       let promise;
       const event = {
@@ -115,6 +115,7 @@ function loadRealm(opts = {}) {
         ports: [],
         source: { postMessage: (m) => messages.push(m) },
       };
+      if (preload !== undefined) event.preloadResponse = Promise.resolve(preload);
       handler(event);
       if (!promise) return { responded: false };
       return { responded: true, response: await promise };
@@ -184,7 +185,7 @@ const img = (path) => ({ url: `https://app.test${path}`, destination: "image" })
   eq(r.fetchCalls.length, 0, "no API request reached the network");
 }
 
-// --- 5. navigations: cached shell, else fail open ---------------------------
+// --- 5. navigations: preload, then the cached shell, then the network --------
 {
   const r = loadRealm({ pages: [["https://app.test/", "cached-shell"]] });
   for (let i = 0; i < 401; i++) await r.fire(img(`/items/seed${i}.webp`));
@@ -192,24 +193,42 @@ const img = (path) => ({ url: `https://app.test${path}`, destination: "image" })
   eq(await cached.response.text(), "cached-shell", "a navigation past the budget is served from the pages cache");
   await r.fire({ url: "https://app.test/deep/link", mode: "navigate" });
   eq(r.fetchCalls.includes("https://app.test/deep/link"), true, "an uncached navigation still fails open to the network");
+  // The preload (vite.config.ts: `navigationPreload: true`) is already in
+  // flight and already counted, so using it keeps a tripped uncached navigation
+  // at one request instead of two.
+  const preloaded = await r.fire({
+    url: "https://app.test/fresh",
+    mode: "navigate",
+    preload: new Response("preloaded-shell", { status: 200 }),
+  });
+  eq(await preloaded.response.text(), "preloaded-shell", "a preloaded navigation is answered with the preload");
+  eq(r.fetchCalls.includes("https://app.test/fresh"), false, "…so it costs one request, not two");
 }
 
-// --- 6. scripts/styles: cache when possible, else the network ---------------
+// --- 6. scripts/styles: cache when possible, else a retryable 503 -----------
 {
   const r = loadRealm({ global: [["https://app.test/assets/app.js", "cached-js"]] });
   for (let i = 0; i < 401; i++) await r.fire(img(`/items/seed${i}.webp`));
   const cached = await r.fire({ url: "https://app.test/assets/app.js", destination: "script" });
   eq(await cached.response.text(), "cached-js", "a cached script is served from the cache");
-  await r.fire({ url: "https://app.test/assets/new.js", destination: "script" });
-  eq(r.fetchCalls.includes("https://app.test/assets/new.js"), true, "an uncached script fails open");
+  const fresh = await r.fire({ url: "https://app.test/assets/new.js", destination: "script" });
+  eq(fresh.response.status, 503, "an uncached script gets a retryable 503 instead of a request");
+  eq(fresh.response.headers.get("retry-after"), "60", "…with a Retry-After");
+  eq(r.fetchCalls.includes("https://app.test/assets/new.js"), false, "…and never reaches the network");
 }
 
-// --- 7. everything else fails open, and cross-origin is never touched -------
+// --- 7. the catch-all class is bounded, cross-origin never touched -----------
 {
-  const r = loadRealm();
+  const r = loadRealm({ global: [["https://app.test/cached.json", "cached-json"]] });
   for (let i = 0; i < 401; i++) await r.fire(img(`/items/seed${i}.webp`));
   const font = await r.fire({ url: "https://app.test/fonts/x.woff2", destination: "font" });
-  eq(font.responded, false, "an uncovered request class is never intercepted");
+  eq(font.response.status, 503, "a font past the budget is answered locally instead of fetched");
+  const scripted = await r.fire({ url: "https://app.test/anything/else", destination: "", method: "GET" });
+  eq(scripted.responded, true, "a scripted same-origin GET (no destination) is answered locally");
+  eq(scripted.response.status, 503, "…with 503, so its caller's error path runs");
+  eq(r.fetchCalls.includes("https://app.test/anything/else"), false, "…and never reaches the network");
+  const cached = await r.fire({ url: "https://app.test/cached.json", destination: "" });
+  eq(await cached.response.text(), "cached-json", "a cached one of that class is served from the cache");
   const other = await r.fire({ url: "https://analytics.example/collect", destination: "image" });
   eq(other.responded, false, "a cross-origin request is never intercepted");
 }
@@ -234,6 +253,30 @@ const img = (path) => ({ url: `https://app.test${path}`, destination: "image" })
   for (let i = 0; i < 4; i++) await r.fire(img(`/items/i${i}.webp`));
   const res = await r.fire(img("/items/i9.webp"));
   eq(res.responded, true, "a lowered burst tier applies from the next request");
+}
+
+// --- 9b. the bucketed long windows still trip, and forget on schedule -------
+// The burst tier stays exact (raw timestamps); the 30-minute and 6-hour tiers
+// are minute buckets, which is what keeps a multi-hour storm from growing the
+// worker's memory. 190 requests a minute keeps the burst window under its tier
+// (190 + 190 < 400 at the boundary) while the sustained tier fills, which is
+// the slow-loop case that tier exists for.
+{
+  const r = loadRealm();
+  let firstBlockedAt = 0;
+  let n = 0;
+  for (let minute = 0; minute < 22; minute++) {
+    for (let i = 0; i < 190; i++) {
+      n++;
+      const res = await r.fire(img(`/items/slow${minute}-${i}.webp`));
+      if (res.responded && !firstBlockedAt) firstBlockedAt = n;
+    }
+    r.clock.t += 60 * 1000;
+  }
+  eq(firstBlockedAt, 4001, "the 4,001st request inside 30 minutes trips the sustained tier, and nothing earlier does");
+  r.clock.t += 6 * 60 * 60 * 1000;
+  const later = await r.fire(img("/items/slow-later.webp"));
+  eq(later.responded, false, "after the long window has passed, requests flow again");
 }
 
 // --- 10. the wiring that ARMS the guard is present --------------------------

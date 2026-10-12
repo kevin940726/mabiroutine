@@ -44,7 +44,7 @@ export default defineConfig({
         // mechanism and MUST stay in this list: its listener has to be
         // registered before the generated `registerRoute` calls below it, or
         // its local answer would lose the fetch event to a Workbox route. See
-        // docs/operations.md § The device request budget.
+        // docs/operations.md §7.
         importScripts: ['/sw-push.js', '/sw-budget.js'],
         // index.html excluded on purpose (with npc-raw source art), and the
         // fallback disabled below: TWO generateSW defaults would otherwise

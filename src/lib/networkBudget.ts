@@ -7,11 +7,11 @@
 // is never sent anywhere, because the guard's success is measured by the
 // provider's request count staying flat, not by the app reporting home.
 //
-// Why a Device may see a trip and the user may see nothing: the policy in the
-// worker degrades quietly (art from cache or a transparent pixel, /api/ as the
-// 429 the app already renders, navigations from the cached shell). A tripped
-// device still works. That is deliberate; see docs/operations.md § The device
-// request budget.
+// Why a device may see a trip and the user may see nothing: past a tier the
+// worker answers instead of fetching (art from cache else a transparent pixel,
+// `/api/` as the 429 the app already renders, navigations from the preload or
+// the cached shell, everything else from cache else a 503), so a tripped device
+// still works. That is deliberate; see `docs/operations.md` §7.
 
 const KEY = "mabiroutine:budget";
 const KEEP = 10;
