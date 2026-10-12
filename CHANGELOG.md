@@ -4,6 +4,10 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- The Worker also handles inbound email now (`email()` handler), which is the plan-independent half of the notifications story: Cloudflare Email Routing delivers zone mail to it, and the handler posts the subject plus the links it finds in the body to the same Discord channel (RFC 2047 encoded subjects decoded, no MIME library, mentions disabled, a Discord failure logged rather than bounced). `pnpm test:worker` covers it: subject and Vercel links land in the message, a mail without `EMAIL_FORWARD_TO` is not forwarded, and a Worker without a Discord URL posts nothing instead of throwing. Setup is one Email Routing rule plus a Gmail forward filter, both in `docs/operations.md` §11. No app behavior change
+- Vercel's deploys and alerts now reach Discord, through the Worker: `POST /hooks/vercel` verifies Vercel's `x-vercel-signature` (SHA1 HMAC over the raw body, constant-time compare, 401 otherwise) and reposts account webhook events (`deployment.succeeded` / `deployment.error` / `deployment.rollback`, …) and alert webhook events (`alerts.triggered`, which is where a usage anomaly like the one that drained the quota on 2026-10-12 arrives) as one short message each. A Discord failure answers 502 on purpose, because Vercel retries a non-2xx delivery, so a blip costs a retry instead of the event; unknown event types are skipped rather than guessed at, and mentions are disabled since commit messages are user content. `pnpm test:worker` grew a second half that imports the real bundle and asserts the contract: wrong or swapped signatures are 401 with nothing sent, both event shapes carry their commit/metric numbers and links, a payload missing its meta never prints `undefined`, and a Worker without the secrets answers 503. Wiring, secrets and rotation are `docs/operations.md` §11. No app behavior change
+
 ## 2026-10-12 — Incident runbook and capacity verdict
 
 ### Chores

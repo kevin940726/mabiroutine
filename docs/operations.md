@@ -141,8 +141,12 @@ Seed shape (values change; build numbers with `taipeiWall`, never by hand):
 `VAPID_JWK` (fanout sender) · `VAPID_SUBJECT` (push contact) ·
 `TURSO_DB_URL` / `TURSO_AUTH_TOKEN` (fanout reads; full-access, Turso issues
 no read-only tokens) · `ADMIN_SECRET` (admin login; browser keeps it in
-`sessionStorage`). Rotate by re-put + re-login (VAPID rotation needs all
-devices to resubscribe).
+`sessionStorage`) · `VERCEL_ACCOUNT_WEBHOOK_SECRET` + `VERCEL_ALERTS_WEBHOOK_SECRET`
++ `DISCORD_WEBHOOK_URL` (§11 relay: the two Vercel webhook secrets, which differ
+per webhook type, and the Discord channel URL) · `EMAIL_FORWARD_TO` (optional,
+§11: an address that also receives a copy of routed mail; must be verified in
+Email Routing). Rotate by re-put + re-login (VAPID rotation needs all devices to
+resubscribe); the relay trio rotates platform-side first, see §11.
 
 ## 5. Deploy & verify runbook
 
@@ -341,6 +345,8 @@ pull` regenerates that file and would wipe the value.
   diagnosis commands, the response order, and the two facts that cost time).
   Its mechanism lives in `docs/item-icons.md` § The fallback rule; the guard it
   produced is §7.
+- Notifications: §11 is how Vercel events reach Discord (the Worker relay) and
+  why Vercel's own notification settings could not carry them.
 
 ## 10. When usage drains (the 2026-10-12 incident, and the runbook it left)
 
@@ -387,3 +393,80 @@ Two facts that cost time: the metrics pipeline lags a few minutes, so the newest
 bucket can read 0 while the window is merely young; and a paused deployment
 answers 402 to everything, including the shim, so a "still broken" check taken
 during the pause proves nothing.
+
+## 11. Notifications (what pings where)
+
+Vercel's own notification settings reach the dashboard, email, push, and (spend
+alerts only) SMS. Slack is its only chat integration, so Discord and Telegram
+cannot be selected in the UI. The way around that is generic: Vercel will POST
+any of its events to a URL we own, so `POST /hooks/vercel` on the Worker is a
+short relay (Vercel → Worker → Discord).
+
+- **Signature**: Vercel signs the raw body in `x-vercel-signature` (SHA1 HMAC
+  with the webhook's secret). The route verifies it before anything else and
+  answers 401 otherwise, so the public URL is useless without the secret.
+- **Two streams, both configured in the Vercel dashboard**: Settings →
+  **Webhooks** (account webhook; `deployment.succeeded`, `deployment.error`,
+  `deployment.rollback`, …) and Settings → **Alerts** → Add Webhook (alert
+  events; `alerts.triggered` carries usage anomalies, including the
+  `edge_requests` metric that drained §10). The alert webhook is team-level;
+  the account webhook caps at 20 per team.
+- **Messages**: one short message per event (emoji, project, state or severity,
+  commit or metric numbers, inspection link). Types with no formatter are
+  skipped rather than guessed at, and the post disables mentions because commit
+  messages are user content.
+- **Failures**: a Discord error answers 502 on purpose. Vercel retries a
+  non-2xx delivery, so a blip costs a retry instead of the event.
+- **The email half, which works on any plan**: Vercel also emails its account
+  address, and a Cloudflare zone with Email Routing already enabled can hand a
+  copy to the same Discord channel with no Vercel feature involved. The zone,
+  the alert address and the Worker URL are kept outside the repository (the
+  Discord URL and the Worker URL already live in the local
+  `.env.worker.local`), not in this document. Two switches, in this order: (1) Cloudflare, one Email
+  Routing rule for the alert address → action **Send to a Worker** → this
+  Worker (the `email()` handler posts the subject plus the links it finds in
+  the body: no MIME library, RFC 2047 encoded subjects decoded, mentions
+  disabled); (2) Gmail, a filter for `from:vercel.com` that forwards to the
+  same address. Do them in that order: Gmail requires verifying the forwarding
+  address once, and that verification mail reaches Discord (link and all) only
+  if the rule and the deployed handler already exist. A literal address rule
+  wins over the zone's catch-all, so the rest of the zone's mail is untouched.
+  `EMAIL_FORWARD_TO` (optional, a verified Email Routing destination)
+  additionally keeps a mailbox copy.
+
+Secrets: `VERCEL_ACCOUNT_WEBHOOK_SECRET` and `VERCEL_ALERTS_WEBHOOK_SECRET` (each
+shown once when its own Vercel-side webhook is created; they are different
+secrets and the route accepts either, so one webhook can be wired before the
+other) plus `DISCORD_WEBHOOK_URL` (Discord channel → Integrations → New
+Webhook). Keep all three in the local, gitignored `.env.worker.local` and
+install with
+`pnpm wrangler secret put NAME --config workers/mabiroutine-worker/wrangler.jsonc`,
+piping each value from that file; never as an argument. The same file also
+carries `WORKER_URL` and the alert address used by the smoke test below, which
+is what keeps this document free of the deployment's own names. Rotation is
+platform-side first (Vercel regenerates the secret, or Discord a fresh URL),
+then a re-put. Nothing in the repo changes.
+
+**Plan requirement (read before the Hobby downgrade)**: the relay is ours and
+plan-agnostic, but both webhook feeds are Pro features — account webhooks are
+"available on Enterprise and Pro plans", and alert rules with their webhooks
+are "available on Enterprise and Pro plans with Observability Plus". On Hobby
+the webhook feeds sit idle, and the email half above is the replacement: deploy
+failures and usage warnings reach Discord through Gmail + Email Routing
+instead. A second, narrower fallback for deploy failures is a cron on this
+Worker polling `GET /v6/deployments` with a token (the deployments endpoints are
+not among the gated ones). What Hobby still cannot replace is the pre-pause
+warning: `vercel metrics` (the §10 diagnosis command) is `payment_required`
+there, so the §7 device budget and the dashboard are what bound a runaway.
+
+To prove the wiring end to end without waiting for a real event, sign a sample
+body and post it (the secret is read from the local file, never printed):
+
+```powershell
+node --env-file=.env.worker.local -e "const c=require('crypto');const b=JSON.stringify({type:'deployment.succeeded',payload:{target:'production',deployment:{name:'smoke-test',meta:{githubCommitSha:'0000000',githubCommitMessage:'relay smoke test'}}}});fetch(process.env.WORKER_URL.replace(/\/+$/,'')+'/hooks/vercel',{method:'POST',headers:{'content-type':'application/json','x-vercel-signature':c.createHmac('sha1',process.env.VERCEL_ACCOUNT_WEBHOOK_SECRET).update(b).digest('hex')},body:b}).then(r=>console.log(r.status))"
+```
+
+A 200 means Discord accepted it and the channel shows the message; 401 means the
+secret differs; 503 means a secret is unset. Either webhook secret is accepted
+(the command above signs with the account one). `pnpm test:worker` covers the
+same contract offline, including the rejections.

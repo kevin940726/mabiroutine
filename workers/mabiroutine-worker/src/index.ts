@@ -16,9 +16,15 @@
 // JWK JSON), VAPID_SUBJECT (mailto:/URL contact), TURSO_DB_URL (https),
 // TURSO_AUTH_TOKEN (same token as Vercel; full-access — Turso issues no
 // read-only tokens at our tier), ADMIN_SECRET (admin page bearer —
-// sessionStorage in the browser, never committed). (SPIKE_SECRET + the
-// temporary /spike-send + /fanout-test + /db-test routes died 2026-09-17
-// with the proven fanout.)
+// sessionStorage in the browser, never committed), VERCEL_ACCOUNT_WEBHOOK_SECRET
+// + VERCEL_ALERTS_WEBHOOK_SECRET + DISCORD_WEBHOOK_URL (the POST /hooks/vercel
+// relay at the bottom of this file; the two webhook types have separate
+// secrets, so the route accepts either), EMAIL_FORWARD_TO (optional: keep a
+// mailbox copy of routed mail, the address must be verified in Email Routing).
+// The same file's email() handler is the plan-independent half: Cloudflare
+// Email Routing can deliver zone mail to it, no Vercel feature required.
+// (SPIKE_SECRET + the temporary /spike-send + /fanout-test + /db-test routes
+// died 2026-09-17 with the proven fanout.)
 
 import {
   CATCHUP_MIN_SEC,
@@ -48,6 +54,10 @@ type Env = {
   TURSO_DB_URL?: string;
   TURSO_AUTH_TOKEN?: string;
   ADMIN_SECRET?: string;
+  VERCEL_ACCOUNT_WEBHOOK_SECRET?: string;
+  VERCEL_ALERTS_WEBHOOK_SECRET?: string;
+  DISCORD_WEBHOOK_URL?: string;
+  EMAIL_FORWARD_TO?: string;
 };
 
 type PushSubscriptionJson = {
@@ -1193,7 +1203,318 @@ export async function runPurpleFanout(env: Env): Promise<PurpleFanoutReport> {
   };
 }
 
+// ---- POST /hooks/vercel → Discord -----------------------------------------
+//
+// Wired 2026-10-12, after the usage-drain incident that nothing told anyone
+// about: Vercel's own notifications are email/web/push (and Slack), but Vercel
+// will POST any of its events to a URL you own. Two dashboard webhooks feed
+// this route, EACH WITH ITS OWN SECRET, both signed with `x-vercel-signature`
+// (SHA1 HMAC of the raw body):
+//   - account webhook, Settings → Webhooks: deployment.succeeded/error/…
+//     (VERCEL_ACCOUNT_WEBHOOK_SECRET)
+//   - alert webhook, Settings → Alerts → Add Webhook: alerts.triggered
+//     (VERCEL_ALERTS_WEBHOOK_SECRET; team-level, UI-only, no CLI in 59.x)
+// The route verifies the signature against whichever secret is configured,
+// formats one short message, reposts it to DISCORD_WEBHOOK_URL. A Discord
+// failure answers 502 on purpose — Vercel retries a non-2xx delivery, so a blip
+// costs a retry instead of the event.
+//
+// The formatting and the digest compare are exported for `pnpm test:worker`,
+// which imports this file's bundle and exercises both (a wrong or tampered
+// signature must be rejected; a formatter must never print `undefined`).
+
+const VERCEL_MAX_BODY = 64 * 1024; // real payloads are ~1-2 KB
+
+/** SHA1 HMAC hex of the raw body: the value Vercel puts in x-vercel-signature. */
+export async function vercelSignatureHex(secret: string, body: Uint8Array): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"]
+  );
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, body));
+  let out = "";
+  for (const b of mac) out += b.toString(16).padStart(2, "0");
+  return out;
+}
+
+/**
+ * Length-checked XOR compare. Deliberately local rather than
+ * `crypto.subtle.timingSafeEqual`: node's WebCrypto lacks that Cloudflare
+ * extension, so a local one keeps the compare testable in the bundle gate.
+ */
+export function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+function str(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+
+function num(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+function obj(v: unknown): Record<string, unknown> {
+  return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {};
+}
+
+const DEPLOY_EMOJI: Record<string, string> = {
+  created: "🛠️",
+  succeeded: "✅",
+  ready: "✅",
+  promoted: "🚀",
+  rollback: "⏪",
+  error: "🔴",
+  canceled: "⚪",
+};
+
+const SEVERITY_EMOJI: Record<string, string> = {
+  low: "🔔",
+  medium: "⚠️",
+  high: "🔴",
+  critical: "🚨",
+};
+
+/**
+ * One Discord message for a Vercel event, or null when the type has no
+ * formatter (unknown events are skipped, not guessed at). Every field is
+ * optional: a partial payload degrades to a shorter line, never to the
+ * string "undefined".
+ */
+export function formatVercelEvent(type: string, rawPayload: unknown): string | null {
+  const p = obj(rawPayload);
+  if (type.startsWith("deployment.")) {
+    const state = type.slice("deployment.".length);
+    const d = obj(p.deployment);
+    const meta = obj(d.meta);
+    const project = str(d.name) || str(p.project) || str(p.projectSlug) || "mabiroutine";
+    const target = str(p.target);
+    const sha = str(meta.githubCommitSha).slice(0, 7);
+    const message = str(meta.githubCommitMessage).split("\n")[0].slice(0, 120);
+    const inspector = str(obj(p.links).deployment);
+    const lines = [`${DEPLOY_EMOJI[state] ?? "ℹ️"} **${project}** deploy ${state}${target ? ` (${target})` : ""}`];
+    const detail = [sha && `\`${sha}\``, message && `"${message}"`].filter(Boolean).join(" ");
+    if (detail) lines.push(detail);
+    if (inspector) lines.push(inspector);
+    return lines.join("\n");
+  }
+  if (type === "alerts.triggered") {
+    const severity = str(p.severity) || str(p.level) || "unknown";
+    const project = str(p.projectSlug) || "mabiroutine";
+    const first = (Array.isArray(p.alerts) ? p.alerts.map(obj) : [])[0] ?? {};
+    const title = str(first.title) || str(first.metric) || "alert";
+    const lines = [`${SEVERITY_EMOJI[severity] ?? "🔔"} **${project}** ${title} (${severity})`];
+    const unit = str(first.unit);
+    const count = num(first.count);
+    const average = num(first.average);
+    const zscore = num(first.zscore);
+    const stats = [
+      count !== null && `${count.toLocaleString("en-US")}${unit ? ` ${unit}` : ""}`,
+      average !== null && `avg ${Math.round(average).toLocaleString("en-US")}`,
+      zscore !== null && `z ${zscore.toFixed(1)}`,
+    ].filter(Boolean).join(" · ");
+    if (stats) lines.push(stats);
+    const link = str(obj(p.links).observability);
+    if (link) lines.push(link);
+    return lines.join("\n");
+  }
+  return null;
+}
+
+async function handleVercelHook(req: Request, env: Env): Promise<Response> {
+  // Two dashboard webhooks feed this route and each has its own secret (the
+  // account webhook and the team alert webhook), so accept either; at least one
+  // must be set, otherwise the route refuses to guess (503).
+  const secrets = [env.VERCEL_ACCOUNT_WEBHOOK_SECRET, env.VERCEL_ALERTS_WEBHOOK_SECRET].filter(
+    (s): s is string => typeof s === "string" && s.length > 0
+  );
+  const discord = env.DISCORD_WEBHOOK_URL;
+  if (!secrets.length || !discord) {
+    return Response.json({ error: "vercel hook not configured" }, { status: 503 });
+  }
+  // Reject a declared oversize before buffering: the route is public, and this
+  // is the only check that runs before the body is read.
+  const declared = Number(req.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > VERCEL_MAX_BODY) {
+    return Response.json({ error: "body too large" }, { status: 413 });
+  }
+  const raw = new Uint8Array(await req.arrayBuffer());
+  if (raw.length === 0 || raw.length > VERCEL_MAX_BODY) {
+    return Response.json({ error: "bad body size" }, { status: raw.length === 0 ? 400 : 413 });
+  }
+  const got = req.headers.get("x-vercel-signature");
+  let signed = false;
+  if (got) {
+    for (const secret of secrets) {
+      if (constantTimeEqual(got, await vercelSignatureHex(secret, raw))) {
+        signed = true;
+        break;
+      }
+    }
+  }
+  if (!signed) {
+    console.log("vercel hook: bad signature");
+    return Response.json({ error: "bad signature" }, { status: 401 });
+  }
+  let event: unknown = null;
+  try {
+    event = JSON.parse(new TextDecoder().decode(raw));
+  } catch {
+    // fell through to the 400 below.
+  }
+  const type = str(obj(event).type);
+  if (!type) return Response.json({ error: "missing event type" }, { status: 400 });
+  const content = formatVercelEvent(type, obj(event).payload);
+  if (!content) {
+    console.log(`vercel hook ${type}: no formatter, skipped`);
+    return Response.json({ ok: true, skipped: type });
+  }
+  const status = await postDiscord(discord, content);
+  if (status < 200 || status >= 300) {
+    console.log(`vercel hook ${type}: discord ${status}`);
+    return Response.json({ error: "discord delivery failed", status }, { status: 502 });
+  }
+  console.log(`vercel hook ${type}: delivered`);
+  return Response.json({ ok: true, delivered: type });
+}
+
+// Discord rejects a message over 2000 characters with a 400, and a mail's
+// links can be long enough to get there; clip rather than lose the alert.
+const DISCORD_CONTENT_MAX = 1900;
+
+/** One Discord message, mentions disabled: subjects and commit messages are
+ * user content, so neither path can ping a role by accident. Returns the HTTP
+ * status, or 0 when the request itself failed; callers treat both as failure,
+ * and the email path must not throw (a throw bounces the mail). */
+async function postDiscord(url: string, content: string): Promise<number> {
+  const clipped = content.length > DISCORD_CONTENT_MAX ? `${content.slice(0, DISCORD_CONTENT_MAX - 1)}…` : content;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: clipped, allowed_mentions: { parse: [] } }),
+    });
+    return res.status;
+  } catch (e) {
+    console.log(`discord fetch failed: ${String(e)}`);
+    return 0;
+  }
+}
+
+// ---- inbound email → Discord (Cloudflare Email Routing) --------------------
+//
+// The plan-independent half of the notifications story (§11). Vercel's own
+// webhooks are Pro-only, but Vercel also emails its account address
+// (deployment failures, usage warnings), and a Gmail filter can forward that
+// subset to an address this Worker owns. Any Cloudflare zone with Email
+// Routing already live works: one routing rule (a dedicated address → this
+// Worker) puts those mails in the same Discord channel with no mailbox in the
+// path and no Vercel feature involved.
+//
+// No MIME library: the subject comes from the headers (encoded-words decoded
+// below), and the actionable part of an alert mail is its links, extracted
+// from the raw body. Set EMAIL_FORWARD_TO to also keep a mailbox copy; that
+// address must be a verified Email Routing destination.
+
+const EMAIL_MAX_LINKS = 5;
+const EMAIL_SUBJECT_MAX = 200;
+
+type InboundEmail = {
+  readonly from: string;
+  readonly to: string;
+  readonly headers: Headers;
+  readonly raw: ReadableStream;
+  readonly canBeForwarded: boolean;
+  forward(rcptTo: string, headers?: Headers): Promise<unknown>;
+};
+
+/** RFC 2047 encoded-words (B and Q), enough to keep a non-ASCII subject readable. */
+export function decodeHeaderWords(value: string): string {
+  // RFC 2047: whitespace between adjacent encoded words is not part of the
+  // text, so a subject split across two of them must join without the gap.
+  const joined = value.replace(/\?=\s+=\?/g, "?==?");
+  return joined.replace(/=\?[^?]+\?[BbQq]\?[^?]*\?=/g, (whole) => {
+    const m = whole.match(/^=\?([^?]+)\?([BbQq])\?(.*)\?=$/);
+    if (!m) return whole;
+    const text = m[3] ?? "";
+    try {
+      let bytes: number[];
+      if ((m[2] ?? "").toUpperCase() === "B") {
+        const bin = atob(text);
+        bytes = Array.from(bin, (c) => c.charCodeAt(0));
+      } else {
+        bytes = [];
+        for (let i = 0; i < text.length; i++) {
+          const c = text.charAt(i);
+          if (c === "_") bytes.push(32);
+          else if (c === "=" && i + 2 < text.length) {
+            bytes.push(parseInt(text.slice(i + 1, i + 3), 16));
+            i += 2;
+          } else bytes.push(c.charCodeAt(0));
+        }
+      }
+      return new TextDecoder().decode(new Uint8Array(bytes));
+    } catch {
+      return whole;
+    }
+  });
+}
+
+/** Links worth showing: Vercel's own first (that is where the action is), then
+ * whatever else the mail carries. Tracking parameters are left alone. */
+export function extractLinks(raw: string): string[] {
+  const found = raw.replace(/&amp;/g, "&").match(/https?:\/\/[^\s"'<>()[\]]+/g) ?? [];
+  const clean = [...new Set(found.map((u) => u.replace(/[.,;:)]+$/, "")))];
+  const preferred = clean.filter((u) => /^https?:\/\/([a-z0-9-]+\.)*vercel\.com\//i.test(u));
+  return (preferred.length ? preferred : clean).slice(0, EMAIL_MAX_LINKS);
+}
+
+export function formatEmail(subject: string, from: string, links: string[]): string {
+  const lines = [
+    `📧 **${subject.slice(0, EMAIL_SUBJECT_MAX) || "(no subject)"}**`,
+    `from ${from || "unknown sender"}`,
+  ];
+  if (links.length) lines.push(links.join("\n"));
+  return lines.join("\n");
+}
+
+async function handleInboundEmail(message: InboundEmail, env: Env): Promise<void> {
+  const raw = await new Response(message.raw).text();
+  const subject = decodeHeaderWords(message.headers.get("subject") ?? "");
+  const links = extractLinks(raw);
+  // Copy first: the mailbox copy is the one that survives whatever we do with
+  // the message afterwards.
+  if (env.EMAIL_FORWARD_TO && message.canBeForwarded) {
+    try {
+      await message.forward(env.EMAIL_FORWARD_TO);
+    } catch (e) {
+      // An unverified or removed destination throws here; the alert below is
+      // the whole point of the route, so it must not go down with the copy.
+      console.log(`email "${subject}" from ${message.from}: forward failed (${String(e)})`);
+    }
+  }
+  if (!env.DISCORD_WEBHOOK_URL) {
+    console.log(`email "${subject}" from ${message.from}: no DISCORD_WEBHOOK_URL, dropped`);
+    return;
+  }
+  const status = await postDiscord(env.DISCORD_WEBHOOK_URL, formatEmail(subject, message.from, links));
+  // No setReject on a Discord failure: the sender keeps its own copy (Gmail
+  // forwards a copy, it does not move the mail), and a bounce would only train
+  // Gmail to treat the forward as broken.
+  console.log(`email "${subject}" from ${message.from} → discord ${status}`);
+}
+
 export default {
+  async email(message: InboundEmail, env: Env): Promise<void> {
+    await handleInboundEmail(message, env);
+  },
+
   async fetch(req: Request, _env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (req.method === "GET" && url.pathname === "/") {
@@ -1209,6 +1530,9 @@ export default {
       return new Response("User-agent: *\nDisallow: /admin\nDisallow: /admin/api/\n", {
         headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" },
       });
+    }
+    if (req.method === "POST" && url.pathname === "/hooks/vercel") {
+      return handleVercelHook(req, _env);
     }
     if (req.method === "GET" && url.pathname === "/admin") {
       return new Response(ADMIN_HTML, {
