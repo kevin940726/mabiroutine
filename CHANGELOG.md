@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-12 — Incident runbook and capacity verdict
+
 ### Chores
 - `docs/operations.md` gains §10: the 2026-10-12 usage-drain incident as a runbook. The provider numbers that identified it (2.81M requests, one path, nine hours), the diagnosis command per plan and what Hobby hides (`vercel metrics` is `payment_required`, `vercel usage` 404s, logs keep 1 hour), the response order (shim before fix, because the code fix never reaches an already-open tab), and the two facts that cost time: metrics ingestion lags a few minutes, and a paused deployment answers 402 to everything including the shim. §9 points at it, and `docs/item-icons.md` § The fallback rule points at it from the mechanism side
 - §1 also gains the measured capacity verdict: this app against Hobby's three first-unit allowances on the eight clean days before the incident (~17.6k edge requests/day, ~139 MB/day, ~4.8k function invocations/day, i.e. ~1.9x, ~25x and ~7x headroom), why deploys stopped being a line item, and the two things that would change the arithmetic. The incident is also filed as closed issue #4 for anyone who lands on the repo later
