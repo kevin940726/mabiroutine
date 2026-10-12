@@ -21,6 +21,7 @@
  * docs/operations.md § The device request budget.
  */
 import fs from "node:fs";
+import path from "node:path";
 import vm from "node:vm";
 
 let bad = 0;
@@ -189,7 +190,7 @@ const img = (path) => ({ url: `https://app.test${path}`, destination: "image" })
   for (let i = 0; i < 401; i++) await r.fire(img(`/items/seed${i}.webp`));
   const cached = await r.fire({ url: "https://app.test/", mode: "navigate" });
   eq(await cached.response.text(), "cached-shell", "a navigation past the budget is served from the pages cache");
-  const uncached = await r.fire({ url: "https://app.test/deep/link", mode: "navigate" });
+  await r.fire({ url: "https://app.test/deep/link", mode: "navigate" });
   eq(r.fetchCalls.includes("https://app.test/deep/link"), true, "an uncached navigation still fails open to the network");
 }
 
@@ -263,6 +264,46 @@ const img = (path) => ({ url: `https://app.test${path}`, destination: "image" })
     eq(guard > -1, true, "the built worker imports sw-budget.js");
     eq(guard > -1 && firstRoute > -1 && guard < firstRoute, true, "…before the first registerRoute call, so its listener is first");
   }
+}
+
+// --- 12. every app fetch is either funnelled or sanctioned ------------------
+// Three sites may call fetch() under src/, each for a stated reason
+// (docs/operations.md §7): the sync session API (counted per kind), the counted
+// net funnel, and the purple feed — which cannot use the funnel because its
+// module is shared with the Cloudflare Worker and must stay free of ALIASED
+// runtime imports (a relative import resolves in wrangler, `@/...` does not).
+// Comment lines are skipped so prose about the rule does not trip it.
+const SANCTIONED = [
+  "src/sync/api.ts",
+  "src/lib/net.ts",
+  "src/lib/purpleHole.ts",
+];
+const walkDir = (dir) =>
+  fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const p = path.join(dir, e.name);
+    return e.isDirectory() ? walkDir(p) : [p];
+  });
+const bareFetches = [];
+for (const file of walkDir("src").filter((f) => /\.(tsx?|jsx?)$/.test(f))) {
+  if (SANCTIONED.includes(file.replaceAll("\\", "/"))) continue;
+  const text = fs.readFileSync(file, "utf8");
+  const lines = text.split("\n");
+  for (const m of text.matchAll(/\bfetch\s*\(/g)) {
+    const lineNo = text.slice(0, m.index).split("\n").length;
+    const line = lines[lineNo - 1].trim();
+    if (line.startsWith("//") || line.startsWith("*") || line.startsWith("/*")) continue;
+    bareFetches.push(`${file}:${lineNo}`);
+  }
+}
+if (bareFetches.length) {
+  bareFetches.forEach((p) =>
+    fail(
+      `${p} calls fetch() outside the sanctioned request sites (${SANCTIONED.join(", ")}) — route it through netFetch, ` +
+        `or add it there with a reason and to docs/operations.md §7`
+    )
+  );
+} else {
+  ok(`every fetch() under src/ is a sanctioned request site (${SANCTIONED.length})`);
 }
 
 console.log(bad === 0 ? "device request budget: all pass" : `device request budget: ${bad} FAILED`);

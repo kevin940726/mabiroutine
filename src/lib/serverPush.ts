@@ -2,6 +2,7 @@ import { loadSession } from "@/sync/session";
 import { useAppStore } from "@/store/useAppStore";
 import { isEligibleReminderId } from "@/lib/hourlyReminders";
 import { PURPLE_HOLE_ID } from "@/lib/purpleHole";
+import { netFetch } from "@/lib/net";
 
 // Server-push door (barrier + purple lanes). The bell ↔ /api/push/subscribe
 // round trip; the worker fanout reads the same table per lane.
@@ -180,7 +181,7 @@ export async function subscribeServerPush(
     }
     let res: Response;
     try {
-      res = await fetch("/api/push/subscribe", {
+      res = await netFetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -220,7 +221,7 @@ export async function unsubscribeServerPush(taskId: string, lane: PushLane = "ho
   const endpoint = readSubs()[subKey(lane, taskId)];
   if (endpoint) {
     try {
-      await fetch("/api/push/subscribe", {
+      await netFetch("/api/push/subscribe", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint, lane }),
@@ -259,7 +260,7 @@ export async function refreshServerRoster(taskId: string): Promise<void> {
     if (!serverPushOn(taskId)) return;
     const live = await getLiveSub();
     if (!live) return;
-    await fetch("/api/push/subscribe", {
+    await netFetch("/api/push/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -290,7 +291,7 @@ export async function reconcileServerPush(taskId: string, lane: PushLane = "hour
   // Best-effort: the dead endpoint shouldn't linger server-side either
   // (scoped to this lane — the other lane's row is untouched).
   try {
-    await fetch("/api/push/subscribe", {
+    await netFetch("/api/push/subscribe", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ endpoint, lane }),

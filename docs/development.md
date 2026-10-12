@@ -88,7 +88,7 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:drag` + `test:migrations` + `test:sync` + `build`. All nine must pass.
+`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:drag` + `test:migrations` + `test:sync` + `build`. All ten must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
@@ -113,7 +113,16 @@ says, answers only the four covered classes, fails open everywhere else, and
 reports trips). The `importScripts` entry is load-bearing: the budget listener
 must register before the generated `registerRoute` calls, so a change that moves
 it into a route, or into `injectManifest`'s generated worker, silently hands the
-fetch event back to Workbox and disarms the guard. See `docs/operations.md` §7.
+fetch event back to Workbox and disarms the guard. It also fails any network call
+under `src/` made outside the two sanctioned funnels (`sync/api.ts` for
+`/api/session`, `src/lib/net.ts` for the push registry and the purple feed), so a
+new request path cannot land uncounted. See `docs/operations.md` §7.
+Worker rule: `pnpm test:worker` after touching `workers/` or any `src/lib` module
+the Worker imports. It bundles the Worker with `wrangler deploy --dry-run`
+(uploads nothing, no auth) because the Worker has no tsconfig: `tsc -b` never
+sees it, esbuild does not type-check, and the shared modules are pulled in by
+relative path, so an aliased (`@/`) runtime import in one of them fails only at
+deploy time. `import type` from an alias is safe (stripped before resolution).
 Shop rule: `pnpm test:shop-e2e` before a release, and after touching the store's
 migration, the shop grid, or the pinned-section fold. It drives the real app in
 Playwright's pinned Chromium and asserts what the unit gates cannot: a real v19

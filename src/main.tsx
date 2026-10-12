@@ -6,6 +6,7 @@ import App from './App.tsx'
 import { statsSummary } from './sync/stats.ts'
 import { readJournal, clearJournal } from './sync/journal.ts'
 import { budgetAsk, budgetLog, noteBudgetTrip } from './lib/networkBudget.ts'
+import { netSummary } from './lib/net.ts'
 import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
 import { getUndonePurpleReminder } from './hooks/usePurpleHoleReminders.ts'
 import {
@@ -56,6 +57,13 @@ if (typeof window !== 'undefined') {
       }
     });
   }
+}
+
+// Counted network funnel (docs/operations.md §7): __mabiNet() reports the
+// per-day counters for every non-session fetch the app makes. The session API
+// has its own reader, __mabiSyncStats().
+if (typeof window !== 'undefined') {
+  (window as unknown as { __mabiNet?: () => string }).__mabiNet = netSummary;
 }
 
 // Purple schedule feed (phase 2B): apply the cached doc now, then refresh at

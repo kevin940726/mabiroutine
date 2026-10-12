@@ -101,7 +101,7 @@
           c.postMessage({ type: "mabi-budget-trip", at: now, trips: trips, sample: sample });
         });
       });
-    } catch (e) {
+    } catch {
       // a worker without clients (or a hostile environment) must not throw here
     }
   }

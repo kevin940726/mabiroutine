@@ -299,6 +299,8 @@ export type FanoutReport = {
   skipped: boolean;
   reason: string;
   subs: number;
+  /** How many subs this run did NOT send to because of MAX_BARRIER_SENDS_PER_RUN. */
+  capped: number;
   sent: number;
   pruned: number;
   named: number;
@@ -464,10 +466,18 @@ function nameBody(undone: string[], names: string[]): { body: string; chars: str
  * task-only for generic cards; the page resolves the first undone
  * character, like a char-less local card.
  */
+// One send per subscriber per run, and no more. The purple lane is already
+// paged per tick (PURPLE_FANOUT_BATCH); this lane had no bound at all, so a
+// duplicated or runaway sub set would grow the run until Cloudflare's
+// per-invocation subrequest limit threw mid-batch and the report (which subs
+// are dead, how many were named) was lost. Stopping cleanly and reporting
+// `capped` instead keeps the run observable. See docs/operations.md §1.
+const MAX_BARRIER_SENDS_PER_RUN = 500;
+
 export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
   const now = Date.now();
   if (secIntoHour(now) > EVENT_SEC_PAST_HOUR - CATCHUP_MIN_SEC) {
-    return { skipped: true, reason: "past-cutoff", subs: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
+    return { skipped: true, reason: "past-cutoff", subs: 0, capped: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
   }
   // Game down: the in-game event cannot happen, so a card would mislead.
   // Same half-open window list the purple lane stands down on (KV
@@ -475,7 +485,7 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
   // suppressed hour is a clean miss; the next :00 tick after the window sends.
   const sched = await readSchedule(env);
   if (isInMaintenance(now, sched.windows)) {
-    return { skipped: true, reason: "maintenance", subs: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
+    return { skipped: true, reason: "maintenance", subs: 0, capped: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
   }
   const [listed] = await tursoPipeline(env, [
     {
@@ -492,8 +502,10 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
       roster: parseRoster(r[4]?.type === "text" ? String(r[4].value) : null),
     }))
     .filter((s) => s.endpoint.startsWith("https://") && s.p256dh && s.auth);
+  const cappedCount = Math.max(0, subs.length - MAX_BARRIER_SENDS_PER_RUN);
+  const targets = cappedCount ? subs.slice(0, MAX_BARRIER_SENDS_PER_RUN) : subs;
   if (!subs.length) {
-    return { skipped: true, reason: "no-subs", subs: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
+    return { skipped: true, reason: "no-subs", subs: 0, capped: 0, sent: 0, pruned: 0, named: 0, generic: 0, silenced: 0 };
   }
   // Generic copy for unlinked subs (D1): the server knows no done-state, so
   // the body names nothing. `JJ！` = 結界 initials, in-group shorthand —
@@ -504,7 +516,7 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
   let named = 0;
   let generic = 0;
   let silenced = 0;
-  const statuses = await mapLimit(subs, 20, async (sub) => {
+  const statuses = await mapLimit(targets, 20, async (sub) => {
     const card = await resolveNamedCard(env, sub.linkSession, sub.roster, now);
     if (card.kind === "silenced") {
       silenced++;
@@ -545,6 +557,7 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
     skipped: false,
     reason: "fanned-out",
     subs: subs.length,
+    capped: cappedCount,
     sent: sent.length,
     pruned: dead.length,
     named,

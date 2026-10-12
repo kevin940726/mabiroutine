@@ -455,6 +455,13 @@ export function initPurpleFeed(): void {
  * caller (or DevTools) can tell "failed" from "stale-but-usable".
  */
 export async function refreshPurpleFeed(): Promise<PurpleFeedStatus> {
+  // Deliberately NOT routed through `lib/net.ts`: this module is shared with the
+  // Cloudflare Worker (the fanout imports the pure schedule math by relative
+  // path), so it must stay free of aliased runtime imports, and the funnel lives
+  // behind an alias. `pnpm test:budget` names this file as one of the three
+  // sanctioned request sites and `docs/operations.md` §7 records why. The
+  // request is bounded anyway (60s min gap, one in flight) and counted by the
+  // device budget in public/sw-budget.js.
   const res = await fetch(PURPLE_SCHEDULE_URL, { cache: "no-store" });
   if (!res.ok) throw new Error(`schedule ${res.status}`);
   const doc = parseScheduleDoc(await res.json());

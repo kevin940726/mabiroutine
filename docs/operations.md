@@ -18,7 +18,7 @@ file to update when operations change. Design rationale lives in
 | Vercel function invocations | 1M/month on Hobby (same pause) | Same |
 | Cloudflare Worker requests (fanout, purple schedule) | Workers Free stops at 100k requests/day | Cloudflare notifications + the Worker's metrics page |
 | Turso rows read/written | 500M / 10M per month on free, then blocked (no overage) | Turso usage page |
-| Push providers (one send per subscriber per fanout run) | provider rate limits | Worker logs; the fanout has no per-run cap yet (§8) |
+| Push providers (one send per subscriber per fanout run) | provider rate limits | Worker logs; the hourly fanout is capped at 500 sends per run, the purple lane is paged per tick |
 
 A cap that pauses is the backstop, not the fix: it converts a surprise into an
 outage you were warned about. The fix for anything client-side is §7's device
@@ -225,6 +225,24 @@ pull` regenerates that file and would wipe the value.
   `__mabiBudgetAsk()` readings; they are calibratable at runtime through the
   worker's `mabi-budget-config` message, which is also how the browser proof
   drives them.
+- Counted network funnel and the three sanctioned request sites: every network
+  call under `src/` goes through one of three places, and `pnpm test:budget`
+  fails a call made anywhere else. `sync/api.ts` owns `/api/session` (per-kind
+  counters, read with `__mabiSyncStats()`); `src/lib/net.ts` owns the push
+  registry (per-day counters, read with `__mabiNet()`); and `purpleHole.ts`
+  keeps its own `/purple-schedule` fetch, because that module is shared with the
+  Cloudflare Worker (the fanout imports its pure schedule math by relative path)
+  and must therefore stay free of ALIASED runtime imports. Its request is
+  bounded anyway (60s minimum gap, one in flight) and counted by the device
+  budget above. The funnel is a passthrough by contract: it counts, and it must
+  not add retries, timeouts or cache policy, because its callers are best-effort
+  and their failure semantics are their own. Bounding demand is the device
+  budget; this makes demand legible.
+- Shared modules the Worker imports must stay resolvable in wrangler: relative
+  imports only for runtime values (`@/...` fails to resolve there; `import type`
+  is fine because it is stripped first), and no DOM-only dependency.
+  `pnpm test:worker` bundles the Worker so that mistake fails in the gate rather
+  than at deploy time; it was learned the hard way on 2026-10-12.
 
 ## 8. Known gaps & todos (the only open items)
 
@@ -249,6 +267,13 @@ pull` regenerates that file and would wipe the value.
   from `__mabiBudgetAsk()` after a week. If a ceiling ever matters again, the
   next step is a Cloudflare Worker in front of the domain, where every request
   (assets included, attacker traffic included) passes our own code.
+- [ ] Deliberately NOT built (2026-10-12), revisit only on evidence: a GLOBAL
+  server-side budget on `/api/*`. The per-IP fixed-window limiter already bounds
+  one client (10 creates/min, 60 reads/min) and the device budget bounds a
+  runaway client before it ever reaches the API, so a global tier would mostly
+  add a self-inflicted outage: one noisy fleet could trip it and lock out
+  everybody for the window. Build it if a multi-IP flood ever appears, which is
+  an edge problem (a Worker in front) rather than an API-code one.
 
 ## 9. History & rationale (read when revisiting a decision)
 
