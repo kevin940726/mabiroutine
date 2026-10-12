@@ -10,6 +10,20 @@ file to update when operations change. Design rationale lives in
 - Worker: `https://mabiroutine-worker.kaihao.workers.dev` (`workers/mabiroutine-worker`, wrangler).
 - App: `https://mabiroutine.vercel.app` (Vercel, deploys on push to `main`).
 
+### Metered ceilings (the guard's memory: every cap the app can spend)
+
+| Dependency | Ceiling today | Where it surfaces |
+|---|---|---|
+| Vercel edge requests (all 9 team projects share it) | 1M/month on Hobby, then the account pauses for ~30 days; Pro includes 10M then bills per million | Dashboard usage page; `vercel metrics` + Observability Plus are Pro-only |
+| Vercel function invocations | 1M/month on Hobby (same pause) | Same |
+| Cloudflare Worker requests (fanout, purple schedule) | Workers Free stops at 100k requests/day | Cloudflare notifications + the Worker's metrics page |
+| Turso rows read/written | 500M / 10M per month on free, then blocked (no overage) | Turso usage page |
+| Push providers (one send per subscriber per fanout run) | provider rate limits | Worker logs; the fanout has no per-run cap yet (§8) |
+
+A cap that pauses is the backstop, not the fix: it converts a surprise into an
+outage you were warned about. The fix for anything client-side is §7's device
+budget, and for anything server-side it is a bounded loop in our own code.
+
 | Endpoint | Access | Contract |
 |---|---|---|
 | `GET /` | public | `{ok, worker}` health |
@@ -191,6 +205,26 @@ pull` regenerates that file and would wipe the value.
   self-heals via reconcile + re-tap).
 - Deep-link: server cards carry top-level `task` (`barrier` / `purple-hole`)
   + `chars`; tap focuses/flashes via URL params or the postMessage channel.
+- Device request budget (`public/sw-budget.js`, `pnpm test:budget`): the Service
+  Worker is the only place that sees every same-origin request the page makes,
+  so it counts them per device and, past a tier, stops spending requests instead
+  of the user's patience. Tiers: 400 requests/minute, 4,000 per 30 minutes,
+  6,000 per 6 hours. Past a tier, and for 5 minutes after the last trip, four
+  request classes are answered locally: images from cache else a transparent
+  pixel, `/api/` as 429 (the state the sync layer already renders), navigations
+  from the `pages` cache else the network, scripts/styles from cache else the
+  network. Everything else fails open, cross-origin is never touched, and until
+  a tier is crossed the script never intercepts anything, so the Workbox routes
+  behave exactly as they do without it. Read a device:
+  `__mabiBudget()` (its trips, including the path that crossed) and
+  `__mabiBudgetAsk()` (live counters and the tiers). Trips are local-only and
+  silent to the user: a tripped device still works.
+- The tiers are generous on purpose, about 10x a heavy real session, and they
+  exist to catch a loop at the incident's rate (16 req/s trips the 1-minute tier
+  in ~25 seconds), not to throttle browsing. Tighten them only after a week of
+  `__mabiBudgetAsk()` readings; they are calibratable at runtime through the
+  worker's `mabi-budget-config` message, which is also how the browser proof
+  drives them.
 
 ## 8. Known gaps & todos (the only open items)
 
@@ -208,6 +242,13 @@ pull` regenerates that file and would wipe the value.
   "unchanged" from "failed".
 - [ ] Phase-3C crowd reports — needs frequent drift AND an active reporter
   base plus a privacy review. Not this year on current information.
+- [ ] Device-budget coverage gaps, accepted with the guard (2026-10-12): a
+  first-ever visit (no worker installed yet) and cross-origin requests are
+  ungoverned, and the rolling windows live in memory, so a loop that paces
+  itself under every tier AND survives worker restarts is not caught. Calibrate
+  from `__mabiBudgetAsk()` after a week. If a ceiling ever matters again, the
+  next step is a Cloudflare Worker in front of the domain, where every request
+  (assets included, attacker traffic included) passes our own code.
 
 ## 9. History & rationale (read when revisiting a decision)
 

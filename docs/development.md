@@ -88,7 +88,7 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:drag` + `test:migrations` + `test:sync` + `build`. All eight must pass.
+`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:drag` + `test:migrations` + `test:sync` + `build`. All nine must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
@@ -105,6 +105,15 @@ handler), on an NPC `shops.json` names without a portrait, on a hardcoded
 `/npc/` or `/items/` filename with no file on disk, and on the
 `public/npc/placeholder.png` shim missing or untracked by git; see
 `docs/item-icons.md`.
+Budget rule: `pnpm test:budget` after touching `public/sw-budget.js`, the
+workbox `runtimeCaching`/`importScripts` config, or anything that changes what
+the Service Worker intercepts. It runs the real worker script in a vm realm and
+asserts the guard's contract (never intercepts below the tiers, trips where it
+says, answers only the four covered classes, fails open everywhere else, and
+reports trips). The `importScripts` entry is load-bearing: the budget listener
+must register before the generated `registerRoute` calls, so a change that moves
+it into a route, or into `injectManifest`'s generated worker, silently hands the
+fetch event back to Workbox and disarms the guard. See `docs/operations.md` §7.
 Shop rule: `pnpm test:shop-e2e` before a release, and after touching the store's
 migration, the shop grid, or the pinned-section fold. It drives the real app in
 Playwright's pinned Chromium and asserts what the unit gates cannot: a real v19

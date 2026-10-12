@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import { statsSummary } from './sync/stats.ts'
 import { readJournal, clearJournal } from './sync/journal.ts'
+import { budgetAsk, budgetLog, noteBudgetTrip } from './lib/networkBudget.ts'
 import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
 import { getUndonePurpleReminder } from './hooks/usePurpleHoleReminders.ts'
 import {
@@ -31,6 +32,30 @@ if (typeof window !== 'undefined') {
   };
   w.__mabiSyncJournal = () => JSON.stringify(readJournal());
   w.__mabiSyncJournalClear = clearJournal;
+}
+
+// Device request budget (public/sw-budget.js): the worker tells us when this
+// device went over its tier; we keep the trip locally. __mabiBudget() reads
+// those stored trips, __mabiBudgetAsk() asks the worker for its live counters.
+// Local-only, and quiet by design: a tripped device still works, it just stops
+// spending requests. See docs/operations.md § The device request budget.
+if (typeof window !== 'undefined') {
+  const w = window as unknown as {
+    __mabiBudget?: () => string;
+    __mabiBudgetAsk?: () => Promise<string>;
+  };
+  w.__mabiBudget = budgetLog;
+  w.__mabiBudgetAsk = budgetAsk;
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
+      const d = event.data as
+        | { type?: string; at?: number; trips?: number; sample?: { path?: string; destination?: string } }
+        | null;
+      if (d?.type === 'mabi-budget-trip' && typeof d.at === 'number') {
+        noteBudgetTrip({ at: d.at, trips: d.trips ?? 0, sample: d.sample });
+      }
+    });
+  }
 }
 
 // Purple schedule feed (phase 2B): apply the cached doc now, then refresh at
