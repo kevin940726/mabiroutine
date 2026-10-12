@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-12 — Device request budget
+
 ### Features
 - A per-device request budget in the Service Worker (`public/sw-budget.js`) now stands between the app and the meter. It cannot spot a runaway loop, which was exactly the problem on 2026-10-12, so it does the general thing instead: it counts every same-origin request the page makes and, past 400/minute, 4,000 per 30 minutes or 6,000 per 6 hours, stops spending requests. `/api/` answers 429 (the state the sync layer already renders), navigations use the navigation preload or the cached shell and only then the network, images come from cache else a transparent pixel, and everything else, including scripted fetches, which carry no `destination` and were the one unbounded class in the first cut of this guard, comes from cache else a retryable 503. Cross-origin is untouched, and below the tiers the guard never intercepts anything, so the Workbox routes behave exactly as before. Read a device with `__mabiBudget()` (its trips, including the path that crossed) and `__mabiBudgetAsk()` (live counters and tiers, the diagnostic that took hours to reconstruct on 2026-10-12). Measured in a real browser against the built worker: with the budget tripped, 20 image requests cost 5 network requests instead of 20, a cached portrait still rendered at 0 network, and a scripted same-origin fetch that used to reach the network is answered locally
 
