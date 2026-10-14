@@ -88,7 +88,7 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:drag` + `test:purple` + `test:migrations` + `test:sync` + `build`. All eleven must pass.
+`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:purple` + `test:migrations` + `test:sync` + `build`. All twelve must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
@@ -137,6 +137,16 @@ the Worker imports. It bundles the Worker with `wrangler deploy --dry-run`
 sees it, esbuild does not type-check, and the shared modules are pulled in by
 relative path, so an aliased (`@/`) runtime import in one of them fails only at
 deploy time. `import type` from an alias is safe (stripped before resolution).
+Reminder rule: `pnpm test:reminders` after touching the reminder display path
+(`hourlyReminders.ts`, `useHourlyReminders.ts`, `public/sw-push.js`, the
+barrier payload) or the shared slot math `eventHourOf`. It bundles the real
+module and runs the real `public/sw-push.js` in a vm realm: a same-tag +
+same-slot card already on screen is replaced without re-alerting (the seam
+dedup: the local fire lands :00:00, the CF cron tick :00:49–:00:55), a card
+from the previous slot still alerts (an undismissed card must not eat the next
+hour), and every missing stamp or failed tray lookup fails open to the alert,
+with the existing skip paths (hidden page, denied permission, all-done
+silence, visible-client stand-down) pinned unchanged.
 Shop rule: `pnpm test:shop-e2e` before a release, and after touching the store's
 migration, the shop grid, or the pinned-section fold. It drives the real app in
 Playwright's pinned Chromium and asserts what the unit gates cannot: a real v19

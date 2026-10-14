@@ -10,6 +10,7 @@ import { netSummary } from './lib/net.ts'
 import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
 import { getUndonePurpleReminder } from './hooks/usePurpleHoleReminders.ts'
 import {
+  eventHourOf,
   fireHourlyReminder,
   msUntilNextEventFire,
   reminderPermission,
@@ -112,6 +113,7 @@ if (typeof window !== 'undefined') {
       titleTask: r.taskName,
       taskId: r.taskId,
       charIds: r.charIds,
+      slot: eventHourOf(Date.now()),
       onClick: () => resolveReminderDeepLink(r.taskId, r.charIds),
     });
     return `${res} (names: ${r.names.join('、')})`;

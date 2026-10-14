@@ -101,6 +101,20 @@ export function remainingSecToEvent(nowMs: number = Date.now()): number {
 }
 
 /**
+ * Epoch-hour of the event a fire belongs to (its "slot"): the local card and
+ * the server card for one :02:30 event share it, which is what lets the two
+ * lanes collapse a same-slot pair across the seam (each card carries it as
+ * notification.data.slot; see fireHourlyReminder and sw-push.js). The flip
+ * happens at the event instant, so every fire inside the useful window
+ * (:00–:02) maps to the hour the worker's payload stamps. Exported for the
+ * worker fanout (one math module, two runtimes — the worker imports it
+ * directly).
+ */
+export function eventHourOf(nowMs: number = Date.now()): number {
+  return Math.floor((nowMs + remainingSecToEvent(nowMs) * 1000) / 3_600_000);
+}
+
+/**
  * Milliseconds until NEXT hour's scheduled fire, strictly skipping the
  * current window. Re-arm here after firing: re-using msUntilNextEventFire
  * would land back inside the catch-up window and re-fire every second
@@ -235,6 +249,13 @@ export type ReminderFire = {
   taskId?: string;
   charIds?: string[];
   /**
+   * Event slot (epoch-hour) for same-slot re-alert suppression: when a card
+   * for this slot is already on screen under the same tag, the replacement is
+   * silenced (renotify false). Omitted → today's always-renotify behavior —
+   * the purple lane stamps none (a spawn is not an event hour).
+   */
+  slot?: number;
+  /**
    * True when a server subscription owns this task (caller reads
    * serverPushOn): a hidden page then stands down and lets the server card
    * deliver (same tag dedup). False/omitted → fire even while hidden —
@@ -245,6 +266,48 @@ export type ReminderFire = {
    * carries task/chars in notification.data instead). */
   onClick?: () => void;
 };
+
+/**
+ * Device registration, or undefined (unsupported, none, or a lookup failure —
+ * every caller falls back). getRegistration, never .ready: .ready pends
+ * FOREVER when no worker is registered (exactly the dev setup, where the SW is
+ * disabled), so awaiting it would hang the fire and the page fallback would
+ * never run. getRegistration resolves immediately with undefined instead.
+ */
+async function getRegistrationSafe(): Promise<ServiceWorkerRegistration | undefined> {
+  try {
+    if (!("serviceWorker" in navigator)) return undefined;
+    return await navigator.serviceWorker.getRegistration();
+  } catch {
+    return undefined;
+  }
+}
+
+/** notification.data.slot as a number, or null when absent/foreign. */
+function slotOfCard(n: Notification): number | null {
+  const v = (n as Notification & { data?: { slot?: unknown } }).data?.slot;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  // Defensive: a platform that stringifies data must still match its own card.
+  if (typeof v === "string" && v !== "") {
+    const num = Number(v);
+    return Number.isFinite(num) ? num : null;
+  }
+  return null;
+}
+
+/**
+ * True when this registration already shows a card for `slot` under `tag`.
+ * Fail-open on any error: a failed lookup must never cost the alert.
+ */
+async function hasActiveSlotCard(reg: ServiceWorkerRegistration, tag: string, slot: number): Promise<boolean> {
+  try {
+    if (typeof reg.getNotifications !== "function") return false;
+    const cards = await reg.getNotifications({ tag });
+    return cards.some((n) => slotOfCard(n) === slot);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Show one collapsed hourly card. Prefers the service worker registration
@@ -281,35 +344,40 @@ export async function fireHourlyReminder(f: ReminderFire): Promise<HourlyFireRes
   const title =
     f.title ??
     (titleTask ? `${titleTask}出現了` : `${eventLabel} 將至 — ${names.length} 項未完成`);
-  const data: Record<string, string> = { url: "/" };
+  const tag = f.tag ?? HOURLY_TAG;
+  const data: Record<string, string | number> = { url: "/" };
   if (f.taskId) data.task = f.taskId;
   if (f.charIds?.length) data.chars = f.charIds.join(",");
+  const slot = typeof f.slot === "number" && Number.isFinite(f.slot) ? f.slot : null;
+  if (slot !== null) data.slot = slot;
+  // Seam re-alert suppression (2026-10-14): the local timer fires at :00:00
+  // and the CF cron tick lands ~:01, so a visible page's local card and the
+  // server card can land a minute apart for the SAME slot. When this device
+  // already has a card for the slot on screen, the replacement is silent —
+  // replace, never skip, so a card is always up for this slot and only the
+  // alert drops. Fail-open everywhere; a fire without a slot (purple) skips
+  // the check.
+  const reg = await getRegistrationSafe();
+  const quiet = reg && slot !== null ? await hasActiveSlotCard(reg, tag, slot) : false;
   // renotify/vibrate predate the TS DOM lib: typed locally, passed through
   // to showNotification which honors them at runtime.
   const options: NotificationOptions & { renotify?: boolean; vibrate?: number[] } = {
     body: f.body ?? `${shown}${more}`,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    tag: f.tag ?? HOURLY_TAG,
-    renotify: true,
+    tag,
+    renotify: !quiet,
     requireInteraction: false,
     silent: false,
     data,
   };
-  try {
-    // getRegistration — never .ready: .ready pends FOREVER when no worker
-    // is registered (exactly the dev setup, where the SW is disabled), so
-    // awaiting it hangs the fire and the page fallback below never runs.
-    // getRegistration resolves immediately with undefined instead.
-    if ("serviceWorker" in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg) {
-        await reg.showNotification(title, options);
-        return "shown";
-      }
+  if (reg) {
+    try {
+      await reg.showNotification(title, options);
+      return "shown";
+    } catch {
+      // fall through to the page constructor
     }
-  } catch {
-    // fall through to the page constructor
   }
   try {
     const n = new Notification(title, options);

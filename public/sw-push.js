@@ -1,15 +1,32 @@
 // Server-push display + tap → deep link. Imported into the Workbox service
 // worker via workbox.importScripts — keep this file dependency-free, SW
-// scope only. The push payload is { title, body, tag, url?, task?, chars? }:
-// url/task/chars ride through notification.data so the click handler below
-// deep-links exactly like the Phase-0 local cards (same collapse tag,
-// same re-buzz, same auto-dismiss — server cards must be indistinguishable
-// from local ones or the two lanes can't stay "never stacked").
+// scope only. The push payload is
+// { title, body, tag, url?, task?, chars?, slot? }: url/task/chars ride
+// through notification.data so the click handler below deep-links exactly
+// like the Phase-0 local cards (same collapse tag, same re-buzz, same
+// auto-dismiss — server cards must be indistinguishable from local ones or
+// the two lanes can't stay "never stacked"). `slot` is the event hour the
+// worker stamped (epoch-hour, the same value the local fire stamps); it also
+// rides into notification.data so this handler can tell a same-slot duplicate
+// from a new hour (see the seam dedup in the push listener).
 // The page side (useReminderDeepLink) resolves the character, scrolls to
 // the row, and flashes it; here we only deliver it there: focus an open
 // app window (navigating it to the link) or open a fresh one.
 // NOTE: iOS PWA tap-through is best-effort — clients.openWindow/navigate
 // support there is unreliable, and the tap may just foreground the app.
+
+/** notification.data.slot as a number, or null when absent/foreign. */
+function slotOfCard(n) {
+  const v = n && n.data ? n.data.slot : undefined;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  // Defensive: a platform that stringifies data must still match its own card.
+  if (typeof v === "string" && v !== "") {
+    const num = Number(v);
+    return Number.isFinite(num) ? num : null;
+  }
+  return null;
+}
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
@@ -18,6 +35,7 @@ self.addEventListener("push", (event) => {
     payload = {};
   }
   const title = payload.title || "MabiRoutine";
+  const slot = typeof payload.slot === "number" && Number.isFinite(payload.slot) ? payload.slot : null;
   const options = {
     body: payload.body || "",
     tag: payload.tag || "mabi-push",
@@ -25,7 +43,12 @@ self.addEventListener("push", (event) => {
     requireInteraction: false,
     icon: "/icon-192.png",
     badge: "/icon-192.png",
-    data: { url: payload.url, task: payload.task, chars: payload.chars },
+    data: {
+      url: payload.url,
+      task: payload.task,
+      chars: payload.chars,
+      ...(slot === null ? {} : { slot }),
+    },
   };
   event.waitUntil(
     (async () => {
@@ -40,6 +63,21 @@ self.addEventListener("push", (event) => {
         if (all.some((c) => c.visibilityState === "visible")) return;
       } catch {
         // matchAll failed: show rather than risk silence.
+      }
+      // Seam re-alert suppression (2026-10-14): the local timer fires at
+      // :00:00 and the CF cron tick lands ~:01, so the same slot's card can
+      // already be on screen (normally the local one). Same tag + same slot
+      // → replace it silently; a card from the PREVIOUS slot still buzzes
+      // (an undismissed card must not eat the next hour's alert), and a
+      // missing stamp on either side (old worker, other lanes) also buzzes.
+      // Fail-open on any error: a failed lookup must never cost the alert.
+      if (slot !== null) {
+        try {
+          const cards = await self.registration.getNotifications({ tag: options.tag });
+          if (cards.some((n) => slotOfCard(n) === slot)) options.renotify = false;
+        } catch {
+          // lookup failed: re-alert rather than risk a silent replace
+        }
       }
       await self.registration.showNotification(title, options);
     })()

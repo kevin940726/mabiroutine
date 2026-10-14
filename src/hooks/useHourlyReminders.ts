@@ -5,6 +5,7 @@ import { useAppStore } from "@/store/useAppStore";
 import type { Task } from "@/lib/types";
 import {
   CATCHUP_MIN_SEC,
+  eventHourOf,
   fireHourlyReminder,
   isEligibleReminderId,
   isTaskDone,
@@ -87,11 +88,6 @@ export function useHourlyReminders(enabled: boolean) {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     let timer = 0;
     let cancelled = false;
-    // Dedup: epoch-hour of the event already fired for. Without this, the
-    // post-fire re-arm lands back inside the catch-up window and the card
-    // re-fires every second until the cutoff.
-    const eventHourOf = (nowMs: number): number =>
-      Math.floor((nowMs + remainingSecToEvent(nowMs) * 1000) / 3600000);
 
     // Re-arm strictly for NEXT hour's fire (after firing or skipping).
     const armNextHour = () => {
@@ -110,8 +106,10 @@ export function useHourlyReminders(enabled: boolean) {
           return;
         }
         // Already fired for this hour's event (e.g. foreground bounce right
-        // after a fire): skip, don't double-card.
-        if (firedEventHour === eventHourOf(Date.now())) {
+        // after a fire): skip, don't double-card. The slot doubles as the
+        // card's stamp, so the per-hour dedup and the seam dedup agree.
+        const slot = eventHourOf(Date.now());
+        if (firedEventHour === slot) {
           armNextHour();
           return;
         }
@@ -129,12 +127,13 @@ export function useHourlyReminders(enabled: boolean) {
             titleTask: r.taskName,
             taskId: r.taskId,
             charIds: r.charIds,
+            slot,
             // Stand down while hidden only if the server owns this task —
             // otherwise no card would ever arrive (see fireHourlyReminder).
             serverOwned: serverPushOn(r.taskId, "hourly"),
             onClick: () => resolveReminderDeepLink(r.taskId, r.charIds),
           });
-          firedEventHour = eventHourOf(Date.now());
+          firedEventHour = slot;
         }
         armNextHour();
       })();

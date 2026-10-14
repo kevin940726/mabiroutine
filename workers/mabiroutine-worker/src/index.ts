@@ -30,6 +30,7 @@ import {
   CATCHUP_MIN_SEC,
   EVENT_SEC_PAST_HOUR,
   HOURLY_TAG,
+  eventHourOf,
   secIntoHour,
 } from "../../../src/lib/hourlyReminders";
 import { getTaipeiWeekKey } from "../../../src/lib/reset";
@@ -522,6 +523,10 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
   // and deliberately no clock time (the old MM:SS "02:30" read as 2:30 AM,
   // seen 2026-09-17).
   const genericBody = `JJ！`;
+  // One slot per run (the event hour): every card in this batch carries the
+  // same value the local lane stamps at :00:00, so compute it once, not per
+  // subscriber (eventHourOf builds an Intl formatter under the hood).
+  const slot = eventHourOf(now);
   const jwtCache = new Map<string, string>();
   let named = 0;
   let generic = 0;
@@ -535,15 +540,18 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
     if (card.kind === "named") named++;
     else generic++;
     // Deep-link fields ride TOP-LEVEL per the SW contract (sw-push.js:
-    // "the push payload is { title, body, tag, url?, task?, chars? }") —
-    // nested under `data` they never reach notification.data and every tap
-    // focuses without flashing (seen 2026-09-17 on all server cards).
+    // "the push payload is { title, body, tag, url?, task?, chars?, slot? }")
+    // — nested under `data` they never reach notification.data and every tap
+    // focuses without flashing (seen 2026-09-17 on all server cards). `slot`
+    // is the event hour (the same value the local fire stamps) so sw-push.js
+    // can replace a same-slot card without re-alerting.
     const payload = {
       title: BARRIER_TITLE,
       body: card.kind === "named" && card.body ? card.body : genericBody,
       tag: HOURLY_TAG,
       url: "/",
       task: "barrier",
+      slot,
       ...(card.kind === "named" && card.chars ? { chars: card.chars } : {}),
     };
     try {

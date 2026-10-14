@@ -196,6 +196,19 @@ time derived from `EVENT_SEC_PAST_HOUR`.
   absent keys undone, exactly like local. Known sliver: a visibility transition landing exactly
   on the fire second can skip both — accepted (was documented in the
   pre-fold ledger; history in git).
+  **2026-10-14, seam re-alert dedup:** the hourly cron tick was measured at
+  :00:49–:00:55, so a visible page's local card (:00:00) and the server card
+  (~:01) sit a full minute apart, and a device that goes hidden inside that
+  minute (glance, then screen off) gets both. Both lanes now stamp the event
+  slot (`eventHourOf`, the epoch-hour of the :02:30 event, added to the push
+  payload by the worker) into `notification.data.slot`, and each lane replaces
+  a same-tag + same-slot card that is already on screen with `renotify: false`
+  — the card still shows, only the second buzz drops. A card
+  from the previous slot still buzzes (an undismissed card must not eat the
+  next hour's alert); a missing or malformed stamp, another tag, or a failed
+  `getNotifications` lookup all fail open to today's always-renotify behavior,
+  and the purple lane (no slot) is untouched. Deploy order: worker first
+  (payload `slot`), app second (the readers).
 - **D7 — Phase 1 is desktop only (2026-09-16).** Bounds the test matrix
   (below) while the infra proves itself. Mobile follows with zero server
   changes (Phases 2–3 are client gates + device testing).

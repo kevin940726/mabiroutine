@@ -4,6 +4,12 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- The two reminder lanes no longer double-alert inside one hour. The local page timer fires at :00:00 and the server card lands ~:01 (the CF hourly tick is consistently ~50s late), so a device that glanced at the first card and went hidden got a second buzz from the other lane. Both cards now carry the event hour they belong to, and a card landing while a same-hour card is still on screen (same tag) replaces it without re-alerting — on both lanes, so opening the app late also no longer re-buzzes over a server card that just arrived. The card still shows and updates; only the second alert drops. A card left over from the previous hour still alerts (an undismissed card must not eat the next hour), and any failure to read the tray falls back to the old always-alert behavior. Per device, like the rest of the reminder routing; a second device still gets its own card. If the first card was already dismissed, the later one still alerts.
+
+### Chores
+- `pnpm test:reminders` (`scripts/check-reminders.mjs`, wired into `pnpm check`) pins the seam: the shared slot math (`eventHourOf`, one function for the page and the Worker), the page-side fire behavior against a fake registration, and the real `public/sw-push.js` in a `node:vm` realm. Same-slot suppresses; previous-slot, another tag, a missing or malformed stamp, and a failed lookup all re-alert; the existing skip paths (hidden page, denied permission, all-done silence, visible-client stand-down) are pinned unchanged.
+
 ## 2026-10-14 — Purple-hole corrections freeze the past
 
 ### Features
