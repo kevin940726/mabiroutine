@@ -54,11 +54,11 @@ the cap and only matters if this app is ever monetized.
 | Endpoint | Access | Contract |
 |---|---|---|
 | `GET /` | public | `{ok, worker}` health |
-| `GET /purple-schedule` | public, CORS `*`, 60s cache | `{anchorMs, windows[], updatedAt, updatedBy, auto, confidence, sources[]}`; `confidence: "hardcoded"` + `updatedAt: null` when KV is empty/corrupt |
+| `GET /purple-schedule` | public, CORS `*`, 60s cache | `{anchorMs, prevMs, nextMs, windows[], updatedAt, updatedBy, auto, confidence, sources[]}`; `nextMs` null = no correction, `prevMs` null = derive the row behind the anchor; `confidence: "hardcoded"` + `updatedAt: null` when KV is empty/corrupt |
 | `GET /admin` | bearer (login form) | the editor page; `noindex`, `no-store` |
 | `POST /admin/api/verify` | `{secret}` in body, once | `{ok}` / 401; 500 when `ADMIN_SECRET` unset |
 | `GET /admin/api/state` | bearer | `{verified, candidates, overrides}` |
-| `POST /admin/api/publish` | bearer, `{anchorMs, windows[]}` | strict-gates the whole doc (400 on garbage), stamps `admin`, **locks auto** |
+| `POST /admin/api/publish` | bearer, `{anchorMs, prevMs?, nextMs?, windows[], discardPassed?}` | strict-gates the whole doc (400 on garbage; `prevMs` before and `nextMs` after `anchorMs`), 409 when it would drop a passed correction that the record does not cover (`discardPassed: true` is the explicit "it never happened" bypass), stamps `admin`, **locks auto** |
 | `POST /admin/api/promote` | bearer | resolves candidates through overrides, writes verified, keeps auto on |
 | `POST /admin/api/auto` | bearer, `{auto: boolean}` | lock keeps values; resume re-resolves immediately |
 | `POST /admin/api/overrides` | bearer, `{overrides[], tombstones[]}` full replacement | strict-gates both lists (400), re-resolves when unlocked |
@@ -112,7 +112,7 @@ The `:59` tick stamped `scheduledTime 1791032351` (20:59:11 Taipei, not
 
 | Key | Shape | Writer |
 |---|---|---|
-| `purple:schedule` | `{anchorMs, windows[{startMs,endMs}], updatedAt, updatedBy, auto}` | watcher (auto, `updatedBy: "watcher"`), admin publish/promote/resume (`"admin"`), dashboard hand-edit |
+| `purple:schedule` | `{anchorMs, prevMs, nextMs, windows[{startMs,endMs}], updatedAt, updatedBy, auto}` | watcher (auto, `updatedBy: "watcher"`), admin publish/promote/resume (`"admin"`), dashboard hand-edit |
 | `purple:candidates` | `{windows[], observedAt, sources[]}` | watcher only, every run |
 | `purple:overrides` | `{overrides[], tombstones[], updatedAt, updatedBy}` | `/admin` overrides save only |
 | `purple:last-fire` | `{spawnMs}` | purple fanout (stamped when a run finishes the lane) |
@@ -120,7 +120,8 @@ The `:59` tick stamped `scheduledTime 1791032351` (20:59:11 Taipei, not
 
 Resolve rule (one path, three triggers): candidates base → same-`startMs`
 override replaces → unmatched overrides append → tombstoned starts vanish →
-normalize. Anchor is always manual. Empty candidates never wipe verified;
+normalize. Anchor, `prevMs` and `nextMs` are always manual (the watcher carries
+them through untouched). Empty candidates never wipe verified;
 past-and-unobserved override records expire on resolve. Absent `auto` reads
 as auto-on.
 
@@ -129,6 +130,8 @@ Seed shape (values change; build numbers with `taipeiWall`, never by hand):
 ```json
 {
   "anchorMs": 1789538880000,
+  "prevMs": null,
+  "nextMs": null,
   "windows": [{ "startMs": 1790114400000, "endMs": 1790123400000 }],
   "updatedAt": 1758240000000,
   "updatedBy": "seed",
@@ -179,8 +182,26 @@ spawn 14:38 → card 14:30 reading 預計 8 分鐘後出現.
    手動覆寫 → 儲存覆寫. Routine case, no freeze.
 3. **Accept all**: 採用候選 (keeps auto on).
 4. **Rewrite everything**: the flap under 已發佈 (locks auto; resume to undo).
-5. **Anchor drift**: edit 錨點, publish — no code push, all devices follow.
-6. **Maintenance windows** are not fed into the schedule (pause model dropped
+5. **Correct the next spawn**: 下次出沒 in the flap, or the skill's `next <t>`.
+   The record (錨點) must not move for this: a correction swaps only the next
+   spawn and everything after it, and the timetable's 過去 rows stay exactly
+   as they were (2026-10-14 rule). A correction that already passed and is not
+   yet in the record is refused (409), naming the spawn to record first; record
+   it, then retry. If the passed correction never happened, drop it explicitly
+   with the skill's `forget <stored time>` (or the flap's 放棄 checkbox) instead
+   of recording a false spawn. A correction needs the matching deploys
+   (`nextMs`/`prevMs` are new): a pre-field client ignores them, and the
+   pre-field worker parses them away on publish and on every resolve, so an
+   early publish is erased while the CLI reports success. Publish corrections
+   only once both deploys are live.
+6. **Record an observed spawn**: 錨點 = the last spawn you actually saw.
+   前一筆 fills itself from the latest known spawn before the new anchor; set
+   it explicitly when the current doc's phase is already known wrong (it is the
+   slot that keeps the row behind the anchor exact across a seam). Publish — no
+   code push, all devices follow. This is the only input that moves the past
+   (the past is the record's backward ray, so a doc whose record is stale shows
+   that stale past until you record the newer one).
+7. **Maintenance windows** are not fed into the schedule (pause model dropped
    2026-10-07): they only stand cards down while the game is inside one. Use
    忽略 to drop a window from suppression, 修正 to change its bounds, and
    re-anchor from an observed spawn (錨點 + 發佈, then 回復自動更新) when a
@@ -189,11 +210,12 @@ spawn 14:38 → card 14:30 reading 預計 8 分鐘後出現.
 Rules of thumb on the page: unsure → don't publish. A window that is too wide
 suppresses a card that would have landed; one too narrow sends a card while the
 game is down, so err short and exclude a window you are unsure of. The anchor
-is the only input that moves a spawn.
+(record) and the 下次 correction are the only inputs that move spawns, and the
+anchor is the only one that moves the past.
 
 Scriptable: the same edits are wrapped for agents in the `purple-schedule`
 skill (`skills/purple-schedule/`, invoked as `/purple-fix`): `state` and
-`predict` are read-only, `no-shift` / `shift-amount` / `anchor` write. It reads
+`predict` are read-only, `no-shift` / `shift-amount` / `anchor` / `next` write. It reads
 `MABI_ADMIN_SECRET` from the process environment and prints the new state and
 predictions. Supply it by exporting it, or keep the conventional local copy at
 `.env.admin.local` (repo root, gitignored via `.env*`) and load it with

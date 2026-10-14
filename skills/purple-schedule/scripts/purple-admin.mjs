@@ -10,7 +10,9 @@
 //   predict [n]                       read-only: next n spawns (from /purple-schedule)
 //   no-shift <start Taipei>           tombstone a window (stop suppressing on it)
 //   shift-amount <start> <end Taipei> override a window's end (suppression coverage)
-//   anchor <spawn Taipei>             re-anchor to an observed spawn, then resume auto
+//   anchor <spawn Taipei> [prev]      record an observed spawn (moves the record), then resume auto
+//   next <spawn Taipei>               correct the NEXT spawn only (record untouched), then resume auto
+//   forget <stored-correction Taipei> drop a stored correction that never happened, then resume auto
 //   promote                           accept all watcher candidates
 //   auto <true|false>                 lock / resume auto-apply
 //
@@ -64,6 +66,8 @@ function showState(st) {
   const at = st.verified?.updatedAt ? new Date(st.verified.updatedAt).toISOString() : "(never)";
   console.log(`verified  updatedAt ${at}  auto=${st.verified?.auto}`);
   console.log(`  anchor  ${fmt(st.verified.anchorMs)}`);
+  if (st.verified?.prevMs) console.log(`  prev    ${fmt(st.verified.prevMs)}`);
+  if (st.verified?.nextMs) console.log(`  next    ${fmt(st.verified.nextMs)}`);
   for (const w of st.verified?.windows ?? []) console.log(`  window  ${fmt(w.startMs)} -> ${fmt(w.endMs)}`);
   const cands = st.candidates?.windows ?? [];
   console.log(`candidates (${cands.length}):`);
@@ -96,13 +100,12 @@ async function predict(n) {
   try {
     const doc = await getSchedule();
     const mod = await import(new URL("../../../src/lib/purpleHole.ts", import.meta.url).href);
-    mod.setPurpleTimetable(doc.anchorMs, doc.windows);
+    mod.setPurpleTimetable(doc.anchorMs, doc.windows, doc.nextMs ?? null, doc.prevMs ?? null);
     const now = Date.now();
-    const first = mod.firstIndexAfter(now, doc.anchorMs);
-    for (let k = first - 1; k < first - 1 + n; k++) {
-      const t = mod.nthOccurrence(k, doc.anchorMs);
-      console.log(`${k === first ? "next->" : "      "} ${fmt(t)}${t <= now ? "  (past)" : ""}`);
-    }
+    const times = mod.occurrencesAround(now, 1, Math.max(0, n - 1));
+    times.forEach((t, i) => {
+      console.log(`${i === 1 ? "next->" : "      "} ${fmt(t)}${t <= now ? "  (past)" : ""}`);
+    });
   } catch (e) {
     console.error(`(predict unavailable: ${e.message})`);
   }
@@ -119,7 +122,9 @@ const USAGE = `purple-admin <command>
   predict [n]
   no-shift <start Taipei>
   shift-amount <start Taipei> <effective-end Taipei>
-  anchor <observed-spawn Taipei>
+  anchor <observed-spawn Taipei> [previous-spawn Taipei]
+  next <corrected-spawn Taipei>
+  forget <stored-correction Taipei>
   promote
   auto <true|false>`;
 
@@ -168,19 +173,93 @@ if (cmd === "state") {
   warnIfLocked(after);
   await predict(4);
 } else if (cmd === "anchor") {
-  if (!args[0]) die("usage: anchor <observed-spawn Taipei>");
+  if (!args[0]) die("usage: anchor <observed-spawn Taipei> [previous-spawn Taipei]");
   const anchorMs = taipeiToMs(args[0]);
   const st = await getState();
   const wasLocked = st.verified?.auto === false;
+  // A correction the new anchor has caught up with is spent: it would fail the
+  // doc gate (nextMs must be after anchorMs) and the record covers it.
+  const prevNext = st.verified?.nextMs ?? null;
+  const nextMs = prevNext !== null && prevNext <= anchorMs ? null : prevNext;
+  // The recorded spawn before the new anchor: explicit, else the latest spawn
+  // the current doc knows before it. That auto value can be a phantom when the
+  // current doc's phase is already known wrong — pass it explicitly then.
+  let prevMs;
+  if (args[1]) {
+    prevMs = taipeiToMs(args[1]);
+    if (!(prevMs < anchorMs)) die("the previous spawn must be before the observed one");
+  } else {
+    const mod = await import(new URL("../../../src/lib/purpleHole.ts", import.meta.url).href);
+    prevMs = mod.prevOccurrence(anchorMs - 1, 0, st.verified.anchorMs, prevNext, st.verified?.prevMs ?? null);
+  }
   await admin("/admin/api/publish", {
     method: "POST",
-    body: JSON.stringify({ anchorMs, windows: st.verified?.windows ?? [] }),
+    body: JSON.stringify({ anchorMs, prevMs, nextMs, windows: st.verified?.windows ?? [] }),
   });
+  if (prevNext !== null && nextMs === null) {
+    console.log(`NOTE: the previous correction (${fmt(prevNext)}) is at/before the new anchor — cleared.`);
+  }
   // publish always locks auto. An unlocked doc is resumed so the watcher keeps
   // windows current; a doc that was ALREADY locked stays locked, or resuming
   // would rebuild windows from candidates and drop hand-published ones.
   if (wasLocked) {
     console.log("NOTE: the doc was LOCKED; anchor saved with auto left locked so hand-published windows are preserved. Resume from /admin when ready.");
+  } else {
+    await admin("/admin/api/auto", { method: "POST", body: JSON.stringify({ auto: true }) });
+  }
+  showState(await getState());
+  await predict(4);
+} else if (cmd === "next") {
+  if (!args[0]) die("usage: next <corrected-spawn Taipei>");
+  const nextMs = taipeiToMs(args[0]);
+  const st = await getState();
+  const wasLocked = st.verified?.auto === false;
+  // The record (anchor) stays exactly where it is — that is the point of the
+  // separate slot; the worker 400s if nextMs is not after the anchor.
+  await admin("/admin/api/publish", {
+    method: "POST",
+    body: JSON.stringify({
+      anchorMs: st.verified.anchorMs,
+      // Carry the recorded pair through: the publish is a full write, so an
+      // absent prevMs clears it and the row behind the anchor would re-derive.
+      prevMs: st.verified?.prevMs ?? null,
+      nextMs,
+      windows: st.verified?.windows ?? [],
+    }),
+  });
+  if (wasLocked) {
+    console.log("NOTE: the doc was LOCKED; correction saved with auto left locked. Resume from /admin when ready.");
+  } else {
+    await admin("/admin/api/auto", { method: "POST", body: JSON.stringify({ auto: true }) });
+  }
+  showState(await getState());
+  await predict(4);
+} else if (cmd === "forget") {
+  // The one deliberate bypass of the supersede guard: the maintainer asserts
+  // the stored correction never happened, so there is nothing to record and
+  // its rows leave the past. Naming the stored time is the confirmation.
+  if (!args[0]) die("usage: forget <stored-correction Taipei> (the value `state` shows as next)");
+  const named = taipeiToMs(args[0]);
+  const st = await getState();
+  const storedNext = st.verified?.nextMs ?? null;
+  if (storedNext === null) die("no stored correction to forget");
+  if (Math.floor(named / 60000) !== Math.floor(storedNext / 60000)) {
+    die(`the stored correction is ${fmt(storedNext)}, not ${fmt(named)} — check \`state\` first`);
+  }
+  const wasLocked = st.verified?.auto === false;
+  await admin("/admin/api/publish", {
+    method: "POST",
+    body: JSON.stringify({
+      anchorMs: st.verified.anchorMs,
+      prevMs: st.verified?.prevMs ?? null,
+      nextMs: null,
+      discardPassed: true,
+      windows: st.verified?.windows ?? [],
+    }),
+  });
+  console.log(`NOTE: dropped the stored correction ${fmt(storedNext)} without recording it (explicit forget).`);
+  if (wasLocked) {
+    console.log("NOTE: the doc was LOCKED; forget saved with auto left locked. Resume from /admin when ready.");
   } else {
     await admin("/admin/api/auto", { method: "POST", body: JSON.stringify({ auto: true }) });
   }

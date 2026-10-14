@@ -88,7 +88,7 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:drag` + `test:migrations` + `test:sync` + `build`. All ten must pass.
+`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:drag` + `test:purple` + `test:migrations` + `test:sync` + `build`. All eleven must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
@@ -105,6 +105,17 @@ handler), on an NPC `shops.json` names without a portrait, on a hardcoded
 `/npc/` or `/items/` filename with no file on disk, and on the
 `public/npc/placeholder.png` shim missing or untracked by git; see
 `docs/item-icons.md`.
+Purple rule: `pnpm test:purple` after touching `src/lib/purpleHole.ts`, the
+schedule doc shape (feed, `/admin`, `resolveAndStore`, the CLI publish bodies),
+or a reminder lane (client timer, server fanout). It pins the two rays: a `next`
+correction never moves the record's past, `prevMs` keeps the row behind a
+recorded spawn exact across a seam, and the supersede guard refuses a publish
+that would drop a passed, unrecorded correction (the CLI's `forget` / the page's
+放棄 checkbox is the explicit bypass for a correction that never happened).
+Publishing a doc that carries `nextMs`/`prevMs` also requires the deployed
+Worker: the pre-rule worker parses them away on publish and on every resolve,
+so a correction published early is erased while the CLI reports success; see
+`docs/operations.md` §6.
 Budget rule: `pnpm test:budget` after touching `public/sw-budget.js`, the
 workbox `runtimeCaching`/`importScripts` config, or anything that changes what
 the Service Worker intercepts. It runs the real worker script in a vm realm and

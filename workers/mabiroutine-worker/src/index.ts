@@ -38,10 +38,10 @@ import {
   PURPLE_ANCHOR_MS,
   PURPLE_LEAD_MS,
   PURPLE_TAG,
-  firstIndexAfter,
+  correctionSupersedeError,
   isInMaintenance,
+  nextOccurrence,
   normalizeWindows,
-  nthOccurrence,
   parseScheduleDoc,
   validWindowsList,
   type MaintenanceWindow,
@@ -579,16 +579,22 @@ export async function runBarrierFanout(env: Env): Promise<FanoutReport> {
 // ---- Purple schedule feed (phase 2B) ----
 //
 // KV `purple:schedule` is the published doc
-// {anchorMs, windows: [{startMs, endMs}], updatedAt, updatedBy} — written by
-// the dashboard (day one) or /admin (graduation), seeded once by hand. The
-// client prefers it over its hardcoded timetable; an empty KV, a corrupt
-// doc, or a KV failure all degrade to the hardcoded values with
+// {anchorMs, nextMs, windows: [{startMs, endMs}], updatedAt, updatedBy} — the
+// anchor is the record (last recorded spawn), nextMs an optional forward
+// correction (2026-10-14: corrections never move the record; see purpleHole),
+// written by the dashboard (day one) or /admin (graduation), seeded once by
+// hand. The client prefers it over its hardcoded timetable; an empty KV, a
+// corrupt doc, or a KV failure all degrade to the hardcoded values with
 // confidence "hardcoded" and updatedAt null — "unknown", never "no
 // maintenance". parseScheduleDoc is the shared strict gate (one fat-fingered
 // entry rejects the whole doc).
 
 export type ScheduleResponse = {
   anchorMs: number;
+  /** Recorded spawn before the anchor; null = derive from the anchor. */
+  prevMs: number | null;
+  /** Explicit next-spawn correction; null = derived from the anchor lattice. */
+  nextMs: number | null;
   windows: MaintenanceWindow[];
   updatedAt: number | null;
   updatedBy: string | null;
@@ -603,6 +609,8 @@ async function readSchedule(env: Env): Promise<ScheduleResponse> {
     if (doc) {
       return {
         anchorMs: doc.anchorMs,
+        prevMs: doc.prevMs,
+        nextMs: doc.nextMs,
         windows: doc.windows,
         updatedAt: doc.updatedAt,
         updatedBy: doc.updatedBy,
@@ -616,6 +624,8 @@ async function readSchedule(env: Env): Promise<ScheduleResponse> {
   }
   return {
     anchorMs: PURPLE_ANCHOR_MS,
+    prevMs: null,
+    nextMs: null,
     windows: MAINTENANCE_WINDOWS,
     updatedAt: null,
     updatedBy: null,
@@ -708,7 +718,7 @@ export async function runPurpleWatch(env: Env): Promise<{ windows: number; appli
   if (windows.length > 0) {
     const current = await readSchedule(env);
     if (current.auto) {
-      const resolved = await resolveAndStore(env, current.anchorMs, windows, now, "watcher");
+      const resolved = await resolveAndStore(env, current.anchorMs, current.nextMs, current.prevMs, windows, now, "watcher");
       applied = resolved;
     }
   }
@@ -835,6 +845,8 @@ function overridesEqual(a: PurpleOverrides, b: PurpleOverrides): boolean {
 async function resolveAndStore(
   env: Env,
   anchorMs: number,
+  nextMs: number | null,
+  prevMs: number | null,
   candidates: MaintenanceWindow[],
   now: number,
   by: string
@@ -846,6 +858,8 @@ async function resolveAndStore(
   }
   const doc = parseScheduleDoc({
     anchorMs,
+    prevMs,
+    nextMs,
     windows: resolveWindows(candidates, ov.overrides, ov.tombstones),
     updatedAt: now,
     updatedBy: by,
@@ -979,12 +993,15 @@ details{margin-top:.8rem}summary{cursor:pointer;font-size:.85rem;color:var(--mut
 <div class="btnrow"><button id="saveOvr" class="primary">儲存覆寫</button></div>
 </section>
 <section class="card"><h2>已發佈（唯讀預覽）</h2>
-<p class="foot">這就是玩家現在看到的時刻表。錨點＝上次親眼看到紫洞出沒的時間（時間由錨點推算）；維護窗＝遊戲維修的時段（只影響要不要發通知，不用來算時間）。日常修正請用上面的候選和覆寫——這裡很少需要動。</p>
+<p class="foot">這就是玩家現在看到的時刻表。錨點＝上次親眼看到紫洞出沒的時間（時間由錨點推算，跨接縫的「前一筆」可另外補上）；「下次」是手動覆寫，只換算下一次與其後，不動錨點；維護窗＝遊戲維修的時段（只影響要不要發通知，不用來算時間）。日常修正請用上面的候選和覆寫——這裡很少需要動。</p>
 <div id="autoLine" class="preview"></div>
 <div id="pubView"></div>
 <details><summary>手動修改全部（很少用到）</summary>
 <p class="foot">這裡的發佈會一次換掉全部已發佈內容，並且鎖定自動更新（之後監看只寫候選）。確定整份都要自己寫才用；改一兩條請用手動覆寫。</p>
-<label class="lbl" for="anchor">錨點（觀測到的出沒時刻）</label><input id="anchor" type="datetime-local"><div id="anchorPrev" class="preview"></div>
+<label class="lbl" for="anchor">錨點（觀測到的出沒時刻）</label><input id="anchor" type="datetime-local" step="1"><div id="anchorPrev" class="preview"></div>
+<label class="lbl" for="next">下次出沒（留空＝照錨點推算）</label><input id="next" type="datetime-local" step="1"><div id="nextPrev" class="preview"></div>
+<label class="lbl" for="prior">前一筆出沒（留空＝照錨點回推）</label><input id="prior" type="datetime-local" step="1"><div id="priorPrev" class="preview"></div>
+<label class="lbl"><input id="discard" type="checkbox"> 放棄已過且確認沒發生的覆寫（略過保護）</label>
 <div id="wins"></div>
 <div class="btnrow"><button id="addWin">＋ 維護窗</button><button id="pub" class="primary">發佈</button></div>
 <div class="btnrow"><button id="resumeAuto" hidden>恢復自動更新</button></div>
@@ -997,15 +1014,23 @@ details{margin-top:.8rem}summary{cursor:pointer;font-size:.85rem;color:var(--mut
 const $=id=>document.getElementById(id);
 function say(t,cls){const m=$("msg");m.textContent=t;m.className=cls||"";}
 const auth=()=>({Authorization:"Bearer "+(sessionStorage.getItem("ADMIN")||"")});
-function msToInput(ms){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ms));const g=t=>(p.find(x=>x.type===t)||{}).value||"";return g("year")+"-"+g("month")+"-"+g("day")+"T"+g("hour")+":"+g("minute");}
-function inputToMs(s){const m=/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})$/.exec(s||"");if(!m)return NaN;return Date.UTC(+m[1],+m[2]-1,+m[3],+m[4]-8,+m[5]);}
+// Second-precision on purpose (2026-10-14): the schedule's record and
+// correction carry seconds, and a minute-truncated round trip would move the
+// record and trip the supersede guard on an untouched republish.
+function msToInput(ms){const p=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ms));const g=t=>(p.find(x=>x.type===t)||{}).value||"";return g("year")+"-"+g("month")+"-"+g("day")+"T"+g("hour")+":"+g("minute")+":"+g("second");}
+function inputToMs(s){const m=/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})(?::(\\d{2}))?$/.exec(s||"");if(!m)return NaN;return Date.UTC(+m[1],+m[2]-1,+m[3],+m[4]-8,+m[5],+(m[6]||0));}
+function fmtSec(ms){return fmt(ms)+":"+String(new Date(ms+8*3600e3).getUTCSeconds()).padStart(2,"0");}
 function fmt(ms){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(ms));}
 function prevText(s,e){if(!Number.isFinite(s))return "錨點未填。";return "台北 "+fmt(s)+(e===undefined?"":(Number.isFinite(e)?" ～ "+fmt(e):" ～ （結束未填）"));}
 function paintPreview(row){const s=inputToMs(row.querySelector(".ws").value),e=inputToMs(row.querySelector(".we").value);row.querySelector(".preview").innerHTML="台北 <b>"+(Number.isFinite(s)?fmt(s):"？")+"</b> ～ <b>"+(Number.isFinite(e)?fmt(e):"？")+"</b>";}
 function winRow(s,e){const d=document.createElement("div");d.className="win";const g=document.createElement("div");g.className="grid";g.innerHTML='<div><label class="lbl">開始</label><input type="datetime-local" class="ws"></div><div><label class="lbl">結束</label><input type="datetime-local" class="we"></div><div><button class="del">刪</button></div>';const pv=document.createElement("div");pv.className="preview";d.appendChild(g);d.appendChild(pv);if(s)g.querySelector(".ws").value=msToInput(s);if(e)g.querySelector(".we").value=msToInput(e);const paint=()=>{const a=inputToMs(g.querySelector(".ws").value),b=inputToMs(g.querySelector(".we").value);pv.innerHTML="台北 <b>"+(Number.isFinite(a)?fmt(a):"？")+"</b> ～ <b>"+(Number.isFinite(b)?fmt(b):"？")+"</b>";};g.querySelector(".ws").oninput=paint;g.querySelector(".we").oninput=paint;g.querySelector(".del").onclick=()=>d.remove();paint();return d;}
-function paintAnchor(){const a=inputToMs($("anchor").value);$("anchorPrev").textContent=Number.isFinite(a)?"台北 "+fmt(a):"錨點未填。";}
-async function load(){const r=await fetch("/admin/api/state",{headers:auth()});if(r.status===401){say("登入失效，請重新登入。","err");return;}const st=await r.json();$("anchor").value=msToInput(st.verified.anchorMs);paintAnchor();$("wins").innerHTML="";for(const w of st.verified.windows)$("wins").appendChild(winRow(w.startMs,w.endMs));say("已發佈：更新於 "+(st.verified.updatedAt?fmt(st.verified.updatedAt):"（未曾）")+"（"+(st.verified.confidence||"verified")+"）","ok");const pv=$("pubView");pv.innerHTML="";const pa=document.createElement("div");pa.className="preview";pa.innerHTML="錨點 <b>"+fmt(st.verified.anchorMs)+"</b>";pv.appendChild(pa);for(const w of st.verified.windows){const pr=document.createElement("div");pr.className="preview";pr.innerHTML="維護 <b>"+fmt(w.startMs)+"</b> ～ <b>"+fmt(w.endMs)+"</b>";pv.appendChild(pr);}if(!st.verified.windows.length){const pr=document.createElement("div");pr.className="preview";pr.textContent="無維護窗。";pv.appendChild(pr);}const locked=st.verified.auto===false;$("autoLine").textContent=locked?"手動鎖定中：監看只寫候選，不覆蓋已發佈。":"自動更新中：監看有新結果會直接採用。";$("resumeAuto").hidden=!locked;const ov=st.overrides||{overrides:[],tombstones:[]};$("ovr").innerHTML="";for(const w of (ov.overrides||[]))$("ovr").appendChild(winRow(w.startMs,w.endMs));$("tmb").innerHTML="";for(const w of (ov.tombstones||[]))$("tmb").appendChild(winRow(w.startMs,w.endMs));const c=$("cands");c.innerHTML="";if(!st.candidates||!st.candidates.windows.length){c.innerHTML='<p class="empty">無候選。</p>';return;}const h=document.createElement("p");h.className="foot";h.textContent=st.candidates.windows.length+" 個候選（觀測於 "+(st.candidates.observedAt?fmt(st.candidates.observedAt):"？")+"）——採用前請逐條對過公告：";c.appendChild(h);for(const w of st.candidates.windows){const d=document.createElement("div");d.className="cand";const t=document.createElement("div");t.className="range";t.textContent=fmt(w.startMs)+" ～ "+fmt(w.endMs);d.appendChild(t);const acts=document.createElement("div");acts.className="btnrow";const fix=document.createElement("button");fix.className="mini";fix.textContent="修正";fix.onclick=()=>{const r=winRow(w.startMs,w.endMs);$("ovr").appendChild(r);r.scrollIntoView({block:"nearest"});};const ign=document.createElement("button");ign.className="mini";ign.textContent="忽略";ign.onclick=()=>{$("tmb").appendChild(winRow(w.startMs,w.endMs));};acts.appendChild(fix);acts.appendChild(ign);d.appendChild(acts);c.appendChild(d);}}
+function paintAnchor(){const a=inputToMs($("anchor").value);$("anchorPrev").textContent=Number.isFinite(a)?"台北 "+fmtSec(a):"錨點未填。";}
+function paintNext(){const n=inputToMs($("next").value);$("nextPrev").textContent=Number.isFinite(n)?"台北 "+fmtSec(n):"未設定（照錨點推算）";}
+function paintPrev(){const p=inputToMs($("prior").value);$("priorPrev").textContent=Number.isFinite(p)?"台北 "+fmtSec(p):"未設定（照錨點回推）";}
+async function load(){const r=await fetch("/admin/api/state",{headers:auth()});if(r.status===401){say("登入失效，請重新登入。","err");return;}const st=await r.json();$("anchor").value=msToInput(st.verified.anchorMs);paintAnchor();$("next").value=st.verified.nextMs?msToInput(st.verified.nextMs):"";paintNext();$("prior").value=st.verified.prevMs?msToInput(st.verified.prevMs):"";paintPrev();$("discard").checked=false;$("wins").innerHTML="";for(const w of st.verified.windows)$("wins").appendChild(winRow(w.startMs,w.endMs));say("已發佈：更新於 "+(st.verified.updatedAt?fmt(st.verified.updatedAt):"（未曾）")+"（"+(st.verified.confidence||"verified")+"）","ok");const pv=$("pubView");pv.innerHTML="";const pa=document.createElement("div");pa.className="preview";pa.innerHTML="錨點 <b>"+fmtSec(st.verified.anchorMs)+"</b>";pv.appendChild(pa);if(st.verified.prevMs){const pp=document.createElement("div");pp.className="preview";pp.innerHTML="前一筆 <b>"+fmtSec(st.verified.prevMs)+"</b>";pv.appendChild(pp);}if(st.verified.nextMs){const pn=document.createElement("div");pn.className="preview";pn.innerHTML="下次 <b>"+fmtSec(st.verified.nextMs)+"</b>（覆寫）";pv.appendChild(pn);}for(const w of st.verified.windows){const pr=document.createElement("div");pr.className="preview";pr.innerHTML="維護 <b>"+fmt(w.startMs)+"</b> ～ <b>"+fmt(w.endMs)+"</b>";pv.appendChild(pr);}if(!st.verified.windows.length){const pr=document.createElement("div");pr.className="preview";pr.textContent="無維護窗。";pv.appendChild(pr);}const locked=st.verified.auto===false;$("autoLine").textContent=locked?"手動鎖定中：監看只寫候選，不覆蓋已發佈。":"自動更新中：監看有新結果會直接採用。";$("resumeAuto").hidden=!locked;const ov=st.overrides||{overrides:[],tombstones:[]};$("ovr").innerHTML="";for(const w of (ov.overrides||[]))$("ovr").appendChild(winRow(w.startMs,w.endMs));$("tmb").innerHTML="";for(const w of (ov.tombstones||[]))$("tmb").appendChild(winRow(w.startMs,w.endMs));const c=$("cands");c.innerHTML="";if(!st.candidates||!st.candidates.windows.length){c.innerHTML='<p class="empty">無候選。</p>';return;}const h=document.createElement("p");h.className="foot";h.textContent=st.candidates.windows.length+" 個候選（觀測於 "+(st.candidates.observedAt?fmt(st.candidates.observedAt):"？")+"）——採用前請逐條對過公告：";c.appendChild(h);for(const w of st.candidates.windows){const d=document.createElement("div");d.className="cand";const t=document.createElement("div");t.className="range";t.textContent=fmt(w.startMs)+" ～ "+fmt(w.endMs);d.appendChild(t);const acts=document.createElement("div");acts.className="btnrow";const fix=document.createElement("button");fix.className="mini";fix.textContent="修正";fix.onclick=()=>{const r=winRow(w.startMs,w.endMs);$("ovr").appendChild(r);r.scrollIntoView({block:"nearest"});};const ign=document.createElement("button");ign.className="mini";ign.textContent="忽略";ign.onclick=()=>{$("tmb").appendChild(winRow(w.startMs,w.endMs));};acts.appendChild(fix);acts.appendChild(ign);d.appendChild(acts);c.appendChild(d);}}
 $("anchor").oninput=paintAnchor;
+$("next").oninput=paintNext;
+$("prior").oninput=paintPrev;
 $("loginBtn").onclick=async()=>{const s=$("secret").value;if(!s){say("請輸入密碼。","err");return;}const r=await fetch("/admin/api/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({secret:s})});if(!r.ok){say("密碼錯誤。","err");return;}sessionStorage.setItem("ADMIN",s);$("login").style.display="none";$("ed").hidden=false;$("secret").value="";say("登入成功，載入中…","");await load();};
 if(sessionStorage.getItem("ADMIN")){$("login").style.display="none";$("ed").hidden=false;load();}
 $("addWin").onclick=()=>$("wins").appendChild(winRow());
@@ -1014,7 +1039,7 @@ function collectRows(id){const ws=[];for(const r of document.querySelectorAll("#
 $("saveOvr").onclick=async()=>{const o=collectRows("ovr"),t=collectRows("tmb");if(!o||!t){say("覆寫或忽略有未填完整（需開始＜結束）。","err");return;}const r=await fetch("/admin/api/overrides",{method:"POST",headers:{...auth(),"Content-Type":"application/json"},body:JSON.stringify({overrides:o,tombstones:t})});say(r.ok?"已儲存覆寫。":"儲存失敗 "+r.status+"："+await r.text(),r.ok?"ok":"err");if(r.ok)await load();};
 $("logout").onclick=()=>{sessionStorage.removeItem("ADMIN");location.reload();};
 let armTimer=0;function disarmPub(){const b=$("pub");b.textContent="發佈";b.classList.remove("danger");if(armTimer){clearTimeout(armTimer);armTimer=0;}}
-$("pub").onclick=async()=>{const b=$("pub");if(!armTimer){b.textContent="確認發佈？";b.classList.add("danger");say("再按一次才會真的發佈（全站立即生效）。","");armTimer=setTimeout(disarmPub,5000);return;}disarmPub();const a=inputToMs($("anchor").value);if(!Number.isFinite(a)){say("錨點未填。","err");return;}const ws=[];for(const r of document.querySelectorAll("#wins .win")){const s=inputToMs(r.querySelector(".ws").value),e=inputToMs(r.querySelector(".we").value);if(!Number.isFinite(s)||!Number.isFinite(e)||!(s<e)){say("有維護窗未填完整（需開始＜結束）。","err");return;}ws.push({startMs:s,endMs:e});}b.disabled=true;const r=await fetch("/admin/api/publish",{method:"POST",headers:{...auth(),"Content-Type":"application/json"},body:JSON.stringify({anchorMs:a,windows:ws})});b.disabled=false;say(r.ok?"已發佈。":"發佈失敗 "+r.status+"："+await r.text(),r.ok?"ok":"err");if(r.ok)await load();};
+$("pub").onclick=async()=>{const b=$("pub");if(!armTimer){b.textContent="確認發佈？";b.classList.add("danger");say("再按一次才會真的發佈（全站立即生效）。","");armTimer=setTimeout(disarmPub,5000);return;}disarmPub();const a=inputToMs($("anchor").value);if(!Number.isFinite(a)){say("錨點未填。","err");return;}const nRaw=$("next").value,n=nRaw?inputToMs(nRaw):null;if(nRaw&&!Number.isFinite(n)){say("下次出沒未填完整。","err");return;}const pRaw=$("prior").value,p=pRaw?inputToMs(pRaw):null;if(pRaw&&!Number.isFinite(p)){say("前一筆出沒未填完整。","err");return;}const ws=[];for(const r of document.querySelectorAll("#wins .win")){const s=inputToMs(r.querySelector(".ws").value),e=inputToMs(r.querySelector(".we").value);if(!Number.isFinite(s)||!Number.isFinite(e)||!(s<e)){say("有維護窗未填完整（需開始＜結束）。","err");return;}ws.push({startMs:s,endMs:e});}b.disabled=true;const r=await fetch("/admin/api/publish",{method:"POST",headers:{...auth(),"Content-Type":"application/json"},body:JSON.stringify({anchorMs:a,prevMs:p,nextMs:n,discardPassed:$("discard").checked,windows:ws})});b.disabled=false;say(r.ok?"已發佈。":"發佈失敗 "+r.status+"："+await r.text(),r.ok?"ok":"err");if(r.ok)await load();};
 $("promo").onclick=async()=>{const r=await fetch("/admin/api/promote",{method:"POST",headers:auth()});const t=await r.text();let j=null;try{j=JSON.parse(t);}catch(e){}say(r.ok?(j&&j.promoted?"已採用 "+j.promoted+" 個候選並發佈。":(j&&j.message?j.message:t)):"採用失敗 "+r.status+"："+t,r.ok?"ok":"err");if(r.ok)await load();};
 $("resumeAuto").onclick=async()=>{const r=await fetch("/admin/api/auto",{method:"POST",headers:{...auth(),"Content-Type":"application/json"},body:JSON.stringify({auto:true})});say(r.ok?"已恢復自動更新。":"恢復失敗 "+r.status+"："+await r.text(),r.ok?"ok":"err");if(r.ok)await load();};
 </script></div></body></html>`;
@@ -1110,8 +1135,8 @@ export async function runPurpleFanout(env: Env): Promise<PurpleFanoutReport> {
   if (isInMaintenance(now, sched.windows)) {
     return { skipped: true, reason: "maintenance", spawn: null, subs: 0, sent: 0, pruned: 0 };
   }
-  const spawn = nthOccurrence(firstIndexAfter(now, sched.anchorMs), sched.anchorMs);
-  // Defensive-only: firstIndexAfter is strictly-after by construction, so
+  const spawn = nextOccurrence(now, sched.anchorMs, sched.nextMs);
+  // Defensive-only: nextOccurrence is strictly-after by construction, so
   // spawn is always future here — the branch exists so a future refactor of
   // the index math can never turn into a late card.
   if (spawn <= now) {
@@ -1583,8 +1608,9 @@ export default {
       } catch {
         // bad json falls through to the 400 below.
       }
+      const bodyObj = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
       const doc = parseScheduleDoc({
-        ...((typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>),
+        ...bodyObj,
         updatedAt: Date.now(),
         updatedBy: "admin",
         // A hand edit locks auto-apply: the published values persist until
@@ -1593,10 +1619,19 @@ export default {
       });
       if (!doc) {
         return Response.json(
-          { error: "anchorMs must be a finite number; every window needs finite startMs < endMs" },
+          {
+            error:
+              "anchorMs must be a finite number; prevMs absent/null or a finite time before anchorMs; nextMs absent/null or a finite time after anchorMs; every window needs finite startMs < endMs",
+          },
           { status: 400 }
         );
       }
+      // A correction that already passed and is not yet in the record is never
+      // superseded silently: its spawns would vanish from the past. The one
+      // bypass is the explicit discard for a correction that never happened.
+      const discardPassed = bodyObj.discardPassed === true;
+      const supersede = correctionSupersedeError(await readSchedule(_env), doc, Date.now(), discardPassed);
+      if (supersede) return Response.json({ error: supersede }, { status: 409 });
       await _env.PURPLE.put("purple:schedule", JSON.stringify(doc));
       return Response.json({ ok: true, updatedAt: doc.updatedAt });
     }
@@ -1612,7 +1647,7 @@ export default {
       // back on the next watcher run. Keeps auto-apply on: the adopted values
       // equal the resolved candidates, so future runs just keep them current.
       const current = await readSchedule(_env);
-      await resolveAndStore(_env, current.anchorMs, cand.windows, Date.now(), "admin");
+      await resolveAndStore(_env, current.anchorMs, current.nextMs, current.prevMs, cand.windows, Date.now(), "admin");
       const after = await readSchedule(_env);
       return Response.json({ ok: true, promoted: after.windows.length, updatedAt: after.updatedAt });
     }
@@ -1635,6 +1670,8 @@ export default {
       if (!auto) {
         const doc = parseScheduleDoc({
           anchorMs: current.anchorMs,
+          prevMs: current.prevMs,
+          nextMs: current.nextMs,
           windows: current.windows,
           updatedAt: Date.now(),
           updatedBy: "admin",
@@ -1648,7 +1685,7 @@ export default {
       }
       const cand = await readCandidates(_env);
       const base = cand && cand.windows.length > 0 ? cand.windows : current.windows;
-      const applied = await resolveAndStore(_env, current.anchorMs, base, Date.now(), "admin");
+      const applied = await resolveAndStore(_env, current.anchorMs, current.nextMs, current.prevMs, base, Date.now(), "admin");
       return Response.json({ ok: true, auto, applied });
     }
     if (req.method === "POST" && url.pathname === "/admin/api/overrides") {
@@ -1679,7 +1716,7 @@ export default {
       if (current.auto) {
         const cand = await readCandidates(_env);
         const base = cand && cand.windows.length > 0 ? cand.windows : current.windows;
-        applied = await resolveAndStore(_env, current.anchorMs, base, Date.now(), "admin");
+        applied = await resolveAndStore(_env, current.anchorMs, current.nextMs, current.prevMs, base, Date.now(), "admin");
       }
       return Response.json({ ok: true, applied });
     }

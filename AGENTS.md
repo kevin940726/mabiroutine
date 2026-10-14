@@ -76,10 +76,11 @@ Measured on PowerShell 7.6.6, Windows:
 
 ## Pre-push Gate (agents: run this before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:drag` + `test:migrations` + `test:sync` + `build`. All ten must pass:
+`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:drag` + `test:purple` + `test:migrations` + `test:sync` + `build`. All eleven must pass:
 - `test:shops` bundles `scripts/check-shops.entry.ts` (real recipes/shops/curated-order data): strict shape, currency validity, dup options, no-trade-routes-in-recipes, shop-gold-only, twin probes, curated completeness, and order-list integrity. Run after touching any of the data files.
 - `test:migrations` bundles the real `migratePersisted` and runs fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic barter ids, removed-id prune, passthrough, filter sanitize). If you add a migrate step, add a fixture block (A/B/C/D/E/F pattern) proving old data survives.
 - `test:drag` bundles `src/lib/dragRules.ts` and asserts the drag hierarchy in `scripts/check-drag-rules.entry.ts`: a pinned child reorders only inside its own merchant group (a drop outside it lands at the end of that group), a top-level row cannot cross sections, and a grouped pin cannot swap into the plain-row list. Cross-LIST moves need no rule — each list has its own drag context, so a drop cannot resolve outside it. Run after touching `dragRules.ts` or a drag handler.
+- `test:purple` bundles `src/lib/purpleHole.ts` and pins the schedule's two rays in `scripts/check-purple.entry.ts`: a `next` correction leaves the record's past byte-identical (the 2026-10-14 rule: correcting the next spawn never rewrites the recorded past; only an explicit `anchor` moves it), a passed correction joins the past and re-phases onward, displaced lattice items never surface as future, the seam walk lands on the record, `prevMs` keeps the row behind a recorded spawn exact across a seam, the parse gate rejects a correction at/before the anchor and a previous point at/after it, and the supersede guard refuses a publish that would drop a passed, unrecorded correction (409, record first). Run after touching `purpleHole.ts`, the feed/admin doc shape, or a reminder lane.
 - `test:sync` runs `scripts/check-sync.mjs`: hermetic engine/property/tab suites (real store+sync code, always) plus live API + real-Chromium (Playwright) E2E (SKIP loudly without `pnpm dev:api` or the Playwright Chromium — `pnpm install` does not fetch it; run `pnpm exec playwright install chromium` once). If you touch sync, reset, or merge code, these must pass for real — not skipped. Sabotage standard: a suppression/marker change must fail T3 (proven 2026-09-06).
 - `test:fallbacks` runs `scripts/check-art-fallbacks.mjs` over `src/`, `api/` and `workers/` plus `public/`: no `src` assignment anywhere (an assignment to a URL that is missing re-enters the error handler forever — that is what drained the team's edge requests on 2026-10-12), every NPC name `shops.json` references has a portrait, every hardcoded `/npc/` or `/items/` filename literal resolves to a file, and the `public/npc/placeholder.png` compat shim is present AND tracked by git (untracked means the deploy 404s the fallback). Run after touching any art `<img>`, its fallback, or an art path. Rationale and measurements: `docs/item-icons.md` § The fallback rule.
 - `test:budget` runs `scripts/check-budget.mjs`: the real `public/sw-budget.js` in a `node:vm` realm with a fake `self`/`caches`/`fetch`/clients. Asserts the device request budget never intercepts below its tiers, trips where it says (>400/min, >4,000/30min, >6,000/6h), and past a trip answers every same-origin class instead of fetching (`/api/` as 429, navigations from the preload or pages cache else the network, images from cache else a transparent pixel, everything else from cache else a 503 with Retry-After), with cross-origin never touched. The `importScripts` entry in `vite.config.ts` is load-bearing (the listener must register before the generated routes, or a Workbox route wins the fetch event and the guard is silently disarmed); run it after touching that config or the worker script. It also fails any network call under `src/` made outside the three sanctioned request sites (`sync/api.ts` for `/api/session`, `src/lib/net.ts` for the push registry, and `purpleHole.ts`, which keeps its own throttled feed fetch because that module is shared with the Worker and must stay free of aliased runtime imports), so a new request path cannot land uncounted. See `docs/operations.md` §7.
@@ -91,10 +92,15 @@ Measured on PowerShell 7.6.6, Windows:
 
 Timing fixes are live KV data on the worker, not code: use the `purple-schedule`
 skill (`skills/purple-schedule/`, invoked as `/purple-fix`), which wraps the
-`/admin` API with `MABI_ADMIN_SECRET` from the process environment. Export it,
-or keep the gitignored `.env.admin.local` at the repo root and load it per
-command with `node --env-file=.env.admin.local …` (never commit, log, or pass it
-as an argument; not the root `.env.local`, which `vercel env pull` overwrites).
-A schedule correction never needs `git push` or `worker:deploy`. Runbook:
-`docs/operations.md` §6; the suppression-only window model, why excluding a
-window errs safe, and the fixed 36h15m grid: `docs/purple-hole.md`.
+`/admin` API with `MABI_ADMIN_SECRET` from the process environment. A
+next-spawn correction is `next <t>`, never `anchor`: correcting the next spawn
+must not rewrite the recorded past (the maintainer's 2026-10-14 rule), and
+`anchor` is reserved for recording a spawn that was actually observed. A
+correction that never happened is dropped with `forget <t>`, never with a false
+record. Export the secret, or keep the gitignored `.env.admin.local` at the
+repo root and load it per command with `node --env-file=.env.admin.local …`
+(never commit, log, or pass it as an argument; not the root `.env.local`, which
+`vercel env pull` overwrites). A schedule correction never needs `git push` or
+`worker:deploy`. Runbook: `docs/operations.md` §6; the suppression-only window
+model, why excluding a window errs safe, and the fixed 36h15m grid:
+`docs/purple-hole.md`.

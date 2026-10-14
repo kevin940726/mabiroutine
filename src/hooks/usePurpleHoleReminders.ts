@@ -9,12 +9,11 @@ import {
 import {
   PURPLE_HOLE_ID,
   PURPLE_TAG,
-  firstIndexAfter,
   formatTaipei,
   isInMaintenance,
   msUntilNextPurpleFire,
   msUntilPurpleFire,
-  nthOccurrence,
+  nextOccurrence,
   subscribePurpleFeed,
 } from "@/lib/purpleHole";
 import { serverPushOn } from "@/lib/serverPush";
@@ -78,7 +77,9 @@ export function usePurpleHoleReminders(enabled: boolean) {
           armNextSpawn();
           return;
         }
-        const spawn = nthOccurrence(firstIndexAfter(Date.now()));
+        // The card names the spawn the timer armed for, so it must read the
+        // same source: a `nextMs` correction, not the anchor lattice.
+        const spawn = nextOccurrence(Date.now());
         // Already fired for this spawn (e.g. foreground bounce right after
         // a fire): skip, don't double-card.
         if (firedSpawn === spawn) {

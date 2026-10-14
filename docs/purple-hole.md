@@ -6,17 +6,27 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 ## Schedule (feed-owned since 2026-09-18)
 
 - Cycle 36h15m. No observation shows maintenance affecting it, so the pause
-  model was dropped (2026-10-07). Windows come from the worker feed
-  (`/purple-schedule`, KV `purple:schedule`) and are suppression-only (not fed
-  into the grid); the hardcoded list is the empty-KV/offline baseline. Client
-  refresh: boot, every 30 min, foreground return, reconnect, popover open,
-  through one throttled single-flight call (see `docs/operations.md` §7).
+  model was dropped (2026-10-07). Spawns are two rays (2026-10-14): the record
+  lattice (`anchorMs`, backward) supplies the past, and an explicit correction
+  (`nextMs`, 下次, forward) supplies the next spawn and onward when set;
+  without one the rays degenerate to the old single lattice. Windows come from
+  the worker feed (`/purple-schedule`, KV `purple:schedule`) and are
+  suppression-only (not fed into the grid); the hardcoded list is the
+  empty-KV/offline baseline. Client refresh: boot, every 30 min, foreground
+  return, reconnect, popover open, through one throttled single-flight call
+  (see `docs/operations.md` §7).
 - Spawns: one each in 女神庭園, 冰霜峽谷, 雲海曠野 (row desc, per user 2026-09-17).
 - Anchor: feed-owned, edited on `/admin` (錨點 field), no code push. It is the
-  reference spawn the grid is measured from (usually the last observed one);
-  the next spawn is always `anchor + n × 36h15m`. Drift is corrected by
-  re-anchoring by hand. `PURPLE_ANCHOR_MS` in code is the empty-KV/offline
-  fallback only.
+  RECORD (the last spawn actually observed), with `prevMs` (前一筆) as the
+  recorded spawn before it so the row behind the anchor stays exact across a
+  seam (10-13 15:41:02 → 10-14 14:10:09 is 22h29m, not 36h15m). Only an
+  explicit re-anchor moves the record. A correction of the next spawn lives in
+  its own feed field (`nextMs`, 下次) and never touches the record, so the past
+  rows do not move on a correction (rule of 2026-10-14; the old habit of
+  re-anchoring did move them). A passed correction that the record does not
+  cover is refused by the publish (409: record first, never fold). Drift is
+  handled with `next` (the next spawn) or `anchor` (an observation).
+  `PURPLE_ANCHOR_MS` in code is the empty-KV/offline fallback only.
 
 ## Phases (from the original brief, 2026-09-17)
 
@@ -41,6 +51,7 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 - Server-lane paging (2026-09-30): the fanout sends one page (~30 subs) per tick so a single invocation stays under the Workers free-plan 50-subrequest cap, and the `purple:fanout` cursor doubles as the fire-once guard (any 2xx counts as delivered). Before this the one-shot run threw past 50 subs (58 on 2026-09-30) *before* stamping the guard, so the 1-min tick re-sent the first ~48 subs every minute.
 - Maintenance feed + no-commit timetable updates: shipped (phase 2 + 3B) — runbook in `docs/operations.md`.
 - Pause model dropped (2026-10-07): no observation shows maintenance affecting the cycle, so the grid is a plain `anchor + n × 36h15m`. The 2026-09-30 evidence (a leg that crossed a window landed ~13h from either reading, and the 2026-10-08 spawn is a clean `anchor + 5 × 36h15m`) showed the shift is not a function of the window. Maintenance windows are suppression-only: `isInMaintenance` stands cards down while the game is down; they are not fed into the grid. Re-anchor by hand when a spawn drifts from the grid (錨點 + 發佈, then 回復自動更新). Quick fixes on `/admin` (§6): 忽略 a window (drop it from suppression), 修正 its bounds, or re-anchor.
+- Corrections freeze the past (2026-10-14, maintainer rule): a next-spawn correction must not rewrite the previously recorded past, so the feed doc pairs the record (`anchorMs`, the last observed spawn, plus `prevMs`, the spawn recorded before it) with an explicit next (`nextMs`); a correction swaps only the next spawn and everything after it, and the timetable's 過去 rows stay byte-identical until an explicit re-anchor. The skill's `next <t>` is the correction verb; `anchor <t> [prev]` is the only verb that moves the record. Two follow-ups decided in the same pass: a passed correction that the record does not cover is *refused* at publish (409, naming the spawn to record first; folding it into the record unseen was rejected), and `prevMs` exists so the row behind a recorded spawn is exact across a seam (the maintained records are not always 36h15m apart). Background: the 2026-10-14 correction (next spawn 10-14 14:10:09) was published as a re-anchor, which moved the past rows from 10-13 15:41:02 / 10-12 03:26:02 to 10-13 01:55:09 / 10-11 13:40:09; the endorsed record (anchor 10-13 15:41:02, prev 10-12 03:26:02, next 10-14 14:10:09) is restored once the build carrying the fields is deployed, because a pre-field client ignores them and derives from the anchor alone.
 - Feed refresh (2026-09-30): boot-only was the gap for always-open apps (the app is never closed, so a long-lived tab could sit on an indefinitely stale timetable). Now refreshed at boot + every 30 min + foreground return + reconnect + popover open, all coalesced through one throttled (60s gap) single-flight call. A no-change response is a no-op apply that notifies nobody.
 - Same local-only rules as the hourly lane: never synced, never sent anywhere, page-open-only.
 
@@ -97,6 +108,7 @@ Reminders graduated 2026-09-19: no flag, bells show for everyone.
 - [x] Client auto-refresh: boot + 30 min + foreground + reconnect + popover open (2026-09-30)
 - [x] Maintenance fallback pruned to the current routine: spent 9/23 prediction dropped, 9/30 watcher-verified window (06:00–10:00) mirrored (2026-09-30)
 - [x] Pause model dropped (2026-10-07): the cycle is a fixed 36h15m, windows are suppression-only, and the grid was re-set (next spawn 2026-10-08 06:59:35)
+- [x] Corrections freeze the past (2026-10-14): `nextMs` + `prevMs` on the feed, `/admin` (下次出沒 / 前一筆) and the skill (`next`, `anchor [prev]`), the 409 supersede guard, with `test:purple` pinning the two rays
 
 ## Todos
 

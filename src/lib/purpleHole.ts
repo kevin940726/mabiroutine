@@ -7,9 +7,26 @@
 // Maintenance windows are used only to stand cards down (`isInMaintenance`);
 // they are not fed into the grid.
 //
-// Anchor: the last observed spawn. The /purple-schedule feed owns it; the
-// code value below is only the empty-KV/offline fallback (see "Schedule feed"
-// near the end of this file).
+// Two rays (2026-10-14): the anchor is the RECORD — the last spawn actually
+// observed — while a forward correction lives in its own `nextMs` slot
+// (nextMs, nextMs+PERIOD, …). Correcting the next spawn must never rewrite the
+// recorded past, so `nextMs` never moves the anchor; only an explicit
+// re-anchor (a new observation) does, and `prevMs` carries the recorded spawn
+// before the anchor so the row behind it stays exact across a phase seam
+// (a recorded pair is not always PERIOD apart, e.g. the 22h29m 10-13→10-14
+// seam). The record ray is the anchor, then `prevMs` and its backward steps;
+// with neither correction nor prevMs the whole thing degenerates to the old
+// single lattice (a doc with a pre-rule anchor in the future, as published on
+// 2026-10-14, keeps the old behavior exactly).
+//
+// A correction that is already past and not yet absorbed into the record would
+// take its passed spawns out of the past, so publishing one is refused until
+// the record covers it (correctionSupersedeError; the maintainer's choice of
+// 2026-10-14: refuse and record first, never fold silently).
+//
+// Anchor: the lattice reference (the last recorded spawn). The
+// /purple-schedule feed owns it; the code value below is only the
+// empty-KV/offline fallback (see "Schedule feed" near the end of this file).
 
 export const PURPLE_HOLE_ID = "purple-hole";
 
@@ -91,18 +108,40 @@ export function isInMaintenance(
 // for probes and tests. The worker imports this module too (one math module,
 // two runtimes) — the snapshot is per-runtime, and the worker reads KV
 // directly instead of this.
-export type PurpleTimetable = { anchorMs: number; windows: MaintenanceWindow[] };
+export type PurpleTimetable = {
+  anchorMs: number;
+  prevMs: number | null;
+  nextMs: number | null;
+  windows: MaintenanceWindow[];
+};
 
 let activeAnchorMs = PURPLE_ANCHOR_MS;
+let activePrevMs: number | null = null;
+let activeNextMs: number | null = null;
 let activeWindows: MaintenanceWindow[] | null = null; // null = MAINTENANCE_WINDOWS
 
 function activeTimetableWindows(): MaintenanceWindow[] {
   return activeWindows ?? MAINTENANCE_WINDOWS;
 }
 
-/** Apply a feed (or probe) timetable; null halves keep the current values. */
-export function setPurpleTimetable(anchorMs: number | null, windows: MaintenanceWindow[] | null): void {
+/**
+ * Apply a feed (or probe) timetable; null halves keep the current values.
+ * `nextMs` / `prevMs` are written directly when given (undefined = keep), so
+ * a doc without a correction can clear a stale one.
+ */
+export function setPurpleTimetable(
+  anchorMs: number | null,
+  windows: MaintenanceWindow[] | null,
+  nextMs?: number | null,
+  prevMs?: number | null
+): void {
   if (typeof anchorMs === "number" && Number.isFinite(anchorMs)) activeAnchorMs = anchorMs;
+  if (nextMs !== undefined) {
+    activeNextMs = typeof nextMs === "number" && Number.isFinite(nextMs) ? nextMs : null;
+  }
+  if (prevMs !== undefined) {
+    activePrevMs = typeof prevMs === "number" && Number.isFinite(prevMs) ? prevMs : null;
+  }
   if (windows) {
     activeWindows = normalizeWindows(
       windows.filter(
@@ -119,11 +158,18 @@ export function setPurpleTimetable(anchorMs: number | null, windows: Maintenance
 }
 
 export function currentPurpleTimetable(): PurpleTimetable {
-  return { anchorMs: activeAnchorMs, windows: activeTimetableWindows() };
+  return {
+    anchorMs: activeAnchorMs,
+    prevMs: activePrevMs,
+    nextMs: activeNextMs,
+    windows: activeTimetableWindows(),
+  };
 }
 
 export function resetPurpleTimetable(): void {
   activeAnchorMs = PURPLE_ANCHOR_MS;
+  activePrevMs = null;
+  activeNextMs = null;
   activeWindows = null;
 }
 
@@ -132,9 +178,84 @@ export function nthOccurrence(n: number, anchorMs: number = activeAnchorMs): num
   return anchorMs + n * PURPLE_PERIOD_MS;
 }
 
-/** Index of the first occurrence strictly after `nowMs`. */
+/** Index of the first occurrence strictly after `nowMs` (no-correction lattice). */
 export function firstIndexAfter(nowMs: number, anchorMs: number = activeAnchorMs): number {
   return Math.floor((nowMs - anchorMs) / PURPLE_PERIOD_MS) + 1;
+}
+
+/**
+ * First occurrence strictly after `nowMs`. With a correction set, the next
+ * spawn is the correction's first item after now: a correction replaces the
+ * lattice's forward half, leaving the recorded past alone.
+ */
+export function nextOccurrence(
+  nowMs: number = Date.now(),
+  anchorMs: number = activeAnchorMs,
+  nextMs: number | null = activeNextMs
+): number {
+  if (nextMs !== null) {
+    const k = Math.max(0, Math.floor((nowMs - nextMs) / PURPLE_PERIOD_MS) + 1);
+    return nextMs + k * PURPLE_PERIOD_MS;
+  }
+  return nthOccurrence(firstIndexAfter(nowMs, anchorMs), anchorMs);
+}
+
+/**
+ * The occurrence at or before `nowMs`; `back` walks that many steps earlier.
+ * Steps go through `prevAtOrBefore` so they cross the record/correction seam
+ * correctly (the item before a correction is the record's last item, not that
+ * item minus PERIOD).
+ */
+export function prevOccurrence(
+  nowMs: number = Date.now(),
+  back = 0,
+  anchorMs: number = activeAnchorMs,
+  nextMs: number | null = activeNextMs,
+  prevMs: number | null = activePrevMs
+): number {
+  let t = prevAtOrBefore(nowMs, anchorMs, nextMs, prevMs);
+  for (let i = 0; i < back; i++) t = prevAtOrBefore(t - 1, anchorMs, nextMs, prevMs);
+  return t;
+}
+
+function prevAtOrBefore(
+  nowMs: number,
+  anchorMs: number,
+  nextMs: number | null,
+  prevMs: number | null
+): number {
+  let best = recordItemAtOrBefore(nowMs, anchorMs, nextMs, prevMs);
+  // The correction ray covers nextMs and later; a passed correction stays in
+  // the past (it happened) while the record ray feeds everything before it.
+  if (nextMs !== null && nowMs >= nextMs) {
+    best = Math.max(
+      best,
+      nextMs + Math.floor((nowMs - nextMs) / PURPLE_PERIOD_MS) * PURPLE_PERIOD_MS
+    );
+  }
+  return best;
+}
+
+/**
+ * The record ray at/before `nowMs`: the anchor's lattice (or just the anchor
+ * when a correction owns the forward half), and below the anchor the recorded
+ * `prevMs` and its own backward steps. `prevMs` never lets the derived
+ * anchor−PERIOD through when the recorded pair is not PERIOD apart (the seam).
+ */
+function recordItemAtOrBefore(
+  nowMs: number,
+  anchorMs: number,
+  nextMs: number | null,
+  prevMs: number | null
+): number {
+  const k = Math.floor((nowMs - anchorMs) / PURPLE_PERIOD_MS);
+  if (nowMs >= anchorMs || prevMs === null) {
+    // Forward leg. No correction: the plain lattice (k goes negative for a
+    // pre-rule anchor in the future). With one: the record ends at the
+    // anchor, because the correction ray is ahead.
+    return anchorMs + (nextMs === null ? k : Math.min(0, k)) * PURPLE_PERIOD_MS;
+  }
+  return prevMs + Math.floor((nowMs - prevMs) / PURPLE_PERIOD_MS) * PURPLE_PERIOD_MS;
 }
 
 /** Past `past` + next `future` occurrences around now (ascending). */
@@ -142,11 +263,22 @@ export function occurrencesAround(
   nowMs: number = Date.now(),
   past = 2,
   future = 3,
-  anchorMs: number = activeAnchorMs
+  anchorMs: number = activeAnchorMs,
+  nextMs: number | null = activeNextMs,
+  prevMs: number | null = activePrevMs
 ): number[] {
-  const first = firstIndexAfter(nowMs, anchorMs);
-  const out: number[] = [];
-  for (let k = first - past; k < first + future; k++) out.push(nthOccurrence(k, anchorMs));
+  const back: number[] = [];
+  let t = prevOccurrence(nowMs, 0, anchorMs, nextMs, prevMs);
+  for (let i = 0; i < past; i++) {
+    back.push(t);
+    t = prevOccurrence(t - 1, 0, anchorMs, nextMs, prevMs);
+  }
+  const out = back.reverse();
+  t = nextOccurrence(nowMs, anchorMs, nextMs);
+  for (let i = 0; i < future; i++) {
+    out.push(t);
+    t = nextOccurrence(t, anchorMs, nextMs);
+  }
   return out;
 }
 
@@ -162,35 +294,72 @@ export function dailyBucketStartMs(nowMs: number = Date.now()): number {
 /** True when at least one occurrence falls in the current daily bucket. */
 export function isScheduledToday(
   nowMs: number = Date.now(),
-  anchorMs: number = activeAnchorMs
+  anchorMs: number = activeAnchorMs,
+  nextMs: number | null = activeNextMs,
+  prevMs: number | null = activePrevMs
 ): boolean {
-  return bucketOccurrence(nowMs, anchorMs) !== null;
+  return bucketOccurrence(nowMs, anchorMs, nextMs, prevMs) !== null;
 }
 
 /**
- * The occurrence inside the current daily bucket, if any. At most one: the
- * 36h15m period exceeds the 24h bucket, so two can never share it.
+ * The occurrence inside the current daily bucket, if any. Without a
+ * correction at most one can land in a 24h bucket (the 36h15m period exceeds
+ * it); with one, two can share a bucket — prefer the spawn at/before now,
+ * else the next one in the bucket.
  */
 export function bucketOccurrence(
   nowMs: number = Date.now(),
-  anchorMs: number = activeAnchorMs
+  anchorMs: number = activeAnchorMs,
+  nextMs: number | null = activeNextMs,
+  prevMs: number | null = activePrevMs
 ): number | null {
   const start = dailyBucketStartMs(nowMs);
-  const end = start + 24 * 60 * 60 * 1000;
-  const first = firstIndexAfter(start - PURPLE_PERIOD_MS * 2, anchorMs);
-  for (let k = first; ; k++) {
-    const t = nthOccurrence(k, anchorMs);
-    if (t >= end) return null;
-    if (t >= start) return t;
-  }
+  const prev = prevOccurrence(nowMs, 0, anchorMs, nextMs, prevMs);
+  if (prev >= start) return prev;
+  const next = nextOccurrence(nowMs, anchorMs, nextMs);
+  return next < start + 24 * 60 * 60 * 1000 ? next : null;
 }
 
-/** First occurrence strictly after now. */
-export function nextOccurrence(
+/**
+ * Publish guard (the maintainer's 2026-10-14 choice: refuse and record, never
+ * fold): a correction that has already passed must be absorbed into the record
+ * before it is dropped or moved, or its spawns would disappear from the past.
+ * Returns a message for the caller to reject with, or null when the publish is
+ * allowed (an unchanged `nextMs`, a future correction, an anchor that covers
+ * the latest passed spawn, or `discardPassed`). The auto paths carry `nextMs`
+ * through unchanged and pass.
+ *
+ * `discardPassed` is the one bypass, for the case the guard cannot know: the
+ * maintainer asserts the passed correction never happened, so there is nothing
+ * to record and its rows are dropped. Explicit only (CLI `forget` / the admin
+ * page's 放棄 checkbox); never set on the auto paths.
+ */
+export function correctionSupersedeError(
+  stored: { anchorMs: number; nextMs: number | null } | null | undefined,
+  incoming: { anchorMs: number; nextMs: number | null },
   nowMs: number = Date.now(),
-  anchorMs: number = activeAnchorMs
-): number {
-  return nthOccurrence(firstIndexAfter(nowMs, anchorMs), anchorMs);
+  discardPassed = false
+): string | null {
+  if (discardPassed) return null;
+  const prevNext = stored?.nextMs ?? null;
+  if (prevNext === null || incoming.nextMs === prevNext || prevNext > nowMs) return null;
+  const latest =
+    prevNext + Math.floor((nowMs - prevNext) / PURPLE_PERIOD_MS) * PURPLE_PERIOD_MS;
+  if (incoming.anchorMs >= latest) return null;
+  // Seconds matter here: the value is copied into `anchorMs`, and a minute-
+  // truncated reading of it would fail this same check.
+  return (
+    `the stored correction (nextMs ${formatTaipeiSec(prevNext)}) has already passed; ` +
+    `record its latest spawn first — set anchorMs to ${formatTaipeiSec(latest)} or later ` +
+    `(the skill's \`anchor\` clears the caught-up correction), or drop it with \`forget\` ` +
+    `if it never happened`
+  );
+}
+
+/** "MM/DD HH:mm:ss" in Taipei (guard messages only; the timetable is minute-grained). */
+function formatTaipeiSec(ms: number): string {
+  const s = String(new Date(ms + 8 * 3600e3).getUTCSeconds()).padStart(2, "0");
+  return `${formatTaipei(ms)}:${s}`;
 }
 
 
@@ -210,15 +379,17 @@ export const SPAWN_FRESH_MS = 15 * 60 * 1000;
 export type PurpleBadge = { past: string | null; next: string | null };
 export function purpleBadge(
   nowMs: number = Date.now(),
-  anchorMs: number = activeAnchorMs
+  anchorMs: number = activeAnchorMs,
+  nextMs: number | null = activeNextMs,
+  prevMs: number | null = activePrevMs
 ): PurpleBadge | null {
-  const t = bucketOccurrence(nowMs, anchorMs);
+  const t = bucketOccurrence(nowMs, anchorMs, nextMs, prevMs);
   if (t === null) return null;
   // Absolute "MM/DD HH:mm": relative words (昨日/明日) lie to late-night
   // players sitting on the wrong side of midnight from the 06:00 bucket.
   if (t > nowMs) return { past: null, next: formatTaipei(t) };
   if (t > nowMs - SPAWN_FRESH_MS) return { past: formatTaipei(t), next: null };
-  return { past: formatTaipei(t), next: formatTaipei(nextOccurrence(nowMs, anchorMs)) };
+  return { past: formatTaipei(t), next: formatTaipei(nextOccurrence(nowMs, anchorMs, nextMs)) };
 }
 
 /**
@@ -233,21 +404,24 @@ export type PurpleLive =
   | { kind: "stale"; pastMs: number; nextMs: number };
 export function purpleLive(
   nowMs: number = Date.now(),
-  anchorMs: number = activeAnchorMs
+  anchorMs: number = activeAnchorMs,
+  nextMs: number | null = activeNextMs,
+  prevMs: number | null = activePrevMs
 ): PurpleLive | null {
-  const t = bucketOccurrence(nowMs, anchorMs);
+  const t = bucketOccurrence(nowMs, anchorMs, nextMs, prevMs);
   if (t === null) return null;
   if (t > nowMs) return { kind: "upcoming", nextMs: t };
   if (t > nowMs - SPAWN_FRESH_MS) return { kind: "live", endsMs: t + SPAWN_FRESH_MS };
-  return { kind: "stale", pastMs: t, nextMs: nextOccurrence(nowMs, anchorMs) };
+  return { kind: "stale", pastMs: t, nextMs: nextOccurrence(nowMs, anchorMs, nextMs) };
 }
 
 /** "09-18 02:23"-style label for the next upcoming spawn (off-day note). */
 export function nextBadgeLabel(
   nowMs: number = Date.now(),
-  anchorMs: number = activeAnchorMs
+  anchorMs: number = activeAnchorMs,
+  nextMs: number | null = activeNextMs
 ): string {
-  return formatTaipei(nextOccurrence(nowMs, anchorMs));
+  return formatTaipei(nextOccurrence(nowMs, anchorMs, nextMs));
 }
 
 /** "MM/DD HH:mm" in Taipei. */
@@ -292,7 +466,8 @@ export function msUntilPurpleFire(nowMs: number = Date.now()): number {
  * until the spawn passes.
  */
 export function msUntilNextPurpleFire(nowMs: number = Date.now()): number {
-  return Math.max(1_000, nthOccurrence(firstIndexAfter(nowMs) + 1) - PURPLE_LEAD_MS - nowMs);
+  const spawn = nextOccurrence(nowMs);
+  return Math.max(1_000, nextOccurrence(spawn) - PURPLE_LEAD_MS - nowMs);
 }
 
 // Reminder availability: shipped to everyone (same graduated-flag deal as
@@ -328,6 +503,22 @@ const FEED_CACHE_KEY = "mabiroutine:purple-schedule";
 
 export type PurpleScheduleDoc = {
   anchorMs: number;
+  /**
+   * The recorded spawn before the anchor (rule of 2026-10-14): the record is
+   * explicit points plus backward derivation, so a seam where two spawns are
+   * not PERIOD apart (10-13 15:41:02 → 10-14 14:10:09 is 22h29m) does not
+   * invent an `anchor − PERIOD` row. Null/absent = derive from the anchor.
+   * Must sit strictly before `anchorMs`.
+   */
+  prevMs: number | null;
+  /**
+   * Explicit next-spawn correction (rule added 2026-10-14): the recorded past
+   * never moves on a correction, so the next spawn lives here instead of in
+   * the anchor. Null = derive from the anchor lattice (old docs parse to
+   * null). Present = the spawn the maintainer says comes next; it and every
+   * PERIOD after it replace the lattice's forward half.
+   */
+  nextMs: number | null;
   windows: MaintenanceWindow[];
   updatedAt: number | null;
   updatedBy: string | null;
@@ -372,13 +563,40 @@ export function parseScheduleDoc(v: unknown): PurpleScheduleDoc | null {
   if (typeof d.anchorMs !== "number" || !Number.isFinite(d.anchorMs)) return null;
   const windows = validWindowsList(d.windows);
   if (!windows) return null;
+  // Absent/null is the no-recorded-previous case (every pre-rule doc). A
+  // present value must sit strictly before the anchor.
+  let prevMs: number | null = null;
+  if (d.prevMs !== undefined && d.prevMs !== null) {
+    if (typeof d.prevMs !== "number" || !Number.isFinite(d.prevMs) || !(d.prevMs < d.anchorMs)) {
+      return null;
+    }
+    prevMs = d.prevMs;
+  }
+  // Absent/null is the no-correction case (every pre-rule doc). A present
+  // value must be a finite time after the anchor: a "next" before or at the
+  // record would cross the two rays.
+  let nextMs: number | null = null;
+  if (d.nextMs !== undefined && d.nextMs !== null) {
+    if (typeof d.nextMs !== "number" || !Number.isFinite(d.nextMs) || !(d.nextMs > d.anchorMs)) {
+      return null;
+    }
+    nextMs = d.nextMs;
+  }
   const updatedAt =
     typeof d.updatedAt === "number" && Number.isFinite(d.updatedAt) ? d.updatedAt : null;
   const updatedBy = typeof d.updatedBy === "string" ? d.updatedBy.slice(0, 32) : null;
   // Absent (all pre-auto docs, incl. the first dashboard seed) reads as
   // auto-on: the watcher starts improving the doc on its next run.
   const auto = typeof d.auto === "boolean" ? d.auto : true;
-  return { anchorMs: d.anchorMs, windows: normalizeWindows(windows), updatedAt, updatedBy, auto };
+  return {
+    anchorMs: d.anchorMs,
+    prevMs,
+    nextMs,
+    windows: normalizeWindows(windows),
+    updatedAt,
+    updatedBy,
+    auto,
+  };
 }
 
 export type PurpleFeedSource = "live" | "cache" | "hardcoded";
@@ -413,8 +631,10 @@ function applyFeedDoc(doc: PurpleScheduleDoc, source: "live" | "cache"): boolean
   const cur = currentPurpleTimetable();
   const same =
     cur.anchorMs === doc.anchorMs &&
+    cur.prevMs === doc.prevMs &&
+    cur.nextMs === doc.nextMs &&
     JSON.stringify(normalizeWindows(cur.windows)) === JSON.stringify(doc.windows);
-  setPurpleTimetable(doc.anchorMs, doc.windows);
+  setPurpleTimetable(doc.anchorMs, doc.windows, doc.nextMs, doc.prevMs);
   feedStatus = { source, updatedAt: doc.updatedAt, fetchedAtMs: Date.now() };
   if (!same) {
     feedVersion++;
