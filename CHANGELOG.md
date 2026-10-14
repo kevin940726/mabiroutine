@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-14 — Purple-hole corrections freeze the past
+
 ### Features
 - A purple-hole correction no longer rewrites the past. The schedule doc carries the next spawn in its own field (`nextMs`, the 下次出沒 field on `/admin` and the skill's `next` verb) beside the record (錨點, plus `prevMs` for the spawn recorded before it), so correcting the next spawn swaps only that spawn and everything after it: the timetable's 過去 rows only move when the record is explicitly updated with a re-anchor. Two rules ride with it: a correction that already passed and is not yet in the record is refused rather than folded in silently (the publish answers 409 and names the spawn to record first), and `prevMs` keeps the row behind a recorded spawn exact when consecutive spawns were not a full cycle apart (the 2026-10-14 seam is 22h29m, so the derived `anchor − 36h15m` would invent a time that never happened). A correction that never happened is dropped explicitly instead of forcing a false record: `forget` on the CLI, a 放棄 checkbox on `/admin`. A record nobody has updated for a while shows that stale past, by design. This release also restores the 2026-10-14 record the correction itself displaced (anchor 10-13 15:41:02, prev 10-12 03:26:02, next 10-14 14:10:09), published once the client and Worker carrying the fields are deployed, because a pre-field client ignores the fields while the pre-field Worker drops them on publish and on every resolve, so an early publish would be erased
 
