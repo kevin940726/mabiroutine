@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-16 — The repeatable quest row, plus grouped-row polish
+
 ### Features
 - 冒險家工會的定期委託 is now a repeatable quest row instead of a checkbox. The row expands — clicking anywhere on it, exactly like a barter parent row — into its three sub-counters (深層地下城 ×3, 地下城 ×5, 狩獵場 ×5) in ONE row: each leg is its own bordered chip holding a normal square counter tile, with the leg's emoji and full name on a desktop width and the emoji alone on a phone (a phone's third is ~110px, where the name would be an ellipsis) — the row's own description lists the three requirements, which is what names those icon-only chips. They are real tracked rows that reset with the week and never show up as rows of their own. The child tick that completes all three turns the quest in automatically: the parent's count goes +1, the three sub-counters return to 0, and the toast's 復原 puts both sides back exactly as they were before that tap — the legs' values and the count — if it was a mis-tap. The parent tile carries the sub-counters' aggregate progress in the same fill and states a barter parent's tile uses, fills solid emerald once a round is recorded (1 already counts as complete for progress and 隱藏已完成, the count keeps recording past it), and — the one row in the app that does — never shows a ✓. Tapping it records +1 without touching the sub-counters; right-click or a held drag adjusts the count. The parent row keeps its standard height (88px desktop / 100px mobile, the same as every other row) in both fold states. A checked row from an existing save carries over as one recorded round
 
