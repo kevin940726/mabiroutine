@@ -36,6 +36,8 @@ MabiRoutine's design principle: static game data ships with the app;
    over — back up important progress via footer 匯出 JSON (Export JSON) first.
 3. Content-only changes (descriptions, `max`): take effect immediately;
    in-progress counters are kept and clamped to the new `max` on next tap.
+   A counter with no `max` (today only 冒險家工會的定期委託) never clamps: it is a
+   repeatable-rounds record, and one recorded round already counts as complete.
 
 ## Conflicts & escape hatches (your data, your call)
 

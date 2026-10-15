@@ -15,6 +15,7 @@ import {
 import { barterTaskForPin, shopDealsByPinId } from "@/lib/shops";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
 import { isTaskDone } from "@/lib/hourlyReminders";
+import { isSubTaskId } from "@/lib/subTasks";
 import type { Character, Task, TaskSection } from "@/lib/types";
 
 export type CelebrationSnapshot = {
@@ -54,7 +55,7 @@ export function visibleSectionTasks(section: TaskSection, s: CelebrationSnapshot
     if (t.id === PURPLE_HOLE_ID && !isScheduledToday(Date.now())) return;
     kept.push(t);
   };
-  for (const t of trackerJson as Task[]) if (t.section === section) take(t);
+  for (const t of trackerJson as Task[]) if (t.section === section && !isSubTaskId(t.id)) take(t);
   for (const t of s.customTasks ?? []) if (t.section === section) take(t);
   if (section === "daily" || section === "weekly") {
     const deals = shopDealsByPinId();

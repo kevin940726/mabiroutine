@@ -27,7 +27,7 @@ import { useState } from "react";
 import { displayName } from "@/lib/materials";
 import { TaskRow } from "@/components/TaskRow";
 import { ItemIcon } from "@/components/shop/ItemIcon";
-import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, PFP_BUTTON, ITEM_ART_DESKTOP, ITEM_ART_MOBILE, META_TOWN } from "@/components/rowStyle";
+import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, PFP_BUTTON, ITEM_ART_DESKTOP, ITEM_ART_MOBILE, META_TOWN, VIOLET_BODY, VIOLET_STRIP } from "@/components/rowStyle";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { bandId } from "@/lib/dragRules";
@@ -68,21 +68,9 @@ function useGroupToggle() {
   };
 }
 
-/** The parent's colour, in ONE pair of class strings. Dark is not a hue swap here:
- *  the dark card is oklch(0.205 0 0), so a light-mode violet at a real alpha lands
- *  on near-black as a bright patch and glares. Dark therefore uses a far lower
- *  alpha of a lighter step, the convention the repo already uses for dark tints.
- *
- *  - `strip` is the bottom capsule, where the colour is most visible.
- *  - `body` is the expanded children block. Tinting it is what makes an open group
- *    read as one unit instead of a parent with loose rows hanging off it.
- *
- *  The parent CARD is not tinted on the group's account: it keeps the row's own
- *  neutral shell so the two read as the same component, with violet as a section
- *  marker only. It does take the row's `bg-muted/50` completion tint, because a
- *  done group must read as done the way a done row does. */
-const VIOLET_STRIP = "bg-violet-500/15 text-violet-700 dark:bg-violet-400/[0.10] dark:text-violet-300";
-const VIOLET_BODY = "bg-violet-50/50 dark:bg-violet-400/[0.04]";
+/** The parent's colour, in ONE pair of class strings — shared with GoalGroup,
+ *  the other grouped parent, from `rowStyle.ts`. See that constant's comment for
+ *  why dark is a separate alpha rather than a hue swap. */
 
 /** The item a pin is about, in the row's own wording: a barter row titles with
  *  barterMeta.get (minus its ×N), a shop row with task.name. */

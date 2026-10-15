@@ -212,7 +212,7 @@ try {
       if (!/^https?:$/.test(location.protocol)) return; // opaque origin: nothing to seed
       localStorage.setItem('mabiroutine:v2', JSON.stringify({
         state: {
-          version: 21,
+          version: 22,
           characters: [{ id: cid, name: 'A', taskValues: { tower: 9 }, hiddenTaskIds: [] }],
           activeCharId: cid,
           accountValues: {},
@@ -228,7 +228,7 @@ try {
           hourlyReminders: [],
           purpleHoleReminders: []
         },
-        version: 21
+        version: 22
       }));
       localStorage.setItem('mabiroutine:flatbase', JSON.stringify({
         sessionId: sid,

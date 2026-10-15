@@ -38,7 +38,7 @@ case — switch to `dev:api`.
 
 ## Five-minute tour
 
-- **Game data is hand-owned JSON** — `src/data/tracker.json` (22 rows) +
+- **Game data is hand-owned JSON** — `src/data/tracker.json` (25 rows) +
   `src/data/shops.json` (NPC → purchase/exchange options incl. the 117 curated legs, each with a stable `id`, schema'd by
   `shops.schema.json`) +
   `src/data/curatedOrder.ts` + `src/data/defaultPins.json` +
@@ -50,7 +50,7 @@ case — switch to `dev:api`.
   (town-grouped for in-game checking); a leg's carried display limit must match
   its structured cap (`test:shops` twin parity enforces it).
 - **State is one Zustand store** — `src/store/useAppStore.ts`, persisted to
-  `localStorage` key `mabiroutine:v2` (schema `v21`, migrated on load — see the
+  `localStorage` key `mabiroutine:v2` (schema `v22`, migrated on load — see the
   store checklist in `AGENTS.md` before changing persisted shape).
 - **Resets are Taipei wall-clock** — `src/lib/reset.ts`: daily 06:00 /
   Monday 06:00 `Asia/Taipei`, evaluated lazily + on focus/visibility + 60s tick.
@@ -85,14 +85,19 @@ case — switch to `dev:api`.
   `/api/*` responses are never cached by the SW — keep it that way.
 - **Change reset/count rules:** `src/lib/reset.ts` + data `max` + docs; remember
   countdown tiles, header countdown, and per-character isolation in tests-by-eye.
+  A counter with NO `max` is unbounded (today only `weekly-goals`): done at >= 1,
+  its tile never shows a ✓, and every `max ?? 0` done-check must read `?? 1`
+  (`isTaskDone`, TaskRow's `isDone`, TrackerSection's hideCompleted filter).
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:purple` + `test:migrations` + `test:sync` + `build`. All twelve must pass.
+`pnpm check` = `lint` + `test:shops` + `test:tracker` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:purple` + `test:migrations` + `test:sync` + `build`. All thirteen must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
 `curatedOrder.ts` (shape + currency + dup + no-trade-routes + shop-gold-only + twin probes + curated completeness).
+Tracker rule: `pnpm test:tracker` after touching `tracker.json` (row shape +
+max rules + `subTasks` link integrity — a broken link is silent in the app).
 Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so

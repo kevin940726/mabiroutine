@@ -81,6 +81,18 @@ export const ITEM_ART_DESKTOP = "h-10 w-10 shrink-0";
 export const PFP_BUTTON =
   "grid shrink-0 cursor-pointer place-items-center transition hover:brightness-110 hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
+/** The grouped-parent palette: the strip capsule that sits on a parent card's
+ *  bottom edge and the tinted body its children expand into. ONE pair of strings
+ *  for both consumers (the barter parent in PinnedGroups, the quest parent in
+ *  GoalGroup) — the copies are what drift.
+ *
+ *  Dark is not a hue swap: the dark card is oklch(0.205 0 0), so a light-mode
+ *  violet at a real alpha lands on near-black as a bright patch and glares. Dark
+ *  therefore uses a far lower alpha of a lighter step, the convention the repo
+ *  already uses for dark tints. */
+export const VIOLET_STRIP = "bg-violet-500/15 text-violet-700 dark:bg-violet-400/[0.10] dark:text-violet-300";
+export const VIOLET_BODY = "bg-violet-50/50 dark:bg-violet-400/[0.04]";
+
 /** The tracker's meta vocabulary: the small facts under a title, each with ONE
  *  treatment wherever it appears — a trade row, a shop row, a grouped parent, mobile
  *  and desktop alike.

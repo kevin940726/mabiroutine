@@ -1019,7 +1019,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
 {
   const SID = "e21-roworder";
   const server = { flat: {} as FlatMap };
-  const STORE_VERSION = 21;
+  const STORE_VERSION = 22;
   const pack = (z9: number, a2: number, m5: number) => [
     { id: "cu-z9", name: "C-z9", kind: "daily", section: "custom", type: "check", order: z9 },
     { id: "cu-a2", name: "C-a2", kind: "daily", section: "custom", type: "check", order: a2 },
@@ -1184,7 +1184,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
 {
   const SID = "e22-pinorder";
   const server = { flat: {} as FlatMap };
-  const STORE_VERSION = 21;
+  const STORE_VERSION = 22;
   const P1 = DEFAULT_MUST_PINS[0] ?? "";
   const P2 = DEFAULT_MUST_PINS[1] ?? "";
   const P3 = SHOP_PIN;

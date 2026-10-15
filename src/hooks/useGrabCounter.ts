@@ -40,9 +40,42 @@ function markGrabLearned() {
 // Desktop right-click stays −1 (mobile long-press menu is suppressed).
 // Teaching: touch learns on tap, hover-capable learns on hover; the coach
 // bubble retires everywhere after the first successful grab.
-export function useGrabCounter(taskId: string, count: number, max: number, isAccount: boolean, section: TaskSection) {
+//
+// `writes` lets a caller replace the store writes without losing any of that
+// machinery (GoalGroup's tiles): a goal child's write can CONSUME a completed
+// round, and an unbounded parent clamps at 0 only. Everything else — the hold
+// timing, haptics, the coach mark, `celebrateAfterWrite`, the section
+// celebration — stays here, so a row tile and a goal tile cannot drift apart.
+export type CounterWrites = {
+  /** absolute write (drag step, keyboard, tap-at-full reset) */
+  set: (v: number) => void;
+  /** +1 write (a plain tap) */
+  inc: () => void;
+  /** −1 write (right-click) */
+  dec: () => void;
+  /** tap-at-full resets to 0 when true */
+  done: boolean;
+  /** the write range; an unbounded counter clamps at 0 only */
+  clamp: (v: number) => number;
+  /** a new write gesture begins (pointerdown / keydown), so a caller can clear
+   *  per-gesture state (the goal turn-in suppression) */
+  onWriteStart?: () => void;
+};
+
+export function useGrabCounter(
+  taskId: string,
+  count: number,
+  max: number,
+  isAccount: boolean,
+  section: TaskSection,
+  writes?: CounterWrites
+) {
   const setCounter = useAppStore((s) => s.setCounter);
   const incCounter = useAppStore((s) => s.incCounter);
+  const setV = writes?.set ?? ((v: number) => setCounter(taskId, v, isAccount));
+  const incV = writes?.inc ?? (() => incCounter(taskId, 1, isAccount));
+  const decV = writes?.dec ?? (() => incCounter(taskId, -1, isAccount));
+  const clampV = writes?.clamp ?? ((v: number) => Math.min(max, Math.max(0, v)));
   const [grabbed, setGrabbed] = useState(false);
   const [coach, setCoach] = useState(false);
   const [, setTick] = useState(0);
@@ -51,7 +84,6 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
   const startVal = useRef(0);
   const moved = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const done = max > 0 && count >= max;
   // desktop (hover-capable): coach shows on hover only; touch: on tap only
   const [canHover] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches
@@ -61,7 +93,7 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
   };
-  const clamp = (v: number) => Math.min(max, Math.max(0, v));
+  const clamp = (v: number) => clampV(v);
   const showCoach = () => {
     setCoach(true);
     window.dispatchEvent(new CustomEvent(COACH_EVENT, { detail: taskId }));
@@ -113,6 +145,7 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
     handlers: {
       onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
         if (e.pointerType === "mouse" && e.button !== 0) return; // right-click handled by contextmenu
+        writes?.onWriteStart?.();
         // pin node + id synchronously: the synthetic event is dead by the time
         // the hold timer fires (currentTarget nulls after dispatch)
         const node = e.currentTarget;
@@ -131,7 +164,7 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
         const steps = Math.trunc((startY.current - e.clientY) / stepPx);
         const next = clamp(startVal.current + steps);
         if (next !== count) {
-          celebrateAfterWrite(section, controlPoint(e), () => setCounter(taskId, next, isAccount));
+          celebrateAfterWrite(section, controlPoint(e), () => setV(next));
           buzz(8);
         }
       },
@@ -142,8 +175,8 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
         if (wasGrabbed) endGrab();
         else clear();
         if (!wasGrabbed && !didMove) {
-          if (done) setCounter(taskId, 0, isAccount);
-          else celebrateAfterWrite(section, controlPoint(e), () => incCounter(taskId, 1, isAccount));
+          if (writes?.done ?? (max > 0 && count >= max)) setV(0);
+          else celebrateAfterWrite(section, controlPoint(e), incV);
           if (!canHover && !grabLearned()) showCoach();
         }
       },
@@ -153,17 +186,20 @@ export function useGrabCounter(taskId: string, count: number, max: number, isAcc
       },
       onContextMenu: (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault(); // also kills the mobile long-press popup
-        incCounter(taskId, -1, isAccount);
+        writes?.onWriteStart?.();
+        decV();
       },
       onKeyDown: (e: React.KeyboardEvent<HTMLButtonElement>) => {
         if (e.key === "ArrowUp" || e.key === "ArrowRight") {
           e.preventDefault();
+          writes?.onWriteStart?.();
           celebrateAfterWrite(section, controlPoint(e), () =>
-            setCounter(taskId, clamp(count + 1), isAccount)
+            setV(clamp(count + 1))
           );
         } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
           e.preventDefault();
-          setCounter(taskId, clamp(count - 1), isAccount);
+          writes?.onWriteStart?.();
+          setV(clamp(count - 1));
         }
       },
       onMouseEnter: () => {

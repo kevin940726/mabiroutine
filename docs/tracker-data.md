@@ -32,9 +32,13 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 |---|---|---|---|---|---|
 | barrier | 召喚結界 | countdown | 7 | 每小時整點出現（約 10 分鐘）。戰利品次數每週 7 次，週一 06:00 重置，開箱時扣次數。Tile 顯示剩餘（剩 N / 7）。 | **hardcoded per user**; nipponhashi prior "7次為韓服社群" stripped; mabitw 整點出現; bobogameguides 待核 but user hardcodes |
 | black-hole | 黑色坑洞 | countdown | 14 | 狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。Tile 顯示剩餘（剩 N / 14）。 | **hardcoded per user**; moved daily→weekly 2026-09-04; max 7→14 2026-09-05; mabitw 7+7 agrees |
-| weekly-goals | 冒險家工會的定期委託 | check | - | 每周完成冒險家工會的定期委託任務至少一次，通關深層地下城 3 次，通關地下城 5 次，通關狩獵場 5 次，週一 06:00 重置。 | user hand-added |
+| weekly-goals | 冒險家工會的定期委託 | counter | 無上限 | 每週可重複完成：三項子計數（`subTasks`，深層地下城 3／地下城 5／狩獵場 5）全部完成時自動回報 +1 並歸零，週一 06:00 重置。次數僅供記錄，1 即視為完成；磁磚永不顯示 ✓。 | user hand-added; repeatable-quest rework 2026-10-15 (store v22, check → unbounded counter) |
+| ↳ weekly-goals-deep-dungeon | 通關深層地下城 | counter | 3 | weekly-goals 的子計數，只在父列展開時顯示，不單獨成列。 | user hand-added |
+| ↳ weekly-goals-dungeon | 通關地下城 | counter | 5 | 同上。 | user hand-added |
+| ↳ weekly-goals-hunt | 通關狩獵場 | counter | 5 | 同上。 | user hand-added |
 | abyss | 深淵 | counter | 3 | 每週通關獎勵 3 次，入場次數無限制；週一 06:00 重置。 | nipponhashi 官方原文 |
 | raid-gris | 團隊副本（格里斯貝恩） | counter | 1 | 每個首領每週 1 次獎勵，各難度共用同一次。週一 06:00 重置。 | nipponhashi; bobogameguides 已確認 65級+困難已開放 |
+| white-succubus | 團隊副本（白魅魔） | counter | 1 | 每週 1 次獎勵。週一 06:00 重置。 | 補列（以 `tracker.json` 為準；原始來源標註未記錄） |
 | field-boss | 野外首領 | counter | 1 | 每週 1 次討伐戰利品，週一 06:00 重置。之後仍有基本獎勵。每日 12/18/20/22 時出現。 | nipponhashi |
 
 ### 👥 帳號共通
@@ -50,7 +54,9 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | weekly-challenge | 每週挑戰 | account-weekly counter 0/9 | 每週 9 個挑戰，會員有另外 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。 | user hand-added 2026-09-04; max 11→9 (store v11→v12 caps over-max); moved weekly→account 2026-09-07 per user (store v13→v14 moves progress char→account, max wins) |
 | friend-challenges | 好友共同挑戰 | account-weekly | 每週與好友共同完成挑戰，週一 06:00 重置。 | user hand-added |
 
-**Result: `src/data/tracker.json` now 20 TW rows (5 daily + 6 weekly + 9 account). 2026-09-07: `weekly-challenge` moved to account-shared (progress migrates, max across chars), `acc-field-last` (野外首領尾刀) removed — store v14 prunes it from every container incl. provenance.** 2026-09-04: added `daily-challenge` + `weekly-challenge`, `tower` counter→check, `black-hole` daily→weekly (prior hunt / barter-check / life-weekly / acc-guild-weekly removals already landed). `barrier` + `black-hole` are type `countdown` (倒數: counter semantics, tile shows 剩餘, mobile + desktop; fill still rises with used). No KR rows.
+**Result: `src/data/tracker.json` now 25 TW rows (6 daily + 10 weekly + 9 account; 3 of the weekly rows are weekly-goals' `subTasks` and never render as rows of their own). 2026-10-15: `weekly-goals` reworked check → unbounded counter (no `max`: tile shows the bare count, never a ✓, done at >= 1; tap +1; the three sub-counters auto-turn the round in when all three complete) — store v22 turns a stored `true` into 1. 2026-09-07: `weekly-challenge` moved to account-shared (progress migrates, max across chars), `acc-field-last` (野外首領尾刀) removed — store v14 prunes it from every container incl. provenance.** 2026-09-04: added `daily-challenge` + `weekly-challenge`, `tower` counter→check, `black-hole` daily→weekly (prior hunt / barter-check / life-weekly / acc-guild-weekly removals already landed). `barrier` + `black-hole` are type `countdown` (倒數: counter semantics, tile shows 剩餘, mobile + desktop; fill still rises with used). No KR rows.
+
+Unbounded counters (one rule, one shape): a counter with **no `max`** is unbounded — done is read as `>= 1` (`isTaskDone`, TaskRow's `isDone`, the hideCompleted filter), its tile renders the count with no ✓ and no tap-reset, and only `weekly-goals` ships this today. `subTasks` is the single parent→child link (children are real rows with their own ids/values/buckets; they are excluded from section lists, the overall denominator and the celebration roster) and needs no extra label field: the parent's body labels a child by its name minus the 通關 verb (`通關深層地下城` → `深層地下城`, `subTaskLabel` in `lib/subTasks.ts`), shown only from the `sm` breakpoint up — a phone's third is ~110px, so it shows the child's emoji and count only. `pnpm test:tracker` enforces the shape + link integrity (label non-empty and unique among siblings).
 
 ### Barter — TW-only guidance
 

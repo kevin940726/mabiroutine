@@ -3,9 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TaskRow } from "@/components/TaskRow";
+import { GoalGroup } from "@/components/GoalGroup";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { Task, TaskSection } from "@/lib/types";
 import { summarizeProgress } from "@/lib/progress";
+import { subTaskIds } from "@/lib/subTasks";
 import { useAppStore, shopDealToTask, canonicalBarterOrder } from "@/store/useAppStore";
 import { barterTaskForPin, merchantKey, shopDealsByPinId } from "@/lib/shops";
 import { PURPLE_HOLE_ID, isScheduledToday, nextBadgeLabel } from "@/lib/purpleHole";
@@ -242,7 +244,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
         const v = t.serverShared === true ? accountValues[t.id] : char.taskValues[t.id];
         if (t.type === "check") return !v;
         const n = typeof v === "number" ? v : 0;
-        return n < (t.max ?? 0);
+        // No max on a counter = unbounded (weekly-goals): done at >= 1.
+        return n < (t.max ?? 1);
       });
     }
     return list;
@@ -310,7 +313,8 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
         const v = isAccount ? accountValues[t.id] : char?.taskValues[t.id];
         if (t.type === "check") return !v;
         const n = typeof v === "number" ? v : 0;
-        return n < (t.max ?? 0);
+        // No max on a counter = unbounded: done at >= 1 (see the plan's §2 rule).
+        return n < (t.max ?? 1);
       });
     }
     return list;
@@ -531,16 +535,25 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
               their gap and stacked flush. */}
           <div ref={topListRef} className="space-y-2">
           <SortableContext items={allTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-            {allTasks.map((t) => (
-              <TaskRow
-                key={t.id}
-                task={t}
-                value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]}
-                isAccount={isAccount}
-                onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined}
-                onViewInShop={onViewInShop}
-              />
-            ))}
+            {allTasks.map((t) =>
+              subTaskIds(t.id).length > 0 ? (
+                <GoalGroup
+                  key={t.id}
+                  task={t}
+                  value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]}
+                  isAccount={isAccount}
+                />
+              ) : (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]}
+                  isAccount={isAccount}
+                  onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined}
+                  onViewInShop={onViewInShop}
+                />
+              )
+            )}
           </SortableContext>
           </div>
         </DndContext>
@@ -641,7 +654,15 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
                     {purpleOffDay && t.id === PURPLE_HOLE_ID && !isHiddenFor(t) && (
                       <p className="text-[11px] text-muted-foreground mb-1 px-1">非出沒日{purpleNext ? ` — 下次${purpleNext}` : ""}，出沒時會自動移回上方</p>
                     )}
-                    <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} onViewInShop={onViewInShop} />
+                    {subTaskIds(t.id).length > 0 ? (
+                      <GoalGroup
+                        task={t}
+                        value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]}
+                        isAccount={isAccount}
+                      />
+                    ) : (
+                      <TaskRow task={t} value={isAccount ? accountValues[t.id] : char?.taskValues[t.id]} isAccount={isAccount} onEdit={t.source === "custom" ? () => onEditTask?.(t) : undefined} onViewInShop={onViewInShop} />
+                    )}
                   </div>
                 ))}
                 {hiddenBarter.map((bt) => (

@@ -135,8 +135,9 @@ export function upcomingEventLabel(nowMs: number = Date.now()): string {
 
 export function isTaskDone(task: Task, value: number | boolean | undefined): boolean {
   if (task.type === "check") return Boolean(value);
-  const max = task.max ?? 0;
-  return max > 0 && (typeof value === "number" ? value : 0) >= max;
+  // No max on a counter = unbounded (weekly-goals): one recorded round is done.
+  const max = task.max ?? 1;
+  return max > 0 && (typeof value === "number" ? value : value === true ? 1 : 0) >= max;
 }
 
 export type ReminderPermission = "granted" | "denied" | "default" | "unsupported";

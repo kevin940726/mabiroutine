@@ -5,7 +5,7 @@ Data knowledge lives in `docs/` (read it before touching data or sync):
   Hard rule: **never seed KR rows into `src/data/*`**.
 - `docs/sync.md` — sync protocol, key space, decisions, quota.
 
-## Store Version Bumps (persist schema `useAppStore.ts`, current `v21`)
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v22`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
 User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.
@@ -76,8 +76,9 @@ Measured on PowerShell 7.6.6, Windows:
 
 ## Pre-push Gate (agents: run this before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:purple` + `test:migrations` + `test:sync` + `build`. All twelve must pass:
+`pnpm check` = `lint` + `test:shops` + `test:tracker` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:purple` + `test:migrations` + `test:sync` + `build`. All thirteen must pass:
 - `test:shops` bundles `scripts/check-shops.entry.ts` (real recipes/shops/curated-order data): strict shape, currency validity, dup options, no-trade-routes-in-recipes, shop-gold-only, twin probes, curated completeness, and order-list integrity. Run after touching any of the data files.
+- `test:tracker` bundles `scripts/check-tracker.entry.ts` (real `tracker.json`): row shape + max rules (a check carries none; a counter/countdown max is >= 1 when present; only a counter may omit it = unbounded, done at >= 1) and `subTasks` link integrity (every child exists, keeps the parent's id prefix, matches the parent's section/kind, is a bounded counter, has exactly one parent, no nested groups). Run after touching `tracker.json`: the failure mode is silent in the app (a broken link renders no child, a duplicate id steals another row's progress).
 - `test:migrations` bundles the real `migratePersisted` and runs fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic barter ids, removed-id prune, passthrough, filter sanitize). If you add a migrate step, add a fixture block (A/B/C/D/E/F pattern) proving old data survives.
 - `test:drag` bundles `src/lib/dragRules.ts` and asserts the drag hierarchy in `scripts/check-drag-rules.entry.ts`: a pinned child reorders only inside its own merchant group (a drop outside it lands at the end of that group), a top-level row cannot cross sections, and a grouped pin cannot swap into the plain-row list. Cross-LIST moves need no rule — each list has its own drag context, so a drop cannot resolve outside it. Run after touching `dragRules.ts` or a drag handler.
 - `test:purple` bundles `src/lib/purpleHole.ts` and pins the schedule's two rays in `scripts/check-purple.entry.ts`: a `next` correction leaves the record's past byte-identical (the 2026-10-14 rule: correcting the next spawn never rewrites the recorded past; only an explicit `anchor` moves it), a passed correction joins the past and re-phases onward, displaced lattice items never surface as future, the seam walk lands on the record, `prevMs` keeps the row behind a recorded spawn exact across a seam, the parse gate rejects a correction at/before the anchor and a previous point at/after it, and the supersede guard refuses a publish that would drop a passed, unrecorded correction (409, record first). Run after touching `purpleHole.ts`, the feed/admin doc shape, or a reminder lane.

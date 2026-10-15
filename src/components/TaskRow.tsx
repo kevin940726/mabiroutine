@@ -450,8 +450,9 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
 
   const isCheck = task.type === "check";
   const checked = isCheck ? Boolean(value) : false;
-  const count = !isCheck ? (typeof value === "number" ? value : 0) : 0;
-  const isDone = isCheck ? checked : count >= (task.max ?? 0) && (task.max ?? 0) > 0;
+  const count = !isCheck ? (typeof value === "number" ? value : value === true ? 1 : 0) : 0;
+  // A counter with no max is unbounded: done at >= 1 (its tile never shows a ✓).
+  const isDone = isCheck ? checked : count >= (task.max ?? 1);
 
   const isCustom = task.source === "custom";
   const isBarter = task.source === "barter";
@@ -835,8 +836,9 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
 
   const isCheck = task.type === "check";
   const checked = isCheck ? Boolean(value) : false;
-  const count = !isCheck ? (typeof value === "number" ? value : 0) : 0;
-  const isDone = isCheck ? checked : count >= (task.max ?? 0) && (task.max ?? 0) > 0;
+  const count = !isCheck ? (typeof value === "number" ? value : value === true ? 1 : 0) : 0;
+  // A counter with no max is unbounded: done at >= 1 (its tile never shows a ✓).
+  const isDone = isCheck ? checked : count >= (task.max ?? 1);
 
   const isBarter = task.source === "barter";
   const isShop = task.source === "shop";

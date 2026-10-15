@@ -3,6 +3,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { barterTaskForPin } from "@/lib/shops";
 import trackerJson from "@/data/tracker.json";
 import { summarizeProgress } from "@/lib/progress";
+import { topLevelTasks } from "@/lib/subTasks";
 import { writeShopJumpParams } from "@/lib/shopJump";
 import { CharacterTabs, SortableCharMenu } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
@@ -206,7 +207,9 @@ export default function App() {
     const pinnedBarter = barterPins
       .map((id) => barterTaskForPin(id))
       .filter((t): t is Task => !!t && !hidden.has(t.id));
-    const all = [...BUILTIN_TASKS, ...customTasks, ...pinnedBarter].filter((t) => !hidden.has(t.id) && !excludePurple(t));
+    const all = topLevelTasks([...BUILTIN_TASKS, ...customTasks, ...pinnedBarter]).filter(
+      (t) => !hidden.has(t.id) && !excludePurple(t)
+    );
     const { done, total, percent } = summarizeProgress(all, (t) =>
       t.section === "account" || t.serverShared === true ? accountValues[t.id] : active.taskValues[t.id]
     );
@@ -215,11 +218,15 @@ export default function App() {
 
   // Daily list keeps the row — TrackerSection parks
   // it into 已隱藏項目 on off-days (render-only, stays out of progress).
-  const dailyTasks = BUILTIN_TASKS.filter(
+  // Sub-tasks are dropped here: a quest's sub-counters render inside their parent
+  // row, so they are never a top-level row nor a section denominator (the badge,
+  // the overall header and the celebration roster all read these lists).
+  const topBuiltins = topLevelTasks(BUILTIN_TASKS);
+  const dailyTasks = topBuiltins.filter(
     (t) => t.section === "daily"
   );
-  const weeklyTasks = BUILTIN_TASKS.filter((t) => t.section === "weekly");
-  const accountTasks = BUILTIN_TASKS.filter((t) => t.section === "account");
+  const weeklyTasks = topBuiltins.filter((t) => t.section === "weekly");
+  const accountTasks = topBuiltins.filter((t) => t.section === "account");
   const dailyWithCustom = [...dailyTasks, ...customTasks.filter((t) => t.section === "daily")];
   const weeklyWithCustom = [...weeklyTasks, ...customTasks.filter((t) => t.section === "weekly")];
   const accountWithCustom = [...accountTasks, ...customTasks.filter((t) => t.section === "account")];

@@ -7,6 +7,7 @@ import type { AppState, Character, Task } from "@/lib/types";
 import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, costText, getText, barterTaskForPin, type ShopDeal } from "@/lib/shops";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 import { cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
+import { subTaskIds } from "@/lib/subTasks";
 import { flushStorage, idleStorage } from "@/lib/storage";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -74,8 +75,11 @@ function applyResets(state: AppState): Partial<AppState> {
   return patch;
 }
 
-type Store = AppState & {
-  // actions
+/** Pre-write values of one 定期委託 turn-in (parent + its sub-counters), for the
+ *  toast's undo. Absent values are carried as 0 (an undo restores "cleared"). */
+export type GoalUndo = { id: string; value: number }[];
+
+type Store = AppState & {  // actions
   _hasHydrated: boolean;
   setHasHydrated: (v: boolean) => void;
   // Runs due local resets (memory-only expiry — see applyResets). Prefer
@@ -92,6 +96,13 @@ type Store = AppState & {
   toggleCheck: (taskId: string, isAccount: boolean) => void;
   setCounter: (taskId: string, value: number, isAccount: boolean) => void;
   incCounter: (taskId: string, delta: number, isAccount: boolean) => void;
+  /** One completed 定期委託 round: the parent's count +1 and its sub-counters
+   *  back to 0, in ONE write so no render (nor a pull landing between writes)
+   *  can see the children consumed without the round. Returns the pre-write
+   *  values for the toast's undo, or null when the id has no live sub-tasks. */
+  recordGoalRound: (taskId: string, isAccount: boolean) => GoalUndo | null;
+  /** The toast undo: write a `recordGoalRound` snapshot back, bucket-stamped. */
+  restoreGoalValues: (undo: GoalUndo, isAccount: boolean) => void;
 
   clearSection: (section: "daily" | "weekly" | "account") => void;
 
@@ -273,7 +284,7 @@ export function seedMissingDefaultPins(serverFlat: Record<string, unknown>): str
 }
 
 const initial: AppState = {
-  version: 21,
+  version: 22,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -344,6 +355,34 @@ function pruneStaleValues(
   for (const tid of Object.keys(keep)) {
     if (buckets[tid] === undefined) delete keep[tid];
   }
+}
+
+// Check-era booleans under a COUNTER-typed id read as counts: true = 1, false =
+// absent. Introduced with weekly-goals (v22 flipped it check → counter): an
+// old-build peer keeps pushing true/false for it, and the sync codec admits
+// booleans for current buckets on purpose, so a raw boolean can enter state long
+// after the v22 step ran. Both ingest points call this — the END of
+// migratePersisted (boot, import and applySnapshot all pass through it; end, so
+// the version steps still see their own booleans) and the persist `merge` (a
+// same-version boot skips `migrate` entirely) — so no reader has to guard a
+// boolean a check→counter flip left behind.
+export function coerceCounterBooleans(state: {
+  characters: Character[];
+  accountValues: Record<string, number | boolean>;
+  customTasks: Task[];
+}): void {
+  const ids = new Set<string>();
+  for (const t of trackerJson as Task[]) if (t.type !== "check") ids.add(t.id);
+  for (const t of state.customTasks ?? []) if (t.type !== "check") ids.add(t.id);
+  const fix = (values: Record<string, number | boolean>): void => {
+    for (const [id, v] of Object.entries(values)) {
+      if (typeof v !== "boolean" || !ids.has(id)) continue;
+      if (v) values[id] = 1;
+      else delete values[id];
+    }
+  };
+  for (const c of state.characters ?? []) fix(c.taskValues);
+  fix(state.accountValues);
 }
 
 // Backward-compat: fill structural defaults for data that bypassed migrate
@@ -821,6 +860,45 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.purpleHoleReminders = dropId(s.purpleHoleReminders);
     s.version = 21;
   }
+  if (from < 22) {
+    // v21 → v22: weekly-goals flips check → counter and its three sub-counters
+    // (通關深層地下城 3 / 通關地下城 5 / 通關狩獵場 5) arrive as new rows it renders
+    // inside itself. A boolean cannot be read as a count, so a checked row carries
+    // 1 (the v11 tower precedent: "done" survives as one recorded round) and an
+    // explicit false is dropped — a check-era false has no counter meaning, and
+    // absence reads 0. Numbers pass untouched (an already-migrated save, a hand
+    // edit). The same coercion runs on every load/merge for booleans a peer keeps
+    // pushing (coerceCounterBooleans).
+    //
+    // taskBuckets is ONE map shared by all characters, so the provenance entry is
+    // removed only when no character retains a weekly-goals value: dropping it
+    // while another character's value survives would leave that value bucketless,
+    // and a later load with stale reset markers would prune real progress.
+    let keepsValue = false;
+    for (const c of s.characters ?? []) {
+      const v = c.taskValues?.["weekly-goals"];
+      if (v === true) {
+        c.taskValues["weekly-goals"] = 1;
+        keepsValue = true;
+      } else if (v === false) {
+        delete c.taskValues["weekly-goals"];
+      } else if (v !== undefined) {
+        keepsValue = true;
+      }
+    }
+    if (!keepsValue && s.taskBuckets) delete s.taskBuckets["weekly-goals"];
+    s.version = 22;
+  }
+  // AFTER the steps, never before: older steps interpret their own booleans
+  // (v11 reads tower: true as 20; v22 reads weekly-goals: true as 1), so an
+  // ingest coercion running first would eat the value they are looking for.
+  // What is left here is a boolean under a counter id in an already-current
+  // save — a peer still pushing check-era values; see coerceCounterBooleans.
+  coerceCounterBooleans({
+    characters: s.characters ?? [],
+    accountValues: s.accountValues ?? {},
+    customTasks: s.customTasks ?? [],
+  });
   return s as AppState;
 }
 
@@ -926,7 +1004,10 @@ export const useAppStore = create<Store>()(
       incCounter: (taskId, delta, isAccount) => {
         const s = get();
         const isAcc = isAccount;
-        const cur = isAcc ? (s.accountValues[taskId] as number) ?? 0 : ((s.getActiveChar()?.taskValues[taskId] as number) ?? 0);
+        const raw = isAcc ? s.accountValues[taskId] : s.getActiveChar()?.taskValues[taskId];
+        // Read (never cast): a check-era boolean can still arrive from an
+        // old-build peer, and `true + 1` would record 2.
+        const cur = typeof raw === "number" ? raw : raw === true ? 1 : 0;
         // need max
         const task = [...BUILTIN_TASKS, ...s.customTasks, barterTaskForPin(taskId)].find(
           (t) => t?.id === taskId
@@ -934,6 +1015,64 @@ export const useAppStore = create<Store>()(
         const max = task?.max ?? 999;
         const next = Math.min(max, Math.max(0, cur + delta));
         get().setCounter(taskId, next, isAcc);
+      },
+
+      recordGoalRound: (taskId, isAccount) => {
+        const s = get();
+        const children = subTaskIds(taskId);
+        if (children.length === 0) return null;
+        const char = s.getActiveChar();
+        const numOf = (v: number | boolean | undefined): number =>
+          typeof v === "number" ? v : v === true ? 1 : 0;
+        const readOf = (id: string): number =>
+          numOf(isAccount ? s.accountValues[id] : char?.taskValues[id]);
+        const ids = [taskId, ...children];
+        // Snapshot BEFORE writing: the undo restores exactly these ids.
+        const undo: GoalUndo = ids.map((id) => ({ id, value: readOf(id) }));
+        const now = new Date();
+        const buckets = { ...s.taskBuckets };
+        for (const id of ids) buckets[id] = cycleBucketFor(id, s.customTasks, now);
+        const write = (target: Record<string, number | boolean>): Record<string, number | boolean> => {
+          const next = { ...target };
+          next[taskId] = Math.min(999, readOf(taskId) + 1);
+          for (const child of children) next[child] = 0; // explicit zeros: the propagation bit
+          return next;
+        };
+        if (isAccount) {
+          set({ accountValues: write(s.accountValues), taskBuckets: buckets });
+          return undo;
+        }
+        set({
+          characters: s.characters.map((c) =>
+            c.id === s.activeCharId ? { ...c, taskValues: write(c.taskValues) } : c
+          ),
+          taskBuckets: buckets,
+        });
+        return undo;
+      },
+
+      restoreGoalValues: (undo, isAccount) => {
+        const s = get();
+        const now = new Date();
+        const buckets = { ...s.taskBuckets };
+        // Re-stamp the CURRENT bucket: an undo pressed after the weekly rollover
+        // must land in this week, not replay last week's provenance.
+        for (const { id } of undo) buckets[id] = cycleBucketFor(id, s.customTasks, now);
+        const write = (target: Record<string, number | boolean>): Record<string, number | boolean> => {
+          const next = { ...target };
+          for (const { id, value } of undo) next[id] = value;
+          return next;
+        };
+        if (isAccount) {
+          set({ accountValues: write(s.accountValues), taskBuckets: buckets });
+          return;
+        }
+        set({
+          characters: s.characters.map((c) =>
+            c.id === s.activeCharId ? { ...c, taskValues: write(c.taskValues) } : c
+          ),
+          taskBuckets: buckets,
+        });
       },
 
       clearSection: (section) =>
@@ -1190,7 +1329,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 21,
+      version: 22,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       // `merge` runs on EVERY rehydration, where `migrate` runs only when the
       // stored version differs from the configured one. That difference is the
@@ -1204,7 +1343,7 @@ export const useAppStore = create<Store>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<AppState>;
         const pref = (p.prefs ?? {}) as Partial<AppState["prefs"]>;
-        return {
+        const merged = {
           ...current,
           ...p,
           prefs: {
@@ -1214,7 +1353,15 @@ export const useAppStore = create<Store>()(
               weekly: pref.pinnedCollapsed?.weekly ?? current.prefs.pinnedCollapsed.weekly,
             },
           },
-        };
+        } as Store;
+        // `migrate` only runs when the stored version differs, so the ingest
+        // coercion it performs must also run here (see coerceCounterBooleans).
+        coerceCounterBooleans({
+          characters: merged.characters,
+          accountValues: merged.accountValues,
+          customTasks: merged.customTasks,
+        });
+        return merged;
       },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
