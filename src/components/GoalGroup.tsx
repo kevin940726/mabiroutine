@@ -165,6 +165,9 @@ export function GoalGroup({ task, value, isAccount }: Props) {
       </button>
     </div>
   );
+  // Past the first round the title carries the index: (2), (3), …
+  const titleText = count >= 2 ? `${task.name} (${count})` : task.name;
+
   // pointer-events-none: the body is not a control, so a click anywhere on it
   // falls through to the full-row overlay (the barter parent's rule).
   const body = (
@@ -175,7 +178,7 @@ export function GoalGroup({ task, value, isAccount }: Props) {
             {task.icon}
           </span>
         )}
-        <span className="min-w-0 flex-1 break-words">{task.name}</span>
+        <span className="min-w-0 flex-1 break-words">{titleText}</span>
       </div>
       <p className="mt-1 whitespace-pre-wrap text-xs leading-snug text-muted-foreground sm:mt-0.5">{task.desc || "\u00A0"}</p>
     </div>
