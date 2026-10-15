@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- The 定期委託 row's title now names the round being worked on from the first recorded one: 冒險家工會的定期委託 on a fresh week, then 冒險家工會的定期委託 (2) after one recorded round, (3) after the second, and so on — the recorded count + 1, with the tile on the right keeping the recorded count. The previous build only started the suffix at two recorded rounds and printed the count itself there, so a second round read `(2)` while the row was working on the third.
+
 ## 2026-10-16 — The repeatable quest row, plus grouped-row polish
 
 ### Features

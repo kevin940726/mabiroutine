@@ -165,8 +165,9 @@ export function GoalGroup({ task, value, isAccount }: Props) {
       </button>
     </div>
   );
-  // Past the first round the title carries the index: (2), (3), …
-  const titleText = count >= 2 ? `${task.name} (${count})` : task.name;
+  // The title names the round being worked on (`(2)` once a round is recorded);
+  // the tile on the right carries the recorded count itself.
+  const titleText = `${task.name}${count >= 1 ? ` (${count + 1})` : ""}`;
 
   // pointer-events-none: the body is not a control, so a click anywhere on it
   // falls through to the full-row overlay (the barter parent's rule).
