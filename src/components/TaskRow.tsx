@@ -475,9 +475,10 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
   // "give → get". A shop row has no such card, so the quantity stays visible.
   const tradeTitle = displayName(isBarter ? getRes : task.name);
 
-  // two-line row, no ellipsis: title line (name only, ⋯/👁 top-right) +
-  // badge line (always its own line so long names never orphan) + body line
-  // (desc block with 44px tile vertically centered). Right column is w-11.
+  // Two-line row, no ellipsis: title line (portrait + name + badges, the badges
+  // dropping to their own short line only when a long name needs the line —
+  // see the badge comment below) + body line (desc block with the 44px tile
+  // vertically centered). Right column is w-11.
   const badges = isTrade ? (
     <>
       {isBarter && task.priority === "must" && (
@@ -494,69 +495,106 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
     </>
     );
 
+  // Whether this title line carries chips at all (the chips themselves are
+  // rendered above, in `badges`).
+  const hasChips = isTrade
+    ? (isBarter && task.priority === "must") || task.serverShared === true
+    : task.priority === "must" || task.source === "custom";
+
   const title = isTrade ? (
     <div>
-      <div className="flex items-center gap-1.5 text-sm font-bold text-primary">
-        {portrait ? (
-          portrait
-        ) : showNpc ? (
-          task.npc && onViewInShop ? (
-            <button
-              type="button"
-              onClick={() => onViewInShop(task.npc!, task.town, [task.id])}
-              aria-label={`在商店查看${tradeTitle}`}
-              title={`在商店查看${tradeTitle}`}
-              className={cn(PFP_BUTTON, "rounded-full")}
-            >
-              <img
-                src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
-                alt=""
-                aria-hidden
-                loading="lazy"
-                onError={() => setNpcImgError(true)}
-                className={PFP_MOBILE}
-              />
-            </button>
-          ) : (
-            <img
-              src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
-              alt=""
-              aria-hidden
-              loading="lazy"
-              onError={() => setNpcImgError(true)}
-              className={PFP_MOBILE}
-            />
-          )
-        ) : (
-          <span className="shrink-0" aria-hidden>{task.icon}</span>
-        )}
-        <span className={cn("min-w-0 flex-1 break-words")}>{tradeTitle}</span>
-        {/* Badges ride the TITLE line, not a line of their own. A reserved badge
-            line cost a full 24px row (measured 106px vs the 100px floor) and bought
-            the title nothing: on all 9 pinned barter rows the title has 26px spare
-            on a 252px line while the badge is 32px, so the two can only share the
-            line if the badge is allowed to pull the title narrower — which it can,
-            because the trade title is short (高級皮革, 設計圖(3級)) and `min-w-0`
-            lets it shrink. Prototyped live: badge inline puts every row on the
-            100px floor with 0 titles wrapped. `flex-wrap` is kept as the safety
-            valve, so a genuinely long title wraps to a second line rather than
-            truncating the badge away. */}
-        {(task.priority === "must" || task.serverShared === true) && <div className="flex shrink-0 items-center gap-1">{badges}</div>}
+      <div className="flex items-start gap-1.5 text-sm font-bold text-primary">
+        {/* The icon rides INSIDE the name's box, pinned to its left edge. As a
+            flex sibling it could be stranded: a name wider than the line (at 320
+            the 13-character 高級鍊金術再燃燒催化劑 needs ~176px against a 156px
+            line) makes the line-break algorithm start a new flex line for the
+            NAME and leave the face alone on the one above. Inside, the two can
+            never be separated.
+            The 28px spacer (a zero-height inline-block: the icon's 20px plus the
+            8px the flex gap used to give) is a FIRST-LINE indent — line 1 starts
+            after the icon while a wrapped continuation line starts at the box's
+            left edge, level with the icon. `text-indent` does the same job in one
+            property, but Chrome also subtracts it from the badge float's fit test
+            further down the same box: measured at 430 it dropped the badge to a
+            band of its own with 90px of the line still free. */}
+        <span className="relative min-w-0 grow break-words">
+          <span className="inline-block w-7" aria-hidden />
+          <span className="absolute left-0 top-0 grid h-5 w-5 place-items-center">
+            {portrait ? (
+              portrait
+            ) : showNpc ? (
+              task.npc && onViewInShop ? (
+                <button
+                  type="button"
+                  onClick={() => onViewInShop(task.npc!, task.town, [task.id])}
+                  aria-label={`在商店查看${tradeTitle}`}
+                  title={`在商店查看${tradeTitle}`}
+                  className={cn(PFP_BUTTON, "rounded-full")}
+                >
+                  <img
+                    src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
+                    alt=""
+                    aria-hidden
+                    loading="lazy"
+                    onError={() => setNpcImgError(true)}
+                    className={PFP_MOBILE}
+                  />
+                </button>
+              ) : (
+                <img
+                  src={`/npc/${encodeURIComponent(task.npc!)}.webp`}
+                  alt=""
+                  aria-hidden
+                  loading="lazy"
+                  onError={() => setNpcImgError(true)}
+                  className={PFP_MOBILE}
+                />
+              )
+            ) : (
+              <span aria-hidden>{task.icon}</span>
+            )}
+          </span>
+          {tradeTitle}
+          {/* Badges RIDE THE TEXT as a right float — the only mechanism that
+              gives both halves of the wanted shape at once. A float is placed
+              after the text it follows, so it settles at the right edge of the
+              line where the text ENDS (the title's second line when the title
+              wrapped) and drops to the next line, still right-aligned, only when
+              that line has no room left for it. Crucially it never shortens a
+              line that came BEFORE it, so the first line keeps the full width:
+              the previous absolute-park + reserved-padding version narrowed
+              every line by the badge's own width — 84px of wasted text column on
+              line 1, measured at 390. A flex item cannot do this at all: it
+              cannot share a line with another item's WRAPPED text, which is why
+              the group used to drop a whole line below the title (measured on
+              麗莎's 高級鍊金術再燃燒催化劑). `mt-px` centers the 18px chips in
+              the 20px line box they land in.
+              `w-max`, because with a first-line `text-indent` on the box Chrome
+              sizes a shrink-to-fit float off (line - indent) instead of the
+              chips: measured 134px for a 78px badge group, which left the chips
+              56px short of the right edge AND pushed the group to a band of its
+              own at 320. Pinning the float to its content width fixes both. */}
+          {hasChips && (
+            <span className="float-right ml-1.5 mt-px w-max flex items-center gap-1">{badges}</span>
+          )}
+        </span>
       </div>
     </div>
   ) : (
     <div>
-      <div className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
-        <span className="shrink-0" aria-hidden>{task.icon}</span>
-        <span className={cn("min-w-0 flex-1 break-words")}>{task.name}</span>
-        {/* 必做 / 自訂 ride the TITLE line, as a trade row's 必換 / 伺服器 do. They
-            used to sit on a `mt-1` line of their own, which is the same reserved-line
-            cost the trade row's badges were moved off: it is 24px of a 100px row for
-            two small marks. `flex-wrap` is the safety valve, so a title too long to
-            share the line wraps the badge down rather than truncating it away. */}
-        {(task.priority === "must" || task.source === "custom") && (
-          <div className="flex shrink-0 items-center gap-1">{badges}</div>
-        )}
+      <div className="flex items-start gap-1.5 text-sm font-medium">
+        <span className="relative min-w-0 grow break-words">
+          <span className="inline-block w-7" aria-hidden />
+          <span className="absolute left-0 top-0 grid h-5 w-5 place-items-center" aria-hidden>{task.icon}</span>
+          {task.name}
+          {/* 必做 / 自訂 ride the text exactly as the trade row's badges do — a
+              right float after the name, so they settle at the right edge of the
+              line the name ends on and never narrow the lines above them. Same
+              rule, same reason; see the badge comment on the trade line above. */}
+          {hasChips && (
+            <span className="float-right ml-1.5 mt-px w-max flex items-center gap-1">{badges}</span>
+          )}
+        </span>
         {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
         {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
       </div>
