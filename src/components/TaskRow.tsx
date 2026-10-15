@@ -475,48 +475,29 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
   // "give → get". A shop row has no such card, so the quantity stays visible.
   const tradeTitle = displayName(isBarter ? getRes : task.name);
 
-  // Two-line row, no ellipsis: title line (portrait + name + badges, the badges
-  // dropping to their own short line only when a long name needs the line —
-  // see the badge comment below) + body line (desc block with the 44px tile
-  // vertically centered). Right column is w-11.
-  const badges = isTrade ? (
-    <>
-      {isBarter && task.priority === "must" && (
-        <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必換</span>
-      )}
-      {task.serverShared === true && (
-        <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">伺服器</span>
-      )}
-    </>
-    ) : (
-    <>
-      {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">必做</span>}
-      {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0">自訂</span>}
-    </>
-    );
-
-  // Whether this title line carries chips at all (the chips themselves are
-  // rendered above, in `badges`).
-  const hasChips = isTrade
-    ? (isBarter && task.priority === "must") || task.serverShared === true
-    : task.priority === "must" || task.source === "custom";
+  // No ellipsis: the title wraps to as many lines as the name needs.
+  // The title's chips, built once: the same array decides what renders and
+  // whether the float that carries them exists (the two drifting apart would
+  // silently drop a chip).
+  const chip = "rounded px-1.5 py-0.5 text-[10px] whitespace-nowrap shrink-0";
+  const chips = (
+    isTrade
+      ? [
+          isBarter && task.priority === "must" ? <span key="must" className={cn(chip, "bg-red-100 text-red-700 dark:bg-red-900/30")}>必換</span> : null,
+          task.serverShared === true ? <span key="shared" className={cn(chip, "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300")}>伺服器</span> : null,
+        ]
+      : [
+          task.priority === "must" ? <span key="must" className={cn(chip, "bg-red-100 text-red-700 dark:bg-red-900/30")}>必做</span> : null,
+          task.source === "custom" ? <span key="custom" className={cn(chip, "bg-blue-100 text-blue-700 dark:bg-blue-900/30")}>自訂</span> : null,
+        ]
+  ).filter((c) => c !== null);
 
   const title = isTrade ? (
     <div>
       <div className="flex items-start gap-1.5 text-sm font-bold text-primary">
-        {/* The icon rides INSIDE the name's box, pinned to its left edge. As a
-            flex sibling it could be stranded: a name wider than the line (at 320
-            the 13-character 高級鍊金術再燃燒催化劑 needs ~176px against a 156px
-            line) makes the line-break algorithm start a new flex line for the
-            NAME and leave the face alone on the one above. Inside, the two can
-            never be separated.
-            The 28px spacer (a zero-height inline-block: the icon's 20px plus the
-            8px the flex gap used to give) is a FIRST-LINE indent — line 1 starts
-            after the icon while a wrapped continuation line starts at the box's
-            left edge, level with the icon. `text-indent` does the same job in one
-            property, but Chrome also subtracts it from the badge float's fit test
-            further down the same box: measured at 430 it dropped the badge to a
-            band of its own with 90px of the line still free. */}
+        {/* The icon lives in the name's box — as a flex sibling it could be
+            stranded on a line of its own — and the 28px spacer indents line 1
+            past it; wrapped lines start at the box's left edge, with the icon. */}
         <span className="relative min-w-0 grow break-words">
           <span className="inline-block w-7" aria-hidden />
           <span className="absolute left-0 top-0 grid h-5 w-5 place-items-center">
@@ -555,27 +536,12 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
             )}
           </span>
           {tradeTitle}
-          {/* Badges RIDE THE TEXT as a right float — the only mechanism that
-              gives both halves of the wanted shape at once. A float is placed
-              after the text it follows, so it settles at the right edge of the
-              line where the text ENDS (the title's second line when the title
-              wrapped) and drops to the next line, still right-aligned, only when
-              that line has no room left for it. Crucially it never shortens a
-              line that came BEFORE it, so the first line keeps the full width:
-              the previous absolute-park + reserved-padding version narrowed
-              every line by the badge's own width — 84px of wasted text column on
-              line 1, measured at 390. A flex item cannot do this at all: it
-              cannot share a line with another item's WRAPPED text, which is why
-              the group used to drop a whole line below the title (measured on
-              麗莎's 高級鍊金術再燃燒催化劑). `mt-px` centers the 18px chips in
-              the 20px line box they land in.
-              `w-max`, because with a first-line `text-indent` on the box Chrome
-              sizes a shrink-to-fit float off (line - indent) instead of the
-              chips: measured 134px for a 78px badge group, which left the chips
-              56px short of the right edge AND pushed the group to a band of its
-              own at 320. Pinning the float to its content width fixes both. */}
-          {hasChips && (
-            <span className="float-right ml-1.5 mt-px w-max flex items-center gap-1">{badges}</span>
+          {/* Badges ride the text as a right float: they sit at the right edge of
+              the line the name ends on and never narrow the lines above, so a
+              wrapped title keeps line 1 at full width. `w-max` pins the float to
+              the chips' own width. */}
+          {chips.length > 0 && (
+            <span className="float-right ml-1.5 mt-px w-max flex items-center gap-1">{chips}</span>
           )}
         </span>
       </div>
@@ -587,12 +553,10 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
           <span className="inline-block w-7" aria-hidden />
           <span className="absolute left-0 top-0 grid h-5 w-5 place-items-center" aria-hidden>{task.icon}</span>
           {task.name}
-          {/* 必做 / 自訂 ride the text exactly as the trade row's badges do — a
-              right float after the name, so they settle at the right edge of the
-              line the name ends on and never narrow the lines above them. Same
-              rule, same reason; see the badge comment on the trade line above. */}
-          {hasChips && (
-            <span className="float-right ml-1.5 mt-px w-max flex items-center gap-1">{badges}</span>
+          {/* Same rule as the trade line: a right float after the name, at the
+              right edge of the line it ends on. */}
+          {chips.length > 0 && (
+            <span className="float-right ml-1.5 mt-px w-max flex items-center gap-1">{chips}</span>
           )}
         </span>
         {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
@@ -757,7 +721,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
               <span className="text-lg leading-none">{checked ? "✓" : ""}</span>
             </button>
           ) : (
-            <CounterTileMobile taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} section={task.section} />
+            <CounterTileMobile taskId={task.id} count={count} max={task.max} isAccount={isAccount} countdown={task.type === "countdown"} section={task.section} />
           )}
         </div>
       </div>
@@ -808,12 +772,12 @@ function RowMenu({ isHidden, hideScope, onEdit, onToggleHidden, onRemove }: {
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click = −1. Hold 0.3s → grab, drag vertically to adjust fast.
 // Progress is the fill rising inside the tile.
-function CounterTileMobile({ taskId, count, max, isAccount, countdown, section }: { taskId: string; count: number; max: number; isAccount: boolean; countdown?: boolean; section: TaskSection }) {
-  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max, isAccount, section);
+function CounterTileMobile({ taskId, count, max, isAccount, countdown, section }: { taskId: string; count: number; /** absent = unbounded: bare count, no ✓ */ max?: number; isAccount: boolean; countdown?: boolean; section: TaskSection }) {
+  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max ?? 0, isAccount, section);
   const pct = max ? Math.min(100, (count / max) * 100) : 0;
-  const done = max > 0 && count >= max;
+  const done = max !== undefined && max > 0 && count >= max;
   // countdown mode: big number counts down (剩 N), fill still rises with used
-  const shown = countdown ? Math.max(0, max - count) : count;
+  const shown = countdown && max ? Math.max(0, max - count) : count;
   // done look lands only at rest; while grabbing, always numbers on unflipped tile
   const showCheck = done && !grabbed;
   return (
@@ -825,7 +789,7 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown, section }
           grabbed && "ring-2 ring-primary scale-105 cursor-ns-resize border-primary"
         )}
         style={{ touchAction: "none" }}
-        aria-label={countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整` : `${count} / ${max}，點一下加一，長按拖曳快速調整`}
+        aria-label={max === undefined ? `${count} 次，點一下加一，長按拖曳快速調整` : countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整` : `${count} / ${max}，點一下加一，長按拖曳快速調整`}
         {...handlers}
       >
         <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />
@@ -836,7 +800,7 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown, section }
             <span className="font-mono leading-none">
               {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}
               <span className="text-base font-semibold">{shown}</span>
-              <span className="text-[10px] text-muted-foreground">/{max}</span>
+              {max !== undefined && <span className="text-[10px] text-muted-foreground">/{max}</span>}
             </span>
           )}
         </span>
@@ -1058,7 +1022,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
             <span className="text-xl leading-none">{checked ? "✓" : ""}</span>
           </button>
         ) : (
-          <CounterTileDesktop taskId={task.id} count={count} max={task.max ?? 0} isAccount={isAccount} countdown={task.type === "countdown"} section={task.section} />
+          <CounterTileDesktop taskId={task.id} count={count} max={task.max} isAccount={isAccount} countdown={task.type === "countdown"} section={task.section} />
         )}
       </div>
     </div>
@@ -1068,12 +1032,12 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click = −1. Hold 0.3s → grab, drag vertically to adjust fast.
 // Progress is the fill rising inside the tile.
-function CounterTileDesktop({ taskId, count, max, isAccount, countdown, section }: { taskId: string; count: number; max: number; isAccount: boolean; countdown?: boolean; section: TaskSection }) {
-  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max, isAccount, section);
+function CounterTileDesktop({ taskId, count, max, isAccount, countdown, section }: { taskId: string; count: number; /** absent = unbounded: bare count, no ✓ */ max?: number; isAccount: boolean; countdown?: boolean; section: TaskSection }) {
+  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max ?? 0, isAccount, section);
   const pct = max ? Math.min(100, (count / max) * 100) : 0;
-  const done = max > 0 && count >= max;
+  const done = max !== undefined && max > 0 && count >= max;
   // countdown mode: big number counts down (剩 N), fill still rises with used
-  const shown = countdown ? Math.max(0, max - count) : count;
+  const shown = countdown && max ? Math.max(0, max - count) : count;
   // done look lands only at rest; while grabbing, always numbers on unflipped tile
   const showCheck = done && !grabbed;
   return (
@@ -1085,7 +1049,7 @@ function CounterTileDesktop({ taskId, count, max, isAccount, countdown, section 
           grabbed && "ring-2 ring-primary scale-105 cursor-ns-resize border-primary"
         )}
         style={{ touchAction: "none" }}
-        aria-label={countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整` : `${count} / ${max}，點一下加一，長按拖曳快速調整`}
+        aria-label={max === undefined ? `${count} 次，點一下加一，長按拖曳快速調整` : countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整` : `${count} / ${max}，點一下加一，長按拖曳快速調整`}
         {...handlers}
       >
         <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />
@@ -1096,7 +1060,7 @@ function CounterTileDesktop({ taskId, count, max, isAccount, countdown, section 
             <span className="font-mono leading-none">
               {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}
               <span className="text-lg font-semibold">{shown}</span>
-              <span className="text-[10px] text-muted-foreground">/{max}</span>
+              {max !== undefined && <span className="text-[10px] text-muted-foreground">/{max}</span>}
             </span>
           )}
         </span>

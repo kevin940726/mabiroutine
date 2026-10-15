@@ -1,22 +1,16 @@
 // The 定期委託 quest row: a repeatable weekly quest (weekly-goals) that renders
-// its three sub-counters inside itself, folded on demand. It mirrors PinnedGroups
-// — the barter parent rows — part for part: the row shells and ticker boxes from
-// rowStyle.ts, the bottom violet strip, the tinted children body, the full-row
-// click target, and the parent tile's three states + aggregate fill driven by the
-// real lib/pinGroup helpers. Two deliberate differences:
-//  * the tile's label is the recorded count (`N 次`) instead of −/✓;
-//  * the child write that brings all three to max AUTO-turns the round in
-//    (parent +1, children back to 0) with the app's toast as the only recovery UI.
+// its three sub-counters inside itself, folded on demand. It mirrors PinnedGroups'
+// barter parents (row shells, ticker box, bottom strip, tinted body, full-row
+// click target, lib/pinGroup's tile states) with two deliberate differences: the
+// tile labels the recorded count (`N 次`) instead of −/✓, and the child write that
+// brings all three to max AUTO-turns the round in (parent +1, children to 0) with
+// the app's toast as the only recovery UI.
 //
 // Children are REAL tracker rows (own ids, values, buckets, sync keys) that never
 // render top-level: App's section lists, the overall denominator and the
-// celebration roster all drop them via lib/subTasks.
-//
-// The body keeps a NORMAL row's title treatment (`text-sm font-medium`), not the
-// barter parent's bold primary title: this row is a built-in tracker task, and a
-// later reader should not "fix" it toward the pin parent. The fold is per-mount
-// state like PinnedGroups' `useOpenMap` — folding the section (or hideCompleted
-// removing the row) forgets it, by the same design.
+// celebration roster all drop them via lib/subTasks. The body keeps a NORMAL row's
+// title treatment (`text-sm font-medium`) — this is a built-in tracker task, not a
+// pin parent, so don't "fix" it toward PinnedGroups' bold title.
 import { useId, useMemo, useRef, useState } from "react";
 import { ChevronDown, Eye, EyeOff, GripVertical } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
@@ -26,7 +20,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { parentFillPct, parentState } from "@/lib/pinGroup";
 import { resolveSubTasks, subTaskLabel } from "@/lib/subTasks";
 import { cn } from "@/lib/utils";
-import { useAppStore } from "@/store/useAppStore";
+import { COUNTER_SANITY_MAX, useAppStore } from "@/store/useAppStore";
 import { toastAction } from "@/sync/session";
 import type { Task } from "@/lib/types";
 import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, VIOLET_SHEET, VIOLET_STRIP } from "@/components/rowStyle";
@@ -34,9 +28,6 @@ import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOB
 /** Drag-scale only: px-per-step uses this instead of a real max (the tile has
  *  none). The write range itself comes from `CounterWrites.clamp`. */
 const PARENT_STEP_MAX = 20;
-/** Sanity ceiling, shared with the store (incCounter / recordGoalRound). */
-const PARENT_CAP = 999;
-
 /** Stored value read as a count (a check-era boolean can still arrive from a
  *  peer; true = one recorded round). */
 function numOf(v: number | boolean | undefined): number {
@@ -75,7 +66,7 @@ export function GoalGroup({ task, value, isAccount }: Props) {
     return numOf(isAccount ? s.accountValues[task.id] : s.getActiveChar()?.taskValues[task.id]);
   };
   const setRound = (next: number): void => {
-    useAppStore.getState().setCounter(task.id, Math.min(PARENT_CAP, Math.max(0, next)), isAccount);
+    useAppStore.getState().setCounter(task.id, Math.min(COUNTER_SANITY_MAX, Math.max(0, next)), isAccount);
   };
   const liveChild = (i: number): number => {
     const s = useAppStore.getState();
@@ -83,8 +74,7 @@ export function GoalGroup({ task, value, isAccount }: Props) {
   };
 
   // A turn-in fires at most once per write gesture: a drag that overshoots the
-  // last stop keeps writing the same child, and without this it would re-fill a
-  // child the turn-in just consumed. onWriteStart clears it for the next gesture.
+  // last stop keeps writing the same child and would re-fill one it just consumed.
   const consumedRef = useRef(false);
   const beginGesture = (): void => {
     consumedRef.current = false;
@@ -95,12 +85,15 @@ export function GoalGroup({ task, value, isAccount }: Props) {
     if (consumedRef.current) return;
     const child = children[i];
     const max = child.max ?? 1;
+    // Snapshot before the write: the undo puts the row back where it was before
+    // this tap, the tick included.
+    const before = children.map((_, j) => liveChild(j));
     useAppStore.getState().setCounter(child.id, Math.min(max, Math.max(0, next)), isAccount);
     // setCounter is synchronous; read the post-write state for the completion check
     const after = useAppStore.getState();
     const values = children.map((c) => numOf(isAccount ? after.accountValues[c.id] : after.getActiveChar()?.taskValues[c.id]));
     if (!values.every((v, j) => v >= (children[j].max ?? 1))) return;
-    const undo = useAppStore.getState().recordGoalRound(task.id, isAccount);
+    const undo = useAppStore.getState().recordGoalRound(task.id, isAccount, before);
     if (!undo) return;
     consumedRef.current = true;
     toastAction("三項完成：自動回報 1 次，子項已歸零", "復原", () =>
@@ -197,17 +190,12 @@ export function GoalGroup({ task, value, isAccount }: Props) {
         data-task-id={task.id}
         className={cn(
           isMobile ? ROW_SHELL_MOBILE : ROW_SHELL_DESKTOP,
-          // No strip lane and no extra padding: the desc is ONE short line by
-          // design (the three requirements live in the body), so the capsule
-          // overlays the row's own bottom padding exactly like the barter
-          // parent's. That keeps this row the same height as every other row
-          // (88 desktop / 100 mobile floor) in both fold states — the body is a
-          // sibling below the card, so opening it cannot move the parent either.
+          // No strip lane: the capsule overlays the row's own bottom padding,
+          // which keeps the row at the standard height in both fold states (the
+          // body is a sibling below, so opening it cannot move the parent).
           done ? "bg-muted/50 border-muted" : "",
           isHidden ? "opacity-50" : "",
-          // An open group is one continuous block: the parent squares its bottom
-          // edge so the sheet below plugs into it (the sheet squares its TOP
-          // corners for the same reason). Collapsed it stays a plain rounded row.
+          // Open: square the bottom edge so the sheet below plugs in.
           open && "rounded-b-none",
           isDragging && "pointer-events-none"
         )}
@@ -319,13 +307,11 @@ function TileHints({ grabbed, coach }: { grabbed: boolean; coach: boolean }) {
   );
 }
 
-/** The parent tile: a row's counter tile with the children's aggregate progress in
- *  it, exactly like a barter parent's tile (same geometry, same partial-state
- *  border + emerald text, same bottom-up fill). `n >= 1` takes the checked-
- *  checkbox fill (`bg-emerald-600`, the count white like the ✓ glyph). The `次`
- *  unit stays in BOTH states: on the recorded fill it renders white, the highest
- *  contrast that fill allows (white-on-emerald-600 is ~3.3:1, under the small-text
- *  AA floor — a deliberate call so the unit never disappears). */
+/** The parent tile: a counter tile carrying the children's aggregate fill, like a
+ *  barter parent's (same geometry, partial-state border, bottom-up fill). `n >= 1`
+ *  takes the checked fill. The `次` unit stays in BOTH states — white on the
+ *  emerald fill, which is under the small-text AA contrast floor, a deliberate
+ *  call so the unit never disappears. */
 function GoalParentTile({
   task,
   isAccount,
@@ -354,11 +340,9 @@ function GoalParentTile({
     writes
   );
   return (
-    // The real ticker box, exactly as a row (and as PinnedGroups' parent) uses it:
-    // on mobile `self-stretch` + centering is what vertically centers the tile on
-    // the row's content. Without it the tile pinned to the row's top (measured
-    // −15px off the card center vs −12 for a sibling row, which centers on its
-    // content), and the rail/grip sat 3px low with it.
+    // The real ticker box, as a row and as PinnedGroups' parent use it:
+    // `self-stretch` + centering is what vertically centers the tile on the row's
+    // content, so this row's tile sits where every other row's does.
     <div className={cn("relative z-20", isMobile ? TICKER_BOX_MOBILE : TICKER_BOX_DESKTOP)}>
       <span ref={wrapRef} className="relative inline-block">
         <button
@@ -396,12 +380,10 @@ function GoalParentTile({
   );
 }
 
-/** One leg of the round, inside its own bordered chip (`rounded-lg border
- *  bg-card` — the app's card radius; PinnedGroups' children use the same card
- *  inside a tinted body). The chip fills an equal third: emoji + tile always,
- *  the leg's full label from `sm` up. On a phone a third is ~110px, where emoji
- *  + label + tile needs ~140px, so the label is dropped rather than abbreviated
- *  (measured) — the tile's aria-label still names the leg in full. */
+/** One leg of the round, in its own card-radius bordered chip, filling an equal
+ *  third of the sheet: emoji + tile always, the leg's full label from `sm` up (a
+ *  phone's third is ~110px, where emoji + label + tile would need ~140px, so the
+ *  label is dropped rather than abbreviated — the tile's aria-label names it). */
 function GoalLeg({
   task,
   value,
@@ -414,11 +396,9 @@ function GoalLeg({
   writes: CounterWrites;
 }) {
   return (
-    // The chip's height is fixed per width — 70px desktop, 58px mobile — and the
-    // box inside it is the app's smaller square (44px) at BOTH widths. The gap
-    // between the two is what the padding absorbs: 12px top/bottom on desktop
-    // (where a row tile would be 56), 6px on mobile. A leg's control therefore
-    // stays subordinate to the parent's 56px tile without the chip shrinking.
+    // Fixed chip height per width (70px desktop / 58px mobile) around the app's
+    // smaller 44px square, the surplus absorbed as padding: a leg's control stays
+    // subordinate to the parent's 56px tile without the chip shrinking.
     <div className="flex min-w-0 items-center justify-between gap-1.5 rounded-lg border bg-card px-2 py-1.5 sm:px-4 sm:py-3">
       <span className="inline-flex min-w-0 items-center gap-1">
         <span className="shrink-0 text-sm leading-none" aria-hidden>
@@ -431,11 +411,8 @@ function GoalLeg({
   );
 }
 
-/** A sub-counter's tile: `N/max`, fill, ✓ at max, tap-at-full → 0 — at 44px on
- *  both widths (the app's mobile tile size). The chip around it holds its height
- *  per width (70 desktop / 58 mobile), so on desktop the small box sits in a
- *  taller card and reads as the parent tile's subordinate. 44px is also the
- *  touch-target floor, which a phone needs. */
+/** A sub-counter's tile: `N/max`, fill, ✓ at max, tap-at-full → 0. 44px at both
+ *  widths — the app's mobile tile size, and the touch-target floor. */
 function GoalChildTile({
   task,
   value,

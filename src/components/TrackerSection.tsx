@@ -244,7 +244,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
         const v = t.serverShared === true ? accountValues[t.id] : char.taskValues[t.id];
         if (t.type === "check") return !v;
         const n = typeof v === "number" ? v : 0;
-        // No max on a counter = unbounded (weekly-goals): done at >= 1.
+        // No max on a counter = unbounded: done at >= 1.
         return n < (t.max ?? 1);
       });
     }
@@ -313,7 +313,7 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
         const v = isAccount ? accountValues[t.id] : char?.taskValues[t.id];
         if (t.type === "check") return !v;
         const n = typeof v === "number" ? v : 0;
-        // No max on a counter = unbounded: done at >= 1 (see the plan's §2 rule).
+        // No max on a counter = unbounded: done at >= 1.
         return n < (t.max ?? 1);
       });
     }

@@ -218,9 +218,8 @@ export default function App() {
 
   // Daily list keeps the row — TrackerSection parks
   // it into 已隱藏項目 on off-days (render-only, stays out of progress).
-  // Sub-tasks are dropped here: a quest's sub-counters render inside their parent
-  // row, so they are never a top-level row nor a section denominator (the badge,
-  // the overall header and the celebration roster all read these lists).
+  // Sub-tasks are dropped: a quest's sub-counters render inside the parent row,
+  // never as a top-level row or a section denominator.
   const topBuiltins = topLevelTasks(BUILTIN_TASKS);
   const dailyTasks = topBuiltins.filter(
     (t) => t.section === "daily"

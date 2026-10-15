@@ -75,7 +75,7 @@ function applyResets(state: AppState): Partial<AppState> {
   return patch;
 }
 
-/** Pre-write values of one 定期委託 turn-in (parent + its sub-counters), for the
+/** Pre-write values of one 定期委託 turn-in (parent + sub-counters) for the
  *  toast's undo. Absent values are carried as 0 (an undo restores "cleared"). */
 export type GoalUndo = { id: string; value: number }[];
 
@@ -96,11 +96,14 @@ type Store = AppState & {  // actions
   toggleCheck: (taskId: string, isAccount: boolean) => void;
   setCounter: (taskId: string, value: number, isAccount: boolean) => void;
   incCounter: (taskId: string, delta: number, isAccount: boolean) => void;
-  /** One completed 定期委託 round: the parent's count +1 and its sub-counters
-   *  back to 0, in ONE write so no render (nor a pull landing between writes)
-   *  can see the children consumed without the round. Returns the pre-write
-   *  values for the toast's undo, or null when the id has no live sub-tasks. */
-  recordGoalRound: (taskId: string, isAccount: boolean) => GoalUndo | null;
+  /** One completed 定期委託 round in ONE write: the parent's count +1 and its
+   *  sub-counters back to 0, so no render can see the children consumed without
+   *  the round. `childBefore` is the caller's snapshot of the children from
+   *  BEFORE the write that completed the round, so the undo can put the row back
+   *  as it was before that tap (undoing the turn-in alone would leave every leg
+   *  ticked with nothing recorded). Returns the values for the undo, or null when
+   *  the id has no live sub-tasks. */
+  recordGoalRound: (taskId: string, isAccount: boolean, childBefore: number[]) => GoalUndo | null;
   /** The toast undo: write a `recordGoalRound` snapshot back, bucket-stamped. */
   restoreGoalValues: (undo: GoalUndo, isAccount: boolean) => void;
 
@@ -283,6 +286,10 @@ export function seedMissingDefaultPins(serverFlat: Record<string, unknown>): str
   return missing;
 }
 
+/** Sanity ceiling for a counter with no `max`: one value, so a drag, the store
+ *  and the quest row cannot disagree. */
+export const COUNTER_SANITY_MAX = 999;
+
 const initial: AppState = {
   version: 22,
   characters: [defaultChar("角色 1")],
@@ -358,14 +365,11 @@ function pruneStaleValues(
 }
 
 // Check-era booleans under a COUNTER-typed id read as counts: true = 1, false =
-// absent. Introduced with weekly-goals (v22 flipped it check → counter): an
-// old-build peer keeps pushing true/false for it, and the sync codec admits
-// booleans for current buckets on purpose, so a raw boolean can enter state long
-// after the v22 step ran. Both ingest points call this — the END of
-// migratePersisted (boot, import and applySnapshot all pass through it; end, so
-// the version steps still see their own booleans) and the persist `merge` (a
-// same-version boot skips `migrate` entirely) — so no reader has to guard a
-// boolean a check→counter flip left behind.
+// absent. An old-build peer keeps pushing true/false for weekly-goals and the
+// sync codec admits booleans for current buckets, so a raw boolean can enter
+// state long after the v22 step ran. Called from the END of migratePersisted
+// (after the steps, which need their own booleans) and from the persist `merge`
+// (a same-version boot skips `migrate` entirely), so no reader has to guard one.
 export function coerceCounterBooleans(state: {
   characters: Character[];
   accountValues: Record<string, number | boolean>;
@@ -861,19 +865,15 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.version = 21;
   }
   if (from < 22) {
-    // v21 → v22: weekly-goals flips check → counter and its three sub-counters
-    // (通關深層地下城 3 / 通關地下城 5 / 通關狩獵場 5) arrive as new rows it renders
-    // inside itself. A boolean cannot be read as a count, so a checked row carries
-    // 1 (the v11 tower precedent: "done" survives as one recorded round) and an
-    // explicit false is dropped — a check-era false has no counter meaning, and
-    // absence reads 0. Numbers pass untouched (an already-migrated save, a hand
-    // edit). The same coercion runs on every load/merge for booleans a peer keeps
-    // pushing (coerceCounterBooleans).
+    // v21 → v22: weekly-goals flips check → counter (+ its three new sub-counter
+    // rows). A checked row carries 1 (the v11 tower precedent: "done" survives as
+    // one recorded round); an explicit false is dropped (no counter meaning, and
+    // absence reads 0); numbers pass untouched.
     //
     // taskBuckets is ONE map shared by all characters, so the provenance entry is
-    // removed only when no character retains a weekly-goals value: dropping it
-    // while another character's value survives would leave that value bucketless,
-    // and a later load with stale reset markers would prune real progress.
+    // dropped only when no character retains a value: dropping it while another
+    // character's value survives would leave that value bucketless, and a later
+    // load with stale reset markers would prune real progress.
     let keepsValue = false;
     for (const c of s.characters ?? []) {
       const v = c.taskValues?.["weekly-goals"];
@@ -889,11 +889,9 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     if (!keepsValue && s.taskBuckets) delete s.taskBuckets["weekly-goals"];
     s.version = 22;
   }
-  // AFTER the steps, never before: older steps interpret their own booleans
-  // (v11 reads tower: true as 20; v22 reads weekly-goals: true as 1), so an
-  // ingest coercion running first would eat the value they are looking for.
-  // What is left here is a boolean under a counter id in an already-current
-  // save — a peer still pushing check-era values; see coerceCounterBooleans.
+  // AFTER the steps, never before: the steps interpret their own booleans (v11
+  // reads tower: true as 20), so an ingest coercion running first would eat the
+  // value they are looking for.
   coerceCounterBooleans({
     characters: s.characters ?? [],
     accountValues: s.accountValues ?? {},
@@ -1012,12 +1010,12 @@ export const useAppStore = create<Store>()(
         const task = [...BUILTIN_TASKS, ...s.customTasks, barterTaskForPin(taskId)].find(
           (t) => t?.id === taskId
         );
-        const max = task?.max ?? 999;
+        const max = task?.max ?? COUNTER_SANITY_MAX;
         const next = Math.min(max, Math.max(0, cur + delta));
         get().setCounter(taskId, next, isAcc);
       },
 
-      recordGoalRound: (taskId, isAccount) => {
+      recordGoalRound: (taskId, isAccount, childBefore) => {
         const s = get();
         const children = subTaskIds(taskId);
         if (children.length === 0) return null;
@@ -1026,15 +1024,16 @@ export const useAppStore = create<Store>()(
           typeof v === "number" ? v : v === true ? 1 : 0;
         const readOf = (id: string): number =>
           numOf(isAccount ? s.accountValues[id] : char?.taskValues[id]);
+        // Snapshot BEFORE writing, the children's values as the CALLER saw them
+        // before the completing write (the caller's own read is already post-write).
         const ids = [taskId, ...children];
-        // Snapshot BEFORE writing: the undo restores exactly these ids.
-        const undo: GoalUndo = ids.map((id) => ({ id, value: readOf(id) }));
+        const undo: GoalUndo = ids.map((id, i) => ({ id, value: i === 0 ? readOf(id) : childBefore[i - 1] ?? 0 }));
         const now = new Date();
         const buckets = { ...s.taskBuckets };
         for (const id of ids) buckets[id] = cycleBucketFor(id, s.customTasks, now);
         const write = (target: Record<string, number | boolean>): Record<string, number | boolean> => {
           const next = { ...target };
-          next[taskId] = Math.min(999, readOf(taskId) + 1);
+          next[taskId] = Math.min(COUNTER_SANITY_MAX, readOf(taskId) + 1);
           for (const child of children) next[child] = 0; // explicit zeros: the propagation bit
           return next;
         };

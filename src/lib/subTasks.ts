@@ -1,16 +1,16 @@
-// The sub-quest link (Task.subTasks) resolved from the shipped data, kept apart
-// from the components that draw it. Pure, like pinGroup.ts: no store, no React.
+// The sub-quest link (Task.subTasks) resolved from the shipped data, apart from
+// the components that draw it. Pure, like pinGroup.ts: no store, no React.
 //
-// A sub-task is a REAL tracker row (own id, value, max, bucket, sync key); the
-// parent's `subTasks` array is the single link, so nothing else has to know about
-// parent/child pairs. These helpers exist so the three things that must ignore
-// children (section lists, the overall denominator, the celebration roster) and
-// the goal row that must render them all read the same set.
+// A sub-task is a REAL tracker row (own id, value, max, bucket, sync key) and the
+// parent's `subTasks` array is the single link. The list-dropping callers
+// (section lists, the overall denominator, the celebration roster) and the rows
+// that render children all read the same set from here.
 import trackerJson from "@/data/tracker.json";
 import type { Task } from "@/lib/types";
 
 const BUILTINS = trackerJson as Task[];
 
+const BY_ID = new Map(BUILTINS.map((t) => [t.id, t]));
 const CHILDREN_OF = new Map<string, string[]>();
 const PARENT_OF = new Map<string, string>();
 for (const t of BUILTINS) {
@@ -37,9 +37,8 @@ export function topLevelTasks(tasks: Task[]): Task[] {
 
 /** The child rows themselves, in data order (unknown ids are skipped). */
 export function resolveSubTasks(task: Task): Task[] {
-  const byId = new Map(BUILTINS.map((t) => [t.id, t]));
   return subTaskIds(task.id)
-    .map((id) => byId.get(id))
+    .map((id) => BY_ID.get(id))
     .filter((t): t is Task => t !== undefined);
 }
 

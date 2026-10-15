@@ -426,9 +426,7 @@ function Group({
           // violet strip and body still mark the group as a group, so the tint
           // marks COMPLETION and nothing else.
           state === "full" ? "bg-muted/50 border-muted" : "",
-          // An open group is one continuous block: the parent squares its bottom
-          // edge so the sheet below plugs into it (the sheet squares its TOP
-          // corners for the same reason). Collapsed it stays a plain rounded row.
+          // Open: square the bottom edge so the sheet below plugs in.
           open && "rounded-b-none",
         )}
       >

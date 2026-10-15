@@ -14,18 +14,14 @@ export type Task = {
   // countdown = counter for progress/resets, but the tile shows remaining
   // (剩 N / M) instead of used (N / M). e.g. barrier / black-hole.
   type: TaskType;
-  // Counter ceiling. ABSENT on a counter = UNBOUNDED: the tile shows the bare
-  // count (never a ✓, the tap never resets), done is read at >= 1, and no upper
-  // clamp applies (only a 999 sanity ceiling where a cap is unavoidable).
-  // Today only weekly-goals (repeatable quest rounds) ships unbounded; the add
-  // dialog still forces a max for custom counters.
+  // Counter ceiling. ABSENT on a counter = UNBOUNDED: done at >= 1, no tap
+  // reset, no upper clamp (just a 999 sanity ceiling). Today only weekly-goals;
+  // the add dialog still forces a max for custom counters.
   max?: number;
-  // Sub-quests shown INSIDE this row (expanded on demand), not as rows of their
-  // own. Child tasks are real tracker rows with their own ids/values/maxes, so
-  // buckets, sync keys, clears and resets work unchanged; `subTasks` is the ONE
-  // link (children carry no back-pointer). Data-only today (builtin rows). The
-  // label inside the parent's body is derived (name minus the 通關 verb, see
-  // `subTaskLabel`); no extra data field.
+  // Sub-quests shown INSIDE this row (expanded on demand), never as rows of
+  // their own. Children are real tracker rows (own ids/values/maxes), so buckets,
+  // sync keys, clears and resets work unchanged; this is the ONE link. Builtin
+  // rows only today; the body label is derived (see `subTaskLabel`).
   subTasks?: string[];
   source: TaskSource;
   // barter and shop

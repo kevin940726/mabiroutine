@@ -41,11 +41,10 @@ function markGrabLearned() {
 // Teaching: touch learns on tap, hover-capable learns on hover; the coach
 // bubble retires everywhere after the first successful grab.
 //
-// `writes` lets a caller replace the store writes without losing any of that
-// machinery (GoalGroup's tiles): a goal child's write can CONSUME a completed
-// round, and an unbounded parent clamps at 0 only. Everything else — the hold
-// timing, haptics, the coach mark, `celebrateAfterWrite`, the section
-// celebration — stays here, so a row tile and a goal tile cannot drift apart.
+// `writes` lets a caller replace the store writes without losing this machinery
+// (GoalGroup's tiles): a goal child's write can consume a completed round, and an
+// unbounded parent clamps at 0 only. Timing, haptics, the coach mark and the
+// celebrations stay here, so a row tile and a goal tile cannot drift apart.
 export type CounterWrites = {
   /** absolute write (drag step, keyboard, tap-at-full reset) */
   set: (v: number) => void;
@@ -53,12 +52,12 @@ export type CounterWrites = {
   inc: () => void;
   /** −1 write (right-click) */
   dec: () => void;
-  /** tap-at-full resets to 0 when true */
+  /** tap-at-full resets to 0 when true (false for an unbounded counter) */
   done: boolean;
   /** the write range; an unbounded counter clamps at 0 only */
   clamp: (v: number) => number;
-  /** a new write gesture begins (pointerdown / keydown), so a caller can clear
-   *  per-gesture state (the goal turn-in suppression) */
+  /** a new write gesture begins (pointerdown / keydown): callers clear
+   *  per-gesture state here (the goal turn-in suppression) */
   onWriteStart?: () => void;
 };
 
@@ -75,7 +74,8 @@ export function useGrabCounter(
   const setV = writes?.set ?? ((v: number) => setCounter(taskId, v, isAccount));
   const incV = writes?.inc ?? (() => incCounter(taskId, 1, isAccount));
   const decV = writes?.dec ?? (() => incCounter(taskId, -1, isAccount));
-  const clampV = writes?.clamp ?? ((v: number) => Math.min(max, Math.max(0, v)));
+  // `max <= 0` reads as unbounded (an absent max): floor at 0 only, no ceiling.
+  const clampV = writes?.clamp ?? ((v: number) => (max > 0 ? Math.min(max, Math.max(0, v)) : Math.max(0, v)));
   const [grabbed, setGrabbed] = useState(false);
   const [coach, setCoach] = useState(false);
   const [, setTick] = useState(0);

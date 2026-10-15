@@ -817,9 +817,8 @@ export function SyncToasts() {
   return (
     <div
       key={msg.key}
-      // Announced, not just painted: this bus carries the only recovery for
-      // destructive writes (the goal turn-in), and a silent banner hid it from
-      // screen readers. Polite: never interrupts what the user is doing.
+      // This bus carries the only recovery for a destructive write (the goal
+      // turn-in), so it is announced, not just painted.
       role="status"
       aria-live="polite"
       className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-full bg-foreground px-4 py-2 text-xs text-background shadow-lg whitespace-nowrap max-w-[calc(100vw-2rem)] overflow-hidden text-ellipsis flex items-center gap-3"
