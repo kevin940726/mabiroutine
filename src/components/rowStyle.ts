@@ -81,17 +81,40 @@ export const ITEM_ART_DESKTOP = "h-10 w-10 shrink-0";
 export const PFP_BUTTON =
   "grid shrink-0 cursor-pointer place-items-center transition hover:brightness-110 hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-/** The grouped-parent palette: the strip capsule that sits on a parent card's
- *  bottom edge and the tinted body its children expand into. ONE pair of strings
- *  for both consumers (the barter parent in PinnedGroups, the quest parent in
- *  GoalGroup) — the copies are what drift.
+/** The grouped-parent chrome: the strip capsule that sits on a parent card's
+ *  bottom edge and the tinted sheet its children expand into. ONE definition per
+ *  piece for both consumers (the barter parent in PinnedGroups, the quest parent
+ *  in GoalGroup) — the copies are what drift, and this pair drifted: the strip's
+ *  bottom radius was hand-copied as 7px, which was right while `--radius` was
+ *  8px (`index.css`), and stayed 7px after the token grew to 10px, so the
+ *  capsule's corners turned a hair more tightly than the card's own.
  *
  *  Dark is not a hue swap: the dark card is oklch(0.205 0 0), so a light-mode
  *  violet at a real alpha lands on near-black as a bright patch and glares. Dark
  *  therefore uses a far lower alpha of a lighter step, the convention the repo
  *  already uses for dark tints. */
-export const VIOLET_STRIP = "bg-violet-500/15 text-violet-700 dark:bg-violet-400/[0.10] dark:text-violet-300";
-export const VIOLET_BODY = "bg-violet-50/50 dark:bg-violet-400/[0.04]";
+export const VIOLET_STRIP =
+  "absolute inset-x-px bottom-px z-20 flex h-4 items-center justify-center rounded-b-md bg-violet-500/15 text-violet-700 transition-colors hover:brightness-95 dark:bg-violet-400/[0.10] dark:text-violet-300 dark:hover:brightness-125";
+
+/** `rounded-b-md` on the strip above is load-bearing, not a size choice: the
+ *  strip sits 2px inside the card's BORDER box (its own 1px `bottom-px` inset
+ *  plus the card's 1px border), so the radius that keeps the capsule concentric
+ *  with the card's bottom corners is `--radius - 2px` — exactly what this
+ *  project's `--radius-md` is (`index.css` maps it that way). A hand-picked px
+ *  value here is what broke when `--radius` changed.
+ *
+ *  Callers append `rounded-b-none` while the children sheet is OPEN: the parent
+ *  squares its own bottom edge then (see VIOLET_SHEET), and the capsule has to
+ *  square with it or its rounded corners would show inside a square card bottom. */
+
+/** The children sheet: the tinted block a parent expands into. It is rendered
+ *  ONLY while the parent is open and it always sits flush under the parent (no
+ *  top margin — the block is part of the parent that opened it, not a peer card
+ *  below it), which is why its TOP corners are square and only its bottom ones
+ *  take the card's own radius. The caller squares the parent's bottom corners
+ *  for the same reason: an open group is one continuous block, a closed one is
+ *  a plain rounded row. Callers add their own inner layout (`space-y-2`, a grid). */
+export const VIOLET_SHEET = "rounded-b-lg p-2 pl-3 bg-violet-50/50 dark:bg-violet-400/[0.04]";
 
 /** The tracker's meta vocabulary: the small facts under a title, each with ONE
  *  treatment wherever it appears — a trade row, a shop row, a grouped parent, mobile

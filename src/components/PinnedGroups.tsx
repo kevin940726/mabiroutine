@@ -27,7 +27,7 @@ import { useState } from "react";
 import { displayName } from "@/lib/materials";
 import { TaskRow } from "@/components/TaskRow";
 import { ItemIcon } from "@/components/shop/ItemIcon";
-import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, PFP_BUTTON, ITEM_ART_DESKTOP, ITEM_ART_MOBILE, META_TOWN, VIOLET_BODY, VIOLET_STRIP } from "@/components/rowStyle";
+import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, PFP_BUTTON, ITEM_ART_DESKTOP, ITEM_ART_MOBILE, META_TOWN, VIOLET_SHEET, VIOLET_STRIP } from "@/components/rowStyle";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { bandId } from "@/lib/dragRules";
@@ -252,11 +252,7 @@ function Group({
         e.stopPropagation();
         onToggleOpen();
       }}
-      className={cn(
-        "absolute inset-x-px bottom-px z-20 flex h-4 items-center rounded-b-[7px] transition-colors hover:brightness-95 dark:hover:brightness-125",
-        VIOLET_STRIP,
-        "justify-center"
-      )}
+      className={cn(VIOLET_STRIP, open && "rounded-b-none")}
     >
       <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold leading-none">
         <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
@@ -281,7 +277,7 @@ function Group({
       aria-hidden
       tabIndex={-1}
       onClick={onToggleOpen}
-      className="absolute inset-0 z-10 rounded-lg"
+      className={cn("absolute inset-0 z-10", open ? "rounded-t-lg" : "rounded-lg")}
     />
   );
 
@@ -430,6 +426,10 @@ function Group({
           // violet strip and body still mark the group as a group, so the tint
           // marks COMPLETION and nothing else.
           state === "full" ? "bg-muted/50 border-muted" : "",
+          // An open group is one continuous block: the parent squares its bottom
+          // edge so the sheet below plugs into it (the sheet squares its TOP
+          // corners for the same reason). Collapsed it stays a plain rounded row.
+          open && "rounded-b-none",
         )}
       >
         {fullRowTarget}
@@ -462,7 +462,7 @@ function Group({
       {showChildren && rows.length > 1 && (
         <DndContext collisionDetection={closestCenter} onDragEnd={onChildDragEnd}>
           <SortableContext items={rows.map((r) => r.task.id)} strategy={verticalListSortingStrategy}>
-            <div className={cn("mt-2 space-y-2 rounded-lg p-2 pl-3", VIOLET_BODY)}>
+            <div className={cn("space-y-2", VIOLET_SHEET)}>
               {rows.map((r) => (
                 <TaskRow
                   key={r.task.id}
@@ -486,7 +486,7 @@ function Group({
       {/* A group of one has nothing to reorder inside it, so it stays a plain
           block with no drag context — the row is inert rather than a target. */}
       {open && rows.length === 1 && (
-        <div className={cn("mt-2 space-y-2 rounded-lg p-2 pl-3", VIOLET_BODY)}>
+        <div className={cn("space-y-2", VIOLET_SHEET)}>
           <TaskRow
             task={rows[0].task}
             value={rows[0].value}

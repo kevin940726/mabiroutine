@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
 import { toastAction } from "@/sync/session";
 import type { Task } from "@/lib/types";
-import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, VIOLET_BODY, VIOLET_STRIP } from "@/components/rowStyle";
+import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, VIOLET_SHEET, VIOLET_STRIP } from "@/components/rowStyle";
 
 /** Drag-scale only: px-per-step uses this instead of a real max (the tile has
  *  none). The write range itself comes from `CounterWrites.clamp`. */
@@ -205,6 +205,10 @@ export function GoalGroup({ task, value, isAccount }: Props) {
           // sibling below the card, so opening it cannot move the parent either.
           done ? "bg-muted/50 border-muted" : "",
           isHidden ? "opacity-50" : "",
+          // An open group is one continuous block: the parent squares its bottom
+          // edge so the sheet below plugs into it (the sheet squares its TOP
+          // corners for the same reason). Collapsed it stays a plain rounded row.
+          open && "rounded-b-none",
           isDragging && "pointer-events-none"
         )}
       >
@@ -216,7 +220,7 @@ export function GoalGroup({ task, value, isAccount }: Props) {
           aria-hidden
           tabIndex={-1}
           onClick={() => setOpen((v) => !v)}
-          className="absolute inset-0 z-10 rounded-lg"
+          className={cn("absolute inset-0 z-10", open ? "rounded-t-lg" : "rounded-lg")}
         />
         {isMobile ? (
           <div className="flex items-start gap-2">
@@ -266,8 +270,9 @@ export function GoalGroup({ task, value, isAccount }: Props) {
           onClick={() => setOpen((v) => !v)}
           style={{ touchAction: "manipulation" }}
           className={cn(
-            "absolute inset-x-px bottom-px z-20 flex h-4 items-center justify-center rounded-b-[7px] transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:hover:brightness-125",
-            VIOLET_STRIP
+            VIOLET_STRIP,
+            open && "rounded-b-none",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           )}
         >
           <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold leading-none">
@@ -277,7 +282,7 @@ export function GoalGroup({ task, value, isAccount }: Props) {
         </button>
       </div>
       {open && !isDragging && (
-        <div id={bodyId} role="group" aria-label={`${task.name} 的進度`} className={cn("mt-2 rounded-lg p-2 pl-3", VIOLET_BODY)}>
+        <div id={bodyId} role="group" aria-label={`${task.name} 的進度`} className={VIOLET_SHEET}>
           {/* ONE row: the three legs as equal-width bordered chips */}
           <div className="grid grid-cols-3 gap-2">
             {children.map((c, i) => (
