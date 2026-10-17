@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-17 — One tap writes one row
+
 ### Fixes
 - Checking off a 每日/每週 counter trade no longer ticks the row below it. A tap on a counter tile wrote on the pointer release, and completing a row under 隱藏已完成 removes it the same instant, so on a touch device the rows below slid up before the browser dispatched that tap's own synthesized `click` — which was then hit-tested against whatever had moved into the tapped spot and wrote a SECOND row. Measured at 390px with the real pinned band: one tap on 佛格斯's 4×合金鋼錠 wrote 合金鋼錠 4/4 and 安黛莉's 聖水 ✓, and an 艾爾文 2× tap wrote the next 特蕾西 row. A mouse click never had this shape — measured, the mouseup resolves against the removed row's parent and no click is dispatched at all — which is why it reads as a phone bug. A tile now writes only for its own gesture: a counter's tap writes on its `click` instead of the pointer release (so a completing tap cannot reflow the list mid-gesture in the first place), and every completion control — a counter, a check, a merchant group's parent tile — refuses a click its own pointerdown/pointerup did not produce. Nothing else moves: taps and drags count the same, tapping a full tile still clears it, right-click still subtracts, and Enter/Space on a focused counter tile now counts too (it previously did nothing).
 
