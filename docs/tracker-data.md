@@ -32,7 +32,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 |---|---|---|---|---|---|
 | barrier | 召喚結界 | countdown | 7 | 每小時整點出現（約 10 分鐘）。戰利品次數每週 7 次，週一 06:00 重置，開箱時扣次數。Tile 顯示剩餘（剩 N / 7）。 | **hardcoded per user**; nipponhashi prior "7次為韓服社群" stripped; mabitw 整點出現; bobogameguides 待核 but user hardcodes |
 | black-hole | 黑色坑洞 | countdown | 14 | 狩獵場隨機出現。每日 1 次 + 每週額外 7 次，獎勵次數每週一 06:00 重置，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。Tile 顯示剩餘（剩 N / 14）。 | **hardcoded per user**; moved daily→weekly 2026-09-04; max 7→14 2026-09-05; mabitw 7+7 agrees |
-| weekly-goals | 冒險家工會的定期委託 | counter | 無上限 | 每週可重複完成：三項子計數（`subTasks`，深層地下城 3／地下城 5／狩獵場 5）全部完成時自動回報 +1 並歸零，週一 06:00 重置。次數僅供記錄，1 即視為完成；磁磚永不顯示 ✓。 | user hand-added; repeatable-quest rework 2026-10-15 (store v22, check → unbounded counter) |
+| weekly-goals | 冒險家公會的定期委託 | counter | 無上限 | 每週可重複完成：三項子計數（`subTasks`，深層地下城 3／地下城 5／狩獵場 5）全部完成時自動回報 +1 並歸零，週一 06:00 重置。次數僅供記錄，1 即視為完成；磁磚永不顯示 ✓。 | user hand-added; repeatable-quest rework 2026-10-15 (store v22, check → unbounded counter) |
 | ↳ weekly-goals-deep-dungeon | 通關深層地下城 | counter | 3 | weekly-goals 的子計數，只在父列展開時顯示，不單獨成列。 | user hand-added |
 | ↳ weekly-goals-dungeon | 通關地下城 | counter | 5 | 同上。 | user hand-added |
 | ↳ weekly-goals-hunt | 通關狩獵場 | counter | 5 | 同上。 | user hand-added |
