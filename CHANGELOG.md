@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-18 — The quest row's correct name
+
 ### Fixes
 - The weekly quest row now reads 冒險家公會的定期委託, not 冒險家工會的定期委託. Title text only: an existing save carries over as it stands.
 
