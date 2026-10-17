@@ -36,6 +36,7 @@ import { merchantKey, shopNpcIcon } from "@/lib/shops";
 import { CSS } from "@dnd-kit/utilities";
 import { useAppStore, canonicalBarterOrder } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useTapGate } from "@/hooks/useTapGate";
 import { cn } from "@/lib/utils";
 import { parentState, parentFillPct, progressOf, type PinRow } from "@/lib/pinGroup";
 import { ChevronDown, Eye, EyeOff, GripVertical } from "lucide-react";
@@ -180,6 +181,7 @@ function Group({
   // draws, emerald-500/25 up to the fraction of children done) rides behind it as
   // the "how far along" cue.
   const fillPct = parentFillPct(rows);
+  const gate = useTapGate();
   const tile = (
     <div className={cn("relative z-20", isMobile ? TICKER_BOX_MOBILE : TICKER_BOX_DESKTOP)}>
       <button
@@ -191,7 +193,11 @@ function Group({
             ? `清除 ${title} 的所有交易（${rows.filter((r) => progressOf(r).done).length}/${rows.length} 完成）`
             : `完成 ${title} 的所有交易`
         }
-        onClick={(e) => celebrateAfterWrite(first.section, controlPoint(e), () => toggleGroup(rows))}
+        {...gate.handlers}
+        onClick={(e) => {
+          if (!gate.ownsClick(e)) return;
+          celebrateAfterWrite(first.section, controlPoint(e), () => toggleGroup(rows));
+        }}
         className={cn(
           "relative block h-11 w-11 rounded-xl border overflow-hidden select-none transition-colors",
           isMobile ? "" : "h-14 w-14",

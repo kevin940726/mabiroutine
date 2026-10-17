@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
+import { useTapGate } from "@/hooks/useTapGate";
 import type { TaskSection } from "@/lib/types";
 
 const MAX_RANGE_PX = 140; // px of vertical drag for full range
@@ -79,6 +80,7 @@ export function useGrabCounter(
   const [grabbed, setGrabbed] = useState(false);
   const [coach, setCoach] = useState(false);
   const [, setTick] = useState(0);
+  const gate = useTapGate();
   const wrapRef = useRef<HTMLSpanElement>(null);
   const startY = useRef(0);
   const startVal = useRef(0);
@@ -146,6 +148,7 @@ export function useGrabCounter(
       onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
         if (e.pointerType === "mouse" && e.button !== 0) return; // right-click handled by contextmenu
         writes?.onWriteStart?.();
+        gate.press();
         // pin node + id synchronously: the synthetic event is dead by the time
         // the hold timer fires (currentTarget nulls after dispatch)
         const node = e.currentTarget;
@@ -172,15 +175,18 @@ export function useGrabCounter(
         if (e.button !== 0) return; // right-click release: contextmenu already handled −1, not a tap
         const wasGrabbed = grabbed;
         const didMove = moved.current;
+        gate.release(!wasGrabbed && !didMove);
         if (wasGrabbed) endGrab();
         else clear();
-        if (!wasGrabbed && !didMove) {
-          if (writes?.done ?? (max > 0 && count >= max)) setV(0);
-          else celebrateAfterWrite(section, controlPoint(e), incV);
-          if (!canHover && !grabLearned()) showCoach();
-        }
+      },
+      onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (!gate.ownsClick(e)) return;
+        if (writes?.done ?? (max > 0 && count >= max)) setV(0);
+        else celebrateAfterWrite(section, controlPoint(e), incV);
+        if (!canHover && !grabLearned()) showCoach();
       },
       onPointerCancel: () => {
+        gate.cancel();
         if (grabbed) endGrab();
         else clear();
       },

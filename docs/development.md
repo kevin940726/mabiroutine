@@ -91,7 +91,7 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:tracker` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:purple` + `test:migrations` + `test:sync` + `build`. All thirteen must pass.
+`pnpm check` = `lint` + `test:shops` + `test:tracker` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `build`. All fourteen must pass.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
@@ -157,8 +157,10 @@ migration, the shop grid, or the pinned-section fold. It drives the real app in
 Playwright's pinned Chromium and asserts what the unit gates cannot: a real v19
 save migrating on load (and an existing fold NOT being stomped), the grid
 rendering 4 columns at a desktop width with the discriminating 1100px case that
-tells the container rule apart from a viewport one, and the pinned-section fold
-surviving a reload. Needs `pnpm dev` (default `:5173`, override with `APP_URL=`)
+tells the container rule apart from a viewport one, the pinned-section fold
+surviving a reload, and S5 — the reported stray-click regression on a phone
+viewport with real touch: completing a 4× counter with taps leaves the row below
+it unchecked. Needs `pnpm dev` (default `:5173`, override with `APP_URL=`)
 plus that Chromium, and SKIPs loudly without either, so it is NOT in `pnpm check`
 — a browser suite that needs a dev server does not belong in the offline gate.
 `APP_URL=http://localhost:5188 pnpm test:shop-e2e` points it at another port.
@@ -168,6 +170,30 @@ like the others): children reorder only within their own merchant group, rows
 only within their own section, and a grouped pin cannot swap into the plain-row
 list. Cross-list moves are enforced by structure instead — one drag context per
 list — so they need no rule of their own.
+Tap rule: `pnpm test:tap` after touching `src/lib/tapGate.ts`, the grab counter
+or any tile's click handler. Two halves. The bundled pure suite
+(`scripts/check-tap-gate.entry.ts`) pins the rule: a tile writes only for its own
+pointer gesture — a tap's click writes once, a click with no tap of its own on
+the control is refused, a grab/drag's trailing click is refused, and a
+pointerless activation (`detail === 0`) is honored. The scan half then reads
+every file under `src/components/` and `src/hooks/` and fails on the two shapes
+that would bring the bug back: a pointer-down/up handler that writes progress,
+and an `onClick` that writes progress with no `ownsClick` guard. Sabotage check:
+deleting a tile's guard fails the scan with that tile's file and line.
+Why it exists: a counter's tap wrote on the pointerup (`a8019d5`, 2026-09-04,
+moved it off the `click` so a tap could be told from a hold), and 隱藏已完成
+removes a completed row synchronously inside that same handler — so on a touch
+device the rows below slid up BEFORE the browser dispatched the gesture's own
+synthesized `click`, which was then hit-tested against whatever had moved under
+the finger and wrote a second row. Measured at 390px against the real pinned
+band: ONE tap on 佛格斯's 4×合金鋼錠 wrote 合金鋼錠 4/4 and 安黛莉's 聖水 ✓, and an
+艾爾文 2× tap wrote the next 特蕾西 row. Touch-only: with a mouse, the mouseup
+resolves against the removed row's parent and Chromium dispatches no click at
+all. `setPointerCapture` cannot fix it either (measured: the compat mouse events
+and the click still reached the row below), so the fix is the gate plus the tap
+write moving onto the `click`. The reported symptom also has a browser-level
+regression: `test:shop-e2e` S5 (phone viewport, real touch) completes that same
+counter with four taps and asserts the row below stays unchecked and on screen.
 
 ## Gotchas
 

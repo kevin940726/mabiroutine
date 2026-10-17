@@ -330,6 +330,76 @@ const checkTownFiltered = async (page) => {
   );
 };
 
+// --- S5: completing a counter by tapping leaves the row below it alone ---
+const PHONE = { width: 390, height: 844 };
+
+const STRAY_SAVE = {
+  state: {
+    version: 22,
+    characters: [{ id: "e2e-stray", name: "E2E", taskValues: {}, hiddenTaskIds: [] }],
+    activeCharId: "e2e-stray",
+    accountValues: {},
+    hiddenAccountTaskIds: [],
+    barterPins: ["tir-f3", "yen-安黛莉凱琳特製全麥麵包1-12"],
+    barterCustomOrder: ["tir-f3", "yen-安黛莉凱琳特製全麥麵包1-12"],
+    customTasks: [],
+    lastDailyReset: null,
+    lastWeeklyReset: null,
+    prefs: { hideCompleted: true, pinnedCollapsed: { daily: false, weekly: false } },
+    taskBuckets: {},
+    hourlyReminders: [],
+    purpleHoleReminders: [],
+  },
+  version: 22,
+};
+
+const checkStrayTap = async (browser) => {
+  const context = await browser.newContext({ viewport: PHONE, hasTouch: true, isMobile: true });
+  await context.addInitScript(seedIfAbsent, JSON.stringify(STRAY_SAVE));
+  const page = await context.newPage();
+  await boot(page);
+
+  const below = "yen-安黛莉凱琳特製全麥麵包1-12";
+  await ev(page, `document.querySelector('[data-task-id="tir-f3"]')?.scrollIntoView({ block: 'center' })`);
+  await settle(400);
+  const target = await ev(page, `(() => {
+    const row = document.querySelector('[data-task-id="tir-f3"]');
+    if (!row) return null;
+    const tiles = [...row.querySelectorAll('button')].filter((b) => /rounded-xl/.test(String(b.className)));
+    const r = tiles[tiles.length - 1].getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  })()`);
+  const rendered = await ev(page, `!!document.querySelector('[data-task-id="${below}"]')`);
+  ok("S5 the 4× counter row and the row below it both render", !!target && rendered === true, `${JSON.stringify(target)} below=${rendered}`);
+
+  if (target) {
+    for (let i = 0; i < 4; i += 1) {
+      await page.touchscreen.tap(target.x, target.y);
+      await settle(250);
+    }
+    await settle(900);
+    const dom = await ev(page, `(() => {
+      const row = document.querySelector('[data-task-id="${below}"]');
+      const box = row ? row.querySelector('[role="checkbox"]') : null;
+      return {
+        counterGone: !document.querySelector('[data-task-id="tir-f3"]'),
+        belowPresent: !!row,
+        belowChecked: box ? box.getAttribute('aria-checked') : null,
+      };
+    })()`);
+    ok("S5 the completing tap removed the counter row (4/4)", dom.counterGone === true, JSON.stringify(dom));
+    ok("S5 …and the row below is still on screen, unchecked", dom.belowPresent === true && dom.belowChecked === "false", JSON.stringify(dom));
+    const saved = await ev(page, `(() => {
+      try {
+        const s = JSON.parse(localStorage.getItem('mabiroutine:v2')).state;
+        return { counter: s.characters[0].taskValues['tir-f3'] ?? 0, below: s.accountValues['${below}'] ?? false };
+      } catch (e) { return { error: String(e) }; }
+    })()`);
+    ok("S5 the persisted state agrees (佛格斯 4/4, 安黛莉 untouched)", saved.counter === 4 && saved.below === false, JSON.stringify(saved));
+  }
+  await context.close();
+};
+
 async function main() {
   await checkPrereqs();
   const browser = await launch();
@@ -354,6 +424,8 @@ async function main() {
     const withFold = structuredClone(V19_SAVE);
     withFold.state.prefs.pinnedCollapsed = { daily: true, weekly: false };
     await checkFoldPreserved(await openSeeded(withFold));
+
+    await checkStrayTap(browser);
   } finally {
     await browser.close().catch(() => { /* already gone */ });
   }

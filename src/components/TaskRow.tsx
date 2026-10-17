@@ -63,6 +63,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toastAction } from "@/sync/session";
 import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, PFP_BUTTON, META_NPC, META_TOWN, META_LIMIT, META_COST } from "@/components/rowStyle";
+import { useTapGate } from "@/hooks/useTapGate";
 
 /**
  * Hide with an undo toast (user feedback 2026-09-21: the eye sits next to
@@ -446,6 +447,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
   const onHide = hideWithUndo(task, isHidden);
+  const gate = useTapGate();
   const hideScope = task.section === "account" ? "（所有角色共用）" : task.serverShared === true ? "（伺服器共用）" : "";
 
   const isCheck = task.type === "check";
@@ -711,9 +713,11 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
                 "h-11 w-11 rounded-xl border grid place-items-center transition-colors",
                 checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
               )}
-              onClick={(e) =>
-                celebrateAfterWrite(task.section, controlPoint(e), () => toggleCheck(task.id, isAccount))
-              }
+              {...gate.handlers}
+              onClick={(e) => {
+                if (!gate.ownsClick(e)) return;
+                celebrateAfterWrite(task.section, controlPoint(e), () => toggleCheck(task.id, isAccount));
+              }}
               aria-label={task.name}
               role="checkbox"
               aria-checked={checked}
@@ -829,6 +833,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
   const removeCustom = useAppStore((s) => s.removeCustomTask);
   const isHidden = useAppStore((s) => s.isTaskHidden(task.id));
   const onHide = hideWithUndo(task, isHidden);
+  const gate = useTapGate();
   const reminderEligible = isEligibleReminderId(task.id);
   const scheduleEligible = task.id === PURPLE_HOLE_ID;
   const purpleReminderEligible = scheduleEligible;
@@ -1012,9 +1017,11 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
               "h-14 w-14 rounded-xl border grid place-items-center transition-colors",
               checked ? "bg-emerald-600 border-emerald-600 text-white" : "bg-card hover:border-primary"
             )}
-            onClick={(e) =>
-              celebrateAfterWrite(task.section, controlPoint(e), () => toggleCheck(task.id, isAccount))
-            }
+            {...gate.handlers}
+            onClick={(e) => {
+              if (!gate.ownsClick(e)) return;
+              celebrateAfterWrite(task.section, controlPoint(e), () => toggleCheck(task.id, isAccount));
+            }}
             aria-label={task.name}
             role="checkbox"
             aria-checked={checked}
