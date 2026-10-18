@@ -526,6 +526,11 @@ and a fixture come back — and the prune steps must already be calling
    `public/items/金幣.webp`, looked up through the same `Cost` as 喵幣 / 愛心幣.
    `costText` no longer builds the rendered price at all; it is the folded text
    form for a pin's `desc` and the shop's search fold, and spells 金幣.
+   Follow-up (2026-10-18): a pinned row also states what its cap costs —
+   `🪙250 · 共 🪙7,500` — from the one `ShopPrice` line in `TaskRow`. Gold's
+   `cost.amount` is per single item, so the total is unit × the counter's max, and
+   only a gold row with a counter has one: a token currency is priced per whole
+   exchange, and an uncapped row has no ceiling to state.
 
 ---
 

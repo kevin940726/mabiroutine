@@ -449,5 +449,31 @@ for (const deal of shopDeals(loadShopNpcs())) {
   }
 }
 
+// 7. the gold pricing the pinned rows RENDER depends on. `capGold` (src/lib/shops.ts)
+//    prices a gold row as unit × purchases; TaskRow shows that as the row's 共 total and
+//    PinnedGroups sums it for the merchant parent. Either would silently mis-state money
+//    if the data moved, so the two things they rest on fail here instead. The third —
+//    that a capped row which is not a counter is exactly one purchase, which the parent
+//    total's `cap ?? 1` fallback assumes — is already guaranteed by the limit shape rule
+//    above (times is an integer >= 1, and a task only counts at times > 1).
+for (const deal of shopDeals(loadShopNpcs())) {
+  if (deal.costCurrency !== "gold") continue;
+  const where = `${deal.town} ${deal.npc} ${deal.name}`;
+  if (deal.outQty !== 1) {
+    fail(
+      `gold row yields ${deal.outQty} per purchase ${where}: the pinned 共 total is unit × purchases, so it ` +
+        `understates by ${deal.outQty}× — multiply by outQty in capGold, re-check the row and group totals, ` +
+        `then widen this check`,
+    );
+  }
+  if (deal.costAmount === null) {
+    fail(
+      `gold row has no price ${where}: the pinned row states no total and the group parent drops it from its ` +
+        `sum (the floor marker covers a missing cap, not a missing price) — fill cost.amount, or teach ` +
+        `capGold and that marker about an unpriced row`,
+    );
+  }
+}
+
 console.log(bad === 0 ? "ALL SHOPS CHECKS PASSED" : `${bad} FAILURES`);
 process.exit(bad === 0 ? 0 : 1);

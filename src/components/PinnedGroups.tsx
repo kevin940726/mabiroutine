@@ -26,13 +26,14 @@
 import { useState } from "react";
 import { displayName } from "@/lib/materials";
 import { TaskRow } from "@/components/TaskRow";
+import { Cost } from "@/components/shop/Cost";
 import { ItemIcon } from "@/components/shop/ItemIcon";
 import { ROW_SHELL_DESKTOP, ROW_SHELL_MOBILE, TICKER_BOX_DESKTOP, TICKER_BOX_MOBILE, PFP_DESKTOP, PFP_MOBILE, PFP_BUTTON, ITEM_ART_DESKTOP, ITEM_ART_MOBILE, META_TOWN, VIOLET_SHEET, VIOLET_STRIP } from "@/components/rowStyle";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { bandId } from "@/lib/dragRules";
 import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
-import { merchantKey, shopNpcIcon } from "@/lib/shops";
+import { capGold, merchantKey, shopNpcIcon } from "@/lib/shops";
 import { CSS } from "@dnd-kit/utilities";
 import { useAppStore, canonicalBarterOrder } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -127,6 +128,11 @@ function Group({
   // the tail of the line on a count that the ellipsis now conveys for free.
   const names = rows.map((r) => itemName(r.task));
   const summary = names.join("、");
+  const prices = rows.map((r) => capGold(r.task.shopMeta, r.task.max));
+  const goldTotal = prices.reduce<number>((sum, price) => sum + (price ?? 0), 0);
+  const goldFloorOnly = rows.some(
+    (r, i) => prices[i] == null && r.task.shopMeta?.costCurrency === "gold" && r.task.shopMeta.costAmount != null,
+  );
 
   // Hide: a group is not a task, so hiding it hides every child.
   const char = useAppStore((s) => s.getActiveChar());
@@ -377,7 +383,7 @@ function Group({
 
   // The body is TWO lines:
   //   line 1  [face] title · town [伺服器]   — who the merchant is and where
-  //   line 2  summary                         — the pinned items, truncated
+  //   line 2  summary + the group's gold      — the names truncate, the gold never does
   // No limit. The parent used to show the TIGHTEST cap among its pins, but a parent
   // is not one trade, so the number named no child: `每日 1 次` on a 4-pin group read
   // as "this merchant: 1/day" when it meant "one of these four is 1/day". Each child
@@ -398,8 +404,14 @@ function Group({
         <span className={cn(META_TOWN, "truncate")}>· {town}</span>
         {hasServerShared && <span className="shrink-0 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">伺服器</span>}
       </div>
-      <div className={cn("truncate text-xs text-muted-foreground min-w-0", isMobile ? "mt-2" : "mt-0.5")}>
-        {summary}
+      <div className={cn("flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground", isMobile ? "mt-2" : "mt-0.5")}>
+        <span className="truncate">{summary}</span>
+        {goldTotal > 0 && (
+          <span className="shrink-0 whitespace-nowrap">
+            共 <Cost currency="gold" amount={goldTotal} />
+            {goldFloorOnly ? "+" : ""}
+          </span>
+        )}
       </div>
     </>
   );

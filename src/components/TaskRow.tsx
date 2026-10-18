@@ -59,6 +59,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
 import { Cost } from "@/components/shop/Cost";
 import { dealTimes, displayName, limitDisplay, parseItemQty } from "@/lib/materials";
+import { capGold } from "@/lib/shops";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toastAction } from "@/sync/session";
@@ -442,6 +443,23 @@ function barterTimes(task: Task): number {
   return dealTimes(task.npc ?? "", get.name, get.qty, task.barterMeta?.limit, task.town);
 }
 
+function ShopPrice({ meta, cap }: { meta: Task["shopMeta"]; cap?: number }) {
+  if (!meta) return null;
+  const total = cap != null ? capGold(meta, cap) : null;
+  return (
+    <>
+      <Cost currency={meta.costCurrency} amount={meta.costAmount ?? null} />
+      {total != null && (
+        <>
+          <span className="mx-1.5 text-muted-foreground">·</span>
+          <span className="mr-1.5 text-muted-foreground">共</span>
+          <Cost currency="gold" amount={total} />
+        </>
+      )}
+    </>
+  );
+}
+
 function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless, onViewInShop }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
@@ -627,14 +645,14 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
         {/* Same as the barter branch: in a group the price leads and the cap trails. */}
         {merchantless && task.shopMeta && (
           <span className={cn(META_COST)}>
-            <Cost currency={task.shopMeta.costCurrency} amount={task.shopMeta.costAmount ?? null} />
+            <ShopPrice meta={task.shopMeta} cap={task.max} />
           </span>
         )}
         {task.shopMeta?.limit ? <span className={cn(META_LIMIT, "ml-auto")}>{limitDisplay(task.shopMeta.limit)}</span> : null}
       </div>
       {!merchantless && task.shopMeta && (
         <div className={cn("mt-0.5 break-words", META_COST)}>
-          <Cost currency={task.shopMeta.costCurrency} amount={task.shopMeta.costAmount ?? null} />
+          <ShopPrice meta={task.shopMeta} cap={task.max} />
         </div>
       )}
       {task.notes && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1 italic break-words">📝 {task.notes}</p>}
@@ -968,9 +986,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
             // No hover card: a purchase has no material chain to trace.
             <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground min-w-0">
               <span className={cn("truncate", META_COST)}>
-                {task.shopMeta ? (
-                  <Cost currency={task.shopMeta.costCurrency} amount={task.shopMeta.costAmount ?? null} />
-                ) : null}
+                <ShopPrice meta={task.shopMeta} cap={task.max} />
               </span>
               {task.shopMeta?.limit ? <span className={cn(META_LIMIT, "ml-auto")}>{limitDisplay(task.shopMeta.limit)}</span> : null}
             </div>

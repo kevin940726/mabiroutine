@@ -59,9 +59,7 @@ function Pfp({ npc, town, limit, price }: { npc: string; town?: string; limit?: 
           {price != null && (
             <>
               {" "}
-              <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                ·<Cost currency="gold" amount={price} size="size-3.5" />
-              </span>
+              <span className="whitespace-nowrap">· <Cost currency="gold" amount={price} size="size-3.5" /></span>
             </>
           )}
         </>
@@ -185,9 +183,7 @@ export function MaterialBreakdown({
           {plan.gold > 0 && (
             <>
               、
-              <span className="inline-flex items-center align-middle">
-                <Cost currency="gold" amount={plan.gold} size="size-3.5" />
-              </span>
+              <Cost currency="gold" amount={plan.gold} size="size-3.5" />
             </>
           )}
         </span>

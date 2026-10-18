@@ -336,3 +336,13 @@ export function costText(deal: ShopDeal): string {
 export function getText(deal: ShopDeal): string {
   return displayName(`${deal.name}${deal.outQty > 1 ? ` ×${deal.outQty}` : ""}`);
 }
+
+/** What a row costs to buy out its cap: gold's `cost.amount` is per single item, so
+ *  unit × purchases, where purchases is the counter's max or one for a limited row that
+ *  is not a counter. Null for an uncapped row and for a token currency, which is priced
+ *  per whole exchange rather than per item. */
+export function capGold(meta: Task["shopMeta"], cap?: number): number | null {
+  if (!meta || meta.costCurrency !== "gold" || meta.costAmount == null) return null;
+  const purchases = cap ?? (meta.limit ? 1 : null);
+  return purchases == null ? null : meta.costAmount * purchases;
+}

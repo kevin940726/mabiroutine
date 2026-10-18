@@ -34,8 +34,8 @@ export function Cost({
   const artName = CURRENCY_ART[currency];
   if (artName) {
     return (
-      <span className="inline-flex items-center gap-1 tabular-nums">
-        <ItemIcon name={artName} size={size} />
+      <span className="tabular-nums">
+        <ItemIcon name={artName} size={size} className="mr-0.5 align-text-bottom" />
         {label}
       </span>
     );
