@@ -45,6 +45,17 @@
     "order": 40
   },
   {
+    "id": "black-hole-daily",
+    "name": "每日黑色坑洞",
+    "icon": "🕳️",
+    "desc": "每日更新 1 次，沒用隔天會消失；點一下也會同步更新下面每週黑色坑洞次數。",
+    "section": "daily",
+    "kind": "daily",
+    "type": "check",
+    "source": "builtin",
+    "order": 45
+  },
+  {
     "id": "tower",
     "name": "亡靈之塔",
     "icon": "🗼",
@@ -82,13 +93,13 @@
   },
   {
     "id": "black-hole",
-    "name": "黑色坑洞",
+    "name": "每週黑色坑洞",
     "icon": "🕳️",
-    "desc": "狩獵場隨機出現。獎勵次數每日 1 次 + 每週額外 7 次，開箱時扣次數（無主戰利品也扣）。每週最多 14 次。",
+    "desc": "每週更新 7 次，包含每日次數，上限 14 次；優先使用上面的每日次數；此剩餘次數與遊戲內顯示的數字一樣。",
     "section": "weekly",
     "kind": "weekly",
     "type": "countdown",
-    "max": 14,
+    "max": 7,
     "source": "builtin",
     "order": 70
   },

@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
-import { useGrabCounter } from "@/hooks/useGrabCounter";
+import { useGrabCounter, type CounterWrites } from "@/hooks/useGrabCounter";
 import type { Task, TaskSection } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -11,6 +11,7 @@ import { EyeOff, Eye, MoreHorizontal, Trash2, Pencil, GripVertical, Bell, BellRi
 import { isEligibleReminderId, reminderPermission, requestReminderPermission, waitForReminderGrant } from "@/lib/hourlyReminders";
 import { isServerPushMode, isIOSWithoutPWA, reconcileServerPush, refreshServerRoster, serverPushOn, subscribeServerPush, unsubscribeServerPush } from "@/lib/serverPush";
 import { PURPLE_HOLE_ID, formatTaipei, purpleLive } from "@/lib/purpleHole";
+import { BLACK_HOLE_DAILY_ID, BLACK_HOLE_ID, BLACK_HOLE_WEEK_MAX, blackHoleDec, blackHolePairForResolved, blackHoleState, blackHoleTap } from "@/lib/blackHole";
 import { formatCountdown } from "@/lib/reset";
 import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
 import { useNow } from "@/hooks/useNow";
@@ -460,6 +461,53 @@ function ShopPrice({ meta, cap }: { meta: Task["shopMeta"]; cap?: number }) {
   );
 }
 
+/**
+ * 黑色坑洞 wiring for one row. The stored pair (the weekly bank used + today's
+ * daily used) is not the tile's axis: the tile shows the game's combined
+ * attempts left as its big number and the week's `resolved / 14` as its fill,
+ * and the drag writes a resolved value. Every write therefore goes through the
+ * one store action that rewrites both rows, and the 30s tick is what rolls the
+ * fill at 06:00 while the app sits open.
+ *
+ * Called for every row (hooks rule); only the black-hole id builds anything.
+ */
+function useBlackHole(taskId: string, value: boolean | number | undefined, isAccount: boolean) {
+  const nowMs = useNow(30_000);
+  const daily = useAppStore((s) => s.getActiveChar()?.taskValues[BLACK_HOLE_DAILY_ID]);
+  const writeBlackHole = useAppStore((s) => s.writeBlackHole);
+  const state = taskId === BLACK_HOLE_ID ? blackHoleState(value, daily, new Date(nowMs)) : null;
+  // Live reads at gesture time: a sync pull between render and tap must not
+  // make the tap write a pair built from a stale half (the goal tiles' rule).
+  // checkResets first: a gesture can land in the minutes between a 06:00 reset
+  // and the next prune (5-min repoll / focus), and a pair built from the
+  // previous cycle's halves would re-stamp them into the new cycle.
+  const charNow = () => {
+    useAppStore.getState().checkResets();
+    return useAppStore.getState().getActiveChar();
+  };
+  const writes: CounterWrites | null = state
+    ? {
+        set: (v) => {
+          const c = charNow();
+          writeBlackHole(blackHolePairForResolved(v, c?.taskValues[BLACK_HOLE_DAILY_ID], new Date()), isAccount);
+        },
+        inc: () => {
+          const c = charNow();
+          const p = blackHoleTap(c?.taskValues[BLACK_HOLE_ID], c?.taskValues[BLACK_HOLE_DAILY_ID]);
+          if (p) writeBlackHole(p, isAccount);
+        },
+        dec: () => {
+          const c = charNow();
+          const p = blackHoleDec(c?.taskValues[BLACK_HOLE_ID], c?.taskValues[BLACK_HOLE_DAILY_ID]);
+          if (p) writeBlackHole(p, isAccount);
+        },
+        done: state.done,
+        clamp: (v) => Math.max(state.resolvedMin, Math.min(state.resolvedMax, v)),
+      }
+    : null;
+  return { state, writes, writeBlackHole };
+}
+
 function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless, onViewInShop }: Props) {
   const toggleCheck = useAppStore((s) => s.toggleCheck);
   const removeCustom = useAppStore((s) => s.removeCustomTask);
@@ -471,8 +519,11 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
   const isCheck = task.type === "check";
   const checked = isCheck ? Boolean(value) : false;
   const count = !isCheck ? (typeof value === "number" ? value : value === true ? 1 : 0) : 0;
+  // 黑色坑洞's progress is derived (bank + elapsed dailies + today), not the
+  // stored bank; every other row keeps its raw value/max rule.
+  const { state: blackHole, writes: blackHoleWrites, writeBlackHole } = useBlackHole(task.id, value, isAccount);
   // A counter with no max is unbounded: done at >= 1 (its tile never shows a ✓).
-  const isDone = isCheck ? checked : count >= (task.max ?? 1);
+  const isDone = isCheck ? checked : blackHole ? blackHole.done : count >= (task.max ?? 1);
 
   const isCustom = task.source === "custom";
   const isBarter = task.source === "barter";
@@ -734,7 +785,11 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
               {...gate.handlers}
               onClick={(e) => {
                 if (!gate.ownsClick(e)) return;
-                celebrateAfterWrite(task.section, controlPoint(e), () => toggleCheck(task.id, isAccount));
+                celebrateAfterWrite(task.section, controlPoint(e), () =>
+                  task.id === BLACK_HOLE_DAILY_ID
+                    ? writeBlackHole({ today: !checked }, isAccount)
+                    : toggleCheck(task.id, isAccount)
+                );
               }}
               aria-label={task.name}
               role="checkbox"
@@ -742,6 +797,15 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
             >
               <span className="text-lg leading-none">{checked ? "✓" : ""}</span>
             </button>
+          ) : blackHole && blackHoleWrites ? (
+            <CounterTileMobile
+              taskId={task.id}
+              count={blackHole.resolved}
+              max={BLACK_HOLE_WEEK_MAX}
+              isAccount={isAccount}
+              section={task.section}
+              blackHole={{ remaining: blackHole.remaining, writes: blackHoleWrites }}
+            />
           ) : (
             <CounterTileMobile taskId={task.id} count={count} max={task.max} isAccount={isAccount} countdown={task.type === "countdown"} section={task.section} />
           )}
@@ -794,14 +858,33 @@ function RowMenu({ isHidden, hideScope, onEdit, onToggleHidden, onRemove }: {
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click = −1. Hold 0.3s → grab, drag vertically to adjust fast.
 // Progress is the fill rising inside the tile.
-function CounterTileMobile({ taskId, count, max, isAccount, countdown, section }: { taskId: string; count: number; /** absent = unbounded: bare count, no ✓ */ max?: number; isAccount: boolean; countdown?: boolean; section: TaskSection }) {
-  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max ?? 0, isAccount, section);
+function CounterTileMobile({ taskId, count, max, isAccount, countdown, section, blackHole }: {
+  taskId: string;
+  count: number;
+  /** absent = unbounded: bare count, no ✓ */
+  max?: number;
+  isAccount: boolean;
+  countdown?: boolean;
+  section: TaskSection;
+  /** 黑色坑洞: `count` is the derived week progress (0..14) and the big number
+   *  is the game's combined attempts left (0..8). */
+  blackHole?: { remaining: number; writes: CounterWrites };
+}) {
+  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max ?? 0, isAccount, section, blackHole?.writes);
   const pct = max ? Math.min(100, (count / max) * 100) : 0;
   const done = max !== undefined && max > 0 && count >= max;
-  // countdown mode: big number counts down (剩 N), fill still rises with used
-  const shown = countdown && max ? Math.max(0, max - count) : count;
+  // countdown mode: big number counts down (剩 N), fill still rises with used.
+  // 黑色坑洞: the big number is the game's R, the small line the week's resolved.
+  const shown = blackHole ? blackHole.remaining : countdown && max ? Math.max(0, max - count) : count;
   // done look lands only at rest; while grabbing, always numbers on unflipped tile
   const showCheck = done && !grabbed;
+  const label = blackHole
+    ? `遊戲內剩 ${blackHole.remaining} 次；本週 ${count} / ${max}，點一下加一，長按拖曳快速調整`
+    : max === undefined
+      ? `${count} 次，點一下加一，長按拖曳快速調整`
+      : countdown
+        ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整`
+        : `${count} / ${max}，點一下加一，長按拖曳快速調整`;
   return (
     <span ref={wrapRef} className="relative inline-block">
       <button
@@ -811,13 +894,20 @@ function CounterTileMobile({ taskId, count, max, isAccount, countdown, section }
           grabbed && "ring-2 ring-primary scale-105 cursor-ns-resize border-primary"
         )}
         style={{ touchAction: "none" }}
-        aria-label={max === undefined ? `${count} 次，點一下加一，長按拖曳快速調整` : countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整` : `${count} / ${max}，點一下加一，長按拖曳快速調整`}
+        aria-label={label}
         {...handlers}
       >
         <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />
         <span className="absolute inset-0 grid place-items-center">
           {showCheck ? (
             <span className="text-lg leading-none text-white">✓</span>
+          ) : blackHole ? (
+            <span className="font-mono leading-none">
+              <span className="block text-base font-semibold">{shown}</span>
+              <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                {count}/{max}
+              </span>
+            </span>
           ) : (
             <span className="font-mono leading-none">
               {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}
@@ -862,8 +952,11 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
   const isCheck = task.type === "check";
   const checked = isCheck ? Boolean(value) : false;
   const count = !isCheck ? (typeof value === "number" ? value : value === true ? 1 : 0) : 0;
+  // 黑色坑洞's progress is derived (bank + elapsed dailies + today), not the
+  // stored bank; every other row keeps its raw value/max rule.
+  const { state: blackHole, writes: blackHoleWrites, writeBlackHole } = useBlackHole(task.id, value, isAccount);
   // A counter with no max is unbounded: done at >= 1 (its tile never shows a ✓).
-  const isDone = isCheck ? checked : count >= (task.max ?? 1);
+  const isDone = isCheck ? checked : blackHole ? blackHole.done : count >= (task.max ?? 1);
 
   const isBarter = task.source === "barter";
   const isShop = task.source === "shop";
@@ -1036,7 +1129,11 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
             {...gate.handlers}
             onClick={(e) => {
               if (!gate.ownsClick(e)) return;
-              celebrateAfterWrite(task.section, controlPoint(e), () => toggleCheck(task.id, isAccount));
+              celebrateAfterWrite(task.section, controlPoint(e), () =>
+                task.id === BLACK_HOLE_DAILY_ID
+                  ? writeBlackHole({ today: !checked }, isAccount)
+                  : toggleCheck(task.id, isAccount)
+              );
             }}
             aria-label={task.name}
             role="checkbox"
@@ -1044,6 +1141,15 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
           >
             <span className="text-xl leading-none">{checked ? "✓" : ""}</span>
           </button>
+        ) : blackHole && blackHoleWrites ? (
+          <CounterTileDesktop
+            taskId={task.id}
+            count={blackHole.resolved}
+            max={BLACK_HOLE_WEEK_MAX}
+            isAccount={isAccount}
+            section={task.section}
+            blackHole={{ remaining: blackHole.remaining, writes: blackHoleWrites }}
+          />
         ) : (
           <CounterTileDesktop taskId={task.id} count={count} max={task.max} isAccount={isAccount} countdown={task.type === "countdown"} section={task.section} />
         )}
@@ -1055,14 +1161,33 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
 // Tap tile for counters: tap = +1, full tile taps back to 0 (like unchecking),
 // right-click = −1. Hold 0.3s → grab, drag vertically to adjust fast.
 // Progress is the fill rising inside the tile.
-function CounterTileDesktop({ taskId, count, max, isAccount, countdown, section }: { taskId: string; count: number; /** absent = unbounded: bare count, no ✓ */ max?: number; isAccount: boolean; countdown?: boolean; section: TaskSection }) {
-  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max ?? 0, isAccount, section);
+function CounterTileDesktop({ taskId, count, max, isAccount, countdown, section, blackHole }: {
+  taskId: string;
+  count: number;
+  /** absent = unbounded: bare count, no ✓ */
+  max?: number;
+  isAccount: boolean;
+  countdown?: boolean;
+  section: TaskSection;
+  /** 黑色坑洞: `count` is the derived week progress (0..14) and the big number
+   *  is the game's combined attempts left (0..8). */
+  blackHole?: { remaining: number; writes: CounterWrites };
+}) {
+  const { grabbed, coach, wrapRef, handlers } = useGrabCounter(taskId, count, max ?? 0, isAccount, section, blackHole?.writes);
   const pct = max ? Math.min(100, (count / max) * 100) : 0;
   const done = max !== undefined && max > 0 && count >= max;
-  // countdown mode: big number counts down (剩 N), fill still rises with used
-  const shown = countdown && max ? Math.max(0, max - count) : count;
+  // countdown mode: big number counts down (剩 N), fill still rises with used.
+  // 黑色坑洞: the big number is the game's R, the small line the week's resolved.
+  const shown = blackHole ? blackHole.remaining : countdown && max ? Math.max(0, max - count) : count;
   // done look lands only at rest; while grabbing, always numbers on unflipped tile
   const showCheck = done && !grabbed;
+  const label = blackHole
+    ? `遊戲內剩 ${blackHole.remaining} 次；本週 ${count} / ${max}，點一下加一，長按拖曳快速調整`
+    : max === undefined
+      ? `${count} 次，點一下加一，長按拖曳快速調整`
+      : countdown
+        ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整`
+        : `${count} / ${max}，點一下加一，長按拖曳快速調整`;
   return (
     <span ref={wrapRef} className="relative inline-block">
       <button
@@ -1072,13 +1197,23 @@ function CounterTileDesktop({ taskId, count, max, isAccount, countdown, section 
           grabbed && "ring-2 ring-primary scale-105 cursor-ns-resize border-primary"
         )}
         style={{ touchAction: "none" }}
-        aria-label={max === undefined ? `${count} 次，點一下加一，長按拖曳快速調整` : countdown ? `剩餘 ${shown} 次，共 ${max} 次，點一下加一，長按拖曳快速調整` : `${count} / ${max}，點一下加一，長按拖曳快速調整`}
+        aria-label={label}
         {...handlers}
       >
         <span className="absolute bottom-0 left-0 right-0 bg-emerald-500/25 transition-all" style={{ height: `${pct}%` }} />
         <span className="absolute inset-0 grid place-items-center">
           {showCheck ? (
             <span className="text-xl leading-none text-white">✓</span>
+          ) : blackHole ? (
+            <span className="font-mono leading-none">
+              <span className="block text-lg font-semibold">
+                <span className="mr-0.5 text-[10px] text-muted-foreground">剩</span>
+                {shown}
+              </span>
+              <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                本週 {count}/{max}
+              </span>
+            </span>
           ) : (
             <span className="font-mono leading-none">
               {countdown && <span className="text-[10px] text-muted-foreground">剩</span>}

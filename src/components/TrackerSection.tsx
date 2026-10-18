@@ -11,6 +11,7 @@ import { subTaskIds } from "@/lib/subTasks";
 import { useAppStore, shopDealToTask, canonicalBarterOrder } from "@/store/useAppStore";
 import { barterTaskForPin, merchantKey, shopDealsByPinId } from "@/lib/shops";
 import { PURPLE_HOLE_ID, isScheduledToday, nextBadgeLabel } from "@/lib/purpleHole";
+import { BLACK_HOLE_DAILY_ID, BLACK_HOLE_ID, blackHoleProgressTask, blackHoleProgressValue, blackHoleState } from "@/lib/blackHole";
 import { DndContext, closestCenter, type DragEndEvent, type Modifier } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { decideDrop, bandId, clampToRange, type DropTarget } from "@/lib/dragRules";
@@ -311,6 +312,12 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
     if (hideCompleted) {
       list = list.filter((t) => {
         const v = isAccount ? accountValues[t.id] : char?.taskValues[t.id];
+        // 黑色坑洞: the stored bank is not progress — resolved over the week's
+        // 14 is, and it only completes on Sunday. Hiding on the raw bank would
+        // drop the row the moment 7 extras are logged, mid-week.
+        if (t.id === BLACK_HOLE_ID) {
+          return !blackHoleState(v, char?.taskValues[BLACK_HOLE_DAILY_ID], new Date(now)).done;
+        }
         if (t.type === "check") return !v;
         const n = typeof v === "number" ? v : 0;
         // No max on a counter = unbounded: done at >= 1.
@@ -318,18 +325,22 @@ export function TrackerSection({ title, icon, tasks, isAccount, section, onEditT
       });
     }
     return list;
-  }, [baseTasks, char, accountValues, isAccount, hideCompleted]);
+  }, [baseTasks, char, accountValues, isAccount, hideCompleted, now]);
 
   const { done, total, percent } = useMemo(() => {
     // progress over the unfiltered-by-completion lists: flipping 隱藏已完成
     // only hides rows, never moves done/total. (Manual hides still exclude,
     // per the hidden-subcategory rule.) Shared ruler with the header overall.
     // Server-shared barter reads the shared pool, everything else the active char.
+    // 黑色坑洞 is the one row whose ruler is not its raw value: the shared
+    // ruler sees resolved over the week's 14 (the stored bank alone would read
+    // as done at 7).
     const combined = [...baseTasks, ...barterBase];
-    return summarizeProgress(combined, (t) =>
-      t.serverShared === true ? accountValues[t.id] : (isAccount ? accountValues[t.id] : char?.taskValues[t.id])
-    );
-  }, [baseTasks, barterBase, char, accountValues, isAccount]);
+    return summarizeProgress(combined.map(blackHoleProgressTask), (t) => {
+      const raw = t.serverShared === true ? accountValues[t.id] : (isAccount ? accountValues[t.id] : char?.taskValues[t.id]);
+      return blackHoleProgressValue(t, raw, char?.taskValues[BLACK_HOLE_DAILY_ID], new Date(now));
+    });
+  }, [baseTasks, barterBase, char, accountValues, isAccount, now]);
 
   // Each list is its own DndContext, so `over` only ever names a row in the SAME
   // list as the dragged row: a top-level row cannot resolve to a pin and vice

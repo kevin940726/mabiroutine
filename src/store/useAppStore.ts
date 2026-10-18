@@ -8,6 +8,7 @@ import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, costText, getTex
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 import { cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
 import { subTaskIds } from "@/lib/subTasks";
+import { BLACK_HOLE_BANK_MAX, BLACK_HOLE_DAILY_ID, BLACK_HOLE_ID } from "@/lib/blackHole";
 import { flushStorage, idleStorage } from "@/lib/storage";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -96,6 +97,11 @@ type Store = AppState & {  // actions
   toggleCheck: (taskId: string, isAccount: boolean) => void;
   setCounter: (taskId: string, value: number, isAccount: boolean) => void;
   incCounter: (taskId: string, delta: number, isAccount: boolean) => void;
+  /** One write for the 黑色坑洞 pair (the weekly bank + today's daily) in ONE
+   *  set: the two rows sit in different cycles (week bucket + day bucket), so
+   *  no render can see one half without the other. Absent fields are left
+   *  alone. */
+  writeBlackHole: (patch: { bank?: number; today?: boolean }, isAccount: boolean) => void;
   /** One completed 定期委託 round in ONE write: the parent's count +1 and its
    *  sub-counters back to 0, so no render can see the children consumed without
    *  the round. `childBefore` is the caller's snapshot of the children from
@@ -1014,6 +1020,36 @@ export const useAppStore = create<Store>()(
         const next = Math.min(max, Math.max(0, cur + delta));
         get().setCounter(taskId, next, isAcc);
       },
+
+      writeBlackHole: (patch, isAccount) =>
+        set((s) => {
+          const now = new Date();
+          const nextBuckets = { ...s.taskBuckets };
+          // Stamp only the halves this write touches; each row's own cycle
+          // decides its bucket (the weekly bank is a week key, today's daily a
+          // day key). An absent half keeps its value AND its provenance.
+          if (patch.bank !== undefined) {
+            nextBuckets[BLACK_HOLE_ID] = cycleBucketFor(BLACK_HOLE_ID, s.customTasks, now);
+          }
+          if (patch.today !== undefined) {
+            nextBuckets[BLACK_HOLE_DAILY_ID] = cycleBucketFor(BLACK_HOLE_DAILY_ID, s.customTasks, now);
+          }
+          const write = (target: Record<string, number | boolean>): Record<string, number | boolean> => {
+            const next = { ...target };
+            if (patch.bank !== undefined) {
+              next[BLACK_HOLE_ID] = Math.max(0, Math.min(BLACK_HOLE_BANK_MAX, Math.round(patch.bank)));
+            }
+            if (patch.today !== undefined) next[BLACK_HOLE_DAILY_ID] = patch.today;
+            return next;
+          };
+          if (isAccount) return { accountValues: write(s.accountValues), taskBuckets: nextBuckets };
+          return {
+            taskBuckets: nextBuckets,
+            characters: s.characters.map((c) =>
+              c.id === s.activeCharId ? { ...c, taskValues: write(c.taskValues) } : c
+            ),
+          };
+        }),
 
       recordGoalRound: (taskId, isAccount, childBefore) => {
         const s = get();

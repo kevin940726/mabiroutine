@@ -1,11 +1,10 @@
 # Plan — 黑色坑洞: the game's one number, on a 14-slot week
 
-Status: DESIGN SETTLED 2026-10-19. The visible row, the stored values, and the
-write rules are settled; the copy and the small UX choices are the remaining
-open items (§3.3–§3.7). Not built. **The copy is a DRAFT** — the user is
-rewording it; every Chinese string here is a placeholder.
+Status: IMPLEMENTED 2026-10-19. The design below is what the working tree
+implements; §3 records how each open choice landed and §5 is the copy now in
+`tracker.json`.
 
-Read §2.1 (the settled math) and §3 (the remaining choices) before touching
+Read §2.1 (the settled math) and §3 (how the choices landed) before touching
 anything.
 
 ## 1. The rule and the problem
@@ -48,7 +47,8 @@ elapsed  = 6 − X            // expired daily slots: 0 Mon … 6 Sun
 resolved = bank + elapsed + today   // 0..14; a slot is resolved when used OR wasted
 R        = 8 − bank − today         // the game's number; X cancels out
 fill     = resolved / 14
-done     = resolved >= 14           // bank 7 + X 0 + today 1 → Sunday only
+done     = resolved >= 14           // bank 7 + X 0 + today 1 → the last daily
+                                    // slot only (Sun 06:00 → Mon 06:00)
 ```
 
 Each of the week's 14 slots lives in its natural home: the 7 carryable extras
@@ -60,7 +60,9 @@ moment the clock passes 06:00, with zero logging.
 - `X` comes from `src/lib/reset.ts`:
   `X = round((getNextWeeklyReset(now) − getNextDailyReset(now)) / 86400000)`.
   Monday after 06:00 → 6; the hours before Monday 06:00 still belong to the old
-  week → 0; Sunday → 0.
+  week → 0; Sunday → 0. So the completable window is the week's last daily
+  slot, Sunday 06:00 → Monday 06:00: the row can still finish on Monday morning
+  before the reset, which is the game's week edge, not midnight.
 - Writes (one store action, both rows, bucket-stamped, per character):
   - **Weekly row tap**: `today = 0` → set today (assuming the game consumes the
     daily first; §3.4 must confirm this); else `bank += 1` (≤ 7). One tap = one
@@ -130,29 +132,32 @@ value cannot exceed 7.
 
 ### 3.3 Copy
 
-The user rewords every string; §5 is a draft only.
+Settled: the user's wording in §5 is in `tracker.json`.
 
 ### 3.4 In-game spend order
 
 Does the first black hole of the day consume the daily 1 first? If yes, the
 weekly tap's auto-tick (§2.1) is right. If the player can choose, the copy must
-say "今天的第 1 次先勾每日列" and the auto-tick must go.
+say "今天的第 1 次先勾每日列" and the auto-tick must go. As built 2026-10-19:
+daily-first, matching the copy's 優先使用上面的每日次數.
 
 ### 3.5 Daily row identity
 
-The name is `每日黑色坑洞` (from the copy). Icon (🕳️ vs a distinct one) and
-order remain open; order 45 keeps it away from 深淵的黑色坑洞 at 55.
+The name is `每日黑色坑洞` (from the copy). As built: icon 🕳️, order 45
+(between 兼職 at 40 and 亡靈之塔 at 50, away from 深淵的黑色坑洞 at 55).
 
 ### 3.6 Tile layout
 
 The 44px mobile tile shows the big `R` and the small `8/14`; `本週` does not
 fit there. The row name (`每週黑色坑洞`) and the desc (`上限 14 次`) carry the
 `每週` context. The 56px desktop tile can try `本週 8/14`; the aria always says
-`遊戲內剩 R 次；本週 resolved / 14`.
+`遊戲內剩 R 次；本週 resolved / 14`. As built: mobile `R` + `8/14`, desktop
+`剩 R` + `本週 8/14`; the aria names both.
 
 ### 3.7 `hideCompleted`
 
-The row can hide only on Sunday (done); confirm.
+As built: the filter uses the derived `done`, so the row hides only in the
+week's last daily slot (Sunday 06:00 → Monday 06:00).
 
 ### 3.8 Settled — weekly row name
 
@@ -171,7 +176,7 @@ variant displays 14. Add:
   "id": "black-hole-daily",
   "name": "每日黑色坑洞",
   "icon": "🕳️",
-  "desc": "<draft §5 — user rewords>",
+  "desc": "每日更新 1 次，沒用隔天會消失；點一下也會同步更新下面每週黑色坑洞次數。",
   "section": "daily",
   "kind": "daily",
   "type": "check",
@@ -269,7 +274,7 @@ Worker's mirror only covers `barrier`, so it stays untouched).
   changelog.
 - `pnpm check` (all fourteen gates).
 
-## 5. Copy draft (user rewords)
+## 5. Copy (in tracker.json)
 
 ```text
 每週黑色坑洞
@@ -279,8 +284,7 @@ Worker's mirror only covers `barrier`, so it stays untouched).
 每日更新 1 次，沒用隔天會消失；點一下也會同步更新下面每週黑色坑洞次數。
 ```
 
-The copy above is the user's current wording; the row names are the chosen
-labels.
+The copy above is in `tracker.json`; the row names are the chosen labels.
 
 ## 6. Task breakdown
 
@@ -316,6 +320,12 @@ labels.
 - Rollover: unit fixtures carry the proof; the user can also pin `now` in
   devtools. No screenshots requested.
 - `pnpm check`.
+
+As built 2026-10-19: the tracker fixtures above pass; the tile was exercised in
+the dev app on desktop and at 390px (tap, right-click, keyboard, and the
+mid-week `hideCompleted` case under a faked Tuesday clock — the row stays
+visible at `R 0`, `9/14`); `pnpm check` passes (the sync E2E legs skip without
+`pnpm dev:api`, as that gate says).
 
 ## 8. Traps
 

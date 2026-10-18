@@ -23,9 +23,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useNow } from "@/hooks/useNow";
 import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
 import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
+import { BLACK_HOLE_DAILY_ID, blackHoleProgressTask, blackHoleProgressValue } from "@/lib/blackHole";
 import { healClaimedReminderLanes } from "@/lib/serverPush";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task, TaskSection } from "@/lib/types";
@@ -64,6 +66,9 @@ export default function App() {
   const resetAll = useAppStore((s) => s.resetAll);
   const customTasks = useAppStore((s) => s.customTasks);
   const barterPins = useAppStore((s) => s.barterPins);
+  // Slow ticker for the derived progress values (黑色坑洞's elapsed dailies):
+  // the overall ring must roll at 06:00 even while the app sits open.
+  const nowMs = useNow(30_000);
   const [tab, setTab] = useState<"tracker" | "barter">("tracker");
   // The shop panel's tracker-jump entry, published through its `jumpRef` prop
   // (assigned during the panel's render, so it survives Activity's hidden-tab
@@ -207,12 +212,15 @@ export default function App() {
     const pinnedBarter = barterPins
       .map((id) => barterTaskForPin(id))
       .filter((t): t is Task => !!t && !hidden.has(t.id));
-    const all = topLevelTasks([...BUILTIN_TASKS, ...customTasks, ...pinnedBarter]).filter(
-      (t) => !hidden.has(t.id) && !excludePurple(t)
-    );
-    const { done, total, percent } = summarizeProgress(all, (t) =>
-      t.section === "account" || t.serverShared === true ? accountValues[t.id] : active.taskValues[t.id]
-    );
+    const all = topLevelTasks([...BUILTIN_TASKS, ...customTasks, ...pinnedBarter])
+      .filter((t) => !hidden.has(t.id) && !excludePurple(t))
+      // 黑色坑洞's ruler is resolved over the week's 14, not the stored bank
+      // (the bank alone would read as done at 7, mid-week).
+      .map(blackHoleProgressTask);
+    const { done, total, percent } = summarizeProgress(all, (t) => {
+      const raw = t.section === "account" || t.serverShared === true ? accountValues[t.id] : active.taskValues[t.id];
+      return blackHoleProgressValue(t, raw, active.taskValues[BLACK_HOLE_DAILY_ID], new Date(nowMs));
+    });
     return { pct: percent, done, total };
   })();
 

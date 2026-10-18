@@ -14,6 +14,7 @@ import {
 } from "@/store/useAppStore";
 import { barterTaskForPin, shopDealsByPinId } from "@/lib/shops";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
+import { BLACK_HOLE_DAILY_ID, BLACK_HOLE_ID, blackHoleState } from "@/lib/blackHole";
 import { isTaskDone } from "@/lib/hourlyReminders";
 import { isSubTaskId } from "@/lib/subTasks";
 import type { Character, Task, TaskSection } from "@/lib/types";
@@ -88,6 +89,11 @@ export function isSectionComplete(section: TaskSection, s: CelebrationSnapshot):
       t.section === "account" || t.serverShared === true
         ? s.accountValues[t.id]
         : char?.taskValues[t.id];
+    // 黑色坑洞's stored bank is only half the story: the section completes
+    // when the week's resolved hits 14 (Sunday), never when the bank hits 7.
+    if (t.id === BLACK_HOLE_ID) {
+      return blackHoleState(v, char?.taskValues[BLACK_HOLE_DAILY_ID], new Date()).done;
+    }
     return isTaskDone(t, v);
   });
 }
