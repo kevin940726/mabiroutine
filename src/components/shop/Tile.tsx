@@ -46,9 +46,10 @@
 //      bottom match each other.
 import { cn } from "@/lib/utils";
 import { parseItemQty } from "@/lib/materials";
-import { NpcFace } from "./NpcFace";
+import { Cost } from "./Cost";
 import { ItemIcon } from "./ItemIcon";
-import { Cost, TradeLine, limitOf, pinButton, priorityChip, priorityEdge, priorityText } from "./shared";
+import { NpcFace } from "./NpcFace";
+import { TradeLine, limitOf, pinButton, priorityChip, priorityEdge, priorityText } from "./shared";
 import type { ShopRow } from "./types";
 
 /** The tile's vertical rhythm: one value for every gap between rows.

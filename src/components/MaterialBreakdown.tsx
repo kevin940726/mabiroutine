@@ -12,6 +12,7 @@ import { useMemo } from "react";
 import { assumedPlan, displayName, hasBreakdown, parseItemQty } from "@/lib/materials";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ArtImg } from "@/components/ArtImg";
+import { Cost } from "@/components/shop/Cost";
 import { NPC_PLACEHOLDER_SRC, npcIconPath } from "@/lib/npcIcon";
 
 /** No toggle when the breakdown would just echo the give (trivial self-only
@@ -58,7 +59,9 @@ function Pfp({ npc, town, limit, price }: { npc: string; town?: string; limit?: 
           {price != null && (
             <>
               {" "}
-              <span className="whitespace-nowrap">· 🪙{price}</span>
+              <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                ·<Cost currency="gold" amount={price} size="size-3.5" />
+              </span>
             </>
           )}
         </>
@@ -179,7 +182,14 @@ export function MaterialBreakdown({
         <span className="font-semibold">共需{(times ?? 1) > 1 ? `（${times}次）` : ""}：</span>
         <span className="text-muted-foreground">
           {plan.totals.map((t) => `${t.name}×${t.qty}`).join("、")}
-          {plan.gold > 0 && `、🪙${plan.gold}`}
+          {plan.gold > 0 && (
+            <>
+              、
+              <span className="inline-flex items-center align-middle">
+                <Cost currency="gold" amount={plan.gold} size="size-3.5" />
+              </span>
+            </>
+          )}
         </span>
       </div>
       {plan.problems.map((p) => (

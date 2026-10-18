@@ -2,7 +2,7 @@
 
 Item art lives in `public/items/`, one file per item named after its Traditional
 Chinese item name: `public/items/鹽.webp`. There is no manifest to update — the
-filename is the lookup. 217 files today (128×128 WebP, transparency kept).
+filename is the lookup. 218 files today (128×128 WebP, transparency kept).
 
 ## Resolving a name to a path
 
@@ -95,8 +95,15 @@ Counted over the names themselves: `items[].name` in `shops.json` is 167 distinc
 but the 24 quest-board scroll rows point their art at the shared `任務卷軸` file
 through the option's `icon`, so the names actually looked up are 144. Add the
 barter legs' `barter.give` / `barter.get` with the ` ×N` suffix stripped as
-`parseItemQty` does (84 + 99). Union 192 names, 192 covered; 25 spare files, so
-the directory holds 217.
+`parseItemQty` does (84 + 99). Union 192 names, 192 covered; 26 spare files, so
+the directory holds 218.
+
+One of those spare files is not an item name at all: `public/items/金幣.webp` is the
+coin a gold PRICE is drawn with (`Cost` in `src/components/shop/Cost.tsx`). It lives
+here because that is where the currency art does — 喵幣 and 愛心幣 are looked up by
+their own names, while gold's currency token is `gold`, so its file is the single
+lookup `Cost` maps by hand. Named after the coin (金幣) rather than the token so the
+currency files read as one set.
 
 This section used to list sixteen names as missing. That list went stale in two
 steps — 26 icons landed in one batch, then the remainder arrived — and for a while
@@ -199,7 +206,27 @@ item and the stack count printed over its corner, then feathering and scaling to
 optional dev tooling like `scripts/crop-npc.py` — not part of the build or any
 gate — and needs Pillow, numpy, scipy and opencv-python. `--out` overrides the
 destination, and `--number-x/--number-y` move the count's search box if a capture
-places it elsewhere.
+places it elsewhere: the gold coin's capture prints its amount (`476.5萬`) across
+the bottom CENTRE, not the lower right, so it needed `--number-x 0.05` — the
+default `0.34` left the leading digits behind.
+
+A count that covers the item's whole lower arc also needs the script's ROUND path
+(see its docstring). The default repair closes the bite the count left with the
+item's convex hull; that hull is a straight chord when the count spans the item, so
+a coin came out flat and ragged. If the outline the count did not touch is a circle
+to sub-pixel accuracy, the script uses that circle as the silhouette and paints the
+count's area from the item's own colours. The guard is strict — a tight fit AND the
+circle must enclose the item — so the hexagonal token captures (喵幣, 愛心幣,
+魔物討伐證明) stay on the hull path, and `--no-round` opts out.
+
+An image model can also be used to repair a capture instead of masking it: hand it
+the capture plus an edit instruction ("erase the amount, rebuild the coin's hidden
+bottom edge"), and it returns a clean coin with the count gone. Two conditions make
+that output drop straight into the script — the background must be TRANSPARENT or a
+flat dark one (the script's backdrop rule strips exactly those; a mid-grey or
+coloured backdrop would survive as part of the item), and the coin must not be
+cropped at the edges. The script then does the flatten, crop, feather and 128px
+WebP as usual. `金幣.webp` came this way.
 
 Shared art is a data fact, not a lookup rule: an option whose art lives under
 another name carries `"icon": "<that name>"` (resolved through `itemIconPath`,

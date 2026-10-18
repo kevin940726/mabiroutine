@@ -2,61 +2,11 @@
 // town/merchant sectioning and the trade popover. The tile lives in Tile.tsx.
 import { Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { barterProducers, dealTimes, displayName, hasBarterOnlyRoute, hasBreakdown, parseItemQty } from "@/lib/materials";
+import { barterProducers, dealTimes, hasBarterOnlyRoute, hasBreakdown, parseItemQty } from "@/lib/materials";
 import { MaterialHoverCard, QtyName } from "@/components/MaterialHoverCard";
-import { ItemIcon } from "./ItemIcon";
+import { Cost } from "./Cost";
 import { NpcFace } from "./NpcFace";
 import type { ShopRow } from "./types";
-
-/** A price, as the shop shows it: gold is the coin glyph, and the signature token
- *  currencies (喵幣 / 愛心幣 / 魔物討伐證明) use their own art in place of the word.
- *
- *  The `×` is dropped for the icon form. Gold never had one (`🪙1,500`), and once the
- *  currency is a picture the count reads as the amount rather than as a multiplier of
- *  an invisible noun — `[喵幣]20,000`, not `[喵幣] ×20,000`. The text form keeps its
- *  `×` because there the word needs the separator (`生皮 ×3`).
- *
- *  Everything else is unchanged. The other non-gold cost currencies (生皮, 合金鋼錠,
- *  布料+ …) mostly DO have icon files, but a cost line drawn as art for all of them was
- *  more than was asked for, so only these token currencies and gold take this path.
- *
- *  `size` is small — a cost sits on a text line, not in a 72px frame, so it renders at
- *  the surrounding line's scale rather than the tile art's. */
-export function Cost({
-  currency,
-  amount,
-  size = "size-4",
-}: {
-  currency: string;
-  amount: number | null;
-  size?: string;
-}) {
-  const label = amount == null ? "價格未填" : amount.toLocaleString();
-  if (currency === "gold") {
-    return (
-      <span className="inline-flex items-center gap-0.5 tabular-nums">
-        <span aria-hidden>🪙</span>
-        {label}
-      </span>
-    );
-  }
-  if (currency === "喵幣" || currency === "愛心幣" || currency === "魔物討伐證明") {
-    return (
-      <span className="inline-flex items-center gap-1 tabular-nums">
-        <ItemIcon name={currency} size={size} />
-        {label}
-      </span>
-    );
-  }
-  // The word form, unchanged: `生皮 ×3`. displayName folds the parens of a currency
-  // that has them (none today, but the rule is the project's).
-  return (
-    <span className="tabular-nums">
-      {displayName(currency)}
-      {amount != null && amount > 0 ? ` ×${label}` : ""}
-    </span>
-  );
-}
 
 export type ShopProps = {
   items: ShopRow[];

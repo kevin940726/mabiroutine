@@ -140,13 +140,13 @@ function toItem(deal: ShopDeal): ShopRow {
     town: deal.town,
     title: getText(deal),
     rawName: deal.name,
-    // costText owns the gold glyph, so `cost` and `give` are the same string
+    // costText owns gold's price text, so `cost` and `give` are the same string
     // here. They are kept as separate fields because a barter row's give is a
     // material while a gold row's is a price, and the row layouts read them
     // differently.
     give: costText(deal),
-    // gold has no get: the coin glyph makes the whole trade. Cosmetics, so the
-    // field is total rather than optional.
+    // gold has no get: the price is the whole trade. Cosmetics, so the field is
+    // total rather than optional.
     get: deal.kind === "barter" ? getText(deal) : "",
     cost: costText(deal),
     costCurrency: deal.costCurrency,

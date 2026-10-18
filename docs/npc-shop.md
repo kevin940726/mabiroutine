@@ -249,6 +249,7 @@ need a toggle because both kinds render as tiles and 類型 filters them.
 | `src/components/shop/types.ts` | `ShopRow`, the one row type the grid and the panel both name. Lives here so neither imports the other |
 | `src/components/shop/NpcFace.tsx` | The NPC portrait with its initial fallback. Moved out of the panel for the same reason |
 | `src/components/shop/shared.tsx` | Grid pieces: `TradeGrid` (sectioning), `TradeLine` (the trade popover), `compareRows`, `PRIORITY`, `limitOf`, `pinButton`, `GRID` |
+| `src/components/shop/Cost.tsx` | One price, as every surface shows it: the currency→art table and the amount. Its own module so the material breakdown can read it without a cycle through `MaterialHoverCard` |
 | `src/components/shop/Tile.tsx` | The tile, its merchant band and the price line |
 | `src/components/shop/ShopGrid.tsx` | The grid entry point the panel mounts |
 | `src/components/MenuSelect.tsx` | Shared dropdown-select. Takes an optional per-option `group` (rendered as a heading), optional `ariaLabel`, optional `contentClassName`, and floors the popup at the trigger width |
@@ -520,7 +521,11 @@ and a fixture come back — and the prune steps must already be calling
    place that formats a price. Worth noting the pattern: the special case was
    written first and the shared helper was never updated to match, which is the
    same shape as the "measured one set, reasoned about another" mistake in
-   section 2.
+   section 2. Follow-up (2026-10-18): that unifying glyph was itself the `🪙`
+   emoji, which iOS renders as a moon, so gold now draws real art —
+   `public/items/金幣.webp`, looked up through the same `Cost` as 喵幣 / 愛心幣.
+   `costText` no longer builds the rendered price at all; it is the folded text
+   form for a pin's `desc` and the shop's search fold, and spells 金幣.
 
 ---
 

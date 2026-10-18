@@ -325,15 +325,10 @@ export function shopDeals(npcs: ShopNpc[]): ShopDeal[] {
 /** Display strings, passed through `displayName` so every surface shapes the parens the
  *  same way; see that function in materials.ts for what it does now and why the
  *  direction changed. It runs here and not upstream because the DATA keeps the game's
- *  own spelling and lookups resolve against it.
- *
- *  Gold carries the coin glyph rather than the word 金幣, because that is how the
- *  rest of the app shows a price: the shop tile, the shop row and a pinned gold
- *  purchase on the dailies all read 🪙1,500. Writing 金幣 here instead left the
- *  tracker row as the one place that spelled it out. */
+ *  own spelling and lookups resolve against it. */
 export function costText(deal: ShopDeal): string {
   if (deal.costCurrency === "gold") {
-    return `🪙${deal.costAmount == null ? "價格未填" : deal.costAmount.toLocaleString()}`;
+    return `金幣 ${deal.costAmount == null ? "價格未填" : deal.costAmount.toLocaleString()}`;
   }
   return displayName(`${deal.costCurrency}${deal.costAmount == null ? "" : ` ×${deal.costAmount.toLocaleString()}`}`);
 }

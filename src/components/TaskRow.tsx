@@ -57,7 +57,7 @@ function ScheduleBadges() {
 import { PermissionCoachMark, type CoachMarkKind } from "@/components/PermissionCoachMark";
 import { Tooltip } from "@/components/ui/tooltip";
 import { MaterialHoverCard } from "@/components/MaterialHoverCard";
-import { Cost } from "@/components/shop/shared";
+import { Cost } from "@/components/shop/Cost";
 import { dealTimes, displayName, limitDisplay, parseItemQty } from "@/lib/materials";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
