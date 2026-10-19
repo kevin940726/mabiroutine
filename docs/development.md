@@ -106,6 +106,10 @@ changelog rules: every non-merge commit in the pushed range must touch
 label was folded into the tip commit — `AGENTS.md` § Changelog). A changelog
 failure stops before the suite. `git push --no-verify` skips the hook.
 
+There is no CI. The hook is the gate: a workflow on `main` would run after the
+deploy that push already triggered, so it detects a break rather than preventing
+one. It becomes worth adding with a PR workflow, where it can gate a merge.
+
 The rules below are the why: what each gate pins, the incident or measurement
 behind it, and the sabotage standard.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
@@ -294,6 +298,10 @@ counter with four taps and asserts the row below stays unchecked and on screen.
     Chromium (`pnpm exec playwright install chromium`).
   - Live suites SKIP loudly (exit 0) without their deps; hermetic suites
     always run. `pnpm test:sync --skip-live` for offline.
+  - Whether a diff needs the live legs is not a judgement call:
+    `node scripts/needs-live-sync.mjs` diffs against `origin/main` and prints
+    `live sync: REQUIRED` with the paths it matched (advisory; the pre-push hook
+    runs it, and it never fails a push).
   - `SYNC_TEST_BASE` points the live suites at another base (default local
     `:52608`): `SYNC_TEST_BASE=https://<preview>.vercel.app pnpm test:sync`
     verifies the deployed build. Protected previews also need

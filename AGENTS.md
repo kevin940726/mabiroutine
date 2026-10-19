@@ -47,6 +47,9 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   files too — never let README/docs describe a previous version. Code comments for
   internal-only changes; dev-only details (commands, structure, verification) live
   in `docs/development.md`, never in the READMEs.
+- Write a time window as reset boundaries, not a weekday name: "Sun 06:00 → Mon
+  06:00", never "only on Sunday" — the 2026-10-19 plan said the latter about a
+  window the code did not implement, and the mismatch came back as a bug report.
 - Bullets go newest-first under the top `## Unreleased`, grouped into
   `### Features` / `### Fixes` / `### Chores`. A user-facing change is Features or
   Fixes; an internal or agent-only change is Chores.
@@ -126,7 +129,7 @@ Each line below is when the gate fires and what its silence costs. The check lis
 - `test:tap` — after `tapGate.ts`, `useGrabCounter.ts`, or any tile's click handler. One tap writes two rows, or a counter clears itself — invisible in review.
 - `test:purple` — after `purpleHole.ts`, the feed/admin doc shape, or a reminder lane. A correction rewrites the recorded past.
 - `test:migrations` — after adding a `migratePersisted` step. A user's save loses progress; add a fixture block (A/B/C/D/E/F) proving it survives.
-- `test:sync` — after sync, reset, or merge code. The live legs must pass for real, not skip (they need `pnpm dev:api` and the Chromium); a suppression or marker bug wipes a device.
+- `test:sync` — after any persisted-write path: `src/sync/**`, `api/**`, `src/lib/reset.ts`, a `useAppStore` action that writes values or buckets, `applyResets` / `normalizeTaskBuckets` / `checkResets`, or a reminder lane (`hourlyReminders.ts`, `useHourlyReminders.ts`, `public/sw-push.js`, `workers/`). `node scripts/needs-live-sync.mjs` reads the diff and answers this for you. The live legs must pass for real, not skip (they need `pnpm dev:api` and the Chromium); a suppression or marker bug wipes a device.
 - Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if a premise line fails, update the fixture, not the data.
 - `suggestions/` is gitignored (review scratch); `src/data/*.json` is hand-edited and needs human review — fetcher scripts stay private-local, never committed.
 

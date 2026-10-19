@@ -49,6 +49,24 @@ if (missingScripts.length) {
   process.exit(1);
 }
 
+// Every conditional gate must still have its trigger bullet in AGENTS.md: that
+// line is what makes an agent run the gate, so a name that survives only in the
+// enumeration is a gate that stops firing. (The gate section was trimmed from
+// 1,317 words to ~500 for exactly this reason, and this is what keeps the trim
+// honest.) `lint` and `build` are unconditional, so the enumeration is enough.
+const agents = fs.readFileSync("AGENTS.md", "utf8");
+const bullets = new Set(
+  agents
+    .split("\n")
+    .map((l) => /^- `([^`]+)`/.exec(l)?.[1])
+    .filter(Boolean)
+);
+const unnamed = GATES.filter((g) => g.startsWith("test:") && !bullets.has(g));
+if (unnamed.length) {
+  console.error(`check-all: AGENTS.md has no trigger bullet for: ${unnamed.join(", ")} — add one there`);
+  process.exit(1);
+}
+
 const args = process.argv.slice(2);
 if (args.includes("--list")) {
   console.log(GATES.join("\n"));
