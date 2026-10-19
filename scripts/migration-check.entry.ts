@@ -10,7 +10,7 @@ const mem = new Map<string, string>();
 };
 
 import trackerJson from "@/data/tracker.json";
-import defaultPinsJson from "@/data/defaultPins.json";
+import { DEFAULT_PINS } from "@/data/defaultPins";
 import { getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 import { barterTaskForPin, loadShopNpcs, shopDeals } from "@/lib/shops";
 import { taskKind } from "@/lib/cycle";
@@ -26,8 +26,8 @@ function assert(cond: unknown, msg: string): void {
 }
 
 const trackerIds = new Set((trackerJson as { id: string }[]).map((t) => t.id));
-// default pins come from the hand-owned defaultPins.json (sanitized like the store)
-const mustIds = [...new Set((defaultPinsJson.pins ?? []) as string[])].filter((id) =>
+// default pins come from the hand-owned defaultPins.ts (sanitized like the store)
+const mustIds = [...new Set(DEFAULT_PINS)].filter((id) =>
   shopDeals(loadShopNpcs()).some((d) => d.id === id)
 );
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
@@ -434,7 +434,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 // absent until the pull-aware seeder (seedMissingDefaultPins) adds the ones
 // the server never saw.
 {
-  assert(((defaultPinsJson.pins ?? []) as string[]).includes("tir-c1"), "O premise: tir-c1 still a default (update fixture if removed)");
+  assert(DEFAULT_PINS.includes("tir-c1"), "O premise: tir-c1 still a default (update fixture if removed)");
   const out = migratePersisted(
     {
       version: 14,

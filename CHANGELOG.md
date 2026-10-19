@@ -4,8 +4,14 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- Four more 必換 barter rows join the default pins: 麗莎's two 高級鍊金術再燃燒催化劑 offers (蘋果汁 ×1 or 鍊金術碎屑 ×3, each 每日 1 次（伺服器）), 伊文's 遙遠的星辰印章 (魔物討伐證明 ×200 · 每週 1 次) and 茉莉's 赤紅深淵的化石 ×60 (深淵的化石 ×100 · 每週 2 次). A new save starts with them, and a linked save picks them up on its next pull; an unlinked save keeps its own pins — add them from 以物易物's 必換 filter if you want them.
+
 ### Fixes
 - 每日黑色坑洞 and 兼職 swapped places in 每日任務: the black hole's daily tick now comes first (order 40 / 45), so it sits right after 深層地下城 instead of below 兼職.
+
+### Chores
+- `src/data/defaultPins.json` is now `src/data/defaultPins.ts` (`DEFAULT_PINS`), so every pin carries the same inline trade comment as `curatedOrder.ts`, and the file header now holds the hand-owned rule (not derived from `must`) that used to live in the store's comment.
 
 ## 2026-10-19 — 定期委託's legs carry over the week
 

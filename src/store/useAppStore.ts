@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import trackerJson from "@/data/tracker.json";
 import { CURATED_ORDER } from "@/data/curatedOrder";
-import defaultPinsJson from "@/data/defaultPins.json";
+import { DEFAULT_PINS } from "@/data/defaultPins";
 import type { AppState, Character, Task } from "@/lib/types";
 import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, costText, getText, barterTaskForPin, type ShopDeal } from "@/lib/shops";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
@@ -274,11 +274,11 @@ export function shopDealToTask(deal: ShopDeal): Task {
   };
 }
 
-// Default pins are a hand-owned list (src/data/defaultPins.json), NOT derived
+// Default pins are a hand-owned list (src/data/defaultPins.ts), NOT derived
 // from curated priorities — curate it by hand; watch for must-priority
 // drift when checking sources by hand. Exported for the pull-aware seeder
 // below (new defaults reach linked stragglers through sync, never migration).
-export const DEFAULT_MUST_PINS: string[] = [...new Set((defaultPinsJson.pins ?? []) as string[])].filter((id) =>
+export const DEFAULT_MUST_PINS: string[] = [...new Set(DEFAULT_PINS)].filter((id) =>
   shopDeals(loadShopNpcs()).some((d) => d.id === id)
 );
 

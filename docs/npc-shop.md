@@ -431,7 +431,7 @@ Decided by the user 2026-09-27:
 1. **Reminder bells: no.** Gold pins are not reminder-eligible. "Go spend gold"
    is not the same kind of reminder as "gather these eight herbs". Keep step 8
    out of the plan; do not touch `useHourlyReminders`.
-2. **Seeded gold pins: no, not now.** `src/data/defaultPins.json` stays
+2. **Seeded gold pins: no, not now.** `src/data/defaultPins.ts` stays
    barter-only. Revisit later if the gold shop earns a curated must-list of its
    own.
 3. **Ordering: after the barter pins, and reorderable.** Shop pins sort after

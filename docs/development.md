@@ -47,7 +47,7 @@ unasked).
 - **Game data is hand-owned JSON** — `src/data/tracker.json` (26 rows) +
   `src/data/shops.json` (NPC → purchase/exchange options incl. the 117 curated legs, each with a stable `id`, schema'd by
   `shops.schema.json`) +
-  `src/data/curatedOrder.ts` + `src/data/defaultPins.json` +
+  `src/data/curatedOrder.ts` + `src/data/defaultPins.ts` +
   `src/data/recipes.json` (make/gather/quest/drop routes per item — shop/barter legs live in `shops.json`). No codegen, no
   fetchers in this tree (maintainer-only scripts live on your own disk,
   gitignored, never committed). Rules: `docs/tracker-data.md`. Row `id`s are
