@@ -26,7 +26,6 @@ function assert(cond: unknown, msg: string): void {
 }
 
 const trackerIds = new Set((trackerJson as { id: string }[]).map((t) => t.id));
-// default pins come from the hand-owned defaultPins.ts (sanitized like the store)
 const mustIds = [...new Set(DEFAULT_PINS)].filter((id) =>
   shopDeals(loadShopNpcs()).some((d) => d.id === id)
 );

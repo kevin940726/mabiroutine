@@ -2347,7 +2347,7 @@
               },
               "scope": "account",
               "id": "col-a1",
-              "priority": "extra",
+              "priority": "must",
               "barter": {
                 "give": "特殊鋼錠 ×2",
                 "get": "銀合金錠 ×1",

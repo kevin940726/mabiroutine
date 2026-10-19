@@ -73,13 +73,6 @@ if (assignments.length) assignments.forEach(fail);
 else ok(`no \`src\` assignment anywhere in ${appFiles.length} files under ${ROOTS.join("/, ")}/`);
 
 // --- R2: every NPC name the data names has a portrait ------------------------
-// The fallback is only reached when a lookup MISSES, so a data name without art
-// is the state that starts the walk down the fallback. Every NPC name in the
-// app comes from `shops.json` (`task.npc` on a barter or shop row is built from
-// it in `src/lib/shops.ts`; `tracker.json` and `defaultPins.ts` carry no NPC
-// fields), so this covers the shipped data. Items get the same guarantee from
-// `test:shops` (a scroll without its `icon` file) and `test:icons` (the emitted
-// path per name shape).
 const npcNames = new Set();
 const npcOverrides = new Set();
 const shops = JSON.parse(fs.readFileSync("src/data/shops.json", "utf8"));

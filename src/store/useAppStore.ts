@@ -274,10 +274,6 @@ export function shopDealToTask(deal: ShopDeal): Task {
   };
 }
 
-// Default pins are a hand-owned list (src/data/defaultPins.ts), NOT derived
-// from curated priorities — curate it by hand; watch for must-priority
-// drift when checking sources by hand. Exported for the pull-aware seeder
-// below (new defaults reach linked stragglers through sync, never migration).
 export const DEFAULT_MUST_PINS: string[] = [...new Set(DEFAULT_PINS)].filter((id) =>
   shopDeals(loadShopNpcs()).some((d) => d.id === id)
 );

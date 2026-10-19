@@ -713,7 +713,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
 // "never decided".
 {
   const SID = "e14-seed";
-  const SEED = "seumas-finest-bandage"; // runtime default (defaultPins.ts ∩ curated option ids)
+  const SEED = "seumas-finest-bandage";
   const server = { flat: {} as FlatMap };
   // --- part 1: the reported resurrection ---
   // Peer unpinned: server holds the tombstone. Straggler save predates the
