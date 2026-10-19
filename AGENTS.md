@@ -14,11 +14,12 @@ Data knowledge lives in `docs/` (read it before touching data or sync):
   ("keep testing" / "verify it yourself" is that ask). The standing browser suites
   stay where they are — `test:shop-e2e` before a release, `test:sync`'s live legs
   when its trigger fires — and `pnpm check` stays offline.
-- **Never start a dev server unasked.** Use one that is already running (ask which
-  port if you cannot tell). Otherwise ask them to start it in their own terminal —
-  that is the default — or ask whether a background one is acceptable; a silent
-  background server is never the choice. Say which server you used, and stop the
-  one you started.
+- **Never start a dev server unasked.** One is usually already up: plain Vite on
+  `:5173` (UI only, no `/api/*`), or `vercel dev` on `:52608` when sync or an API
+  route is in scope — check which checkout a port serves before trusting it
+  (`docs/development.md` § First run). Otherwise ask them to start one in their own
+  terminal (the default), or ask before a background one; a silent background
+  server is never the choice. Say which you used, and stop the one you started.
 
 ## Store Version Bumps (persist schema `useAppStore.ts`, current `v22`)
 

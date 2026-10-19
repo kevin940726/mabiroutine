@@ -31,10 +31,16 @@ Need sync (`跨裝置同步`) or any `/api/*` route? That needs the full stack:
 pnpm dev:api          # vercel dev + Vite on :52608, API routes live
 ```
 
-`pnpm dev` is plain Vite on Vite's default port; `pnpm dev:api` serves the same
-UI through `vercel dev` on :52608 with serverless functions attached. If sync
-behaves differently between the two, you're probably hitting the missing-API
-case — switch to `dev:api`.
+`pnpm dev` is plain Vite on **:5173** (UI only — `/api/*` 404s); `pnpm dev:api`
+serves the same UI through `vercel dev` on **:52608** with serverless functions
+attached. If sync behaves differently between the two, you're probably hitting the
+missing-API case — switch to `dev:api`.
+
+Those two ports are the ones to assume when something is already listening: the
+user starts them, and `:5173` belongs to the MAIN worktree — a second worktree's
+Vite takes the next free port (`:5174`), so check which checkout a port serves
+before trusting a measurement (AGENTS.md § The dev loop: never start a dev server
+unasked).
 
 ## Five-minute tour
 
