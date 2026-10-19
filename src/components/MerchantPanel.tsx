@@ -850,12 +850,11 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
   return (
     <div className="flex flex-col gap-5">
       {/* Floating filter pill — the barter tab's replacement for the character
-          pill (docs/plans/floating-pill-rework.md). It owns no filter state:
-          every control drives the panel's own useState, so the pill and the
-          header are two surfaces onto one state. It shows only while the header
-          controls are off screen (see `useControlsInView`), so the two never
-          co-exist — except for a focused search field, which is never yanked
-          mid-word (see `pillSearchFocused`). */}
+          pill. It owns no filter state: every control drives the panel's own
+          useState, so the pill and the header are two surfaces onto one state. It
+          shows only while the header controls are off screen (see
+          `useControlsInView`), so the two never co-exist — except for a focused
+          search field, which is never yanked mid-word (see `pillSearchFocused`). */}
       <div
         className={cn(
           // Hugs its content (`w-max`) and never exceeds the viewport. It was

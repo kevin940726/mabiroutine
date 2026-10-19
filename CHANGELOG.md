@@ -4,7 +4,10 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-19 — The gate layer, and a shorter runbook
+
 ### Chores
+- The two pointers to the deleted `docs/plans/floating-pill-rework.md` are gone: `MerchantPanel`'s pill comment stands on its own, and `scripts/pre-push-gate.mjs`'s header says sixteen gates.
 - The pre-push gate has its own gate: `test:prepush` (`scripts/check-pre-push.mjs`) pins the gate's outcomes in a throwaway repo — a commit with no changelog change, an unlabelled `## Unreleased` on `main` stopping before the suite, a `feat/*` ref skipping that rule, a dirty tree with a failing suite, a bad revision range — so a regression cannot silently stop enforcing the rules the hook blocks pushes on. `pnpm check` is sixteen gates.
 - `docs/plans/floating-pill-rework.md` is deleted: the floating-pill work is done, and its handoff is no longer needed.
 - The dev-loop rule names the ports to assume instead of asking: plain Vite on `:5173` (UI only — `/api/*` 404s) and `vercel dev` on `:52608` when sync or an API route is in scope. `docs/development.md` § First run records that `:5173` is the main worktree's and a second worktree's Vite takes the next free port (`:5174`), so a port's checkout is checked before a measurement is trusted.
