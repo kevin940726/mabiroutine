@@ -97,7 +97,7 @@ unasked).
 
 ## Gates (run before every push)
 
-`pnpm check` runs all fifteen gates; `AGENTS.md` § Pre-push Gate is the
+`pnpm check` runs all sixteen gates; `AGENTS.md` § Pre-push Gate is the
 always-loaded copy of which gate fires on what. `scripts/check-all.mjs` is the
 runner: one line per gate (`ok <gate> 1.2s` / `FAIL <gate> <ms>`), stopping at the
 first failure, so the last lines of a run are the verdict — the old `&&` chain
@@ -139,6 +139,14 @@ the fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic
 barter ids, removed-id prune, passthrough, filter sanitize). A new step needs a
 fixture block (A/B/C/D/E/F) proving old data survives: user progress always wins,
 so a step fills defaults and prunes dangling keys, never overwrites a value.
+Pre-push gate rule: `pnpm test:prepush` after changing `scripts/pre-push-gate.mjs`
+or the changelog rules it enforces. It builds a throwaway repo in the temp dir and
+pins the gate's outcomes: a commit with no `CHANGELOG.md` change fails naming the
+commit, an unlabelled `## Unreleased` on `main` fails before the suite runs, a
+`feat/*` ref skips that rule, a dirty tree with a failing suite names the dirty
+tree, and a bad revision range reports git's message rather than a stack trace. The
+stub `package.json` makes its `pnpm check` a no-op, so this never re-enters the
+suite.
 Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so

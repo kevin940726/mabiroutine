@@ -29,6 +29,7 @@ const GATES = [
   "test:shops",
   "test:tracker",
   "test:docs",
+  "test:prepush",
   "test:icons",
   "test:fallbacks",
   "test:budget",
