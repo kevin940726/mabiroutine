@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Fixes
+- 每日黑色坑洞 and 兼職 swapped places in 每日任務: the black hole's daily tick now comes first (order 40 / 45), so it sits right after 深層地下城 instead of below 兼職.
+
 ## 2026-10-19 — 定期委託's legs carry over the week
 
 ### Features

@@ -34,10 +34,10 @@
     "order": 30
   },
   {
-    "id": "parttime",
-    "name": "兼職",
-    "icon": "💼",
-    "desc": "18:00 刷新 1 個。",
+    "id": "black-hole-daily",
+    "name": "每日黑色坑洞",
+    "icon": "🕳️",
+    "desc": "每日更新 1 次，沒用隔天會消失；點一下也會同步更新下面每週黑色坑洞次數。",
     "section": "daily",
     "kind": "daily",
     "type": "check",
@@ -45,10 +45,10 @@
     "order": 40
   },
   {
-    "id": "black-hole-daily",
-    "name": "每日黑色坑洞",
-    "icon": "🕳️",
-    "desc": "每日更新 1 次，沒用隔天會消失；點一下也會同步更新下面每週黑色坑洞次數。",
+    "id": "parttime",
+    "name": "兼職",
+    "icon": "💼",
+    "desc": "18:00 刷新 1 個。",
     "section": "daily",
     "kind": "daily",
     "type": "check",
