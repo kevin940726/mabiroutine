@@ -8,9 +8,12 @@
 //
 // Children are REAL tracker rows (own ids, values, buckets, sync keys) that never
 // render top-level: App's section lists, the overall denominator and the
-// celebration roster all drop them via lib/subTasks. The body keeps a NORMAL row's
-// title treatment (`text-sm font-medium`) — this is a built-in tracker task, not a
-// pin parent, so don't "fix" it toward PinnedGroups' bold title.
+// celebration roster all drop them via lib/subTasks. Their values also carry over
+// a cycle rollover (lib/cycle's `carriesOverCycle`): the round is the user's, not
+// the week's, so Monday 06:00 clears the recorded count and keeps the legs. The
+// body keeps a NORMAL row's title treatment (`text-sm font-medium`) — this is a
+// built-in tracker task, not a pin parent, so don't "fix" it toward PinnedGroups'
+// bold title.
 import { useId, useMemo, useRef, useState } from "react";
 import { ChevronDown, Eye, EyeOff, GripVertical } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";

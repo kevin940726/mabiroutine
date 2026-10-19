@@ -1,14 +1,16 @@
 // Property test: checkResets() local prune on the REAL store (rev 3).
 // Resets are memory-only bucket expiry — for randomized states, asserts:
 //  (a) every removed value's provenance bucket was stale (or provenance was
-//      absent-with-stale-expected — never a current-bucket value);
+//      absent-with-stale-expected — never a current-bucket value), except a
+//      carried-over row (a grouped parent's sub-counter), whose stale bucket is
+//      re-stamped instead: kept AND stamped current, never pruned;
 //  (b) every survivor's provenance is current;
 //  (c) fired markers stamp the current bucket; silent runs touch nothing;
 //  (d) immediate second call is a no-op (idempotent);
 //  (e) all non-removed values byte-identical; non-value fields untouched.
 import { useAppStore } from "@/store/useAppStore";
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
-import { cycleBucketFor } from "@/lib/cycle";
+import { carriesOverCycle, cycleBucketFor } from "@/lib/cycle";
 import trackerJson from "@/data/tracker.json";
 import { CURATED_ORDER } from "@/data/curatedOrder";
 
@@ -126,8 +128,15 @@ for (let it = 0; it < N; it++) {
       const kept = after.characters[ci]?.taskValues?.[tid] !== undefined;
       const expected = cycleBucketFor(tid, customs, now);
       const was = (before.taskBuckets as Record<string, string>)[tid];
-      if (kept && was !== expected) fail(`iter ${it}: stale value kept`, { tid, was, expected });
+      const carried = carriesOverCycle(tid);
+      if (kept && was !== expected && !carried) fail(`iter ${it}: stale value kept`, { tid, was, expected });
       if (!kept && was === expected) fail(`iter ${it}: current value pruned`, { tid, was, expected });
+      // The carry-over row: kept, and its stale provenance re-stamped into the
+      // current cycle (the stamp is the wire tag — see lib/cycle).
+      if (carried && kept && after.taskBuckets[tid] !== expected) {
+        fail(`iter ${it}: carried value not re-stamped`, { tid, was, expected, got: after.taskBuckets[tid] });
+      }
+      if (carried && !kept && was !== expected) fail(`iter ${it}: carried value pruned`, { tid, was, expected });
       if (kept && JSON.stringify(after.characters[ci].taskValues[tid]) !== JSON.stringify(v)) {
         fail(`iter ${it}: survivor mutated`, { tid });
       }

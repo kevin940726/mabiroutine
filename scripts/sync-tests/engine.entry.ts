@@ -34,6 +34,7 @@ import { planRound } from "@/sync/round";
 import { loadShopNpcs, shopDeals } from "@/lib/shops";
 import { healClaimedReminderLanes, setServerPushOn } from "@/lib/serverPush";
 import { PURPLE_HOLE_ID } from "@/lib/purpleHole";
+import { subTaskIds } from "@/lib/subTasks";
 
 // A real shops.json pin id, so the adoption test proves the second namespace
 // survives sync rather than assuming it. Recomputed from the catalog so it
@@ -1280,6 +1281,81 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
     JSON.stringify(pinsOf().filter((id) => AUTHORED.includes(id))) === JSON.stringify(AUTHORED),
     pinsOf()
   );
+}
+
+// E23: a grouped parent's sub-counters carry over the weekly rollover. The legs
+// are the live state of an OPEN ROUND, so their progress belongs to the round,
+// not to the week: a save written last week LOADS with the legs kept and their
+// provenance re-stamped into the new cycle, and the round then rides the current
+// tag on the wire (a peer adopts only current-bucket keys, so a leg left under
+// last week's bucket would be local-only). The parent's own recorded count IS the
+// week's record — it prunes like any weekly row.
+{
+  isolate();
+  const SID = "e23-carry-over";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  const GOAL = "weekly-goals";
+  const LEGS = subTaskIds(GOAL); // real ids, from the shipped data
+  const LAST_WEEK = getTaipeiWeekKey(new Date(Date.now() - 7 * 24 * 3600 * 1000));
+  const values = { [GOAL]: 3, [LEGS[0]]: 2, [LEGS[1]]: 5, [LEGS[2]]: 1 };
+  const buckets = Object.fromEntries([GOAL, ...LEGS].map((id) => [id, LAST_WEEK]));
+  // The load path (normalizePersisted), where a save written last week re-enters.
+  // Seeded at the CURRENT version, not the harness's default v15: the sub-counters
+  // themselves arrived at v22 (weekly-goals' check → counter rework), so a v15 save
+  // cannot hold leg values. No version steps run here — normalize is what is tested.
+  seedStore(migratePersisted({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 22 }, 22) as Snap);
+  const loaded = useAppStore.getState();
+  const loadedTv = loaded.characters[0]?.taskValues as Record<string, unknown>;
+  ok("E23 legs survive the load", loadedTv[LEGS[0]] === 2 && loadedTv[LEGS[1]] === 5 && loadedTv[LEGS[2]] === 1, loadedTv);
+  ok("E23 legs re-stamped into the new week", LEGS.every((id) => loaded.taskBuckets[id] === THIS_WEEK), loaded.taskBuckets);
+  ok("E23 parent count pruned with the week", loadedTv[GOAL] === undefined, loadedTv);
+  ok("E23 parent provenance dropped", !(GOAL in loaded.taskBuckets), loaded.taskBuckets);
+  // …and the carried round rides the wire under the current tag.
+  saveSession({ id: SID, updatedAt: 1 });
+  saveBase(SID, {}); // never synced: every key is local-only
+  await syncAndResets();
+  await syncAndResets();
+  ok(
+    "E23 carried legs pushed under the current tag",
+    LEGS.every((id) => server.flat[`v:c1:${id}@${THIS_WEEK}`] !== undefined),
+    server.flat
+  );
+  ok("E23 rollover pushes no tombstones", nullsOf(pushes).length === 0, nullsOf(pushes));
+}
+
+// E24: the same carry-over, on the one path the store's re-stamp cannot cover — a
+// device that stayed OPEN across the rollover. Its provenance is still last
+// week's, and the server holds the same stale-tagged keys. Its next round is a
+// pull (syncAndResets pulls BEFORE the reset tick), and the merge adopts
+// current-bucket keys only: without the codec's current-cycle tag for a carried
+// row, the legs would drop out of memory here and never reach the reset tick.
+{
+  isolate();
+  const SID = "e24-open-across";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  setPullHook(makeEngine(server, pushes));
+  const GOAL = "weekly-goals";
+  const LEGS = subTaskIds(GOAL);
+  const LAST_WEEK = getTaipeiWeekKey(new Date(Date.now() - 7 * 24 * 3600 * 1000));
+  const values = { [GOAL]: 3, [LEGS[0]]: 2, [LEGS[1]]: 5, [LEGS[2]]: 1 };
+  const buckets = Object.fromEntries([GOAL, ...LEGS].map((id) => [id, LAST_WEEK]));
+  // A save written last week at the current version (the sub-counters arrived at
+  // v22, so the harness's v15 default would be an impossible premise here).
+  seedStore({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 22 });
+  saveSession({ id: SID, updatedAt: 1 });
+  // Last week's push, still server-side under last week's tags.
+  server.flat = flattenSnapshot(buildSnapshot());
+  saveBase(SID, { ...server.flat });
+  await syncAndResets(); // the pull lands first, then the reset tick
+  const st = useAppStore.getState();
+  const tv = st.characters[0]?.taskValues as Record<string, unknown>;
+  ok("E24 legs survive a pull that lands before the reset tick", tv[LEGS[0]] === 2 && tv[LEGS[1]] === 5 && tv[LEGS[2]] === 1, tv);
+  ok("E24 legs re-stamped into the new week", LEGS.every((id) => st.taskBuckets[id] === THIS_WEEK), st.taskBuckets);
+  ok("E24 parent count pruned with the week", tv[GOAL] === undefined, tv);
+  ok("E24 rollover pushes no tombstones", nullsOf(pushes).length === 0, nullsOf(pushes));
 }
 
 setPullHook(null);

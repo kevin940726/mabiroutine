@@ -108,7 +108,10 @@ export type AppState = {
   // Cycle provenance: taskId -> the Taipei bucket the value was set in
   // (shared by taskValues + accountValues; buckets are per-task-cycle, so
   // one global map is enough). Values whose bucket != current read as unset
-  // and are pruned locally — resets never delete from the sync layer.
+  // and are pruned locally — resets never delete from the sync layer. One
+  // exception, and it is a row class, not a case: a grouped parent's
+  // sub-counters carry over the rollover (lib/cycle's `carriesOverCycle`), so a
+  // stale bucket there is re-stamped to the current cycle instead of pruned.
   taskBuckets: Record<string, string>;
   // Event (:00 Taipei fire) reminder subscriptions, per task id. LOCAL-ONLY by
   // design: never synced (unlike the row/pin order keys), never sent to any server — the MVP

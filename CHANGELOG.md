@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-19 — 定期委託's legs carry over the week
+
+### Features
+- 定期委託's three sub-counters (深層地下城 / 地下城 / 狩獵場) now carry over the weekly reset: the legs belong to the round you are working on, so a round left half-finished at Monday 06:00 keeps its progress and picks up where you left off. Only the recorded round count resets with the week (the row's own number, 次), which is the weekly record. Nothing to do on upgrade — a save written before the reset loads with its legs kept and re-stamped into the new week, and they sync under the current week's key like any other value.
+
 ## 2026-10-19 — The gate layer, and a shorter runbook
 
 ### Chores

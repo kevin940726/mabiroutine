@@ -72,7 +72,17 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 `{bucket}` is the Taipei day key (`YYYY-MM-DD`) for daily-kind values
 (daily, account-daily, barter rows) and the week key (`YYYY-Wmmdd`) for
 weekly kinds. Provenance lives in the store (`taskBuckets: tid -> bucket`,
-v13) and rides the wire on every value key.
+v13) and rides the wire on every value key. One row class carries over a
+rollover: a grouped parent's sub-counters (weekly-goals' three legs) are the live
+state of an OPEN ROUND, so a stale bucket there is RE-STAMPED into the cycle being
+entered instead of pruned — the parent's own recorded count is what the week
+clears (`carriesOverCycle` in `lib/cycle.ts`; pinned by E23/E24, and the store half
+by P). The stamp is not bookkeeping: a peer adopts only current-bucket keys, so a
+carried leg left under last week's tag would be local-only. The codec applies the
+same rule when it EMITS a tag (`flattenSnapshot`'s `tagOf`): a carried row is
+always tagged with the cycle it belongs to now, because a device that stayed open
+across the rollover still holds last week's provenance, and its own pull merges
+current-bucket keys only — before the reset tick can re-stamp anything (E24).
 
 Device-local fields never ride the wire. `hourlyReminders` and
 `purpleHoleReminders` are absent from the merge output entirely, so every
@@ -472,6 +482,8 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | E20 | Provenance-less stale value cannot overwrite a remote that changed the key | same |
 | E21 | Row order syncs (meta:taskorder): withhold, creation-order volunteer, generated band never volunteered, union heals partials, tombstones drop, malformed ignored | same |
 | E22 | Pin order syncs (meta:pinorder): withhold, canon adopted, canonical null says nothing, local-only pins append, unpinned drops, malformed ignored | same |
+| E23 | A grouped parent's legs carry over the weekly rollover (kept + re-stamped into the new cycle, pushed under the current tag) while the parent's count prunes | same |
+| E24 | …and a device that stayed OPEN across the rollover keeps the legs through its own pull-before-reset round (the codec tags a carried row with the current cycle) | same |
 | F1 | State-before-base ordering in one storage flush; read-through; remove | real `storage.ts`, logging localStorage |
 | P | 300 randomized prune runs (stale removed, current kept, idempotent) | real store, seeded |
 | A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
@@ -487,6 +499,11 @@ assertions in the round port. On the order keys: removing the custom-band guard
 from `flattenSnapshot` fails E21 (the artifact band starts volunteering);
 dropping the per-id union from `unflattenMerge` fails E21's local-only-override
 check; skipping the local-only pin append fails E22's canon-plus-append check.
+Removing the carry-over rule (`carriesOverCycle` → false) fails E23 — the legs
+prune at load and the round never reaches the wire — and keeping a leg without
+re-stamping it fails P's `carried value not re-stamped`. Tagging a carried row
+with its stored provenance instead of the current cycle fails E24, the legs
+dropping out of memory on a device that stayed open across the rollover.
 Live suites SKIP loudly without `pnpm dev:api` or
 the Playwright Chromium (`pnpm exec playwright install chromium`); hermetic
 suites always run.

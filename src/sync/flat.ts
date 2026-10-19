@@ -6,6 +6,7 @@ import {
   parseCycleKey,
   isCycleKey,
   expiredCycleKeys,
+  carriesOverCycle,
   cycleBucketFor,
 } from "@/lib/cycle";
 
@@ -142,7 +143,14 @@ export function flattenSnapshot(s: SyncSnapshot): FlatMap {
   const now = new Date();
   const customs = s.customTasks ?? [];
   const buckets = s.taskBuckets ?? {};
-  const tagOf = (tid: string): string => buckets[tid] ?? cycleBucketFor(tid, customs, now);
+  // A carried-over row (a grouped parent's sub-counter) is tagged with the cycle
+  // it belongs to NOW, not with the provenance it happens to hold: its value
+  // belongs to an open round, so a device that stayed OPEN across the rollover
+  // must still emit it under the current cycle. Otherwise the round's own pull
+  // (which merges current-bucket keys only, before the reset tick can re-stamp
+  // anything) drops the legs — the one path the store's re-stamp cannot cover.
+  const tagOf = (tid: string): string =>
+    carriesOverCycle(tid) ? cycleBucketFor(tid, customs, now) : buckets[tid] ?? cycleBucketFor(tid, customs, now);
   const flat: FlatMap = {};
   for (const c of s.characters ?? []) {
     flat[`char:${c.id}:name`] = c.name;

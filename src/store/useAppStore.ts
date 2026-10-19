@@ -6,7 +6,7 @@ import defaultPinsJson from "@/data/defaultPins.json";
 import type { AppState, Character, Task } from "@/lib/types";
 import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, costText, getText, barterTaskForPin, type ShopDeal } from "@/lib/shops";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
-import { cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
+import { carriesOverCycle, cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
 import { subTaskIds } from "@/lib/subTasks";
 import { BLACK_HOLE_BANK_MAX, BLACK_HOLE_DAILY_ID, BLACK_HOLE_ID } from "@/lib/blackHole";
 import { flushStorage, idleStorage } from "@/lib/storage";
@@ -39,15 +39,33 @@ function applyResets(state: AppState): Partial<AppState> {
   if (shouldDailyReset(state.lastDailyReset, now)) patch.lastDailyReset = currentDailyBucket(now);
   if (shouldWeeklyReset(state.lastWeeklyReset, now)) patch.lastWeeklyReset = getTaipeiWeekKey(now);
 
+  const expectedOf = (tid: string): string => cycleBucketFor(tid, state.customTasks, now);
   const keep = (tid: string): boolean => {
     const b = state.taskBuckets[tid];
-    return b === undefined || b === cycleBucketFor(tid, state.customTasks, now);
+    return b === undefined || b === expectedOf(tid) || carriesOverCycle(tid);
   };
   const changedChars = state.characters.some(
     (c) => Object.keys(c.taskValues).some((tid) => !keep(tid))
   );
   const changedAcc = Object.keys(state.accountValues).some((tid) => !keep(tid));
-  const staleBucketTids = Object.keys(state.taskBuckets).filter((tid) => !keep(tid));
+  const hasValue = (tid: string): boolean =>
+    state.accountValues[tid] !== undefined || state.characters.some((c) => c.taskValues[tid] !== undefined);
+
+  // Bucket entries: a stale one goes with its value — except a carried-over row's
+  // (a grouped parent's sub-counter), which is RE-STAMPED into the cycle it is
+  // being carried into. The stamp is the wire tag, and a peer adopts only
+  // current-bucket keys, so a carried value left under last week's bucket would
+  // be local-only (see carriesOverCycle).
+  const taskBuckets = { ...state.taskBuckets };
+  let bucketsChanged = false;
+  for (const tid of Object.keys(taskBuckets)) {
+    if (taskBuckets[tid] === expectedOf(tid)) continue;
+    if (carriesOverCycle(tid) && hasValue(tid)) taskBuckets[tid] = expectedOf(tid);
+    else delete taskBuckets[tid];
+    bucketsChanged = true;
+  }
+  if (bucketsChanged) patch.taskBuckets = taskBuckets;
+
   if (changedChars) {
     patch.characters = state.characters.map((c) => ({
       ...c,
@@ -59,15 +77,10 @@ function applyResets(state: AppState): Partial<AppState> {
       Object.entries(state.accountValues).filter(([tid]) => keep(tid))
     );
   }
-  if (staleBucketTids.length) {
-    const taskBuckets = { ...state.taskBuckets };
-    for (const tid of staleBucketTids) delete taskBuckets[tid];
-    patch.taskBuckets = taskBuckets;
-  }
   if (
     !changedChars &&
     !changedAcc &&
-    !staleBucketTids.length &&
+    !bucketsChanged &&
     !patch.lastDailyReset &&
     !patch.lastWeeklyReset
   ) {
@@ -339,6 +352,13 @@ function normalizeTaskBuckets(
   const consider = (tid: string): void => {
     const expected = cycleBucketFor(tid, customTasks, now);
     const stored = typeof inRaw[tid] === "string" ? (inRaw[tid] as string) : undefined;
+    // A carried-over row (a grouped parent's sub-counter) enters the current cycle
+    // whatever bucket it was written under — re-stamped, never pruned, so the
+    // caller keeps the value. Same rule as applyResets'; see carriesOverCycle.
+    if (carriesOverCycle(tid)) {
+      out[tid] = expected;
+      return;
+    }
     if (stored === undefined) {
       if (isWeeklyTask(tid, customTasks)) {
         if (lastWeeklyReset !== null && lastWeeklyReset !== getTaipeiWeekKey(now)) return; // pre-rollover → prune

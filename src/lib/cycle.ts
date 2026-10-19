@@ -1,6 +1,7 @@
 import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
 import trackerJson from "@/data/tracker.json";
 import { shopDealsByPinId } from "@/lib/shops";
+import { isSubTaskId } from "@/lib/subTasks";
 
 // Cycle bucketing for task values: a value is tagged with the Taipei day
 // bucket (daily-kind tasks) or week bucket (weekly-kind) it was set in.
@@ -36,6 +37,20 @@ export function taskKind(tid: string, customTasks: { id: string; kind: string }[
 // The bucket a value for `tid` belongs to, computed from the current clock.
 export function cycleBucketFor(tid: string, customTasks: { id: string; kind: string }[], now: Date = new Date()): string {
   return WEEKLY_KINDS.has(taskKind(tid, customTasks)) ? getTaipeiWeekKey(now) : currentDailyBucket(now);
+}
+
+// A grouped parent's sub-counters (weekly-goals' three legs) are the LIVE STATE OF
+// AN OPEN ROUND, so their progress belongs to the round, not to the week: the
+// parent's recorded count is what Monday 06:00 clears, while a half-finished round
+// keeps its legs across the boundary (the game does not throw that progress away,
+// and neither may a reset). Such a row stays WEEK-bucketed — its values ride
+// week-tagged keys like any weekly row — but a stale bucket is RE-STAMPED into the
+// cycle being entered instead of pruned (store: `normalizeTaskBuckets` +
+// `applyResets`). The stamp is load-bearing, not bookkeeping: the bucket IS the
+// wire tag (`v:{cid}:{tid}@{bucket}`), and a peer adopts only current-bucket keys,
+// so a carried value left under last week's bucket would be local-only.
+export function carriesOverCycle(tid: string): boolean {
+  return isSubTaskId(tid);
 }
 
 // Cycle-scoped wire key parser: `...{tid}@{bucket}` under v:/acc: prefixes.

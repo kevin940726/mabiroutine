@@ -28,6 +28,9 @@ explicit human "apply this" for the specific rows.
    Do not invent `town`/`skill`; never add `verified:"kr"` rows.
    A row with `subTasks` is a grouped parent: unbounded counter (no `max`), children keep
    the parent's id prefix and its section/kind — `pnpm test:tracker` enforces the shape.
+   Its children also CARRY OVER a cycle rollover (their progress belongs to an open round,
+   the parent's count is what resets), so do not "fix" that by pruning them:
+   `carriesOverCycle` re-stamps a stale bucket instead (docs/tracker-data.md).
 4. **Verify** — `pnpm build` must pass after hand edits, and `pnpm test:tracker` after
    touching `tracker.json` (shape + max rules + sub-task link integrity).
 
