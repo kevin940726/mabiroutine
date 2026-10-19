@@ -91,14 +91,23 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `build`. All fifteen must pass.
-The runner prints one line per gate (`ok <gate> 1.2s` / `FAIL <gate> <ms>`) and
-stops at the first failure, so the last lines of a run are the verdict — the old
-`&&` chain ended on the Vite build, so a truncated tail hid every gate result.
-`--verbose` streams a gate's own output; `node scripts/check-all.mjs test:tracker
-test:tap` runs a subset while iterating; `--list` prints the names.
-Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
-and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
+`pnpm check` runs all fifteen gates; `AGENTS.md` § Pre-push Gate is the
+always-loaded copy of which gate fires on what. `scripts/check-all.mjs` is the
+runner: one line per gate (`ok <gate> 1.2s` / `FAIL <gate> <ms>`), stopping at the
+first failure, so the last lines of a run are the verdict — the old `&&` chain
+ended on the Vite build, so a truncated tail hid every gate result. `--verbose`
+streams a gate's own output; `node scripts/check-all.mjs test:tracker test:tap`
+runs a subset while iterating; `--list` prints the names.
+
+The local pre-push hook (`.git/hooks/pre-push`, uncommitted by design — it also
+filters refs) calls `scripts/pre-push-gate.mjs`, which runs this suite plus the
+changelog rules: every non-merge commit in the pushed range must touch
+`CHANGELOG.md`, and a `main` push must leave `## Unreleased` empty (the release
+label was folded into the tip commit — `AGENTS.md` § Changelog). A changelog
+failure stops before the suite. `git push --no-verify` skips the hook.
+
+The rules below are the why: what each gate pins, the incident or measurement
+behind it, and the sabotage standard.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
 `curatedOrder.ts` (shape + currency + dup + no-trade-routes + shop-gold-only + twin probes + curated completeness).
 Tracker rule: `pnpm test:tracker` after touching `tracker.json` (row shape +
@@ -113,6 +122,13 @@ mode is a stale instruction — the 2026-10-19 rework left `skills/update-tracke
 telling the next writer to keep `black-hole` max 14 (7+7) and quoting 25 rows —
 and it recognizes only the phrasings above, so a doc quoting the total some other
 way is still unchecked.
+Migrations rule: `pnpm test:migrations` after adding or changing a
+`migratePersisted` step (or the persisted shape itself — the store checklist is
+`AGENTS.md` § Store Version Bumps). It bundles the real `migratePersisted` and runs
+the fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic
+barter ids, removed-id prune, passthrough, filter sanitize). A new step needs a
+fixture block (A/B/C/D/E/F) proving old data survives: user progress always wins,
+so a step fills defaults and prunes dangling keys, never overwrites a value.
 Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so

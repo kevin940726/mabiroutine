@@ -1,7 +1,7 @@
 # Plan — The guardrail layer: enforcement, triggers, and what AGENTS.md carries
 
-Status: PROPOSED 2026-10-19. Nothing below is implemented. §3 holds the choices
-that need you; §5 is the order I would build them in.
+Status: PARTLY LANDED 2026-10-19 — §9 records what shipped and what is still open;
+§3 holds the choices that remain.
 
 Read §1 (the three leaks) and §3 (the choices) before touching anything.
 
@@ -205,3 +205,29 @@ Cheap and safe first, and the guard before the surgery it protects:
 - **Moving the store-version-bump checklist out of AGENTS.md.** Same family as
   §2.3, but judgement-heavy per step; worth its own pass once the gate section has
   moved.
+
+## 9. Landed so far (2026-10-19)
+
+- **§2.3, the AGENTS.md split — done.** The gate section went from 1,317 words to
+  499 (a trigger plus what its silence costs; the check lists, incidents and
+  sabotage standards now live in § Gates above), and the file from 2,544 words to
+  1,903. It is over the 1,700-word target because the same rewrite added
+  `## The dev loop` (~150 words: UI verification is the user's, and never start a
+  dev server unasked) — a new rule, not a moved one. All fifteen names from
+  `node scripts/check-all.mjs --list` still appear in AGENTS.md; that was checked
+  by hand, and §5.2's guard is what would make it a gate.
+- **§2.1, enforcement — option A done, B open.** `.git/hooks/pre-push` (still
+  uncommitted, still filtering refs) now calls `scripts/pre-push-gate.mjs`, which
+  runs `pnpm check` and the changelog rules, stopping before the suite when the
+  changelog fails. Verified by hand: an unlabelled `## Unreleased` blocks a `main`
+  push before the suite runs, a clean ref runs 15/15, and a `wip/*` ref is still
+  filtered. CI (B) is untouched.
+- **The changelog model changed with it.** The `chore: date the changelog` commit
+  is gone: the release label is folded into the tip commit (`git commit --amend
+  --no-edit`), and the hook enforces both halves — a `CHANGELOG.md` change in every
+  pushed commit, and an empty `## Unreleased` on a `main` push. That was not in
+  this plan; it came out of the same rethink and is recorded in `AGENTS.md`
+  § Changelog.
+- **Still open**: §2.2 (the live-sync trigger still reads "sync, reset, or merge
+  code" — §3.2's question stands), §2.1 option B (CI), and §5.2 (the gate-name
+  guard, the mechanical form of what was checked by hand here).

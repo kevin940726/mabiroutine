@@ -5,6 +5,21 @@ Data knowledge lives in `docs/` (read it before touching data or sync):
   Hard rule: **never seed KR rows into `src/data/*`**.
 - `docs/sync.md` — sync protocol, key space, decisions, quota.
 
+## The dev loop (agents: the user verifies; ask before spending their resources)
+
+- **UI verification is the user's.** In a rapid loop they run the app and report
+  back — faster and more reliable than a browser run of yours. Report the diff and
+  what you checked, then stop: no Playwright, no headless browser, no
+  screenshot/vision pass for a small feature or a bug fix unless they ask for one
+  ("keep testing" / "verify it yourself" is that ask). The standing browser suites
+  stay where they are — `test:shop-e2e` before a release, `test:sync`'s live legs
+  when its trigger fires — and `pnpm check` stays offline.
+- **Never start a dev server unasked.** Use one that is already running (ask which
+  port if you cannot tell). Otherwise ask them to start it in their own terminal —
+  that is the default — or ask whether a background one is acceptable; a silent
+  background server is never the choice. Say which server you used, and stop the
+  one you started.
+
 ## Store Version Bumps (persist schema `useAppStore.ts`, current `v22`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
@@ -23,17 +38,33 @@ The reverse also holds: never fold away a number that **did** ship, because a re
 
 ## Changelog + docs — pre-commit rule (agents: update before every commit)
 
-- Every commit must update `CHANGELOG.md` **in the same commit** — no code/data/docs commit lands without a changelog entry.
-- Same commit must also keep user-facing docs truthful: if the change alters
-  behavior described in `README.md` / `README-zh_TW.md` (features, storage, deploy —
-  update BOTH, same facts, each in its own voice) or design recorded in `docs/`,
-  update those files too — never let README/docs describe a previous version.
-  Code comments for internal-only changes. Dev-only details (commands, project
-  structure, verification) live in `docs/development.md`, never in the READMEs.
-- Newest first: add bullets under the top `## Unreleased` section, grouped into `### Features` / `### Fixes` / `### Chores`. Only `main` deploys to prod (the pre-push hook blocks every other ref), so the cut happens BEFORE a push to `main`, as part of it: when such a push is approved and `Unreleased` is non-empty, commit a `chore: date the changelog` cut first (`## <YYYY-MM-DD> — <short label>`, label from the range's content, fresh `## Unreleased` on top) and push everything together. Cutting pre-push ships one deploy per release instead of two, and the section covers exactly the pushed range — a post-push cut risks sweeping in someone else's intervening commits, and a failed push leaves the cut sitting locally where a retry ships it, never published against work that didn't go. Skip the cut when `Unreleased` is empty. No commit hashes in headings or bullets — they go stale when history is rewritten (amend/rebase).
-- Changelog language: English always. Traditional Chinese appears only when quoting actual UI/copy text or when a term has no English counterpart; otherwise write `english (中文)` side-by-side if both help. (Older entries predate this rule — leave them.)
-- User-facing changes → `### Features` / `### Fixes`; internal/agent-only changes → `### Chores`.
-- If you spot a past commit with no entry, backfill it in the next commit — never let the gap grow.
+- Every commit updates `CHANGELOG.md` **in the same commit** — no code/data/docs
+  commit lands without an entry. The pre-push hook checks it, so a missing entry
+  is a blocked push rather than a review comment.
+- Same commit keeps user-facing docs truthful: a change to behavior described in
+  `README.md` / `README-zh_TW.md` (features, storage, deploy — update BOTH, same
+  facts, each in its own voice) or to design recorded in `docs/` updates those
+  files too — never let README/docs describe a previous version. Code comments for
+  internal-only changes; dev-only details (commands, structure, verification) live
+  in `docs/development.md`, never in the READMEs.
+- Bullets go newest-first under the top `## Unreleased`, grouped into
+  `### Features` / `### Fixes` / `### Chores`. A user-facing change is Features or
+  Fixes; an internal or agent-only change is Chores.
+- **The release label rides in the commit you push — there is no cut commit.**
+  Only `main` deploys, so the cut happens as part of an approved push to it, and
+  the label is one edit that belongs to the tip: rename `## Unreleased` to
+  `## <YYYY-MM-DD> — <label>` (label from the range's content) with a fresh empty
+  `## Unreleased` above it, then fold that edit into the tip commit
+  (`git commit --amend --no-edit` after staging) — the tip is unpushed by
+  definition, which is exactly why the label can ride there. A separate
+  `chore: date the changelog` commit said nothing the heading does not, so it is
+  gone. Do not amend a tip the user made: make the label its own small commit and
+  say so. Skip the cut when `Unreleased` is empty.
+- Language: English always. Traditional Chinese only when quoting UI or copy text,
+  or when a term has no English counterpart; `english (中文)` side by side when
+  both help. (Older entries predate this — leave them.) No commit hashes in
+  headings or bullets: they go stale when history is rewritten.
+- A past commit with no entry: backfill it in the next commit.
 
 ## Editing CJK files (agents: PowerShell will lie to you, but mostly it will not corrupt)
 
@@ -56,41 +87,48 @@ Measured on PowerShell 7.6.6, Windows:
 ## Push discipline (agents: never push without explicit approval)
 
 - Every push to `main` deploys to prod immediately — and `pnpm worker:deploy`
-  ships the push fanout the same way. NEVER `git push` / `worker:deploy`
-  until the user has explicitly allowed it. "Commit this" never implies
-  "push this"; they are separate decisions, every time.
-- Ongoing feature work stays UNCOMMITTED in the working tree: the user
-  iterates, and premature commits (even local) are noise to amend or unwind.
-  Commit only when a piece is done, reviewed, or explicitly requested — one
-  logical change per commit, changelog entry included per the rule below.
-- Especially for new features: report the diff + verification from the
-  working tree, and wait. Review, then commit, then push — three separate
-  user decisions, in that order.
-- Branch names follow the pushable convention, because the local pre-push hook
-  (`.git/hooks/pre-push`, uncommitted by design) blocks every ref except
-  `main`, `fix/*`, `feat/*` and `prototype/*`: name a branch for where it may
-  go, so a push never dies on the hook. `archive/*`, `backup/*`, `wip/*` and
+  ships the push fanout the same way. NEVER `git push` / `worker:deploy` until the
+  user has explicitly allowed it. "Commit this" never implies "push this"; they are
+  separate decisions, every time.
+- Ongoing feature work stays UNCOMMITTED in the working tree: the user iterates,
+  and premature commits (even local) are noise to amend or unwind. Commit when a
+  piece is done, reviewed, or requested — one logical change per commit, changelog
+  entry included per the rule above.
+- Especially for new features: report the diff + verification from the working
+  tree, and wait. Review, then commit, then push — three separate user decisions,
+  in that order.
+- Name a branch for where it may go. The local pre-push hook
+  (`.git/hooks/pre-push`, uncommitted by design) blocks every ref except `main`,
+  `fix/*`, `feat/*` and `prototype/*`: `archive/*`, `backup/*`, `wip/*` and
   unfamiliar names stay local by design — public history is filtered, and a
-  same-name branch in another clone may carry what this one must not publish.
-  One-off exception: `git push --no-verify`, consciously, never by habit.
+  same-name branch in another clone may carry what this one must not publish. It
+  also runs the gate below, so a push either passes it or takes
+  `git push --no-verify`, consciously, never by habit. The hook covers `git push`
+  only: `pnpm worker:deploy` is not hooked, so run `pnpm check` yourself first.
 
-## Pre-push Gate (agents: run this before every push)
+## Pre-push Gate (agents: run it before every push; the hook enforces it)
 
-`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `build`. All fifteen must pass. The runner prints one line per gate and stops at the first failure, so the last lines of a run are the verdict — never truncate to a tail that could hide it (`--verbose` streams a gate's own output; `node scripts/check-all.mjs <gate>…` runs a subset while iterating):
-- `test:shops` bundles `scripts/check-shops.entry.ts` (real recipes/shops/curated-order data): strict shape, currency validity, dup options, no-trade-routes-in-recipes, shop-gold-only, twin probes, curated completeness, and order-list integrity. Run after touching any of the data files.
-- `test:tracker` bundles `scripts/check-tracker.entry.ts` (real `tracker.json`): row shape + max rules (a check carries none; a counter/countdown max is >= 1 when present; only a counter may omit it = unbounded, done at >= 1) and `subTasks` link integrity (every child exists, keeps the parent's id prefix, matches the parent's section/kind, is a bounded counter, has exactly one parent, no nested groups). Run after touching `tracker.json`: the failure mode is silent in the app (a broken link renders no child, a duplicate id steals another row's progress).
-- `test:docs` runs `scripts/check-doc-facts.mjs`: prose that quotes `tracker.json` must agree with it — a quoted row total, the `N daily + N weekly + N account` breakdown, a `Keep hardcodes:` `<id> max <n>` pair, and every row id in `docs/tracker-data.md`'s inventory tables. Run after touching the row set, a row's `max`, or any doc/skill quoting those numbers. The failure mode is a stale instruction: the 2026-10-19 black-hole rework left `skills/update-tracker/SKILL.md` telling the next writer to keep `black-hole` max 14 (7+7) and quoting 25 rows, and no other gate reads prose. Excludes `CHANGELOG.md` and `docs/plans/**` (records of a point in time, not live facts).
-- `test:migrations` bundles the real `migratePersisted` and runs fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic barter ids, removed-id prune, passthrough, filter sanitize). If you add a migrate step, add a fixture block (A/B/C/D/E/F pattern) proving old data survives.
-- `test:drag` bundles `src/lib/dragRules.ts` and asserts the drag hierarchy in `scripts/check-drag-rules.entry.ts`: a pinned child reorders only inside its own merchant group (a drop outside it lands at the end of that group), a top-level row cannot cross sections, and a grouped pin cannot swap into the plain-row list. Cross-LIST moves need no rule — each list has its own drag context, so a drop cannot resolve outside it. Run after touching `dragRules.ts` or a drag handler.
-- `test:tap` bundles `src/lib/tapGate.ts` and pins the tap gate in `scripts/check-tap-gate.entry.ts`: a tile writes only for its own pointer gesture — a tap's click writes once, the click the browser synthesizes for a gesture that ended on another control (the row that slid up when 隱藏已完成 removed the completed one) is refused, a grab/drag's trailing click is refused, and a pointerless activation (keyboard, screen reader, `detail === 0`) is honored. It then scans `src/components` + `src/hooks` for the two shapes that bring the bug back: a pointer-down/up handler that writes progress, and an `onClick` that writes progress with no `ownsClick` guard (sabotage-verified: deleting a tile's guard fails with that tile's file and line). Run after touching `tapGate.ts`, `useGrabCounter.ts`, or a tile's click handler: the failure mode is one tap writing two rows — or a counter clearing itself — and it is silent in the app (measured: the compat click is hit-tested after the reflow, which is why `setPointerCapture` cannot fix it; rationale and the regression's browser case are in `docs/development.md` § Tap rule).
-- `test:purple` bundles `src/lib/purpleHole.ts` and pins the schedule's two rays in `scripts/check-purple.entry.ts`: a `next` correction leaves the record's past byte-identical (the 2026-10-14 rule: correcting the next spawn never rewrites the recorded past; only an explicit `anchor` moves it), a passed correction joins the past and re-phases onward, displaced lattice items never surface as future, the seam walk lands on the record, `prevMs` keeps the row behind a recorded spawn exact across a seam, the parse gate rejects a correction at/before the anchor and a previous point at/after it, and the supersede guard refuses a publish that would drop a passed, unrecorded correction (409, record first). Run after touching `purpleHole.ts`, the feed/admin doc shape, or a reminder lane.
-- `test:sync` runs `scripts/check-sync.mjs`: hermetic engine/property/tab suites (real store+sync code, always) plus live API + real-Chromium (Playwright) E2E (SKIP loudly without `pnpm dev:api` or the Playwright Chromium — `pnpm install` does not fetch it; run `pnpm exec playwright install chromium` once). If you touch sync, reset, or merge code, these must pass for real — not skipped. Sabotage standard: a suppression/marker change must fail T3 (proven 2026-09-06).
-- `test:fallbacks` runs `scripts/check-art-fallbacks.mjs` over `src/`, `api/` and `workers/` plus `public/`: no `src` assignment anywhere (an assignment to a URL that is missing re-enters the error handler forever — that is what drained the team's edge requests on 2026-10-12), every NPC name `shops.json` references has a portrait, every hardcoded `/npc/` or `/items/` filename literal resolves to a file, and the `public/npc/placeholder.png` compat shim is present AND tracked by git (untracked means the deploy 404s the fallback). Run after touching any art `<img>`, its fallback, or an art path. Rationale and measurements: `docs/item-icons.md` § The fallback rule.
-- `test:budget` runs `scripts/check-budget.mjs`: the real `public/sw-budget.js` in a `node:vm` realm with a fake `self`/`caches`/`fetch`/clients. Asserts the device request budget never intercepts below its tiers, trips where it says (>400/min, >4,000/30min, >6,000/6h), and past a trip answers every same-origin class instead of fetching (`/api/` as 429, navigations from the preload or pages cache else the network, images from cache else a transparent pixel, everything else from cache else a 503 with Retry-After), with cross-origin never touched. The `importScripts` entry in `vite.config.ts` is load-bearing (the listener must register before the generated routes, or a Workbox route wins the fetch event and the guard is silently disarmed); run it after touching that config or the worker script. It also fails any network call under `src/` made outside the three sanctioned request sites (`sync/api.ts` for `/api/session`, `src/lib/net.ts` for the push registry, and `purpleHole.ts`, which keeps its own throttled feed fetch because that module is shared with the Worker and must stay free of aliased runtime imports), so a new request path cannot land uncounted. See `docs/operations.md` §7.
-- `test:worker` runs `scripts/check-worker.mjs`, which bundles the Cloudflare Worker with `wrangler deploy --dry-run` (uploads nothing, needs no auth). The Worker shares pure client modules from `src/lib` by RELATIVE import (`purpleHole`, `hourlyReminders`, `reset`), and it has no tsconfig, so `tsc -b` never sees it and esbuild does not type-check: an aliased (`@/`) runtime import in one of those modules, or a DOM-only dependency, fails only at deploy time. Not hypothetical: an `@/lib/net` import added on 2026-10-12 broke the bundle and nothing else in `pnpm check` noticed. `import type` from an alias is fine, because it is stripped before resolution. Run after touching `workers/` or a shared `src/lib` module.
-- `test:reminders` runs `scripts/check-reminders.mjs`: the real `fireHourlyReminder` and the real `public/sw-push.js` (vm realm, fake registration) pin the seam dedup. The local timer fires :00:00 and the CF cron tick lands :00:49-:00:55, so both lanes stamp the event slot (`eventHourOf`, shared with the Worker) into `notification.data.slot` and a same-tag + same-slot card already on screen is replaced with `renotify: false` (the card still shows; only the buzz drops). A previous-slot card, another tag, a missing or junk stamp, or a failed tray lookup all re-alert (fail-open), and a lane that stamps no slot (purple) never queries. Run after touching `hourlyReminders.ts`, `useHourlyReminders.ts`, the SW push handler, or the barrier payload.
-- Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if the premise line fails, update the fixture, not the data.
-- `suggestions/` is gitignored (review scratch only); `src/data/*.json` is hand-edited and needs human review — fetcher scripts stay private-local (gitignored, never committed).
+`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `build`. All fifteen must pass. The runner prints one line per gate and stops at the first failure, so the last lines are the verdict — never truncate to a tail that could hide it (`--verbose` streams a gate's own output; `node scripts/check-all.mjs <gate>…` runs a subset while iterating).
+
+Run it before you ask to push, and the hook will not have to tell you. The hook calls `scripts/pre-push-gate.mjs`, which adds the two changelog rules above: every pushed commit must touch `CHANGELOG.md`, and a `main` push must leave `## Unreleased` empty. `git push --no-verify` skips it.
+
+Each line below is when the gate fires and what its silence costs. The check list, the incident behind it, and its sabotage standard are `docs/development.md` § Gates.
+
+- `test:shops` — after any `src/data` file (recipes, shops, curated order). Wrong data ships silently.
+- `test:tracker` — after `tracker.json`. Silent in the app: a broken `subTasks` link renders no child, a duplicate id steals another row's progress.
+- `test:docs` — after the row set, a row's `max`, or any doc or skill quoting those numbers. A stale instruction misleads the next writer.
+- `test:icons` — after `src/lib/itemIcon.ts` or the item data. The emitted path fails silently in two directions.
+- `test:fallbacks` — after any art `<img>`, its fallback, or an art path. An error handler reassigning a missing URL loops forever (2026-10-12).
+- `test:budget` — after `public/sw-budget.js`, the workbox config, or anything changing what the SW intercepts. A disarmed guard spends the device request budget.
+- `test:worker` — after `workers/` or a shared `src/lib` module. No tsconfig, so an aliased runtime import or a DOM-only dependency fails only at deploy.
+- `test:reminders` — after `hourlyReminders.ts`, `useHourlyReminders.ts`, the SW push handler, or the barrier payload. The seam double-alerts.
+- `test:drag` — after `dragRules.ts` or a drag handler. A row lands outside its own group or section.
+- `test:tap` — after `tapGate.ts`, `useGrabCounter.ts`, or any tile's click handler. One tap writes two rows, or a counter clears itself — invisible in review.
+- `test:purple` — after `purpleHole.ts`, the feed/admin doc shape, or a reminder lane. A correction rewrites the recorded past.
+- `test:migrations` — after adding a `migratePersisted` step. A user's save loses progress; add a fixture block (A/B/C/D/E/F) proving it survives.
+- `test:sync` — after sync, reset, or merge code. The live legs must pass for real, not skip (they need `pnpm dev:api` and the Chromium); a suppression or marker bug wipes a device.
+- Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if a premise line fails, update the fixture, not the data.
+- `suggestions/` is gitignored (review scratch); `src/data/*.json` is hand-edited and needs human review — fetcher scripts stay private-local, never committed.
 
 ## Purple schedule corrections (agents)
 
