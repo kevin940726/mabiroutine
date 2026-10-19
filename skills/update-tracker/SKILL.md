@@ -11,7 +11,7 @@ explicit human "apply this" for the specific rows.
   pages in a browser by hand and reporting the diff.
 
 ## Inputs (read first)
-- `docs/tracker-data.md` — single source of truth for TW hardcodes (`barrier 7`, `black-hole 7+7`), sources, and filtering rules.
+- `docs/tracker-data.md` — single source of truth for TW hardcodes (`barrier 7`, `black-hole` weekly 7 + `black-hole-daily` 1/day = 14/week), sources, and filtering rules.
 - `src/data/tracker.json` / `src/data/shops.json` (barter legs carry stable `id`s; order in `src/data/curatedOrder.ts`) — the hand-maintained files; diff target, never write target.
 
 ## Steps
@@ -21,9 +21,9 @@ explicit human "apply this" for the specific rows.
    yenyen list) and compare against the JSON rows. No `fetch`, no scripts,
    no bulk download.
 2. **Report the diff** — added / removed / changed rows. If counts drift far
-    from `docs/tracker-data.md` (25 tracker rows, 117 curated legs), flag for human review.
+    from `docs/tracker-data.md` (26 tracker rows, 117 curated legs), flag for human review.
 3. **Human applies by hand** — edit `src/data/tracker.json` / `src/data/shops.json`
-   directly. New barter legs need an explicit stable `id`, a `priority`, the verbatim display strings, and a position in `curatedOrder.ts` — the `test:shops` gates fail otherwise. Keep hardcodes: `barrier max 7`, `black-hole` max 14 (7+7) —
+   directly. New barter legs need an explicit stable `id`, a `priority`, the verbatim display strings, and a position in `curatedOrder.ts` — the `test:shops` gates fail otherwise. Keep hardcodes: `barrier max 7`, `black-hole` max 7 (the stored carryable bank; the tile shows the game's combined remaining 0..8) and `black-hole-daily` as a plain check —
    do not re-derive from `韓服社群` fallback text.
    Do not invent `town`/`skill`; never add `verified:"kr"` rows.
    A row with `subTasks` is a grouped parent: unbounded counter (no `max`), children keep
@@ -38,4 +38,4 @@ explicit human "apply this" for the specific rows.
 
 ## References
 - `docs/tracker-data.md` Filtering Rules + Source terms
-- `src/data/tracker.json` (25 TW rows, hand-owned), `src/data/shops.json` (117 curated legs with stable ids, hand-owned)
+- `src/data/tracker.json` (26 TW rows, hand-owned), `src/data/shops.json` (117 curated legs with stable ids, hand-owned)

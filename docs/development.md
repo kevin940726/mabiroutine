@@ -38,7 +38,7 @@ case — switch to `dev:api`.
 
 ## Five-minute tour
 
-- **Game data is hand-owned JSON** — `src/data/tracker.json` (25 rows) +
+- **Game data is hand-owned JSON** — `src/data/tracker.json` (26 rows) +
   `src/data/shops.json` (NPC → purchase/exchange options incl. the 117 curated legs, each with a stable `id`, schema'd by
   `shops.schema.json`) +
   `src/data/curatedOrder.ts` + `src/data/defaultPins.json` +
@@ -91,13 +91,28 @@ case — switch to `dev:api`.
 
 ## Gates (run before every push)
 
-`pnpm check` = `lint` + `test:shops` + `test:tracker` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `build`. All fourteen must pass.
+`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `build`. All fifteen must pass.
+The runner prints one line per gate (`ok <gate> 1.2s` / `FAIL <gate> <ms>`) and
+stops at the first failure, so the last lines of a run are the verdict — the old
+`&&` chain ended on the Vite build, so a truncated tail hid every gate result.
+`--verbose` streams a gate's own output; `node scripts/check-all.mjs test:tracker
+test:tap` runs a subset while iterating; `--list` prints the names.
 Plus, per `AGENTS.md`: every commit updates `CHANGELOG.md` in the same commit
 and keeps `README.md` / `README-zh_TW.md` / `docs/` truthful.
 Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
 `curatedOrder.ts` (shape + currency + dup + no-trade-routes + shop-gold-only + twin probes + curated completeness).
 Tracker rule: `pnpm test:tracker` after touching `tracker.json` (row shape +
 max rules + `subTasks` link integrity — a broken link is silent in the app).
+Doc-facts rule: `pnpm test:docs` after touching the row set, a row's `max`, or any
+doc or skill that quotes those numbers. It checks that prose against
+`tracker.json` — a quoted row total, the `N daily + N weekly + N account`
+breakdown, a `Keep hardcodes:` `<id> max <n>` pair, and every row id in
+`docs/tracker-data.md`'s inventory tables. `CHANGELOG.md` and `docs/plans/**` are
+excluded: they record a point in time and may say what was true then. The failure
+mode is a stale instruction — the 2026-10-19 rework left `skills/update-tracker/SKILL.md`
+telling the next writer to keep `black-hole` max 14 (7+7) and quoting 25 rows —
+and it recognizes only the phrasings above, so a doc quoting the total some other
+way is still unchecked.
 Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so

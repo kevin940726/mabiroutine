@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- `pnpm check` now prints one line per gate and ends on a verdict (`ok <gate> 1.2s`, or `FAIL <gate>` plus that gate's own output and `check: N/15 gates passed`) instead of a `&&` chain whose only visible tail was the Vite build — a run truncated to its last lines can no longer hide a gate result. `node scripts/check-all.mjs <gate>…` re-runs a subset while iterating, and `--verbose` streams a gate's output.
+- A new `test:docs` gate (`scripts/check-doc-facts.mjs`) holds the prose that quotes `tracker.json` to the data: a quoted row total, the `N daily + N weekly + N account` breakdown, a `Keep hardcodes:` `<id> max <n>` pair, and every row id in `docs/tracker-data.md`'s inventory tables. `CHANGELOG.md` and `docs/plans/**` are excluded as records of a point in time.
+- The stale facts it found are corrected: `skills/update-tracker/SKILL.md` told the next writer to keep `black-hole` max 14 (7+7) and quoted 25 tracker rows, and `docs/development.md` quoted 25 rows. Both now say max 7 (the stored carryable bank; the tile shows the game's combined 0..8) and 26 rows.
+
 ## 2026-10-19 — The black hole's one number, and gold totals
 
 ### Features
