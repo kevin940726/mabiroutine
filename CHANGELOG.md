@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Chores
+- The pre-push gate no longer rejects a push from a checkout that cannot run it: a worktree or branch older than the gate (no `scripts/pre-push-gate.mjs`) or one with no `node_modules` gets a note and is skipped, where it previously died on a module error. A failing git call now prints git's own message instead of a stack trace, and a failing suite says when the working tree is dirty, so unshipped work is not mistaken for a broken commit.
 - AGENTS.md keeps each gate's trigger and what its silence costs; the check lists, incidents and sabotage standards moved to `docs/development.md` § Gates (the gate section 1,317 words → 499, the file 2,544 → 1,903). New in it: `## The dev loop` — UI verification is the user's (no Playwright, headless browser or screenshot pass for a small change unless asked), and a dev server is never started unasked (ask for one in the user's terminal, or ask before a background one — never silently the latter).
 - The `chore: date the changelog` commit is gone: the release label folds into the tip commit with `git commit --amend --no-edit`, as part of an approved push to `main`.
 - The local pre-push hook now calls `scripts/pre-push-gate.mjs`: `pnpm check`, a `CHANGELOG.md` change in every pushed commit, and an empty `## Unreleased` on a `main` push. The hook file itself stays uncommitted (it also filters refs).

@@ -30,7 +30,18 @@ const fail = (msg) => {
 const args = process.argv.slice(2);
 const changelogOnly = args.includes("--changelog-only");
 const [localSha, remoteSha, ref = "refs/heads/main"] = args.filter((a) => !a.startsWith("--"));
-const git = (a) => execFileSync("git", a, { encoding: "utf8" });
+const git = (a) => {
+  try {
+    return execFileSync("git", a, { encoding: "utf8" });
+  } catch (e) {
+    // A git failure (an unfetched remote sha, a missing file in the pushed tip)
+    // is a blocked push either way; say what git said instead of a stack trace.
+    const why = (e.stderr || e.message || "").toString().trim().split("\n").filter(Boolean).pop() || "unknown error";
+    fail(`\`git ${a.join(" ")}\` failed: ${why}`);
+    console.log("pre-push gate: BLOCKED (fetch and retry, or `git push --no-verify` if this gate is wrong)");
+    process.exit(1);
+  }
+};
 
 if (!localSha || ZERO.test(localSha)) {
   console.log("pre-push gate: nothing to push");
@@ -78,11 +89,17 @@ if (ref === "refs/heads/main") {
 
 // --- 2. the suite ------------------------------------------------------------
 if (!changelogOnly && !failed) {
-  if (git(["status", "--porcelain"]).trim()) {
-    console.log("note: the working tree is dirty — `pnpm check` reads the tree, so it also covers unshipped work");
-  }
+  const dirty = Boolean(git(["status", "--porcelain"]).trim());
+  if (dirty) console.log("note: the working tree is dirty — `pnpm check` reads the tree, so it also covers unshipped work");
   const res = spawnSync("pnpm check", { shell: true, stdio: ["ignore", "inherit", "inherit"] });
-  if (res.status !== 0) fail("pnpm check failed");
+  if (res.status !== 0) {
+    fail(
+      "pnpm check failed" +
+        (dirty
+          ? " — and the working tree is dirty, so this may be unshipped work: stash or commit it, or `git push --no-verify`"
+          : "")
+    );
+  }
 }
 
 console.log(failed ? "pre-push gate: BLOCKED" : "pre-push gate: pass");
