@@ -13,6 +13,10 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - 外觀 in the ☰ menu is a three-way choice — 跟隨系統 / 淺色 / 深色 — and the app follows the system theme by default: a phone or desktop switching to dark repaints with it, live, and the menu stays open while you pick. A save that never touched the old toggle follows the system instead of pinning light; an explicit 淺色 or 深色 still wins over the OS.
 - The theme toggle left the header for a new ☰ menu at its right edge: 外觀 now lives there. Every other header control is unchanged.
 
+### Fixes
+- 同步 no longer reports 同步失敗 after the device is unlinked; the row falls back to 未連結.
+- A seen marker that no longer parses now falls back to the latest release instead of claiming 已讀到最新 and hiding the unread window.
+
 ### Chores
 - The menu and changelog work got its comment pass: 548 comment lines deleted across 17 files, no code changes. The Radix menu/sheet behaviours, the service-worker boot window, the sync protocol's 404 branch, and the public type contracts stayed.
 - The docs and both READMEs now describe what shipped: the header ☰ menu and its rows, 外觀 as 跟隨系統 / 淺色 / 深色 with system-following as the default, the `CHANGELOG-zh_TW.md`-backed drawer and its amber dot, and the update nudge with its one-shot receipt (a reload, never an auto-opened panel). Stale references are gone with it: `docs/sync.md`, `docs/stories.md` and `docs/sql-migration.md` name `useSyncEngine` / `SyncDialog` instead of the removed `SyncButton`, the "no update toast exists" claims in `docs/development.md`, `vite.config.ts` and `src/main.tsx` are corrected, and `docs/storage.md` records the device-local `mabiroutine:whatsnew-seen` marker (never synced, no schema bump). `AGENTS.md` also stops calling `whatsNew.generated.json` hand-edited: only `scripts/whats-new.mjs --write` produces it. `docs/plans/whats-new.md` row 13 is shipped; the plan file stays until row 16's deferral is resolved.

@@ -286,6 +286,7 @@ export type ToastDetail = {
 
 const toastActions = new Map<string, { fn: () => void; at: number }>();
 const TOAST_ACTION_TTL_MS = 10_000;
+export { TOAST_ACTION_TTL_MS };
 let toastActionSeq = 0;
 
 if (typeof window !== "undefined") {

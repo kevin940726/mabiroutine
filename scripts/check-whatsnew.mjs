@@ -169,6 +169,18 @@ enLines.forEach((line, i) => {
   english.push({ id: text, date: DATED.exec(text)[1], line: i + 1, none: j < enLines.length && NONE.test(enLines[j].trim()) });
 });
 
+let outOfOrder = 0;
+for (let i = 1; i < english.length; i += 1) {
+  if (english[i].date > english[i - 1].date) {
+    outOfOrder += 1;
+    fail(
+      `${EN}:${english[i].line} ${quote(english[i].id)} is dated after the release above it — the file must run newest-first, ` +
+        "because the app reads the first section as the latest release"
+    );
+  }
+}
+if (english.length > 1 && !outOfOrder) ok(`${english.length} dated releases run newest-first`);
+
 const allowedNone = new Set(english.filter((r) => r.none).map((r) => r.line + 1));
 enLines.forEach((line, i) => {
   if (NONE.test(line.trim()) && !allowedNone.has(i + 1)) {

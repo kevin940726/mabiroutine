@@ -97,9 +97,14 @@ export function summaryFor(seen: string | null, entries: readonly WhatsNewEntry[
 
   if (!latest) return { state: "read", unread: [], releases, label: "已讀到最新" };
 
-  if (seen === null) {
-    return { state: "first", unread: [], releases, label: `最新 · ${formatMd(latest.date)}` };
-  }
+  const firstRun = (): WhatsNewSummary => ({
+    state: "first",
+    unread: [],
+    releases,
+    label: `最新 · ${formatMd(latest.date)}`,
+  });
+
+  if (seen === null) return firstRun();
 
   const at = releases.findIndex((r) => r.id === seen);
   let unread: Release[];
@@ -107,7 +112,8 @@ export function summaryFor(seen: string | null, entries: readonly WhatsNewEntry[
     unread = releases.slice(0, at);
   } else {
     const date = markerDate(seen);
-    unread = date ? releases.filter((r) => r.date >= date) : [];
+    if (!date) return firstRun();
+    unread = releases.filter((r) => r.date >= date);
   }
 
   if (!unread.length) return { state: "read", unread, releases, label: "已讀到最新" };

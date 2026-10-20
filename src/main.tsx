@@ -8,7 +8,7 @@ import { readJournal, clearJournal } from './sync/journal.ts'
 import { budgetAsk, budgetLog, noteBudgetTrip } from './lib/networkBudget.ts'
 import { netSummary } from './lib/net.ts'
 import { acceptUpdate, BOOT_WAIT_MS, markUpdateReady } from './lib/updatePrompt.ts'
-import { toastAction } from './sync/session.ts'
+import { toastAction, TOAST_ACTION_TTL_MS } from './sync/session.ts'
 import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
 import { getUndonePurpleReminder } from './hooks/usePurpleHoleReminders.ts'
 import {
@@ -173,7 +173,8 @@ const MIN_SW_CHECK_GAP_MS = 10 * 60 * 1000;
 const ABSENCE_RELOAD_MS = 6 * 60 * 60 * 1000;
 const UPDATE_SETTLE_MS = 15_000;
 const LAST_HIDDEN_KEY = "mabiroutine:last-hidden";
-const UPDATE_TOAST_MS = 8000;
+const ACTION_EXPIRY_HEADROOM_MS = 2_000;
+const UPDATE_TOAST_MS = TOAST_ACTION_TTL_MS - ACTION_EXPIRY_HEADROOM_MS;
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   let lastSwCheck = 0;
   let registeredAt = 0;

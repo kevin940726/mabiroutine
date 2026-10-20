@@ -23,8 +23,8 @@ const THEME_CHOICES: { value: ThemeMode; label: string }[] = [
 ];
 
 function syncLabel(status: SyncStatus, now: number): string {
-  if (status.failing) return "同步失敗";
   if (!status.linked) return "未連結";
+  if (status.failing) return "同步失敗";
   if (!status.lastSyncedAt) return "已連結";
   return `已連結 · ${relativeTime(status.lastSyncedAt, now)}`;
 }

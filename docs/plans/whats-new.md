@@ -71,8 +71,8 @@ so the sticky blurred header cannot become the containing block.
 
 Contract, so it does not rot into a junk drawer:
 
-- Six base items, one divider, no submenus; a conditional seventh when an update
-  is waiting (below).
+- Six base rows, one divider, no submenus; 外觀 is a label followed by three
+  radio choices; a conditional seventh row when an update is waiting (below).
 - Anything past that is a row that opens a drawer, not another item.
 
 | Row | State shown | Opens |
@@ -284,8 +284,8 @@ Discovery already runs on visibility and reconnect, throttled; no new polling.
 - one marker per section, exactly; the file preamble may be `# 更新記錄` plus
   prose; a body may contain only `####`-free `### 新功能` / `### 修正` and `- `
   bullets; duplicate groups and empty sections fail;
-- "no code identifiers" means no backticks, file paths, or inline code — proper
-  nouns like GitHub are fine.
+- "no code identifiers" means no backticks, file names, paths, inline code, or
+  commit-hash-shaped tokens — proper nouns like GitHub are fine.
 
 Registering the gate is not one file:
 

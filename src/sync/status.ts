@@ -19,7 +19,7 @@ const listeners = new Set<(status: SyncStatus) => void>();
 
 function readBinding(): SyncStatus {
   const linked = loadSession();
-  return { linked, lastSyncedAt: linked?.updatedAt ?? 0, failing: status.failing };
+  return { linked, lastSyncedAt: linked?.updatedAt ?? 0, failing: linked ? status.failing : false };
 }
 
 export function getSyncStatus(): SyncStatus {
