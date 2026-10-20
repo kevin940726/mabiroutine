@@ -127,7 +127,7 @@ function withoutTombstonedCustoms(flat: FlatMap, order: Record<string, number>):
   return out ?? order;
 }
 
-// Order-key push guard (decisions 4b-4d), shared by SyncButton and the test
+// Order-key push guard (decisions 4b-4d), shared by useSyncEngine and the test
 // engine port: no order key is volunteered before the binding's first pull
 // (nobody contests canon blind), and each is stripped whenever flatten omits
 // it — omission means "no information", so diffFlat's null path must not
@@ -175,7 +175,7 @@ export function flattenSnapshot(s: SyncSnapshot): FlatMap {
   // so the human-made order wins regardless of upgrade/arrival order.
   // Coincidentally-sorted creation orders need no reconciliation (all
   // parties holding them already agree). The push side strips the key
-  // whenever flatten omits it (SyncButton), so an established device going
+  // whenever flatten omits it (useSyncEngine), so an established device going
   // sorted — e.g. a removal leaving a sorted remainder — never tombstones
   // shared canon via the null path. Post-convergence silence is
   // unaffected: every device flattens the adopted canon, so the key diffs
@@ -396,7 +396,7 @@ function sortedIds(ids: string[]): string[] {
 // by server arrival order (push runs before pull, so a stale-base push
 // overwrites canon before its author ever reads it), then sticks. Two
 // guards bias the race toward the human-made order: pushes withhold the key
-// until the first pull for the binding completes (SyncButton — nobody
+// until the first pull for the binding completes (useSyncEngine — nobody
 // contests canon blind), and flatten never volunteers an id-sorted order
 // (artifact deferral above — generated layouts can't overwrite chosen ones).
 // Convergence is guaranteed; the winner of a true volunteer-vs-volunteer

@@ -8,7 +8,9 @@ import { writeShopJumpParams } from "@/lib/shopJump";
 import { CharacterTabs, SortableCharMenu } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
-import { SyncButton, SyncToasts } from "@/sync/SyncButton";
+import { SyncToasts } from "@/sync/SyncToasts";
+import { SyncDialog } from "@/sync/SyncDialog";
+import { useSyncEngine } from "@/sync/useSyncEngine";
 import { syncAndResets, markActivity } from "@/sync/session";
 import { InstallButton } from "@/components/InstallButton";
 import { ExpSettingsDialog } from "@/components/ExpSettingsDialog";
@@ -110,6 +112,12 @@ export default function App() {
   // Theme is app-level, not menu-level: 跟隨系統 needs a `matchMedia` listener
   // that outlives the menu, which unmounts every time it closes.
   const theme = useTheme();
+  // The sync engine is app-level for the same reason, one step further: the
+  // menu row that reports its state unmounts on close, so the loop, the
+  // visibility/reconnect handlers and the debounced push mount once here and
+  // the row reads their status store. Gated on hydration so the mount pull and
+  // the reset round keep the ordering they had when this lived in the header.
+  const sync = useSyncEngine(hasHydrated);
 
   // Boot splash (index.html inline): covered the white gap while the JS
   // bundle downloaded/parsed. Fade out on first commit — the fade masks any
@@ -134,14 +142,14 @@ export default function App() {
   // tombstone decision needs fresh peer markers, or a late-waking device
   // nukes the peer's same-bucket progress. Boot included (the store no
   // longer self-checks on hydrate, for the same reason).
-  // The periodic cadence lives in SyncButton (single 5min loop, quota §):
+  // The periodic cadence lives in useSyncEngine (single 5min loop, quota §):
   // this effect owns ordering on wake only, never the timer — two timers
   // would double every poll's commands.
   useEffect(() => {
     if (!hasHydrated) return;
     void syncAndResets();
     // also on focus (visible wakes adopt-then-prune; hidden tabs stay quiet —
-    // SyncButton owns the hidden-tab push flush)
+    // useSyncEngine owns the hidden-tab push flush)
     const onFocus = () => {
       markActivity();
       void syncAndResets();
@@ -279,8 +287,12 @@ export default function App() {
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <HeaderCountdown />
-            <SyncButton />
-            <AppMenu mode={theme.mode} setMode={theme.setMode} />
+            <AppMenu
+              mode={theme.mode}
+              setMode={theme.setMode}
+              onSync={() => sync.setOpen(true)}
+              now={nowMs}
+            />
           </div>
         </div>
       </header>
@@ -656,6 +668,7 @@ export default function App() {
         />
       </Suspense>
       )}
+      <SyncDialog engine={sync} />
       <SyncToasts />
       <SyncImport />
       <ConfirmHost />

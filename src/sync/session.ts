@@ -313,7 +313,7 @@ export function toastAction(text: string, actionLabel: string, fn: () => void, m
 
 export type ImportRequest = { id: string; state: unknown; updatedAt: number };
 
-// Background engine hook (owned by SyncButton's effect). Lets session-level
+// Background engine hook (owned by useSyncEngine's effect). Lets session-level
 // flows trigger a pull round without prop drilling. Promise-returning so
 // syncAndResets can order reset-after-pull.
 let pullHook: (() => Promise<void>) | null = null;

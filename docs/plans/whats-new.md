@@ -339,7 +339,7 @@ push, not the deploy.
 | 1 | Four-shape prototype | done | A/C/B/D evaluated; verdict: menu + drawer. Artifacts are throwaway. |
 | 2 | Menu shell | shipped | dropdown, `modal={false}`, focus-return fix; 外觀 is its only row |
 | 3 | Theme hook and row | shipped | App-level `useTheme`; `system` + `matchMedia`; unknown → system; 外觀 is a three-option radio group |
-| 4 | Sync engine extraction and row | planned | `useSyncEngine` + `useSyncStatus`; live `test:sync` legs |
+| 4 | Sync engine extraction and row | shipped | `useSyncEngine` + `useSyncStatus`; the menu row carries the state; live `test:sync` legs |
 | 5 | Data rows | planned | export/import/reset leave the footer; `ExpSettingsDialog` stays |
 | 6 | `CHANGELOG-zh_TW.md` | planned | baseline = oldest section; `whats-new: none` for internal releases |
 | 7 | Parser and generated JSON | planned | `scripts/whats-new.mjs` → `src/data/whatsNew.generated.json` |
