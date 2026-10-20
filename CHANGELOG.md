@@ -5,7 +5,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
-- The theme toggle left the header for a new ☰ menu at its right edge: 外觀 switches between light and dark exactly as the header button did. Every other header control is unchanged, and the menu holds that one row until the rest of the plan lands.
+- 外觀 in the ☰ menu is a three-way choice — 跟隨系統 / 淺色 / 深色 — and the app follows the system theme by default: a phone or desktop switching to dark repaints with it, live, and the menu stays open while you pick. A save that never touched the old toggle follows the system instead of pinning light; an explicit 淺色 or 深色 still wins over the OS.
+- The theme toggle left the header for a new ☰ menu at its right edge: 外觀 now lives there, as the menu's only row until the rest of the plan lands. Every other header control is unchanged.
 
 ### Chores
 - `docs/plans/whats-new.md` records the app-menu and changelog plan: the header/menu/drawer split, the menu contract and its rows, the amber feature-only dot policy, a zh_TW `CHANGELOG-zh_TW.md` whose entries the app derives at cut time (parity-checked against `CHANGELOG.md`), and how a waiting service worker couples to it (prompt → reload → receipt). Its ledger is the status surface for the build.

@@ -119,15 +119,20 @@
       }
     </style>
     <script>
-      // Pre-paint theme: same logic as AppMenu (stored "theme", else OS
-      // preference) so splash and first React paint share one background —
-      // no white flash, no theme pop. Private-mode failures fall back to
-      // light; normal boot covers.
+      // Pre-paint theme: same logic as src/hooks/useTheme, so the splash and
+      // the first React paint share one background — no white flash, no theme
+      // pop. Stored "system", a missing key, and anything unrecognised all
+      // resolve to the OS preference; only an explicit "light" / "dark"
+      // overrides it. A blocked read is "no setting", not "light": falling
+      // back to light there would pop a dark OS on a private-mode load, which
+      // is exactly the disagreement this script exists to prevent.
+      var __dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       try {
         var __t = localStorage.getItem("theme");
-        var __dark = __t ? __t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-        if (__dark) document.documentElement.classList.add("dark");
+        if (__t === "dark") __dark = true;
+        else if (__t === "light") __dark = false;
       } catch (e) {}
+      if (__dark) document.documentElement.classList.add("dark");
     </script>
     <title>MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物</title>
   </head>

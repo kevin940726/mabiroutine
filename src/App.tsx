@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useNow } from "@/hooks/useNow";
+import { useTheme } from "@/hooks/useTheme";
 import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
 import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
@@ -106,6 +107,9 @@ export default function App() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const isMobile = useIsMobile();
+  // Theme is app-level, not menu-level: 跟隨系統 needs a `matchMedia` listener
+  // that outlives the menu, which unmounts every time it closes.
+  const theme = useTheme();
 
   // Boot splash (index.html inline): covered the white gap while the JS
   // bundle downloaded/parsed. Fade out on first commit — the fade masks any
@@ -276,7 +280,7 @@ export default function App() {
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <HeaderCountdown />
             <SyncButton />
-            <AppMenu />
+            <AppMenu mode={theme.mode} setMode={theme.setMode} />
           </div>
         </div>
       </header>
