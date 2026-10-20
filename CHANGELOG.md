@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
+- 匯出 JSON, 匯入 JSON and 重置所有資料 moved from the footer into the ☰ menu, under the divider and in that order, with reset last and styled destructive. 重置所有資料 now asks in a dialog (清除全部 / 取消) before it wipes, so the footer's inline two-tap row is gone; the export format and what a reset clears are unchanged. The footer keeps 安裝 App, 實驗性功能, the GitHub link, the character count and both source paragraphs.
 - 同步 left the header for the ☰ menu, and its row carries the state: 已連結 · 2 分鐘前 / 未連結 / 同步失敗. The row opens the same 跨裝置同步 dialog (link, paste, regenerate and cancel stay in it), and the header is now `countdown · ☰`. Background sync is unaffected by the menu closing — the engine moved out of the button and runs at App level, so the row reports what a loop that never stops is doing.
 - 外觀 in the ☰ menu is a three-way choice — 跟隨系統 / 淺色 / 深色 — and the app follows the system theme by default: a phone or desktop switching to dark repaints with it, live, and the menu stays open while you pick. A save that never touched the old toggle follows the system instead of pinning light; an explicit 淺色 or 深色 still wins over the OS.
 - The theme toggle left the header for a new ☰ menu at its right edge: 外觀 now lives there. Every other header control is unchanged.

@@ -14,7 +14,7 @@ import { useSyncEngine } from "@/sync/useSyncEngine";
 import { syncAndResets, markActivity } from "@/sync/session";
 import { InstallButton } from "@/components/InstallButton";
 import { ExpSettingsDialog } from "@/components/ExpSettingsDialog";
-import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
+import { ConfirmHost, confirmRemoveCharacter, confirmResetAll } from "@/components/ConfirmDialog";
 import { PillProgress } from "@/components/PillProgress";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { SyncImport } from "@/sync/SyncImport";
@@ -34,7 +34,7 @@ import { BLACK_HOLE_DAILY_ID, blackHoleProgressTask, blackHoleProgressValue } fr
 import { healClaimedReminderLanes } from "@/lib/serverPush";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task, TaskSection } from "@/lib/types";
-import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -101,7 +101,6 @@ export default function App() {
   // buttons; ignored when editing (the task's own saved pair wins). Reset to
   // null when the dialog closes so a later add from elsewhere does not inherit it.
   const [addSection, setAddSection] = useState<TaskSection | null>(null);
-  const [confirmingReset, setConfirmingReset] = useState(false);
   const [compact, setCompact] = useState(false);
   const [pillRenaming, setPillRenaming] = useState(false);
   const [pillDraft, setPillDraft] = useState("");
@@ -209,6 +208,13 @@ export default function App() {
     };
     input.click();
   };
+  // 重置所有資料's confirmation moved with the row: the menu closes on select,
+  // then this dialog asks once before the store's point of no return.
+  const handleResetAll = () => {
+    void confirmResetAll().then((ok) => {
+      if (ok) resetAll();
+    });
+  };
 
   // purple-hole row renders on spawn days (off-day parking happens
   // render-side in TrackerSection). The header overall also excludes it when
@@ -291,6 +297,9 @@ export default function App() {
               mode={theme.mode}
               setMode={theme.setMode}
               onSync={() => sync.setOpen(true)}
+              onExport={handleExport}
+              onImport={handleImport}
+              onReset={handleResetAll}
               now={nowMs}
             />
           </div>
@@ -582,42 +591,12 @@ export default function App() {
           </Suspense>
         </Activity>
 
-        {/* footer actions */}
+        {/* footer: install and attribution only. The data actions
+            (匯出 JSON / 匯入 JSON / 重置所有資料) moved into the ☰ menu. */}
         <Separator />
         <div className="flex flex-wrap gap-2 items-center justify-between">
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-4 w-4" />
-              匯出 JSON
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleImport}>
-              <Upload className="h-4 w-4" />
-              匯入 JSON
-            </Button>
             <InstallButton />
-            {confirmingReset ? (
-              <span className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-2.5 py-1.5">
-                <span className="text-xs font-medium text-destructive">確定清除全部資料？無法復原。</span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    resetAll();
-                    setConfirmingReset(false);
-                  }}
-                >
-                  確認清除
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setConfirmingReset(false)}>
-                  取消
-                </Button>
-              </span>
-            ) : (
-              <Button variant="ghost" size="sm" onClick={() => setConfirmingReset(true)} className="text-destructive hover:text-destructive">
-                <Trash2 className="h-4 w-4" />
-                重置所有資料
-              </Button>
-            )}
             <ExpSettingsDialog />
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">

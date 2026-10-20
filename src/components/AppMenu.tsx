@@ -7,6 +7,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSyncStatus, type SyncStatus } from "@/sync/status";
@@ -54,11 +55,20 @@ export function AppMenu({
   mode,
   setMode,
   onSync,
+  onExport,
+  onImport,
+  onReset,
   now,
 }: {
   mode: ThemeMode;
   setMode: (mode: ThemeMode) => void;
   onSync: () => void;
+  /** The data actions App already owned in the footer: same handlers, no
+   *  format change. `onReset` confirms before it wipes; the menu closes on
+   *  select, so the dialog opens onto nothing. */
+  onExport: () => void;
+  onImport: () => void;
+  onReset: () => void;
   /** App's slow clock (`useNow`), used only for the sync row's relative time. */
   now: number;
 }) {
@@ -78,9 +88,10 @@ export function AppMenu({
         align="end"
         aria-label="選單"
         className="min-w-[12rem]"
-        // Every row here opens a dialog, and Radix returns focus to the trigger
-        // as the menu closes — which lands after the dialog mounted and yanks
-        // focus back out of it. Keep focus where the dialog puts it.
+        // The sync row and the reset confirm both open a dialog, and Radix
+        // returns focus to the trigger as the menu closes — which lands after
+        // the dialog mounted and yanks focus back out of it. Keep focus where
+        // the dialog puts it.
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
         {/* 同步 is a doorway: the dialog owns link/unlink/paste/regenerate, so
@@ -118,6 +129,19 @@ export function AppMenu({
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        {/* Data actions: the same three the footer used to carry, in the same
+            order, with reset last and marked destructive. They close the menu
+            on select (unlike 外觀 above), which is what the file picker and the
+            confirm dialog want. */}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onExport}>匯出 JSON</DropdownMenuItem>
+        <DropdownMenuItem onSelect={onImport}>匯入 JSON</DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={onReset}
+          className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+        >
+          重置所有資料
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
