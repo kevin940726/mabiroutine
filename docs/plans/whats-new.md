@@ -342,7 +342,7 @@ push, not the deploy.
 | 4 | Sync engine extraction and row | shipped | `useSyncEngine` + `useSyncStatus`; the menu row carries the state; live `test:sync` legs |
 | 5 | Data rows | shipped | 匯出／匯入／重置 under the divider; reset confirms via `ConfirmDialog`; footer keeps install + `ExpSettingsDialog` + attribution |
 | 6 | `CHANGELOG-zh_TW.md` | shipped | root file with a preamble; its one section is the 2026-10-20 baseline (older releases stay English); `whats-new: none` for internal releases from here on |
-| 7 | Parser and generated JSON | planned | `scripts/whats-new.mjs` → `src/data/whatsNew.generated.json` |
+| 7 | Parser and generated JSON | shipped | `scripts/whats-new.mjs`: `parseZh` + `--write` / `--check`, no other mode; strict, every unknown construct throws with its line; 3 entries at the baseline |
 | 8 | Changelog drawer | planned | unread window, date groups, first run = latest, no dot |
 | 9 | Dot policy | planned | amber, feature-only, decay, clears on open |
 | 10 | Update prompt | planned | suppress on boot, nudge, receipt from an App effect |
