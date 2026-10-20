@@ -20,6 +20,7 @@
     "test:shops": "node scripts/check-shops.mjs",
     "test:tracker": "node scripts/check-tracker.mjs",
     "test:docs": "node scripts/check-doc-facts.mjs",
+    "test:whatsnew": "node scripts/check-whatsnew.mjs",
     "test:prepush": "node scripts/check-pre-push.mjs",
     "test:icons": "node scripts/check-item-icons.mjs",
     "test:fallbacks": "node scripts/check-art-fallbacks.mjs",

@@ -97,7 +97,7 @@ unasked).
 
 ## Gates (run before every push)
 
-`pnpm check` runs all sixteen gates; `AGENTS.md` § Pre-push Gate is the
+`pnpm check` runs all seventeen gates; `AGENTS.md` § Pre-push Gate is the
 always-loaded copy of which gate fires on what. `scripts/check-all.mjs` is the
 runner: one line per gate (`ok <gate> 1.2s` / `FAIL <gate> <ms>`), stopping at the
 first failure, so the last lines of a run are the verdict — the old `&&` chain
@@ -147,6 +147,26 @@ commit, an unlabelled `## Unreleased` on `main` fails before the suite runs, a
 tree, and a bad revision range reports git's message rather than a stack trace. The
 stub `package.json` makes its `pnpm check` a no-op, so this never re-enters the
 suite.
+What's-new rule: `pnpm test:whatsnew` after touching `CHANGELOG.md`,
+`CHANGELOG-zh_TW.md`, or `src/data/whatsNew.generated.json`. `CHANGELOG-zh_TW.md`
+is the player-facing record and the app's source; the JSON is its committed
+derivative, written by `node scripts/whats-new.mjs --write` at cut time. The
+gate imports the parser and the `--check` comparison from that script, so it is
+read-only and never writes, and adds the parity the parser cannot see: every
+dated English release from the zh file's oldest section forward has a zh section
+whose `<!-- release: … -->` marker matches the heading verbatim, or carries
+`<!-- whats-new: none -->` directly under it; every marker resolves to a
+heading; nothing is duplicated, reordered or written twice (a section plus a
+`none` marker is a contradiction); a marker's date equals its zh heading's; and
+no bullet carries a backtick, file name, path or commit hash. It also pins the
+parser itself against fixtures — the accepted section shape and twelve
+constructs it must reject with their line — because a parser that starts
+ignoring what it does not understand deletes copy quietly. The failure mode is
+silent: a skipped release ships with a drawer that omits it, a stale JSON shows
+the previous cut, and a reworded heading quietly re-keys nothing, so the seen
+state never advances. `## Unreleased` is exempt — its zh copy is written in the
+same cut that labels it, and the pre-push hook already requires it empty on
+`main`.
 Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so

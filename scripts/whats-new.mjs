@@ -207,7 +207,7 @@ const short = (s) => (s.length > 96 ? `${s.slice(0, 96)}…` : s);
  * entries only the zh file has, entries only the JSON has, entries whose fields
  * differ, and an order mismatch. Return the number of problems.
  */
-const diff = (parsed, committed) => {
+export const diff = (parsed, committed) => {
   const problems = [];
   const grouped = (list) => {
     const map = new Map();

@@ -40,6 +40,7 @@ const GATES = [
   "test:purple",
   "test:migrations",
   "test:sync",
+  "test:whatsnew",
   "build",
 ];
 

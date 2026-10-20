@@ -112,7 +112,7 @@ Measured on PowerShell 7.6.6, Windows:
 
 ## Pre-push Gate (agents: run it before every push; the hook enforces it)
 
-`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:prepush` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `build`. All sixteen must pass. The runner prints one line per gate and stops at the first failure, so the last lines are the verdict — never truncate to a tail that could hide it (`--verbose` streams a gate's own output; `node scripts/check-all.mjs <gate>…` runs a subset while iterating).
+`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:prepush` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `test:whatsnew` + `build`. All seventeen must pass. The runner prints one line per gate and stops at the first failure, so the last lines are the verdict — never truncate to a tail that could hide it (`--verbose` streams a gate's own output; `node scripts/check-all.mjs <gate>…` runs a subset while iterating).
 
 Run it before you ask to push, and the hook will not have to tell you. The hook calls `scripts/pre-push-gate.mjs`, which adds the two changelog rules above: every pushed commit must touch `CHANGELOG.md`, and a `main` push must leave `## Unreleased` empty. `git push --no-verify` skips it.
 
@@ -132,6 +132,7 @@ Each line below is when the gate fires and what its silence costs. The check lis
 - `test:purple` — after `purpleHole.ts`, the feed/admin doc shape, or a reminder lane. A correction rewrites the recorded past.
 - `test:migrations` — after adding a `migratePersisted` step. A user's save loses progress; add a fixture block (A/B/C/D/E/F) proving it survives.
 - `test:sync` — after any persisted-write path: `src/sync/**`, `api/**`, `src/lib/reset.ts`, a `useAppStore` action that writes values or buckets, `applyResets` / `normalizeTaskBuckets` / `checkResets`, or a reminder lane (`hourlyReminders.ts`, `useHourlyReminders.ts`, `public/sw-push.js`, `workers/`). `node scripts/needs-live-sync.mjs` reads the diff and answers this for you. The live legs must pass for real, not skip (they need `pnpm dev:api` and the Chromium); a suppression or marker bug wipes a device.
+- `test:whatsnew` — after `CHANGELOG.md`, `CHANGELOG-zh_TW.md`, or `src/data/whatsNew.generated.json`. A release with no zh section is copy the player-facing record never wrote, a stale JSON is the drawer rendering the previous cut, and a reworded English heading orphans the marker the seen state keys on. It is the only reader of all three files.
 - Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if a premise line fails, update the fixture, not the data.
 - `suggestions/` is gitignored (review scratch); `src/data/*.json` is hand-edited and needs human review — fetcher scripts stay private-local, never committed.
 

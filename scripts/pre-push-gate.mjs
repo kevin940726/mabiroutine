@@ -9,7 +9,7 @@
  *   1. the changelog rules, read from the commits themselves: every non-merge
  *      commit in the pushed range updates `CHANGELOG.md`, and a push to `main`
  *      leaves `## Unreleased` empty (the release was labelled in the tip commit);
- *   2. `pnpm check` — the sixteen gates;
+ *   2. `pnpm check` — the seventeen gates;
  *   3. a note when the working tree is dirty: `pnpm check` reads the tree, not the
  *      pushed snapshot, so a dirty tree means it also checked unshipped work.
  *
