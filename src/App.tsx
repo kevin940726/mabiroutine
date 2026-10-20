@@ -16,7 +16,7 @@ import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog"
 import { PillProgress } from "@/components/PillProgress";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { SyncImport } from "@/sync/SyncImport";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { AppMenu } from "@/components/AppMenu";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -276,7 +276,7 @@ export default function App() {
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <HeaderCountdown />
             <SyncButton />
-            <ThemeToggle />
+            <AppMenu />
           </div>
         </div>
       </header>

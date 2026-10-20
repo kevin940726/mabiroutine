@@ -337,7 +337,7 @@ push, not the deploy.
 | # | Piece | State | Notes |
 |---|-------|-------|-------|
 | 1 | Four-shape prototype | done | A/C/B/D evaluated; verdict: menu + drawer. Artifacts are throwaway. |
-| 2 | Menu shell | planned | dropdown, `modal={false}`, focus-return fix |
+| 2 | Menu shell | shipped | dropdown, `modal={false}`, focus-return fix; 外觀 is its only row |
 | 3 | Theme hook and row | planned | App-level `useTheme`; `system` + `matchMedia`; unknown → system |
 | 4 | Sync engine extraction and row | planned | `useSyncEngine` + `useSyncStatus`; live `test:sync` legs |
 | 5 | Data rows | planned | export/import/reset leave the footer; `ExpSettingsDialog` stays |
