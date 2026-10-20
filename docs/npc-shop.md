@@ -434,6 +434,24 @@ Decided by the user 2026-09-27:
 2. **Seeded gold pins: no, not now.** `src/data/defaultPins.ts` stays
    barter-only. Revisit later if the gold shop earns a curated must-list of its
    own.
+   Reviewed again 2026-10-20 and deferred: "gold-only item, weekly cap" screens
+   too broadly to seed as it stands. Most gold-only items have no barter output
+   and no `recipes.json` route only because the source data does not model their
+   gathering, and the weekly-limited set is dominated by quest-board scrolls (buy
+   the one the board asks for) and unmodelled reagent/hide inputs. What would make
+   a small, defensible set is a *reason* per row: an item a `recipes.json` make
+   route consumes, or one that completes a chain an existing default pin already
+   spends.
+   Seeding that set is cheap when it exists: the derived `shop::<npc>::<name>` ids
+   need no minting and no pin migration, the prune steps and
+   `seedMissingDefaultPins` already accept `shop::` ids, and the store only has to
+   key `DEFAULT_PINS` on `deal.pinId` instead of `deal.id` — the latter is null for
+   gold rows, which is why a `shop::` entry is dropped in silence today (worth the
+   `test:shops` assertion that every `DEFAULT_PINS` id resolves, whenever this is
+   picked up). Minting an explicit `id` for every gold row is NOT the way in: the
+   shops gate requires a `priority` beside an `id`, and changing a pinned row's id
+   orphans saves. Tiering gold rows with `priority` is an independent, data-only
+   decision — the schema, gate, tile and panel filter already read it.
 3. **Ordering: after the barter pins, and reorderable.** Shop pins sort after
    barter pins in `shops.json` order by default, and the user can drag them
    anywhere. This makes step 3 load-bearing rather than cosmetic: the drag order

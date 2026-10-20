@@ -11,6 +11,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - 每日黑色坑洞 and 兼職 swapped places in 每日任務: the black hole's daily tick now comes first (order 40 / 45), so it sits right after 深層地下城 instead of below 兼職.
 
 ### Chores
+- Gold (purchase) pins are deferred rather than dropped: `docs/npc-shop.md` § Open questions records the 2026-10-20 review — why "gold-only + weekly" screens too broadly to seed, and the migration-free path (`shop::` ids, keying `DEFAULT_PINS` on `deal.pinId`) if it is picked up later. `docs/tracker-data.md` points at that note.
 - `src/data/defaultPins.json` is now `src/data/defaultPins.ts` (`DEFAULT_PINS`), a type-checked module alongside `curatedOrder.ts`.
 
 ## 2026-10-19 — 定期委託's legs carry over the week
