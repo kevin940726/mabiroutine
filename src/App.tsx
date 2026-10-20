@@ -12,7 +12,6 @@ import { SyncToasts } from "@/sync/SyncToasts";
 import { SyncDialog } from "@/sync/SyncDialog";
 import { useSyncEngine } from "@/sync/useSyncEngine";
 import { syncAndResets, markActivity, toast } from "@/sync/session";
-import { InstallButton } from "@/components/InstallButton";
 import { ExpSettingsDialog } from "@/components/ExpSettingsDialog";
 import { ConfirmHost, confirmRemoveCharacter, confirmResetAll } from "@/components/ConfirmDialog";
 import { PillProgress } from "@/components/PillProgress";
@@ -592,7 +591,6 @@ export default function App() {
         <Separator />
         <div className="flex flex-wrap gap-2 items-center justify-between">
           <div className="flex flex-wrap gap-2">
-            <InstallButton />
             <ExpSettingsDialog />
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">

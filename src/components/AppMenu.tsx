@@ -1,25 +1,27 @@
-import { Menu } from "lucide-react";
+import { useState } from "react";
+import { Download, Menu, Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { InstallDialog } from "@/components/InstallDialog";
 import { WhatsNewDrawer } from "@/components/WhatsNewDrawer";
 import { acceptUpdate, useUpdateReady } from "@/lib/updatePrompt";
 import { useWhatsNew, dotFor, taipeiDate } from "@/lib/whatsNew";
+import { useInstall } from "@/hooks/useInstall";
 import { useSyncStatus, type SyncStatus } from "@/sync/status";
 import type { ThemeMode } from "@/hooks/useTheme";
 
-const THEME_CHOICES: { value: ThemeMode; label: string }[] = [
-  { value: "system", label: "跟隨系統" },
-  { value: "light", label: "淺色" },
-  { value: "dark", label: "深色" },
+const THEME_CHOICES: { value: ThemeMode; label: string; Icon: typeof Sun }[] = [
+  { value: "system", label: "跟隨系統", Icon: Monitor },
+  { value: "light", label: "淺色", Icon: Sun },
+  { value: "dark", label: "深色", Icon: Moon },
 ];
 
 function syncLabel(status: SyncStatus, now: number): string {
@@ -58,6 +60,9 @@ export function AppMenu({
   const status = useSyncStatus();
   const updateReady = useUpdateReady();
   const whatsNew = useWhatsNew();
+  const install = useInstall();
+  const [installOpen, setInstallOpen] = useState(false);
+  const installable = install.status === "prompt" || install.status === "ios" || install.status === "samsung";
   const dot = dotFor(whatsNew.summary, taipeiDate(now));
   return (
     <>
@@ -103,29 +108,45 @@ export function AppMenu({
               {syncLabel(status, now)}
             </span>
           </DropdownMenuItem>
-          {/* Radio items rather than buttons in a single item: the menu swallows
-              Tab (`event.preventDefault()` in Radix's content), so a nested
-              control would be pointer-only. */}
-          <DropdownMenuLabel className="pb-0.5">外觀</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={mode}
-            onValueChange={(v) => {
-              if (v === "system" || v === "light" || v === "dark") setMode(v);
-            }}
-            aria-label="外觀"
-          >
-            {THEME_CHOICES.map((choice) => (
-              <DropdownMenuRadioItem
-                key={choice.value}
-                value={choice.value}
-                // Choosing is inline, so the menu stays open: Radix closes on
-                // select unless the item's own event is cancelled.
-                onSelect={(e) => e.preventDefault()}
-              >
-                {choice.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
+          <div className="flex items-center justify-between gap-3 px-2 py-1.5">
+            <span className="text-sm">外觀</span>
+            {/* Radio items, not buttons: the menu swallows Tab. Segments stay
+                inline; Radix closes on select unless the event is cancelled. */}
+            <DropdownMenuRadioGroup
+              value={mode}
+              onValueChange={(v) => {
+                if (v === "system" || v === "light" || v === "dark") setMode(v);
+              }}
+              aria-label="外觀"
+              className="flex items-center gap-0.5 rounded-md bg-muted p-0.5"
+            >
+              {THEME_CHOICES.map(({ value, label, Icon }) => (
+                <DropdownMenuRadioItem
+                  key={value}
+                  value={value}
+                  onSelect={(e) => e.preventDefault()}
+                  aria-label={label}
+                  title={label}
+                  className="grid h-6 w-7 place-items-center rounded-[5px] p-0 text-muted-foreground transition-colors focus:bg-transparent focus:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[highlighted]:bg-transparent data-[highlighted]:text-foreground data-[state=checked]:bg-background data-[state=checked]:text-foreground data-[state=checked]:shadow-sm [&>span]:hidden"
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden />
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </div>
+
+          {installable && (
+            <DropdownMenuItem
+              onSelect={() => {
+                if (install.status === "prompt") install.promptInstall();
+                else setInstallOpen(true);
+              }}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4 text-muted-foreground" />
+              安裝 App
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={onExport}>匯出 JSON</DropdownMenuItem>
           <DropdownMenuItem onSelect={onImport}>匯入 JSON</DropdownMenuItem>
@@ -137,6 +158,7 @@ export function AppMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <InstallDialog open={installOpen} onOpenChange={setInstallOpen} status={install.status} />
       <WhatsNewDrawer
         open={whatsNew.open}
         onOpenChange={whatsNew.onOpenChange}

@@ -71,8 +71,9 @@ so the sticky blurred header cannot become the containing block.
 
 Contract, so it does not rot into a junk drawer:
 
-- Six base rows, one divider, no submenus; 外觀 is a label followed by three
-  radio choices; a conditional seventh row when an update is waiting (below).
+- Eight rows at most, one divider, no submenus; 外觀 is a single row of three
+  compact radio segments; 安裝 App and 有新版本 appear only while relevant
+  (installable, update waiting).
 - Anything past that is a row that opens a drawer, not another item.
 
 | Row | State shown | Opens |
@@ -80,14 +81,15 @@ Contract, so it does not rot into a junk drawer:
 | 有新版本 · 重新載入 | only while `updateReady` | reload |
 | 更新記錄 | `10/20 · 3 則未讀` / `最新 · 10/20` / `已讀到最新`; amber dot on ☰ only when unread | changelog drawer |
 | 同步 | `已連結 · 2 分鐘前` / `未連結` / `同步失敗` | sync dialog |
-| 外觀 | `跟隨系統` / `深色` / `淺色` | inline three-way choice |
+| 外觀 | three segments: 跟隨系統 / 淺色 / 深色 | inline, menu stays open |
+| 安裝 App | only while installable | native prompt, or a steps dialog |
 | — divider — | | |
 | 匯出 JSON | | file save |
 | 匯入 JSON | | file picker |
 | 重置所有資料 | | confirm; destructive |
 
-Not in the menu: 提醒設定 (deferred), install and `ExpSettingsDialog` (footer —
-the experiment shell stays there for the next flag), attribution (footer),
+Not in the menu: 提醒設定 (deferred), `ExpSettingsDialog` (footer — the
+experiment shell stays there for the next flag), attribution (footer),
 character actions (pill).
 
 **The sync row is not a button move.** `SyncButton` owns the background loop,
@@ -346,9 +348,9 @@ push, not the deploy.
 |---|-------|-------|-------|
 | 1 | Four-shape prototype | done | A/C/B/D evaluated; verdict: menu + drawer. Artifacts are throwaway. |
 | 2 | Menu shell | shipped | dropdown, `modal={false}`, focus-return fix; 外觀 is its only row |
-| 3 | Theme hook and row | shipped | App-level `useTheme`; `system` + `matchMedia`; unknown → system; 外觀 is a three-option radio group |
+| 3 | Theme hook and row | shipped | App-level `useTheme`; `system` + `matchMedia`; unknown → system; 外觀 is one row of three icon segments |
 | 4 | Sync engine extraction and row | shipped | `useSyncEngine` + `useSyncStatus`; the menu row carries the state; live `test:sync` legs |
-| 5 | Data rows | shipped | 匯出／匯入／重置 under the divider; reset confirms via `ConfirmDialog`; footer keeps install + `ExpSettingsDialog` + attribution |
+| 5 | Data rows | shipped | 匯出／匯入／重置 under the divider; reset confirms via `ConfirmDialog`; footer keeps `ExpSettingsDialog` + attribution |
 | 6 | `CHANGELOG-zh_TW.md` | shipped | root file with a preamble; its one section is the 2026-10-20 baseline (older releases stay English); `whats-new: none` for internal releases from here on |
 | 7 | Parser and generated JSON | shipped | `scripts/whats-new.mjs`: `parseZh` + `--write` / `--check`, no other mode; strict, every unknown construct throws with its line; 3 entries at the baseline |
 | 8 | Changelog drawer | shipped | device-local marker (`mabiroutine:whatsnew-seen`, no schema bump); unread = releases newer than it, counted as releases; `MM/DD` groups with a 新功能/修正 tag; first run and caught-up show the latest release only; mounted beside the menu so it outlives the close |
@@ -360,6 +362,7 @@ push, not the deploy.
 | 14 | 提醒設定 in the menu | dropped | revisit later |
 | 15 | Deep links in entries | dropped | — |
 | 16 | GitHub Releases workflow | deferred | generate from the zh section if shareable pages are wanted |
+| 17 | 安裝 App row | shipped | row + platform steps dialog; the footer loses the button |
 
 When every row is shipped or dropped: fold the surviving rules into
 `docs/development.md` (gates, cut) and the READMEs, then delete this file — the
