@@ -91,25 +91,25 @@ export function AppMenu({
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           {updateReady && (
-            <DropdownMenuItem onSelect={acceptUpdate} className="gap-2">
+            <DropdownMenuItem onSelect={acceptUpdate} className="items-baseline gap-2">
               <span>有新版本</span>
               <span className="ml-auto text-xs text-muted-foreground">重新載入</span>
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onSelect={whatsNew.openDrawer} className="gap-2">
+          <DropdownMenuItem onSelect={whatsNew.openDrawer} className="items-baseline gap-2">
             <span>更新記錄</span>
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {whatsNew.summary.label}
             </span>
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onSync} className="gap-2">
+          <DropdownMenuItem onSelect={onSync} className="items-baseline gap-2">
             <span>同步</span>
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {syncLabel(status, now)}
             </span>
           </DropdownMenuItem>
           <div className="flex items-center justify-between gap-3 px-2 py-1.5">
-            <span className="text-sm">外觀</span>
+            <span className="text-sm leading-none">外觀</span>
             {/* Radio items, not buttons: the menu swallows Tab. Segments stay
                 inline; Radix closes on select unless the event is cancelled. */}
             <DropdownMenuRadioGroup
