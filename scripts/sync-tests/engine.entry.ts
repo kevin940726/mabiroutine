@@ -1355,7 +1355,12 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E24 legs survive a pull that lands before the reset tick", tv[LEGS[0]] === 2 && tv[LEGS[1]] === 5 && tv[LEGS[2]] === 1, tv);
   ok("E24 legs re-stamped into the new week", LEGS.every((id) => st.taskBuckets[id] === THIS_WEEK), st.taskBuckets);
   ok("E24 parent count pruned with the week", tv[GOAL] === undefined, tv);
-  ok("E24 rollover pushes no tombstones", nullsOf(pushes).length === 0, nullsOf(pushes));
+  // A tombstone is allowed here, and on most days there will be one: the stale
+  // buckets the fixture seeds are 7–8 days old, so the GC expires them as soon as
+  // the round runs on a Tuesday or later. The property that matters is that a key
+  // the app still treats as LIVE (the current cycle) is never tombstoned.
+  const nulls = nullsOf(pushes);
+  ok("E24 only stale buckets are tombstoned", nulls.every((k) => !k.includes(`@${THIS_WEEK}`)), nulls);
 }
 
 setPullHook(null);

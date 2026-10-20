@@ -4,6 +4,8 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-20 — The default-pin audit
+
 ### Features
 - Five more 必換 barter rows join the default pins: 麗莎's two 高級鍊金術再燃燒催化劑 offers (蘋果汁 ×1 or 鍊金術碎屑 ×3, each 每日 1 次（伺服器）), 伊文's 遙遠的星辰印章 (魔物討伐證明 ×200 · 每週 1 次), 茉莉's 赤紅深淵的化石 ×60 (深淵的化石 ×100 · 每週 2 次) and 阿爾米斯's 銀合金錠 (特殊鋼錠 ×2 · 每日 1 次（伺服器）), which also moves from 推薦 to 必換. A new save starts with them, and a linked save picks them up on its next pull; an unlinked save keeps its own pins — add them from 以物易物's 必換 filter if you want them.
 
@@ -11,6 +13,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - 每日黑色坑洞 and 兼職 swapped places in 每日任務: the black hole's daily tick now comes first (order 40 / 45), so it sits right after 深層地下城 instead of below 兼職.
 
 ### Chores
+- `E24` no longer depends on the weekday: its rollover fixture seeds last week's bucket, which is 7–8 days old, so "no tombstones" held only until that bucket crossed the 8-day GC window (green Monday, red Tuesday). The assertion now names the property — no key carrying the current cycle's tag is tombstoned; stale-bucket tombstones are allowed.
 - Gold (purchase) pins are deferred rather than dropped: `docs/npc-shop.md` § Open questions records the 2026-10-20 review — why "gold-only + weekly" screens too broadly to seed, and the migration-free path (`shop::` ids, keying `DEFAULT_PINS` on `deal.pinId`) if it is picked up later. `docs/tracker-data.md` points at that note.
 - `src/data/defaultPins.json` is now `src/data/defaultPins.ts` (`DEFAULT_PINS`), a type-checked module alongside `curatedOrder.ts`.
 
