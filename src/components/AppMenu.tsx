@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { WhatsNewDrawer } from "@/components/WhatsNewDrawer";
-import { useWhatsNew } from "@/lib/whatsNew";
+import { useWhatsNew, dotFor, taipeiDate } from "@/lib/whatsNew";
 import { useSyncStatus, type SyncStatus } from "@/sync/status";
 import type { ThemeMode } from "@/hooks/useTheme";
 
@@ -75,7 +75,8 @@ export function AppMenu({
   onExport: () => void;
   onImport: () => void;
   onReset: () => void;
-  /** App's slow clock (`useNow`), used only for the sync row's relative time. */
+  /** App's slow clock (`useNow`): the sync row's relative time, and the day the
+   *  dot's two-week window is measured against. */
   now: number;
 }) {
   // Read on mount: the store is live while the menu is open (a pull can land
@@ -84,14 +85,30 @@ export function AppMenu({
   // The changelog row: unread releases from the device marker, plus the drawer
   // it opens. The hook's state outlives the menu because this component does.
   const whatsNew = useWhatsNew();
+  // Derived from App's clock rather than captured on mount: the dot decays on a
+  // Taipei calendar boundary, so a tab left open across midnight has to let go
+  // of it without a reload. `taipeiDate` is pure, so render stays pure.
+  const dot = dotFor(whatsNew.summary, taipeiDate(now));
   return (
     <>
       {/* Not modal, like the character switcher: Radix's scroll lock would shift
           the fixed character pill. */}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="選單">
+          <Button variant="ghost" size="icon" aria-label="選單" className="relative">
             <Menu className="h-4 w-4" />
+            {/* The one pull the trigger carries: 6px of amber, no number (the
+                row's sentence counts releases), `aria-hidden` because it says
+                nothing the row does not. Absolutely positioned so appearing and
+                decaying never move the icon, and ringed so it reads against the
+                glyph instead of melting into it. Cleared by opening the drawer,
+                which moves the marker. */}
+            {dot && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500 ring-2 ring-background"
+              />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent

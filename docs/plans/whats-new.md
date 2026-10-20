@@ -344,7 +344,7 @@ push, not the deploy.
 | 6 | `CHANGELOG-zh_TW.md` | shipped | root file with a preamble; its one section is the 2026-10-20 baseline (older releases stay English); `whats-new: none` for internal releases from here on |
 | 7 | Parser and generated JSON | shipped | `scripts/whats-new.mjs`: `parseZh` + `--write` / `--check`, no other mode; strict, every unknown construct throws with its line; 3 entries at the baseline |
 | 8 | Changelog drawer | shipped | device-local marker (`mabiroutine:whatsnew-seen`, no schema bump); unread = releases newer than it, counted as releases; `MM/DD` groups with a 新功能/修正 tag; first run and caught-up show the latest release only; mounted beside the menu so it outlives the close |
-| 9 | Dot policy | planned | amber, feature-only, decay, clears on open |
+| 9 | Dot policy | shipped | 6px amber on the ☰ trigger, `aria-hidden`, no number; only when unread carries a `feature` bullet and the newest unread release is ≤ 14 Asia/Taipei calendar days old (14 inclusive, future counts as recent); no dot on `first`/`read`; clears as opening writes the marker; the row keeps the count |
 | 10 | Update prompt | planned | suppress on boot, nudge, receipt from an App effect |
 | 11 | Gate registration | planned | script + GATES + AGENTS bullet + three count updates |
 | 12 | Cut runbook | planned | in this file; fold into `docs/development.md` at ship |

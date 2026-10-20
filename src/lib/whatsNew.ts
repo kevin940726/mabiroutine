@@ -170,6 +170,63 @@ export function summaryFor(seen: string | null, entries: readonly WhatsNewEntry[
   };
 }
 
+/** How long the trigger's dot keeps pulling: two weeks of Taipei calendar days.
+ *  After that the row's own sentence carries the status and the dot stops
+ *  asking — it means "there is something recent", not a debt. */
+export const DOT_WINDOW_DAYS = 14;
+
+/** `YYYY-MM-DD` in Asia/Taipei.
+ *
+ *  A release's date is the Taipei cut date written in its heading, so "today"
+ *  has to be the same calendar: the device's zone would make a release dated
+ *  today in Taipei look a day old west of it, and UTC would do the same for the
+ *  first six hours of a Taipei day. */
+const TAIPEI_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Taipei",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+export function taipeiDate(at: number | Date = Date.now()): string {
+  return TAIPEI_DAY.format(at);
+}
+
+/** Whole calendar days from `date` to `today`, both `YYYY-MM-DD`. Built from
+ *  UTC midnights so the difference is an exact day count, not 13.96 days of
+ *  wall-clock, and null when either string is not a date. */
+function daysBetween(date: string, today: string): number | null {
+  const from = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const to = /^(\d{4})-(\d{2})-(\d{2})$/.exec(today);
+  if (!from || !to) return null;
+  const a = Date.UTC(Number(from[1]), Number(from[2]) - 1, Number(from[3]));
+  const b = Date.UTC(Number(to[1]), Number(to[2]) - 1, Number(to[3]));
+  return (b - a) / 86_400_000;
+}
+
+/** Whether the ☰ trigger shows its amber dot. All three must hold:
+ *
+ *  - `state === "unread"`: a first visit missed nothing (no dot on install), and
+ *    a caught-up device has nothing to be pulled to;
+ *  - some unread bullet is a `feature`: amber means "there is something to try",
+ *    so a fixes-only release never dots — a repair is not an invitation;
+ *  - the newest unread release is at most `DOT_WINDOW_DAYS` old. The window is
+ *    inclusive: exactly 14 Taipei days still dots, and it lets go on the 15th.
+ *    A future date (a release dated ahead of the device's clock) counts as
+ *    recent rather than as a broken date.
+ *
+ *  The dot is 6px, unnumbered and `aria-hidden`; the row's sentence keeps the
+ *  count either way, and this is the only pull the trigger ever carries — never
+ *  sync failure or a ready update. */
+export function dotFor(summary: WhatsNewSummary, today: string): boolean {
+  if (summary.state !== "unread") return false;
+  const newest = summary.unread[0];
+  if (!newest) return false;
+  if (!summary.unread.some((r) => r.entries.some((e) => e.kind === "feature"))) return false;
+  const age = daysBetween(newest.date, today);
+  return age !== null && age <= DOT_WINDOW_DAYS;
+}
+
 export type WhatsNewView = {
   /** Date groups, newest first; each release keeps its own bullets. */
   groups: DateGroup[];
