@@ -11,6 +11,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - The theme toggle left the header for a new ☰ menu at its right edge: 外觀 now lives there. Every other header control is unchanged.
 
 ### Chores
+- `CHANGELOG-zh_TW.md` exists: the player-facing record beside the English log, starting at the 2026-10-20 baseline (`## 2026-10-20 — 預設置頂整理`, marker naming the English heading verbatim) and carrying five 必換 pins plus the 每日任務 reorder as three zh_TW bullets. Releases older than the baseline stay English and are not backfilled; the parser, the generated JSON and the gate that keep the two files in step are still plan rows 7 and 11.
 - `docs/plans/whats-new.md` records the app-menu and changelog plan: the header/menu/drawer split, the menu contract and its rows, the amber feature-only dot policy, a zh_TW `CHANGELOG-zh_TW.md` whose entries the app derives at cut time (parity-checked against `CHANGELOG.md`), and how a waiting service worker couples to it (prompt → reload → receipt). Its ledger is the status surface for the build.
 
 ## 2026-10-20 — The default-pin audit
