@@ -109,14 +109,7 @@ export default function App() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const isMobile = useIsMobile();
-  // Theme is app-level, not menu-level: 跟隨系統 needs a `matchMedia` listener
-  // that outlives the menu, which unmounts every time it closes.
   const theme = useTheme();
-  // The sync engine is app-level for the same reason, one step further: the
-  // menu row that reports its state unmounts on close, so the loop, the
-  // visibility/reconnect handlers and the debounced push mount once here and
-  // the row reads their status store. Gated on hydration so the mount pull and
-  // the reset round keep the ordering they had when this lived in the header.
   const sync = useSyncEngine(hasHydrated);
 
   // Boot splash (index.html inline): covered the white gap while the JS
@@ -138,15 +131,6 @@ export default function App() {
     };
   }, []);
 
-  // Update receipt: a reload the user accepted (the menu row, or the toast's
-  // 重新載入) left a one-shot flag, and the page it landed on owes them one line.
-  // Raised HERE, not in `main.tsx`, because the toast bus has no queue:
-  // `SyncToasts` is the listener, and a dispatch before React mounted would be
-  // lost. Child effects run before the parent's, so its listener is already in
-  // place on the commit that mounts it; gating on hydration is the same
-  // requirement (before it, App renders 載入中 and `SyncToasts` is not mounted).
-  // No panel opens by itself — a modal on boot is the most disruptive thing this
-  // feature could do, and the amber dot already carries the payoff.
   useEffect(() => {
     if (!hasHydrated) return;
     if (!takeUpdateReceipt()) return;
@@ -224,8 +208,6 @@ export default function App() {
     };
     input.click();
   };
-  // 重置所有資料's confirmation moved with the row: the menu closes on select,
-  // then this dialog asks once before the store's point of no return.
   const handleResetAll = () => {
     void confirmResetAll().then((ok) => {
       if (ok) resetAll();
@@ -607,8 +589,6 @@ export default function App() {
           </Suspense>
         </Activity>
 
-        {/* footer: install and attribution only. The data actions
-            (匯出 JSON / 匯入 JSON / 重置所有資料) moved into the ☰ menu. */}
         <Separator />
         <div className="flex flex-wrap gap-2 items-center justify-between">
           <div className="flex flex-wrap gap-2">

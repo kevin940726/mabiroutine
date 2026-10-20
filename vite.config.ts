@@ -26,12 +26,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // Silent-fresh: navigations grab from the network (NetworkFirst +
-      // preload), so every online load IS the latest build — nothing flashes,
-      // nothing reloads. SW updates retire the old caches in the background
-      // (prompt mode acknowledged silently, no reload); a deploy that lands
-      // mid-session is announced once instead (src/lib/updatePrompt.ts).
-      // Offline loads fall back to cache via navigateFallback.
+      // Silent-fresh: navigations are NetworkFirst, so an online load is the
+      // latest build; offline loads fall back to cache via navigateFallback.
       registerType: 'prompt',
       injectRegister: 'auto',
       manifest: false, // hand-owned public/manifest.webmanifest
@@ -80,9 +76,7 @@ export default defineConfig({
         // Prompt mode owns activation timing (updateSW(false) on waiting):
         // in-SW skipWaiting would race workbox-window's 200ms
         // waiting-detection, making the armed absence-reload flaky (waiting
-        // sometimes never fires). With false, updates park in waiting
-        // deterministically until we ack them — either silently, or alongside
-        // the nudge / absence-reload the waiting event decides.
+        // sometimes never fires).
         skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,

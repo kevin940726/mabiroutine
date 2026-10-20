@@ -45,14 +45,6 @@ function formatSyncTime(ts: number): string {
 
 type Confirming = null | "regen" | "cancel";
 
-// Shared session, per-key last-arrival-wins (absolute sets only).
-// The dialog is the only place the binding is edited: link, paste-import,
-// regenerate, cancel. Its `open` state lives in the engine (`useSyncEngine`),
-// so the menu row and the dialog are one entry point and the engine — which
-// outlives this component — keeps syncing while the dialog is closed.
-// Everything the engine owns is passed in; this file is UI plus the
-// binding-mutating flows.
-// There are no conflicts by construction: every merge is deterministic.
 export function SyncDialog({ engine }: { engine: SyncEngine }) {
   const { linked, lastSyncedAt } = useSyncStatus();
   const [confirming, setConfirming] = useState<Confirming>(null);
@@ -61,35 +53,24 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
   const [ensureError, setEnsureError] = useState(false);
   const [copiedTick, setCopiedTick] = useState(0);
 
-  // Copy-confirmation bubble lives inside the dialog (above the URL row) —
-  // the global toast would render underneath the dialog overlay.
+  // Copy-confirmation bubble lives inside the dialog — the global toast would
+  // render underneath the dialog overlay.
   useEffect(() => {
     if (!copiedTick) return;
     const id = setTimeout(() => setCopiedTick(0), 1500);
     return () => clearTimeout(id);
   }, [copiedTick]);
 
-  // Dialog open pushes nothing when linked — the background loop owns that.
-  // Unlinked opens create once so the URL field has something to show.
   const ensureCreated = useCallback(async (): Promise<void> => {
     if (linked || engine.busy) return;
     setEnsureError(false);
     await engine.withBusy(async () => {
       try {
         const flat = flattenSnapshot(buildSnapshot());
-        // Like regenerate, creation goes through creationState: a bare flat
-        // map carries no tombstones, so the previous binding's known deletions
-        // ride along when there is one (see loadLastSessionId) — otherwise a
-        // deliberately unpinned default reads as "never decided" in the new
-        // session and the pull-aware seeder re-adds it everywhere on the next
-        // pull.
         const { id, updatedAt } = await createSession(creationState(flat, loadLastSessionId()));
         const next = { id, updatedAt };
         saveSession(next);
-        // Share surface is the dialog field + clipboard, never the address
-        // bar — keep the URL bare so ?s= never lingers in history/analytics.
         stripSessionParam();
-        // First sync ends with the link on the clipboard, bubble confirms it.
         if (await copyText(syncUrl(id))) setCopiedTick((t) => t + 1);
         else toast("請手動複製下方連結");
       } catch (e) {
@@ -99,8 +80,6 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
     });
   }, [linked, engine]);
 
-  // The menu row opens the dialog without going through any handler here, so
-  // the "first open" work is driven by `open` itself, not by a click.
   const wasOpen = useRef(false);
   useEffect(() => {
     if (engine.open && !wasOpen.current) {
@@ -130,7 +109,6 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
       return;
     }
     setPasteBusy(true);
-    // Step aside: the adopt-confirm renders in its own dialog.
     engine.setOpen(false);
     setPasteValue("");
     try {
@@ -146,16 +124,11 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
       try {
         const oldId = linked.id;
         const flat = flattenSnapshot(buildSnapshot());
-        // A bare flat map carries no tombstones, so creation goes through
-        // creationState (previous binding's known deletions ride along):
-        // otherwise a deliberately unpinned default reads as "never decided"
-        // in the new session and the pull-aware seeder re-adds it everywhere
-        // on the next pull.
         const { id, updatedAt } = await createSession(creationState(flat, oldId));
         try {
           await deleteSession(oldId);
         } catch {
-          // old link may linger; the new one is already live — don't fail the flow.
+          // The old link may linger; the new one is already live.
         }
         saveSession({ id, updatedAt });
         stripSessionParam();
@@ -179,7 +152,6 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
         engine.setOpen(false);
         toast("已取消同步");
       } catch (e) {
-        // Stay linked on failure: no orphaned live link the user can't retry.
         toast(errorMessage(e));
       }
     });
@@ -224,8 +196,6 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
                 value={linked ? syncUrl(linked.id) : ""}
                 placeholder={engine.busy ? "產生連結中…" : ""}
                 ref={(el) => {
-                  // Long URLs overflow the field — pin the scroll to the
-                  // id tail (the only part worth eyeballing) on show.
                   if (el && linked) el.scrollLeft = el.scrollWidth;
                 }}
                 onFocus={(e) => {
@@ -263,8 +233,6 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
             )}
           </div>
 
-          {/* Manual import: link taps can't reach every bucket (iOS web
-              app, mismatched Android browsers) — paste the link here. */}
           <div className="flex items-center gap-2">
             <Input
               value={pasteValue}

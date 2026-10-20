@@ -131,17 +131,14 @@ function nullsOf(pushes: FlatMap[]): string[] {
   return pushes.flatMap((p) => Object.entries(p).filter(([, v]) => v === null).map(([k]) => k));
 }
 
-// Faithful round port of useSyncEngine runPull (incl. planRound + GC), minus UI
-// refs. The decision core (planRound) is the real module; this port only wires
-// the stubbed I/O. NOTE: keep in sync with runPull by inspection — divergence
-// risk documented. The async interleavings runPull guards against (mid-flight
-// edits, the freshness probe, push/round serialization) cannot occur
-// synchronously here, so the port runs the guard, plan, and push in one pass.
+// Round port of useSyncEngine runPull (incl. planRound + GC), minus UI refs. The
+// decision core (planRound) is the real module; this port only wires the
+// stubbed I/O.
 function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   // Order-withhold mirror (useSyncEngine pulledSessionRef + omit-strip): order
   // keys are stripped from pushes until this engine's first pull completes,
   // and whenever flatten omits one, so no device volunteers canon blind or
-  // tombstones it via the null path. The real helper is shared, not copied.
+  // tombstones it via the null path.
   let pulled = false;
   return async function fakePull(): Promise<void> {
     const session = loadSession();
@@ -180,8 +177,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
       for (const k of expired) delete serverView[k];
     }
     saveBase(session.id, serverView);
-    // runPull mirror: pull-aware default seeding runs after a successful
-    // merge (keep in sync with useSyncEngine by inspection).
+    // runPull mirror: pull-aware default seeding runs after a successful merge.
     seedMissingDefaultPins(serverView);
     pulled = true;
     if (process.env.DBG) console.log("DBG-SAVED", JSON.stringify(Object.keys(serverView)));

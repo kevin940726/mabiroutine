@@ -82,9 +82,6 @@ export function confirmRemoveTask(name: string): Promise<boolean> {
   });
 }
 
-// The ☰ menu's 重置所有資料: the point of no return behind one explicit tap.
-// Wording states what goes (every character's progress, custom tasks, pins) and
-// that an export is the way back — the footer's old inline row said neither.
 export function confirmResetAll(): Promise<boolean> {
   return confirmAction({
     title: "重置所有資料",

@@ -1,37 +1,5 @@
 #!/usr/bin/env node
-/**
- * The zh changelog parser, and the only writer of
- * `src/data/whatsNew.generated.json`.
- *
- * `CHANGELOG-zh_TW.md` is the player-facing record and the app's source: the
- * drawer reads the committed JSON this script derives from the Markdown, with no
- * fetch, no route and no token. Committing both files with the code is the point
- * — the deploy that needs the copy already carries it, which is exactly what a
- * GitHub Release cannot do.
- *
- * Strict on purpose. "Ignore what you do not understand" turns a typo into
- * silently missing copy, and the only reader that would notice is a gate, so
- * every construct outside these four throws with its file line:
- *   - `## YYYY-MM-DD — <title>` — one per release, newest first;
- *   - `<!-- release: YYYY-MM-DD — <English heading> -->` — exactly one, right
- *     under the heading. Its payload is the release id (the seen state keys on
- *     it) and its date must match the heading's;
- *   - `### 新功能` / `### 修正` — each at most once per section, both optional;
- *   - `- <text>` — bullets, inside a group. A section needs at least one.
- * A section that breaks one of those is a failure, not a skip: a section with no
- * marker or two, a marker whose date differs, a bullet outside a group, an
- * unknown `###` heading, a duplicate group, a group with no bullets, an empty
- * section, two sections with the same marker.
- *
- * Blank lines are ignored, and the preamble before the first `## ` heading is
- * skipped (the file opens with `# 更新記錄` and a paragraph of prose). Order is
- * the file's own — the file is newest-first, so the JSON is too, and nothing is
- * sorted or sliced.
- *
- * Modes, and no others:
- *   node scripts/whats-new.mjs --write   rewrite the JSON (the cut step)
- *   node scripts/whats-new.mjs --check   compare, never write (the gate)
- */
+/** The zh changelog parser, and the only writer of `src/data/whatsNew.generated.json`. */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,7 +20,6 @@ const GROUPS = new Map([
   ["修正", "fix"],
 ]);
 
-// A date that parses back to itself: `2026-02-30` is a typo, not a release.
 const isRealDate = (s) => {
   const [y, m, d] = s.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
@@ -93,7 +60,6 @@ export const parseZh = (markdown) => {
     if (!rawTitle.trim()) reject(sectionLine, "the release heading has no title");
     i += 1;
 
-    // The marker is the first non-blank line under the heading, and exactly one.
     while (i < lines.length && lines[i].trim() === "") i += 1;
     if (i === lines.length) reject(sectionLine, "the section has no <!-- release: ... --> marker");
     const markerLine = i + 1;
@@ -203,9 +169,8 @@ const FIELDS = ["date", "kind", "text"];
 const short = (s) => (s.length > 96 ? `${s.slice(0, 96)}…` : s);
 
 /**
- * Compare a fresh parse with the committed JSON and print every difference:
- * entries only the zh file has, entries only the JSON has, entries whose fields
- * differ, and an order mismatch. Return the number of problems.
+ * Compare a fresh parse with the committed JSON and return the problems; empty
+ * means the JSON is in step with the zh file.
  */
 export const diff = (parsed, committed) => {
   const problems = [];
@@ -263,8 +228,6 @@ export const diff = (parsed, committed) => {
   return problems;
 };
 
-// The CLI runs only when this file is the entry point: the gate (plan row 11)
-// imports `parseZh` for its fixtures, and an import must not read the tree.
 const isEntry = path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url);
 
 if (isEntry) {

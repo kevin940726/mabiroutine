@@ -1,34 +1,8 @@
 #!/usr/bin/env node
 /**
- * Changelog gate: the zh changelog, the JSON the app renders, and the English
- * log are one record seen three ways, and every seam between them is silent
- * when it breaks.
- *
- * `CHANGELOG-zh_TW.md` is a subsequence of `CHANGELOG.md`: it may skip a
- * release only by carrying `<!-- whats-new: none -->` under that English
- * heading, and it may never invent, duplicate or reorder one.
- * `src/data/whatsNew.generated.json` is a committed derivative of the zh file,
- * written by `scripts/whats-new.mjs --write` at cut time. A release with no zh
- * section is a release the player-facing record never mentioned; an
- * unregenerated JSON is the drawer showing the previous cut's copy; a reworded
- * English heading orphans the marker the seen state keys on, so nothing reads
- * as unread ever again. None of those fail at build or at runtime, and no other
- * gate reads the three files together — this one does.
- *
- * Read-only and offline. It imports `parseZh` and `diff` from
- * `scripts/whats-new.mjs`, so the freshness check *is* `--check`: same parse,
- * same comparison, nothing written. The fixtures pin that parser's contract in
- * both directions (accepted shape, and the constructs it must reject with their
- * line), because "ignore what you do not understand" turns a typo into
- * silently missing copy.
- *
- * Parity covers the dated releases from the baseline forward. The baseline is
- * the oldest section in the zh file (history before it stays English on
- * GitHub, no backfill), and `## Unreleased` is exempt: its zh copy is written in
- * the same cut that labels it, and the pre-push hook already requires it to be
- * empty on a `main` push.
- *
- * Usage: pnpm test:whatsnew
+ * Changelog gate (`pnpm test:whatsnew`): the zh changelog, the JSON the app
+ * renders, and the English log are one record seen three ways — this gate is
+ * the only reader of all three.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -51,8 +25,6 @@ const fail = (msg) => {
 const quote = (s) => `"${s.replace(/\s+$/, "").slice(0, 100)}"`;
 
 // --- Parser fixtures ---------------------------------------------------------
-// Built here rather than in fixture files: the contract is the shapes, and a
-// file would let the shapes drift out of sight of the assertion.
 const PAST = "2026-10-18 — An older release";
 const NOW = "2026-10-20 — The default-pin audit";
 const PREAMBLE = "# 更新記錄\n\n這一頁是給玩家看的更新記錄。\n\n";
@@ -197,9 +169,6 @@ enLines.forEach((line, i) => {
   english.push({ id: text, date: DATED.exec(text)[1], line: i + 1, none: j < enLines.length && NONE.test(enLines[j].trim()) });
 });
 
-// A `none` marker out of position says "nothing player-facing" somewhere no
-// zh section can be missing from, so it is a typo rather than a decision. Only
-// a line that IS the marker counts — prose may name it (this changelog does).
 const allowedNone = new Set(english.filter((r) => r.none).map((r) => r.line + 1));
 enLines.forEach((line, i) => {
   if (NONE.test(line.trim()) && !allowedNone.has(i + 1)) {
@@ -247,9 +216,6 @@ if (entries) {
     }
   }
 
-  // The zh file is a subsequence of CHANGELOG.md: same relative order, never a
-  // superset, never a reorder. Skipped only when a marker resolved to nothing,
-  // which already failed above and would make the comparison meaningless.
   if (!unresolved) {
     const expected = english.filter((release) => zhSet.has(release.id)).map((release) => release.id);
     const at = expected.findIndex((id, k) => id !== zhIds[k]);
@@ -281,9 +247,6 @@ if (entries) {
 }
 
 // --- Copy rules -------------------------------------------------------------
-// The app renders these bullets as text, so a backtick, a path or a hash is a
-// code identifier leaking into player copy. Proper nouns (GitHub, Taipei) are
-// not identifiers and stay allowed.
 const FILE_NAME = /\b[\w-]+\.(?:md|mdx|mjs|cjs|js|ts|tsx|jsx|json|css|html|png|webp|svg|py|sh|ya?ml)\b/;
 const HASH = /\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b/i;
 const copyProblems = (text) => {

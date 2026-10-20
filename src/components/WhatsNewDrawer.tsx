@@ -8,24 +8,13 @@ import {
 import { cn } from "@/lib/utils";
 import { formatMd, type WhatsNewKind, type WhatsNewView } from "@/lib/whatsNew";
 
-/** The archive behind 已讀到最新: the zh file IS the player-facing record, and
- *  every release heading in it is linkable, so the drawer needs no per-entry
- *  links of its own. */
 const ARCHIVE_URL = "https://github.com/kevin940726/mabiroutine/blob/main/CHANGELOG-zh_TW.md";
 
-/** The parser's two groups, in the player's words. */
 const KIND_LABEL: Record<WhatsNewKind, string> = {
   feature: "新功能",
   fix: "修正",
 };
 
-/** The changelog, as a drawer behind one menu row.
- *
- *  Controlled and mounted BESIDE the dropdown (`AppMenu`), not inside it: the
- *  menu's content unmounts on close, and selecting the row closes the menu, so
- *  a drawer nested in it would unmount on the very click that opens it. The
- *  copy is never reworded here — it is the zh changelog's own text, derived at
- *  cut time — so the drawer can only ever show what the file says. */
 export function WhatsNewDrawer({
   open,
   onOpenChange,
