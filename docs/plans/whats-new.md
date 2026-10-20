@@ -343,7 +343,7 @@ push, not the deploy.
 | 5 | Data rows | shipped | 匯出／匯入／重置 under the divider; reset confirms via `ConfirmDialog`; footer keeps install + `ExpSettingsDialog` + attribution |
 | 6 | `CHANGELOG-zh_TW.md` | shipped | root file with a preamble; its one section is the 2026-10-20 baseline (older releases stay English); `whats-new: none` for internal releases from here on |
 | 7 | Parser and generated JSON | shipped | `scripts/whats-new.mjs`: `parseZh` + `--write` / `--check`, no other mode; strict, every unknown construct throws with its line; 3 entries at the baseline |
-| 8 | Changelog drawer | planned | unread window, date groups, first run = latest, no dot |
+| 8 | Changelog drawer | shipped | device-local marker (`mabiroutine:whatsnew-seen`, no schema bump); unread = releases newer than it, counted as releases; `MM/DD` groups with a 新功能/修正 tag; first run and caught-up show the latest release only; mounted beside the menu so it outlives the close |
 | 9 | Dot policy | planned | amber, feature-only, decay, clears on open |
 | 10 | Update prompt | planned | suppress on boot, nudge, receipt from an App effect |
 | 11 | Gate registration | planned | script + GATES + AGENTS bullet + three count updates |
