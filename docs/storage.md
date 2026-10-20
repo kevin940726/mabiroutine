@@ -17,7 +17,10 @@ MabiRoutine's design principle: static game data ships with the app;
   per-device local-only — never synced, never sent anywhere. A local-only
   sync journal (`mabiroutine:syncjournal`) keeps the last 50 sync rounds
   (pushed, dropped and adopted keys) for diagnosing a sync conflict; it is
-  per-device and never leaves the browser.
+  per-device and never leaves the browser. So is
+  `mabiroutine:whatsnew-seen`, which remembers the newest release you opened
+  in 更新記錄 so the drawer shows only what is new: never synced, and it
+  changed no saved schema.
 
 ## When the app updates (auto-migrate, nothing to do)
 

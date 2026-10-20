@@ -28,8 +28,9 @@ export default defineConfig({
     VitePWA({
       // Silent-fresh: navigations grab from the network (NetworkFirst +
       // preload), so every online load IS the latest build — nothing flashes,
-      // nothing reloads, nothing toasts. SW updates only refresh caches in
-      // the background (prompt mode acknowledged silently, no reload).
+      // nothing reloads. SW updates retire the old caches in the background
+      // (prompt mode acknowledged silently, no reload); a deploy that lands
+      // mid-session is announced once instead (src/lib/updatePrompt.ts).
       // Offline loads fall back to cache via navigateFallback.
       registerType: 'prompt',
       injectRegister: 'auto',
@@ -80,8 +81,8 @@ export default defineConfig({
         // in-SW skipWaiting would race workbox-window's 200ms
         // waiting-detection, making the armed absence-reload flaky (waiting
         // sometimes never fires). With false, updates park in waiting
-        // deterministically until we ack them — silently, or with a reload
-        // when a long-absence return armed one.
+        // deterministically until we ack them — either silently, or alongside
+        // the nudge / absence-reload the waiting event decides.
         skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,

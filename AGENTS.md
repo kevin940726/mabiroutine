@@ -140,7 +140,7 @@ Each line below is when the gate fires and what its silence costs. The check lis
 - `test:sync` — after any persisted-write path: `src/sync/**`, `api/**`, `src/lib/reset.ts`, a `useAppStore` action that writes values or buckets, `applyResets` / `normalizeTaskBuckets` / `checkResets`, or a reminder lane (`hourlyReminders.ts`, `useHourlyReminders.ts`, `public/sw-push.js`, `workers/`). `node scripts/needs-live-sync.mjs` reads the diff and answers this for you. The live legs must pass for real, not skip (they need `pnpm dev:api` and the Chromium); a suppression or marker bug wipes a device.
 - `test:whatsnew` — after `CHANGELOG.md`, `CHANGELOG-zh_TW.md`, or `src/data/whatsNew.generated.json`. A release with no zh section is copy the player-facing record never wrote, a stale JSON is the drawer rendering the previous cut, and a reworded English heading orphans the marker the seen state keys on. It is the only reader of all three files.
 - Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if a premise line fails, update the fixture, not the data.
-- `suggestions/` is gitignored (review scratch); `src/data/*.json` is hand-edited and needs human review — fetcher scripts stay private-local, never committed.
+- `suggestions/` is gitignored (review scratch); `src/data/*.json` is hand-edited and needs human review — except `whatsNew.generated.json`, which only `scripts/whats-new.mjs --write` produces — fetcher scripts stay private-local, never committed.
 
 ## Purple schedule corrections (agents)
 

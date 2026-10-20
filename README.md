@@ -16,8 +16,12 @@ handled for you.
 - ⏰ Resets automatically daily and weekly at 06:00 Taipei, with a live countdown in the header; a half-finished 定期委託 round carries its three legs into the next week (only its recorded count resets).
 - 👥 Up to 6 characters, one tab each, renameable and reorderable, with separate progress.
 - 🔄 All 235 gold and barter trades, browsable by town and NPC, with have/need search, pinning to dailies, and a per-trade material breakdown.
-- ✏️ Custom tasks, drag reordering, hiding, and dark mode; a sync link also shares row and pinned order.
-- 🔗 Optional cross-device sync by link, no account; everything still works offline without it.
+- ✏️ Custom tasks, drag reordering, and hiding; a sync link also shares row and pinned order.
+- 🎨 外觀 is a three-way choice — 跟隨系統 / 淺色 / 深色 — and the default follows your system, so a phone or desktop switching to dark repaints live.
+- ☰ The header menu is where choices live: 更新記錄, 同步 (its state, opening the same dialog), 外觀, then 匯出 JSON / 匯入 JSON / 重置所有資料 under a divider. The footer keeps 安裝 App, 實驗性功能, the GitHub link and the sources.
+- 📝 更新記錄 is the way into the changelog, and it shows only what arrived since this device last looked. The copy is [CHANGELOG-zh_TW.md](CHANGELOG-zh_TW.md), the player-facing record; the amber dot on ☰ is the one pull, and opening the drawer clears it.
+- 🔗 Optional cross-device sync by link, no account; the ☰ row says whether it is linked and how long ago it last synced. Everything still works offline without it.
+- ⬆️ A tab left open across a deploy can tell you a new version is ready — one toast, and the 有新版本 · 重新載入 row that stays until you act on it — and taking it reloads into 已更新到最新版. Nothing opens by itself.
 - 📲 Installable on Android and desktop, iOS home-screen ready, and works offline.
 - 🔔 Optional reminder bells for 不祥的召喚結界 and 深淵的黑色坑洞, local while the app is open and server push while closed; per device, best-effort.
 - 🔒 Progress stays in your browser (localStorage), not our database, with no tracking or ads; only push subscriptions you enable are stored server-side.

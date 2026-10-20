@@ -24,7 +24,7 @@ picture.
 - Given I am offline, when I launch, then my last local state renders
   immediately with no error; sync resumes on next foreground or within 60s.
 - Maps to: `index.html` preload → `takePreloaded` (`src/sync/api.ts`) →
-  `pullNow` (`src/sync/SyncButton.tsx`) → `syncAndResets`
+  `pullNow` (`src/sync/useSyncEngine.ts`) → `syncAndResets`
   (`src/sync/session.ts`); `docs/sync.md` Round. Gate: browser wake-pull E2E,
   E18.
 
@@ -55,7 +55,7 @@ device's current progress, so I can leave a device in a drawer without fear.
 - Given a reset happened anywhere, when any device pulls, then no tombstone
   for a cycle key ever crosses the wire (expiry is read-time, by bucket).
 - Maps to: `syncAndResets` pull-first (`src/sync/session.ts`) + forced hook
-  (`pullNow`, `src/sync/SyncButton.tsx`), `flat.ts` bucket tagging + `diffFlat`
+  (`pullNow`, `src/sync/useSyncEngine.ts`), `flat.ts` bucket tagging + `diffFlat`
   silences; `docs/sync.md` Reset, findings #5/#12. Gate: E1, E8, E17, P.
 
 ## S4 — A sync link onboards the new device safely
@@ -110,5 +110,5 @@ why my phone looks different.
 
 - Maps to: `meta:taskorder` / `meta:pinorder` in `src/sync/flat.ts` (flatten
   emit, strict parse, union merge, generated-band deferral) and
-  `guardOrderKeys` at the two push sites in `src/sync/SyncButton.tsx`;
+  `guardOrderKeys` at the two push sites in `src/sync/useSyncEngine.ts`;
   `docs/sync.md` decisions 4c/4d. Gate: E21, E22.

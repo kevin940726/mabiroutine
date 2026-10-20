@@ -156,7 +156,8 @@ if (typeof window !== 'undefined') {
 
 // Service worker: production only (dev keeps the live shell).
 // Silent-fresh: navigations are NetworkFirst, so the running page is always
-// the latest build — updates only need to refresh caches, never interrupt.
+// the latest build — an update only needs to retire the old caches, and the
+// page is never force-reloaded.
 // Prompt mode gives us the update handle; the caches are taken over silently
 // (SKIP_WAITING) instead of autoUpdate's forced reload, and only a genuine
 // mid-session deploy is announced (see onNeedRefresh).

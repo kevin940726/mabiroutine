@@ -1362,7 +1362,7 @@ export const useAppStore = create<Store>()(
         }
       },
       resetAll: () => {
-        // confirmation lives in the UI (two-tap inline confirm); this is the point of no return
+        // confirmation lives in the UI (ConfirmDialog, 清除全部 / 取消); this is the point of no return
         const fresh = defaultChar("角色 1");
         set({
           ...initial,

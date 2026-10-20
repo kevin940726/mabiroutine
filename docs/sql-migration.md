@@ -47,7 +47,8 @@ ratio suggests. Latency is a non-issue: sync is a throttled background loop
    needs only the wire shape (`key.includes("@")` + prefix), no task semantics,
    and is invisible to readers (a missing row and a `null` tombstone are both
    non-adopted). The client already sends exactly these nulls
-   (`src/sync/SyncButton.tsx:224-231`), so the protocol does not change.
+   (`src/sync/useSyncEngine.ts`, the GC block that PATCHes `null` for expired
+   cycle keys), so the protocol does not change.
 4. **DB-agnostic data layer.** `api/session.ts` keeps HTTP shape, validation,
    limits, and prefixes; all storage goes through a narrow `Db` interface.
    SQLite driver first (`@libsql/client/web`), Postgres driver optional later.
