@@ -264,6 +264,37 @@ write moving onto the `click`. The reported symptom also has a browser-level
 regression: `test:shop-e2e` S5 (phone viewport, real touch) completes that same
 counter with four taps and asserts the row below stays unchecked and on screen.
 
+## Cutting a release
+
+The cut has no commit of its own: the release label rides in the tip commit you
+push, because only `main` deploys (`AGENTS.md` § Changelog). Three files record
+one release, and they move in that same commit.
+
+1. Label the English section: `## Unreleased` → `## <YYYY-MM-DD> — <label>`,
+   with a fresh empty `## Unreleased` above it. The label comes from the range's
+   content.
+2. Add the zh section to `CHANGELOG-zh_TW.md`: same date, 1–3 bullets in player
+   voice, and a `<!-- release: … -->` marker naming the English heading
+   **verbatim**. When nothing in the release is player-visible, write
+   `<!-- whats-new: none -->` directly under the English heading instead —
+   that is the only way to say "intentional" rather than "forgotten".
+3. `node scripts/whats-new.mjs --write` — the only writer of
+   `src/data/whatsNew.generated.json`.
+4. Commit `CHANGELOG.md`, `CHANGELOG-zh_TW.md` and
+   `src/data/whatsNew.generated.json` together.
+5. Fold the label into the tip commit as usual (`git commit --amend --no-edit`
+   once staged).
+
+The three files are one record seen three ways, which is why they cannot land
+apart: the zh file is the player-facing copy, and the JSON is the drawer's copy
+of it. Regenerate the JSON before the zh section exists and the app renders the
+*previous* cut; write the section and skip the regeneration and this cut is
+missing from the drawer. Neither a build nor a type check notices, so
+`test:whatsnew` is the only reader that sees it — it fails on a skipped step 2
+or 3, and the pre-push hook turns that into a blocked push rather than a wrong
+deploy. The same gate pins the marker to the English heading, so a reworded
+heading fails instead of silently re-keying the release the seen state stores.
+
 ## Gotchas
 
 - **Tailwind v4 scans source as TEXT, comments and stray files included**, so a

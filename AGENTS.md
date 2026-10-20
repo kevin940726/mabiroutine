@@ -64,6 +64,12 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   `chore: date the changelog` commit said nothing the heading does not, so it is
   gone. Do not amend a tip the user made: make the label its own small commit and
   say so. Skip the cut when `Unreleased` is empty.
+- A release with player-visible changes also writes its zh section in
+  `CHANGELOG-zh_TW.md` and regenerates `src/data/whatsNew.generated.json`
+  (`node scripts/whats-new.mjs --write`) in the same commit as the English
+  heading; an internal-only release carries `<!-- whats-new: none -->` under
+  that heading instead. `test:whatsnew` enforces it — the runbook is
+  `docs/development.md` § Cutting a release.
 - Language: English always. Traditional Chinese only when quoting UI or copy text,
   or when a term has no English counterpart; `english (中文)` side by side when
   both help. (Older entries predate this — leave them.) No commit hashes in
