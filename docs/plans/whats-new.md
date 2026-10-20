@@ -216,10 +216,10 @@ Status is the row's sentence; the dot is the one-time pull.
 
 ## Update prompt
 
-Today a waiting service worker is taken over silently: `onNeedRefresh` calls
+A waiting service worker used to be taken over silently: `onNeedRefresh` called
 `updateSW(false)` unless a long-absence return armed a reload (`src/main.tsx`).
-Caches refresh, the tab keeps old JS until the next navigation, and nothing
-tells the user a new version exists.
+Caches refreshed, the tab kept old JS until the next navigation, and nothing
+told the user a new version existed.
 
 The waiting worker survives a reload that does not take it over — including the
 6h absence path and a page opened after a deploy. Workbox re-dispatches `waiting`
@@ -229,20 +229,28 @@ on a page that has just loaded fresh HTML.
 
 Stages:
 
-1. **Suppress on boot.** Before/at registration, detect a pre-existing waiting
-   worker (check the registration's `waiting` state before the `waiting` event
-   can be attributed to this session) and take it over silently. Only a
-   `waiting` event that appears after boot is a nudge.
+1. **Suppress on boot.** A `waiting` event before registration completes, or
+   within 3 seconds of it, is a pre-existing worker: take it over silently and
+   set nothing. Only a later `waiting` event is a nudge. It has to be the
+   *event's* timing, not the registration's `waiting` state: the client replays
+   the event for a worker that was already parked, and a page that just rendered
+   fresh HTML has nothing to announce. The window is anchored on registration
+   rather than on module evaluation because registration runs on `load`, which a
+   slow first paint can push past any fixed offset from boot.
 2. **Nudge.** Mark `updateReady`; keep the cache takeover; raise one toast on the
-   existing bus: `有新版本可用` + `重新載入`, with an explicit `ms` long enough to
-   act on (the bus defaults are a receipt's 2.6s and a 5s action TTL). If a
-   `[role="dialog"]` is open or the tab is hidden, skip the toast — never
-   interrupt an editor — but keep `updateReady` for the menu row.
-3. **Confirm.** Accepting reloads and sets a one-shot `sessionStorage` flag. The
-   6h absence path also calls `updateSW(false)` before reloading and sets the
-   same flag, so the reloaded page neither nudges nor asks again.
+   existing bus: `有新版本可用` + `重新載入`, with an explicit `ms` — 8s, long
+   enough to act on and inside the bus's 10s action TTL (the receipt default is
+   2.6s). If a `[role="dialog"]` is open or the tab is hidden, skip the toast —
+   never interrupt an editor — but keep `updateReady` for the menu row.
+3. **Confirm.** Accepting — the toast's button or the menu row, one shared
+   `acceptUpdate` — writes a one-shot `sessionStorage` flag
+   (`mabiroutine:update-receipt`) and reloads. The worker was already taken over,
+   so the reload is a plain `window.location.reload()`; `updateSW(true)` after
+   takeover is a no-op. The 6h absence path calls `updateSW(false)` before
+   reloading and writes **no** flag: that reload was not asked for, so the page
+   it lands on must not claim an update nobody accepted.
 4. **Receipt.** After mount, an App effect reads and clears the flag and raises
-   `已更新到最新版` (optional 查看 action). It must run after `SyncToasts` has
+   `已更新到最新版`. It is gated on hydration and runs after `SyncToasts` has
    mounted: the bus has no queue, so a dispatch from `main.tsx` before React
    mounts is lost. No panel opens by itself — a modal on boot is the most
    disruptive thing this feature could do; the amber dot already carries the
@@ -345,7 +353,7 @@ push, not the deploy.
 | 7 | Parser and generated JSON | shipped | `scripts/whats-new.mjs`: `parseZh` + `--write` / `--check`, no other mode; strict, every unknown construct throws with its line; 3 entries at the baseline |
 | 8 | Changelog drawer | shipped | device-local marker (`mabiroutine:whatsnew-seen`, no schema bump); unread = releases newer than it, counted as releases; `MM/DD` groups with a 新功能/修正 tag; first run and caught-up show the latest release only; mounted beside the menu so it outlives the close |
 | 9 | Dot policy | shipped | 6px amber on the ☰ trigger, `aria-hidden`, no number; only when unread carries a `feature` bullet and the newest unread release is ≤ 14 Asia/Taipei calendar days old (14 inclusive, future counts as recent); no dot on `first`/`read`; clears as opening writes the marker; the row keeps the count |
-| 10 | Update prompt | planned | suppress on boot, nudge, receipt from an App effect |
+| 10 | Update prompt | shipped | a `waiting` event at registration (before it completes, or within 3s of it) is a replayed pre-existing worker: takeover only, nothing set, nothing shown; a later one marks `updateReady` (`src/lib/updatePrompt.ts`) and raises one 8s toast (`有新版本可用` + `重新載入`) unless a dialog is open or the tab is hidden; the ☰ row (`有新版本 · 重新載入`) is the durable path and shares `acceptUpdate`; accept writes `mabiroutine:update-receipt` then reloads, and the App effect raises `已更新到最新版` after `SyncToasts` mounted; the 6h path reloads with no receipt |
 | 11 | Gate registration | planned | script + GATES + AGENTS bullet + three count updates |
 | 12 | Cut runbook | planned | in this file; fold into `docs/development.md` at ship |
 | 13 | Docs and both READMEs at ship | planned | theme line; changelog link; generated-JSON note |

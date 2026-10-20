@@ -7,6 +7,8 @@ import { statsSummary } from './sync/stats.ts'
 import { readJournal, clearJournal } from './sync/journal.ts'
 import { budgetAsk, budgetLog, noteBudgetTrip } from './lib/networkBudget.ts'
 import { netSummary } from './lib/net.ts'
+import { acceptUpdate, BOOT_WAIT_MS, markUpdateReady } from './lib/updatePrompt.ts'
+import { toastAction } from './sync/session.ts'
 import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
 import { getUndonePurpleReminder } from './hooks/usePurpleHoleReminders.ts'
 import {
@@ -155,8 +157,9 @@ if (typeof window !== 'undefined') {
 // Service worker: production only (dev keeps the live shell).
 // Silent-fresh: navigations are NetworkFirst, so the running page is always
 // the latest build — updates only need to refresh caches, never interrupt.
-// Prompt mode gives us the update handle; we acknowledge it silently
-// (SKIP_WAITING, no toast, no reload) instead of autoUpdate's forced reload.
+// Prompt mode gives us the update handle; the caches are taken over silently
+// (SKIP_WAITING) instead of autoUpdate's forced reload, and only a genuine
+// mid-session deploy is announced (see onNeedRefresh).
 //
 // Long-absence reload (4 gates, all required): installed PWAs and pinned tabs
 // can sit for days on stale code. On return after 6h+ away, IF online, IF no
@@ -175,8 +178,16 @@ const MIN_SW_CHECK_GAP_MS = 10 * 60 * 1000;
 const ABSENCE_RELOAD_MS = 6 * 60 * 60 * 1000;
 const UPDATE_SETTLE_MS = 15_000;
 const LAST_HIDDEN_KEY = "mabiroutine:last-hidden";
+// Long enough to read and tap, but inside the bus's 10s action TTL, so the
+// button can never outlive its callback. Not the 2.6s receipt default.
+const UPDATE_TOAST_MS = 8000;
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   let lastSwCheck = 0;
+  // When this page's registration completed (0 = not yet). The boot window is
+  // measured from here rather than from module evaluation: registration runs on
+  // `load`, which a slow first paint can push well past the module's own start,
+  // and a replay must stay inside the window however long that took.
+  let registeredAt = 0;
   // Armed by a long-absence return; consumed (reload) only if an update lands
   // inside the settle window. Always disarmed — never leaks into a session.
   let reloadOnUpdate = false;
@@ -219,9 +230,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     if (!navigator.onLine || hasOpenDialog()) return;
     if (reg.waiting) {
       // Update already parked (landed while we were away) — no need to wait
-      // for the event; reload into it now, dialog re-checked.
+      // for the event; reload into it now, dialog re-checked. Take it over
+      // first, and write NO receipt flag: nobody asked for this reload, so the
+      // page it lands on must not claim an update the user never accepted.
       if (!hasOpenDialog()) {
         disarm();
+        void updateSW(false);
         window.location.reload();
       }
       return;
@@ -237,16 +251,35 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   const updateSW = registerSW({
     immediate: false,
     onNeedRefresh() {
-      // Update pending. Armed by a long-absence return (dialog re-checked:
-      // one may have opened between arming and landing) → reload into it.
-      // Otherwise take it over silently — the page already renders fresh
-      // HTML from the network; this just retires the old caches.
+      // Armed by a long-absence return (dialog re-checked: one may have opened
+      // between arming and landing) → reload into it, no receipt: nobody asked
+      // for this one. Checked first because arming only ever follows a
+      // visibility change, i.e. a deliberate return, so it outranks the
+      // boot-window heuristic below.
       if (reloadOnUpdate && navigator.onLine && !hasOpenDialog()) {
         disarm();
+        void updateSW(false);
         window.location.reload();
         return;
       }
+      // A `waiting` event at boot is not news. Before registration completes it
+      // can only be a worker the registration found already parked, and Workbox
+      // replays the event for exactly that worker once registration resolves —
+      // the page has just rendered fresh HTML from the network, so all it needs
+      // is the old caches retired. Announcing it here would describe a reload
+      // that has effectively just happened.
+      if (!registeredAt || Date.now() - registeredAt < BOOT_WAIT_MS) {
+        void updateSW(false);
+        return;
+      }
+      // A deploy landed mid-session: that IS news. Keep the cache takeover and
+      // mark `updateReady` for the menu row, which outlives the toast.
       void updateSW(false);
+      markUpdateReady();
+      // Never interrupt an editor, and never toast a tab nobody is looking at —
+      // `updateReady` already carries both cases into the menu row.
+      if (document.visibilityState !== "visible" || hasOpenDialog()) return;
+      toastAction("有新版本可用", "重新載入", acceptUpdate, UPDATE_TOAST_MS);
     },
     onNeedReload() {
       // Suppress the client's built-in reload-on-takeover: with NetworkFirst
@@ -254,6 +287,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
       // only lose scroll/state for nothing.
     },
     onRegisteredSW(_swUrl, reg) {
+      registeredAt = Date.now();
       if (!reg) return;
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {

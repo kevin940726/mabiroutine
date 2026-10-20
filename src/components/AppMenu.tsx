@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { WhatsNewDrawer } from "@/components/WhatsNewDrawer";
+import { acceptUpdate, useUpdateReady } from "@/lib/updatePrompt";
 import { useWhatsNew, dotFor, taipeiDate } from "@/lib/whatsNew";
 import { useSyncStatus, type SyncStatus } from "@/sync/status";
 import type { ThemeMode } from "@/hooks/useTheme";
@@ -82,6 +83,9 @@ export function AppMenu({
   // Read on mount: the store is live while the menu is open (a pull can land
   // mid-menu) and correct on the next open, which is what the row needs.
   const status = useSyncStatus();
+  // A waiting update: the durable half of the nudge. The toast is gone in
+  // seconds and never queues; this row waits for as long as the tab lives.
+  const updateReady = useUpdateReady();
   // The changelog row: unread releases from the device marker, plus the drawer
   // it opens. The hook's state outlives the menu because this component does.
   const whatsNew = useWhatsNew();
@@ -121,11 +125,23 @@ export function AppMenu({
           // Keep focus where the dialog puts it.
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
-          {/* 更新記錄 comes first: it is content, not an action, and it is the
-              row most visits are for. Its subtitle is the whole status — a count
-              of RELEASES (not bullets), or 最新 before this device has opened
-              one, or 已讀到最新. The count lives in the sentence; the dot that
-              carries the one-time pull is on the trigger, not here. */}
+          {/* 有新版本 is first and conditional: it disappears the moment it is
+              acted on, and it is the one row that only gets staler while it
+              waits. Selecting it runs the same accept path as the toast's
+              button — the one-shot receipt, then the reload — because the
+              worker was already taken over when this row appeared. */}
+          {updateReady && (
+            <DropdownMenuItem onSelect={acceptUpdate} className="gap-2">
+              <span>有新版本</span>
+              <span className="ml-auto text-xs text-muted-foreground">重新載入</span>
+            </DropdownMenuItem>
+          )}
+          {/* 更新記錄 is the first permanent row: it is content, not an action,
+              and it is the row most visits are for. Its subtitle is the whole
+              status — a count of RELEASES (not bullets), or 最新 before this
+              device has opened one, or 已讀到最新. The count lives in the
+              sentence; the dot that carries the one-time pull is on the
+              trigger, not here. */}
           <DropdownMenuItem onSelect={whatsNew.openDrawer} className="gap-2">
             <span>更新記錄</span>
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">

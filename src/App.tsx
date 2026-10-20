@@ -11,7 +11,7 @@ import { HeaderCountdown } from "@/components/HeaderCountdown";
 import { SyncToasts } from "@/sync/SyncToasts";
 import { SyncDialog } from "@/sync/SyncDialog";
 import { useSyncEngine } from "@/sync/useSyncEngine";
-import { syncAndResets, markActivity } from "@/sync/session";
+import { syncAndResets, markActivity, toast } from "@/sync/session";
 import { InstallButton } from "@/components/InstallButton";
 import { ExpSettingsDialog } from "@/components/ExpSettingsDialog";
 import { ConfirmHost, confirmRemoveCharacter, confirmResetAll } from "@/components/ConfirmDialog";
@@ -32,6 +32,7 @@ import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
 import { BLACK_HOLE_DAILY_ID, blackHoleProgressTask, blackHoleProgressValue } from "@/lib/blackHole";
 import { healClaimedReminderLanes } from "@/lib/serverPush";
+import { takeUpdateReceipt } from "@/lib/updatePrompt";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task, TaskSection } from "@/lib/types";
 import { Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
@@ -136,6 +137,21 @@ export default function App() {
       if (t2) window.clearTimeout(t2);
     };
   }, []);
+
+  // Update receipt: a reload the user accepted (the menu row, or the toast's
+  // 重新載入) left a one-shot flag, and the page it landed on owes them one line.
+  // Raised HERE, not in `main.tsx`, because the toast bus has no queue:
+  // `SyncToasts` is the listener, and a dispatch before React mounted would be
+  // lost. Child effects run before the parent's, so its listener is already in
+  // place on the commit that mounts it; gating on hydration is the same
+  // requirement (before it, App renders 載入中 and `SyncToasts` is not mounted).
+  // No panel opens by itself — a modal on boot is the most disruptive thing this
+  // feature could do, and the amber dot already carries the payoff.
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (!takeUpdateReceipt()) return;
+    toast("已更新到最新版");
+  }, [hasHydrated]);
 
   // Boot + focus entry points — always pull-first (syncAndResets): the reset's
   // tombstone decision needs fresh peer markers, or a late-waking device
