@@ -781,5 +781,20 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert(values.parttime === false, "W: a check's boolean is left alone");
 }
 
+// X: v22 save with a changelog nudge ack; v23 is a stamp-only step.
+{
+  const out = migratePersisted(
+    {
+      version: 22,
+      characters: [{ id: "c1", name: "A", taskValues: {}, hiddenTaskIds: [] }],
+      activeCharId: "c1",
+      whatsNewNudged: "2026-10-20 — The default-pin audit",
+    },
+    22
+  ) as AnyRec;
+  assert(out.version === 23, "X: reaches v23");
+  assert(out.whatsNewNudged === "2026-10-20 — The default-pin audit", "X: nudge ack survives the stamp");
+}
+
 console.log("\nAll migration fixtures passed.");
 

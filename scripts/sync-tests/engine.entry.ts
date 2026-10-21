@@ -1359,6 +1359,19 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E24 only stale buckets are tombstoned", nulls.every((k) => !k.includes(`@${THIS_WEEK}`)), nulls);
 }
 
+// E25: the changelog nudge is a one-way cap, not an ordinary last-writer key.
+{
+  const local = { ...snap({}, {}, TODAY, THIS_WEEK), whatsNewNudged: "2026-10-18 — Older" };
+  const newer = { ...local, whatsNewNudged: "2026-10-20 — Newer" };
+  const merged = unflattenMerge(flattenSnapshot(newer), local, 23);
+  ok("E25 later nudge id wins", merged.whatsNewNudged === "2026-10-20 — Newer", merged.whatsNewNudged);
+  const kept = unflattenMerge(flattenSnapshot(local), newer, 23);
+  ok("E25 older remote never regresses the ack", kept.whatsNewNudged === "2026-10-20 — Newer", kept.whatsNewNudged);
+  ok("E25 empty ack is not emitted", !("meta:whatsnew" in flattenSnapshot({ ...local, whatsNewNudged: "" })));
+  const tombstone = diffFlat({ "meta:whatsnew": "2026-10-20 — Newer" }, {});
+  ok("E25 reset never tombstones the ack", !("meta:whatsnew" in tombstone), tombstone);
+}
+
 setPullHook(null);
 console.log(failures === 0 ? "ALL ENGINE SCENARIOS PASSED" : `${failures} FAILURES`);
 process.exit(failures === 0 ? 0 : 1);

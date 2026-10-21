@@ -175,8 +175,8 @@ newest heading. The only state is the ☰ nudge.
 - The dot points at the newest `feature` release that is not acknowledged and
   whose Taipei heading date is today or the day before. A fixes-only release
   never dots. A fresh save has no marker and therefore no dot; the first menu
-  open seeds it with the then-current release, so a later feature release
-  re-arms it.
+  open seeds it with the newest feature release, or the latest release when none
+  carries a feature, so a later feature release re-arms it.
 - Opening the menu acknowledges it. The acknowledgement does not change what the
   drawer renders; the page always carries the full record.
 - Rendering: every release, newest first, grouped under the zh heading date
@@ -285,8 +285,8 @@ Discovery already runs on visibility and reconnect, throttled; no new polling.
 - the parser against fixtures: a normal section, a missing section, a malformed
   one, a marker with no section, a section with no marker;
 - `src/data/whatsNew.generated.json` equals a fresh parse (`--check`, no write);
-- parity with `CHANGELOG.md` from the baseline forward: every release with
-  `### Features` or `### Fixes` has a zh section or `<!-- whats-new: none -->`;
+- parity with `CHANGELOG.md` from the baseline forward: every dated release has
+  a zh section or `<!-- whats-new: none -->`;
   every marker resolves to a heading; no duplicates; newest-first; same order;
 - the zh heading date equals the marker date;
 - one marker per section, exactly; the file preamble may be `# 更新記錄` plus
