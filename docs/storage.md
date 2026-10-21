@@ -17,7 +17,14 @@ MabiRoutine's design principle: static game data ships with the app;
   per-device local-only — never synced, never sent anywhere. A local-only
   sync journal (`mabiroutine:syncjournal`) keeps the last 50 sync rounds
   (pushed, dropped and adopted keys) for diagnosing a sync conflict; it is
-  per-device and never leaves the browser.
+  per-device and never leaves the browser. The changelog nudge
+  acknowledgement (`whatsNewNudged`) is different: it is part of the store
+  and the synced key space (`meta:whatsnew`), so opening the menu on one
+  linked device quiets the dot on the others; the drawer itself is a page,
+  with no unread marker. `theme` (light / dark / system) is per-device too,
+  and `mabiroutine:update-receipt` lives in `sessionStorage` for a single
+  reload to show the update receipt. `mabiroutine:last-synced` remembers when
+  this device last reached the sync link (never synced, not part of the store).
 
 ## When the app updates (auto-migrate, nothing to do)
 
@@ -33,7 +40,7 @@ MabiRoutine's design principle: static game data ships with the app;
    missing key falls back to its default and a present one keeps your value.
 2. If upstream deletes a row (e.g. an `id` rename): leftover checks/hides/order
    for that row are cleared. Rename = delete + add, old progress does not carry
-   over — back up important progress via footer 匯出 JSON (Export JSON) first.
+   over — back up important progress via ☰ → 匯出 JSON (Export JSON) first.
 3. Content-only changes (descriptions, `max`): take effect immediately;
    in-progress counters are kept and clamped to the new `max` on next tap.
    A counter with no `max` (today only 冒險家公會的定期委託) never clamps: it is a
@@ -41,7 +48,7 @@ MabiRoutine's design principle: static game data ships with the app;
 
 ## Conflicts & escape hatches (your data, your call)
 
-- Across devices: use cross-device sync (auto-merges) or footer 匯出 JSON
+- Across devices: use cross-device sync (auto-merges) or ☰ → 匯出 JSON
   (Export) → 匯入 JSON (Import) on the other device (full replace — export a
   backup first). With sync, opening the app pulls the other device's latest
   first (launch shows their checks as soon as the boot pull lands; offline
@@ -52,7 +59,7 @@ MabiRoutine's design principle: static game data ships with the app;
 - Importing an old backup: works as usual — missing fields are filled and
   dangling keys cleared on the spot; extra fields in the backup are dropped on
   the next save.
-- Broken / start over: footer 重置所有資料 (Reset all data, double-confirmed,
+- Broken / start over: ☰ → 重置所有資料 (Reset all data; one confirm dialog,
   back to defaults: 1 character + must-have pins).
 - Surgery by hand: DevTools → Application → Local Storage → `mabiroutine:v2`;
   if you break it, import a backup or reset.

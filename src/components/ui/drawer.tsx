@@ -48,7 +48,7 @@ const DrawerContent = React.forwardRef<
       ref={ref}
       data-drawer="content"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[85svh] w-full max-w-2xl flex-col gap-3 rounded-t-2xl border-t bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg",
+        "fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[85svh] w-full max-w-2xl flex-col gap-3 rounded-t-2xl border-t bg-background px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5 shadow-lg sm:px-6",
         className
       )}
       {...props}
@@ -56,7 +56,7 @@ const DrawerContent = React.forwardRef<
       {/* Grab handle: a phone idiom, and a second, larger hint that this is a sheet. */}
       <div className="mx-auto h-1.5 w-10 shrink-0 rounded-full bg-muted" aria-hidden="true" />
       {children}
-      <DialogPrimitive.Close className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <DialogPrimitive.Close className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:text-foreground hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <X className="h-4 w-4" />
         <span className="sr-only">關閉</span>
       </DialogPrimitive.Close>
@@ -66,7 +66,9 @@ const DrawerContent = React.forwardRef<
 DrawerContent.displayName = DialogPrimitive.Content.displayName;
 
 function DrawerHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex flex-col gap-1 text-left", className)} {...props} />;
+  // Leave room for the absolutely positioned close button so a long title
+  // cannot run underneath it.
+  return <div className={cn("flex flex-col gap-1 pr-8 text-left", className)} {...props} />;
 }
 
 function DrawerFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

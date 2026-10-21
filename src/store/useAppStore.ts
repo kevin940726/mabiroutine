@@ -147,6 +147,10 @@ type Store = AppState & {  // actions
   togglePurpleReminder: (taskId: string) => void;
   isPurpleReminded: (taskId: string) => boolean;
 
+  // Changelog nudge acknowledgement: the newest feature release whose dot has
+  // been seen. Synced, unlike the reminder lanes above.
+  setWhatsNewNudged: (release: string) => void;
+
   exportJson: () => string;
   importJson: (json: string) => void;
   resetAll: () => void;
@@ -306,7 +310,7 @@ export function seedMissingDefaultPins(serverFlat: Record<string, unknown>): str
 export const COUNTER_SANITY_MAX = 999;
 
 const initial: AppState = {
-  version: 22,
+  version: 23,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -320,6 +324,7 @@ const initial: AppState = {
   taskBuckets: {},
   hourlyReminders: [],
   purpleHoleReminders: [],
+  whatsNewNudged: "",
 };
 
 // Cycle provenance normalize: every existing value gets a bucket entry,
@@ -467,6 +472,7 @@ function normalizePersisted(input: unknown): AppState {
     purpleHoleReminders: Array.isArray(d.purpleHoleReminders)
       ? [...new Set((d.purpleHoleReminders as unknown[]).filter((x): x is string => typeof x === "string"))]
       : [],
+    whatsNewNudged: typeof d.whatsNewNudged === "string" ? d.whatsNewNudged : "",
   };
 }
 
@@ -911,6 +917,13 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     if (!keepsValue && s.taskBuckets) delete s.taskBuckets["weekly-goals"];
     s.version = 22;
   }
+  if (from < 23) {
+    // v22 → v23: the changelog nudge became a synced marker. Additive — the
+    // field defaults to "" in normalizePersisted, so there is no data to
+    // transform; the step only carries the version chain to the configured
+    // number. No save exists at 23 yet, so this is the one bump for the marker.
+    s.version = 23;
+  }
   // AFTER the steps, never before: the steps interpret their own booleans (v11
   // reads tower: true as 20), so an ingest coercion running first would eat the
   // value they are looking for.
@@ -1342,6 +1355,12 @@ export const useAppStore = create<Store>()(
 
       isPurpleReminded: (taskId) => (get().purpleHoleReminders ?? []).includes(taskId),
 
+      setWhatsNewNudged: (release) => {
+        if (get().whatsNewNudged === release) return;
+        set({ whatsNewNudged: release });
+        flushStorage();
+      },
+
       exportJson: () => JSON.stringify(get(), null, 2),
       importJson: (json) => {
         try {
@@ -1362,7 +1381,7 @@ export const useAppStore = create<Store>()(
         }
       },
       resetAll: () => {
-        // confirmation lives in the UI (two-tap inline confirm); this is the point of no return
+        // confirmation lives in the UI (ConfirmDialog, 清除全部 / 取消); this is the point of no return
         const fresh = defaultChar("角色 1");
         set({
           ...initial,
@@ -1380,7 +1399,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 22,
+      version: 23,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       // `merge` runs on EVERY rehydration, where `migrate` runs only when the
       // stored version differs from the configured one. That difference is the
@@ -1442,6 +1461,7 @@ export const useAppStore = create<Store>()(
         taskBuckets: s.taskBuckets,
         hourlyReminders: s.hourlyReminders,
         purpleHoleReminders: s.purpleHoleReminders,
+        whatsNewNudged: s.whatsNewNudged,
       }),
     }
   )

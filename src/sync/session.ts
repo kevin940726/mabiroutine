@@ -83,6 +83,7 @@ export type SyncSnapshot = Pick<
   | "prefs"
   | "globalTaskOrder"
   | "taskBuckets"
+  | "whatsNewNudged"
 >;
 
 export function buildSnapshot(): SyncSnapshot {
@@ -103,6 +104,7 @@ export function buildSnapshot(): SyncSnapshot {
     prefs: s.prefs,
     globalTaskOrder: s.globalTaskOrder,
     taskBuckets: s.taskBuckets,
+    whatsNewNudged: s.whatsNewNudged,
   };
 }
 
@@ -286,6 +288,7 @@ export type ToastDetail = {
 
 const toastActions = new Map<string, { fn: () => void; at: number }>();
 const TOAST_ACTION_TTL_MS = 10_000;
+export { TOAST_ACTION_TTL_MS };
 let toastActionSeq = 0;
 
 if (typeof window !== "undefined") {
@@ -313,7 +316,7 @@ export function toastAction(text: string, actionLabel: string, fn: () => void, m
 
 export type ImportRequest = { id: string; state: unknown; updatedAt: number };
 
-// Background engine hook (owned by SyncButton's effect). Lets session-level
+// Background engine hook (owned by useSyncEngine's effect). Lets session-level
 // flows trigger a pull round without prop drilling. Promise-returning so
 // syncAndResets can order reset-after-pull.
 let pullHook: (() => Promise<void>) | null = null;

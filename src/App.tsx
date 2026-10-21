@@ -8,15 +8,16 @@ import { writeShopJumpParams } from "@/lib/shopJump";
 import { CharacterTabs, SortableCharMenu } from "@/components/CharacterTabs";
 import { TrackerSection } from "@/components/TrackerSection";
 import { HeaderCountdown } from "@/components/HeaderCountdown";
-import { SyncButton, SyncToasts } from "@/sync/SyncButton";
-import { syncAndResets, markActivity } from "@/sync/session";
-import { InstallButton } from "@/components/InstallButton";
+import { SyncToasts } from "@/sync/SyncToasts";
+import { SyncDialog } from "@/sync/SyncDialog";
+import { useSyncEngine } from "@/sync/useSyncEngine";
+import { syncAndResets, markActivity, toast } from "@/sync/session";
 import { ExpSettingsDialog } from "@/components/ExpSettingsDialog";
-import { ConfirmHost, confirmRemoveCharacter } from "@/components/ConfirmDialog";
+import { ConfirmHost, confirmRemoveCharacter, confirmResetAll } from "@/components/ConfirmDialog";
 import { PillProgress } from "@/components/PillProgress";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { SyncImport } from "@/sync/SyncImport";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { AppMenu } from "@/components/AppMenu";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -24,14 +25,16 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useNow } from "@/hooks/useNow";
+import { useTheme } from "@/hooks/useTheme";
 import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyReminders";
 import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
 import { BLACK_HOLE_DAILY_ID, blackHoleProgressTask, blackHoleProgressValue } from "@/lib/blackHole";
 import { healClaimedReminderLanes } from "@/lib/serverPush";
+import { takeUpdateReceipt } from "@/lib/updatePrompt";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task, TaskSection } from "@/lib/types";
-import { Download, Upload, Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
+import { Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
 import { Analytics } from "@vercel/analytics/react";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -98,7 +101,6 @@ export default function App() {
   // buttons; ignored when editing (the task's own saved pair wins). Reset to
   // null when the dialog closes so a later add from elsewhere does not inherit it.
   const [addSection, setAddSection] = useState<TaskSection | null>(null);
-  const [confirmingReset, setConfirmingReset] = useState(false);
   const [compact, setCompact] = useState(false);
   const [pillRenaming, setPillRenaming] = useState(false);
   const [pillDraft, setPillDraft] = useState("");
@@ -106,6 +108,8 @@ export default function App() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const isMobile = useIsMobile();
+  const theme = useTheme();
+  const sync = useSyncEngine(hasHydrated);
 
   // Boot splash (index.html inline): covered the white gap while the JS
   // bundle downloaded/parsed. Fade out on first commit — the fade masks any
@@ -126,18 +130,24 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (!takeUpdateReceipt()) return;
+    toast("已更新到最新版");
+  }, [hasHydrated]);
+
   // Boot + focus entry points — always pull-first (syncAndResets): the reset's
   // tombstone decision needs fresh peer markers, or a late-waking device
   // nukes the peer's same-bucket progress. Boot included (the store no
   // longer self-checks on hydrate, for the same reason).
-  // The periodic cadence lives in SyncButton (single 5min loop, quota §):
+  // The periodic cadence lives in useSyncEngine (single 5min loop, quota §):
   // this effect owns ordering on wake only, never the timer — two timers
   // would double every poll's commands.
   useEffect(() => {
     if (!hasHydrated) return;
     void syncAndResets();
     // also on focus (visible wakes adopt-then-prune; hidden tabs stay quiet —
-    // SyncButton owns the hidden-tab push flush)
+    // useSyncEngine owns the hidden-tab push flush)
     const onFocus = () => {
       markActivity();
       void syncAndResets();
@@ -196,6 +206,11 @@ export default function App() {
       importJson(txt);
     };
     input.click();
+  };
+  const handleResetAll = () => {
+    void confirmResetAll().then((ok) => {
+      if (ok) resetAll();
+    });
   };
 
   // purple-hole row renders on spawn days (off-day parking happens
@@ -275,8 +290,15 @@ export default function App() {
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <HeaderCountdown />
-            <SyncButton />
-            <ThemeToggle />
+            <AppMenu
+              mode={theme.mode}
+              setMode={theme.setMode}
+              onSync={() => sync.setOpen(true)}
+              onExport={handleExport}
+              onImport={handleImport}
+              onReset={handleResetAll}
+              now={nowMs}
+            />
           </div>
         </div>
       </header>
@@ -566,42 +588,9 @@ export default function App() {
           </Suspense>
         </Activity>
 
-        {/* footer actions */}
         <Separator />
         <div className="flex flex-wrap gap-2 items-center justify-between">
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-4 w-4" />
-              匯出 JSON
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleImport}>
-              <Upload className="h-4 w-4" />
-              匯入 JSON
-            </Button>
-            <InstallButton />
-            {confirmingReset ? (
-              <span className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-2.5 py-1.5">
-                <span className="text-xs font-medium text-destructive">確定清除全部資料？無法復原。</span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    resetAll();
-                    setConfirmingReset(false);
-                  }}
-                >
-                  確認清除
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setConfirmingReset(false)}>
-                  取消
-                </Button>
-              </span>
-            ) : (
-              <Button variant="ghost" size="sm" onClick={() => setConfirmingReset(true)} className="text-destructive hover:text-destructive">
-                <Trash2 className="h-4 w-4" />
-                重置所有資料
-              </Button>
-            )}
             <ExpSettingsDialog />
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -652,6 +641,7 @@ export default function App() {
         />
       </Suspense>
       )}
+      <SyncDialog engine={sync} />
       <SyncToasts />
       <SyncImport />
       <ConfirmHost />

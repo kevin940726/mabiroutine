@@ -21,7 +21,7 @@ Data knowledge lives in `docs/` (read it before touching data or sync):
   terminal (the default), or ask before a background one; a silent background
   server is never the choice. Say which you used, and stop the one you started.
 
-## Store Version Bumps (persist schema `useAppStore.ts`, current `v22`)
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v23`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
 User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.
@@ -64,6 +64,19 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   `chore: date the changelog` commit said nothing the heading does not, so it is
   gone. Do not amend a tip the user made: make the label its own small commit and
   say so. Skip the cut when `Unreleased` is empty.
+- A release with player-visible changes also writes its zh section in
+  `CHANGELOG-zh_TW.md` and regenerates `src/data/whatsNew.generated.json`
+  (`node scripts/whats-new.mjs --write`) in the same commit as the English
+  heading; an internal-only release carries `<!-- whats-new: none -->` under
+  that heading instead. `test:whatsnew` enforces it — the runbook is
+  `docs/development.md` § Cutting a release.
+- The zh-TW copy is gated by the committed `tech-doc-zh-tw` skill
+  (`.agents/skills/tech-doc-zh-tw/SKILL.md`): load it before writing or
+  reviewing `CHANGELOG-zh_TW.md`, `README-zh_TW.md`, or any player-facing UI
+  string, and run its 最終檢查 before committing. `test:whatsnew` is the
+  mechanical gate for structure, parity and code-free copy; it cannot judge
+  voice. Game data names in `src/data/*.json` are data, not prose — leave them
+  alone.
 - Language: English always. Traditional Chinese only when quoting UI or copy text,
   or when a term has no English counterpart; `english (中文)` side by side when
   both help. (Older entries predate this — leave them.) No commit hashes in
@@ -112,7 +125,7 @@ Measured on PowerShell 7.6.6, Windows:
 
 ## Pre-push Gate (agents: run it before every push; the hook enforces it)
 
-`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:prepush` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `build`. All sixteen must pass. The runner prints one line per gate and stops at the first failure, so the last lines are the verdict — never truncate to a tail that could hide it (`--verbose` streams a gate's own output; `node scripts/check-all.mjs <gate>…` runs a subset while iterating).
+`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:prepush` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `test:whatsnew` + `build`. All seventeen must pass. The runner prints one line per gate and stops at the first failure, so the last lines are the verdict — never truncate to a tail that could hide it (`--verbose` streams a gate's own output; `node scripts/check-all.mjs <gate>…` runs a subset while iterating).
 
 Run it before you ask to push, and the hook will not have to tell you. The hook calls `scripts/pre-push-gate.mjs`, which adds the two changelog rules above: every pushed commit must touch `CHANGELOG.md`, and a `main` push must leave `## Unreleased` empty. `git push --no-verify` skips it.
 
@@ -132,8 +145,9 @@ Each line below is when the gate fires and what its silence costs. The check lis
 - `test:purple` — after `purpleHole.ts`, the feed/admin doc shape, or a reminder lane. A correction rewrites the recorded past.
 - `test:migrations` — after adding a `migratePersisted` step. A user's save loses progress; add a fixture block (A/B/C/D/E/F) proving it survives.
 - `test:sync` — after any persisted-write path: `src/sync/**`, `api/**`, `src/lib/reset.ts`, a `useAppStore` action that writes values or buckets, `applyResets` / `normalizeTaskBuckets` / `checkResets`, or a reminder lane (`hourlyReminders.ts`, `useHourlyReminders.ts`, `public/sw-push.js`, `workers/`). `node scripts/needs-live-sync.mjs` reads the diff and answers this for you. The live legs must pass for real, not skip (they need `pnpm dev:api` and the Chromium); a suppression or marker bug wipes a device.
+- `test:whatsnew` — after `CHANGELOG.md`, `CHANGELOG-zh_TW.md`, or `src/data/whatsNew.generated.json`. A release with no zh section is copy the player-facing record never wrote, a stale JSON is the drawer rendering the previous cut, and a reworded English heading orphans the marker the seen state keys on. It is the only reader of all three files.
 - Fixture premises (`hunt` removed, `acc-silver` exists) are tied to live data — if a premise line fails, update the fixture, not the data.
-- `suggestions/` is gitignored (review scratch); `src/data/*.json` is hand-edited and needs human review — fetcher scripts stay private-local, never committed.
+- `suggestions/` is gitignored (review scratch); `src/data/*.json` is hand-edited and needs human review — except `whatsNew.generated.json`, which only `scripts/whats-new.mjs --write` produces — fetcher scripts stay private-local, never committed.
 
 ## Purple schedule corrections (agents)
 

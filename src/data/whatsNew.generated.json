@@ -1,0 +1,74 @@
+[
+  {
+    "release": "2026-10-21 — The ☰ menu, the changelog page, and update prompts",
+    "date": "2026-10-21",
+    "kind": "feature",
+    "text": "標頭右側的 ☰ 選單收進更新記錄、同步、外觀、安裝 App、匯出／匯入與重置；同步列會顯示連結狀態與上次同步時間。"
+  },
+  {
+    "release": "2026-10-21 — The ☰ menu, the changelog page, and update prompts",
+    "date": "2026-10-21",
+    "kind": "feature",
+    "text": "更新記錄打開的是一頁完整記錄，列出 2026-10-20 起的變更；有新功能時 ☰ 會亮一個小點，打開選單就會消掉，沒打開的話，發布當天和隔天之後也會自己消失，接上同步的裝置會一起消掉。"
+  },
+  {
+    "release": "2026-10-21 — The ☰ menu, the changelog page, and update prompts",
+    "date": "2026-10-21",
+    "kind": "feature",
+    "text": "分頁開著遇到新版本時會提示重新載入；外觀可選淺色、跟隨系統、深色。"
+  },
+  {
+    "release": "2026-10-21 — 砂紙's cap is account-wide",
+    "date": "2026-10-21",
+    "kind": "fix",
+    "text": "砂紙的每週 30 次上限改為全角色共用（伺服器），不再每個角色各算一次。"
+  },
+  {
+    "release": "2026-10-21 — Three 必換 gold trades, and a count sweep",
+    "date": "2026-10-21",
+    "kind": "feature",
+    "text": "瓦爾特與吉爾摩的蜂蠟、艾爾文的砂紙加入必換，各每週 30 次；商店共 238 筆交易。"
+  },
+  {
+    "release": "2026-10-20 — The default-pin audit",
+    "date": "2026-10-20",
+    "kind": "feature",
+    "text": "預設置頂新增五個必換的以物易物。新存檔一開始就會帶著這些釘選。"
+  },
+  {
+    "release": "2026-10-20 — The default-pin audit",
+    "date": "2026-10-20",
+    "kind": "feature",
+    "text": "麗莎：兩張催化劑，蘋果汁 ×1 或鍊金術碎屑 ×3，各每日 1 次（伺服器）。"
+  },
+  {
+    "release": "2026-10-20 — The default-pin audit",
+    "date": "2026-10-20",
+    "kind": "feature",
+    "text": "伊文：遙遠的星辰印章，魔物討伐證明 ×200，每週 1 次。"
+  },
+  {
+    "release": "2026-10-20 — The default-pin audit",
+    "date": "2026-10-20",
+    "kind": "feature",
+    "text": "茉莉：赤紅深淵的化石 ×60，深淵的化石 ×100，每週 2 次。"
+  },
+  {
+    "release": "2026-10-20 — The default-pin audit",
+    "date": "2026-10-20",
+    "kind": "feature",
+    "text": "阿爾米斯：銀合金錠，特殊鋼錠 ×2，每日 1 次（伺服器）；同時從推薦改列必換。"
+  },
+  {
+    "release": "2026-10-20 — The default-pin audit",
+    "date": "2026-10-20",
+    "kind": "feature",
+    "text": "已接上同步的存檔，下次同步會補上這五筆；未接同步的存檔不會被改動，可在「以物易物」的必換篩選自行釘選。"
+  },
+  {
+    "release": "2026-10-20 — The default-pin audit",
+    "date": "2026-10-20",
+    "kind": "fix",
+    "text": "每日任務的順序調整：每日黑色坑洞移到兼職前面，現在緊接在深層地下城之後。"
+  }
+]

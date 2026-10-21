@@ -66,6 +66,10 @@ meta:taskorder   tracker row order, id -> number (object, 8KB cap). Authored
                  custom band is never volunteered (decision 4c)
 meta:pinorder    pinned band order, pin id -> rank (object). Absent = the
                  canonical curated/shops order (decision 4d)
+meta:whatsnew    the newest feature release whose ☰ nudge was acknowledged
+                 (release id string). Emitted only when set; a reset never
+                 tombstones it, and the merge keeps the later id, so an offline
+                 device cannot resurrect an old dot.
 pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 ```
 
@@ -95,7 +99,12 @@ E15, which also fails on any new `AppState` field left unclassified).
 `prefs.pinnedCollapsed` (the 已釘選 fold) and the never-persisted group
 expansion stay local the same way: they are view state, not order.
 
-## Client engine (`src/sync/SyncButton.tsx`, `src/sync/session.ts`, `src/sync/round.ts`)
+## Client engine (`src/sync/useSyncEngine.ts`, `src/sync/session.ts`, `src/sync/round.ts`)
+
+`useSyncEngine` mounts once in `App`: the loop, the visibility/reconnect
+handlers, the debounced push and the dialog state all outlive any one control.
+`SyncDialog` and the ☰ row read the same status store (`src/sync/status.ts`),
+so closing the menu never stops syncing.
 
 - **Auto-push** (debounced 3s, flushed on tab-hide): diff current flat vs
   retained **per-tab** base (sessionStorage `flattab`, seeded once from the

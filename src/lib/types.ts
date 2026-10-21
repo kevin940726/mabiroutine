@@ -121,6 +121,10 @@ export type AppState = {
   // Separate lane from hourlyReminders: different cadence, different card tag.
   // Same local-only rule — absent from the sync key space.
   purpleHoleReminders: string[];
+  // The newest feature release whose changelog dot this account has
+  // acknowledged. Synced as meta:whatsnew, so opening the menu on one device
+  // quiets the nudge on another; an empty string means nothing acknowledged.
+  whatsNewNudged: string;
 };
 
 export const TAIPEI_TZ = "Asia/Taipei";

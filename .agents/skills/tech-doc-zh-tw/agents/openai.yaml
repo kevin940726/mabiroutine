@@ -1,0 +1,4 @@
+interface:
+  display_name: "Traditional Chinese Technical Writing"
+  short_description: "Taiwan Traditional Chinese technical writing rules"
+  default_prompt: "Use $tech-doc-zh-tw to rewrite this Traditional Chinese technical content clearly while preserving facts and machine-readable text."

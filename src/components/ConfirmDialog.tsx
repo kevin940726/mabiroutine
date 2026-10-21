@@ -82,6 +82,14 @@ export function confirmRemoveTask(name: string): Promise<boolean> {
   });
 }
 
+export function confirmResetAll(): Promise<boolean> {
+  return confirmAction({
+    title: "重置所有資料",
+    body: "所有角色的進度、自訂任務與釘選都會清除，回到預設狀態，且無法復原。想保留的話先匯出 JSON。",
+    confirmText: "清除全部",
+  });
+}
+
 // Soft-ask before the browser notification permission prompt: cold prompts
 // get reflex-denied, and a denial can only be undone in browser settings.
 // Non-destructive styling (danger: false) — subscribing takes nothing away.

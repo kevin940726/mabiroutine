@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "tech-doc-zh-tw": {
+      "source": "kevin940726/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/tech-doc-zh-tw/SKILL.md",
+      "computedHash": "2fa0a2b1cd7ed8906a6fb31bacedec8777353088fc730c3790961aa409780d10"
+    }
+  }
+}

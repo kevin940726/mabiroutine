@@ -42,6 +42,24 @@ Vite takes the next free port (`:5174`), so check which checkout a port serves
 before trusting a measurement (AGENTS.md § The dev loop: never start a dev server
 unasked).
 
+## Agent skills
+
+The zh-TW writing skill is committed canonically at
+`.agents/skills/tech-doc-zh-tw`; `skills-lock.json` pins its source and hash.
+Claude Code does not scan `.agents`, so materialize its link once per clone:
+
+```bash
+npx skills add kevin940726/agent-skills -s tech-doc-zh-tw -a claude-code
+```
+
+`.claude/skills/` is generated and ignored; `.agents/skills/` is the copy to
+commit. OpenCode reads it directly.
+
+It is the style gate for every player-facing zh-TW change — `CHANGELOG-zh_TW.md`,
+`README-zh_TW.md`, and UI copy. Load it and run its 最終檢查 before committing.
+The build gates cannot judge voice, so this is a review step; `test:whatsnew`
+only checks the changelog's structure, parity and code-free copy.
+
 ## Five-minute tour
 
 - **Game data is hand-owned JSON** — `src/data/tracker.json` (26 rows) +
@@ -56,7 +74,7 @@ unasked).
   (town-grouped for in-game checking); a leg's carried display limit must match
   its structured cap (`test:shops` twin parity enforces it).
 - **State is one Zustand store** — `src/store/useAppStore.ts`, persisted to
-  `localStorage` key `mabiroutine:v2` (schema `v22`, migrated on load — see the
+  `localStorage` key `mabiroutine:v2` (schema `v23`, migrated on load — see the
   store checklist in `AGENTS.md` before changing persisted shape).
 - **Resets are Taipei wall-clock** — `src/lib/reset.ts`: daily 06:00 /
   Monday 06:00 `Asia/Taipei`, evaluated lazily + on focus/visibility + 60s tick.
@@ -66,12 +84,16 @@ unasked).
   drivers). Read `docs/sync.md` before touching any of it; the short version:
   every mutation is an absolute set of flat keys, server stamps arrival order,
   no conflict UI exists by design.
-- **PWA via `vite-plugin-pwa` `generateSW`** — silent-fresh: navigations are
-  NetworkFirst (every online load renders the current build), SW updates only
-  refresh caches (prompt mode acked silently, client reload suppressed), and a
-  return after 6h+ away reloads once iff online, no dialog open, and an update
-  is pending. No update toast exists. Offline revisits fall back to the runtime
-  `pages` cache (index.html is out of the precache by design — a precached
+- **PWA via `vite-plugin-pwa` `generateSW`** — navigations are NetworkFirst
+  (every online load renders the current build), and SW updates only refresh
+  caches. A waiting worker is surfaced, not taken over silently: a deploy that
+  lands mid-session raises one 8s toast (有新版本可用 + 重新載入) and the ☰ row
+  有新版本 · 重新載入; accepting either reloads into the new bundle and says
+  已更新到最新版 once. A return after 6h+ away reloads once iff online, no
+  dialog open, and an update is pending. A worker already waiting at boot is
+  not announced — that page just rendered fresh HTML — and the 6h path reloads
+  with no receipt. Offline revisits fall back to the runtime `pages` cache
+  (index.html is out of the precache by design — a precached
   NavigationRoute/directoryIndex would shadow NetworkFirst). Service worker is
   disabled in dev; test install / offline against `pnpm build && pnpm preview`.
 - **UI** — React 19 + Tailwind v4 + shadcn/ui (Radix pattern) + `@dnd-kit` for
@@ -97,7 +119,7 @@ unasked).
 
 ## Gates (run before every push)
 
-`pnpm check` runs all sixteen gates; `AGENTS.md` § Pre-push Gate is the
+`pnpm check` runs all seventeen gates; `AGENTS.md` § Pre-push Gate is the
 always-loaded copy of which gate fires on what. `scripts/check-all.mjs` is the
 runner: one line per gate (`ok <gate> 1.2s` / `FAIL <gate> <ms>`), stopping at the
 first failure, so the last lines of a run are the verdict — the old `&&` chain
@@ -147,6 +169,26 @@ commit, an unlabelled `## Unreleased` on `main` fails before the suite runs, a
 tree, and a bad revision range reports git's message rather than a stack trace. The
 stub `package.json` makes its `pnpm check` a no-op, so this never re-enters the
 suite.
+What's-new rule: `pnpm test:whatsnew` after touching `CHANGELOG.md`,
+`CHANGELOG-zh_TW.md`, or `src/data/whatsNew.generated.json`. `CHANGELOG-zh_TW.md`
+is the player-facing record and the app's source; the JSON is its committed
+derivative, written by `node scripts/whats-new.mjs --write` at cut time. The
+gate imports the parser and the `--check` comparison from that script, so it is
+read-only and never writes, and adds the parity the parser cannot see: every
+dated English release from the zh file's oldest section forward has a zh section
+whose `<!-- release: … -->` marker matches the heading verbatim, or carries
+`<!-- whats-new: none -->` directly under it; every marker resolves to a
+heading; nothing is duplicated, reordered or written twice (a section plus a
+`none` marker is a contradiction); a marker's date equals its zh heading's; and
+no bullet carries a backtick, file name, path or commit hash. It also pins the
+parser itself against fixtures — the accepted section shape and twelve
+constructs it must reject with their line — because a parser that starts
+ignoring what it does not understand deletes copy quietly. The failure mode is
+silent: a skipped release ships with a drawer that omits it, a stale JSON shows
+the previous cut, and a reworded heading quietly re-keys nothing, so the seen
+state never advances. `## Unreleased` is exempt — its zh copy is written in the
+same cut that labels it, and the pre-push hook already requires it empty on
+`main`.
 Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so
@@ -243,6 +285,40 @@ and the click still reached the row below), so the fix is the gate plus the tap
 write moving onto the `click`. The reported symptom also has a browser-level
 regression: `test:shop-e2e` S5 (phone viewport, real touch) completes that same
 counter with four taps and asserts the row below stays unchecked and on screen.
+
+## Cutting a release
+
+The cut has no commit of its own: the release label rides in the tip commit you
+push, because only `main` deploys (`AGENTS.md` § Changelog). Three files record
+one release, and they move in that same commit.
+
+1. Label the English section: `## Unreleased` → `## <YYYY-MM-DD> — <label>`,
+   with a fresh empty `## Unreleased` above it. The label comes from the range's
+   content.
+2. With the `tech-doc-zh-tw` skill loaded (`.agents/skills/tech-doc-zh-tw/SKILL.md`),
+   add the zh section to `CHANGELOG-zh_TW.md`: same date, 1–3 bullets in player
+   voice, and a `<!-- release: … -->` marker naming the English heading
+   **verbatim**. When nothing in the release is player-visible, write
+   `<!-- whats-new: none -->` directly under the English heading instead —
+   that is the only way to say "intentional" rather than "forgotten".
+3. `node scripts/whats-new.mjs --write` — the only writer of
+   `src/data/whatsNew.generated.json`.
+4. Commit `CHANGELOG.md`, `CHANGELOG-zh_TW.md` and
+   `src/data/whatsNew.generated.json` together.
+5. Fold the label into the tip commit as usual (`git commit --amend --no-edit`
+   once staged).
+
+The three files are one record seen three ways, which is why they cannot land
+apart: the zh file is the player-facing copy, and the JSON is the drawer's copy
+of it. Regenerate the JSON before the zh section exists and the app renders the
+*previous* cut; write the section and skip the regeneration and this cut is
+missing from the drawer. Neither a build nor a type check notices, so
+`test:whatsnew` is the only reader that sees it — it fails on a skipped step 2
+or 3, and the pre-push hook turns that into a blocked push rather than a wrong
+deploy. The same gate pins the marker to the English heading, so a reworded
+heading fails instead of silently re-keying the release the seen state stores.
+The skill is the voice/style gate; `test:whatsnew` only sees structure, parity
+and the code-free rule.
 
 ## Gotchas
 

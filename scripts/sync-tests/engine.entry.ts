@@ -131,17 +131,14 @@ function nullsOf(pushes: FlatMap[]): string[] {
   return pushes.flatMap((p) => Object.entries(p).filter(([, v]) => v === null).map(([k]) => k));
 }
 
-// Faithful round port of SyncButton runPull (incl. planRound + GC), minus UI
-// refs. The decision core (planRound) is the real module; this port only wires
-// the stubbed I/O. NOTE: keep in sync with runPull by inspection — divergence
-// risk documented. The async interleavings runPull guards against (mid-flight
-// edits, the freshness probe, push/round serialization) cannot occur
-// synchronously here, so the port runs the guard, plan, and push in one pass.
+// Round port of useSyncEngine runPull (incl. planRound + GC), minus UI refs. The
+// decision core (planRound) is the real module; this port only wires the
+// stubbed I/O.
 function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
-  // Order-withhold mirror (SyncButton pulledSessionRef + omit-strip): order
+  // Order-withhold mirror (useSyncEngine pulledSessionRef + omit-strip): order
   // keys are stripped from pushes until this engine's first pull completes,
   // and whenever flatten omits one, so no device volunteers canon blind or
-  // tombstones it via the null path. The real helper is shared, not copied.
+  // tombstones it via the null path.
   let pulled = false;
   return async function fakePull(): Promise<void> {
     const session = loadSession();
@@ -180,8 +177,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
       for (const k of expired) delete serverView[k];
     }
     saveBase(session.id, serverView);
-    // runPull mirror: pull-aware default seeding runs after a successful
-    // merge (keep in sync with SyncButton by inspection).
+    // runPull mirror: pull-aware default seeding runs after a successful merge.
     seedMissingDefaultPins(serverView);
     pulled = true;
     if (process.env.DBG) console.log("DBG-SAVED", JSON.stringify(Object.keys(serverView)));
@@ -1020,7 +1016,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
 {
   const SID = "e21-roworder";
   const server = { flat: {} as FlatMap };
-  const STORE_VERSION = 22;
+  const STORE_VERSION = 23;
   const pack = (z9: number, a2: number, m5: number) => [
     { id: "cu-z9", name: "C-z9", kind: "daily", section: "custom", type: "check", order: z9 },
     { id: "cu-a2", name: "C-a2", kind: "daily", section: "custom", type: "check", order: a2 },
@@ -1185,7 +1181,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
 {
   const SID = "e22-pinorder";
   const server = { flat: {} as FlatMap };
-  const STORE_VERSION = 22;
+  const STORE_VERSION = 23;
   const P1 = DEFAULT_MUST_PINS[0] ?? "";
   const P2 = DEFAULT_MUST_PINS[1] ?? "";
   const P3 = SHOP_PIN;
@@ -1305,7 +1301,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   // Seeded at the CURRENT version, not the harness's default v15: the sub-counters
   // themselves arrived at v22 (weekly-goals' check → counter rework), so a v15 save
   // cannot hold leg values. No version steps run here — normalize is what is tested.
-  seedStore(migratePersisted({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 22 }, 22) as Snap);
+  seedStore(migratePersisted({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 23 }, 23) as Snap);
   const loaded = useAppStore.getState();
   const loadedTv = loaded.characters[0]?.taskValues as Record<string, unknown>;
   ok("E23 legs survive the load", loadedTv[LEGS[0]] === 2 && loadedTv[LEGS[1]] === 5 && loadedTv[LEGS[2]] === 1, loadedTv);
@@ -1344,7 +1340,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   const buckets = Object.fromEntries([GOAL, ...LEGS].map((id) => [id, LAST_WEEK]));
   // A save written last week at the current version (the sub-counters arrived at
   // v22, so the harness's v15 default would be an impossible premise here).
-  seedStore({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 22 });
+  seedStore({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 23 });
   saveSession({ id: SID, updatedAt: 1 });
   // Last week's push, still server-side under last week's tags.
   server.flat = flattenSnapshot(buildSnapshot());
@@ -1361,6 +1357,19 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   // the app still treats as LIVE (the current cycle) is never tombstoned.
   const nulls = nullsOf(pushes);
   ok("E24 only stale buckets are tombstoned", nulls.every((k) => !k.includes(`@${THIS_WEEK}`)), nulls);
+}
+
+// E25: the changelog nudge is a one-way cap, not an ordinary last-writer key.
+{
+  const local = { ...snap({}, {}, TODAY, THIS_WEEK), whatsNewNudged: "2026-10-18 — Older" };
+  const newer = { ...local, whatsNewNudged: "2026-10-20 — Newer" };
+  const merged = unflattenMerge(flattenSnapshot(newer), local, 23);
+  ok("E25 later nudge id wins", merged.whatsNewNudged === "2026-10-20 — Newer", merged.whatsNewNudged);
+  const kept = unflattenMerge(flattenSnapshot(local), newer, 23);
+  ok("E25 older remote never regresses the ack", kept.whatsNewNudged === "2026-10-20 — Newer", kept.whatsNewNudged);
+  ok("E25 empty ack is not emitted", !("meta:whatsnew" in flattenSnapshot({ ...local, whatsNewNudged: "" })));
+  const tombstone = diffFlat({ "meta:whatsnew": "2026-10-20 — Newer" }, {});
+  ok("E25 reset never tombstones the ack", !("meta:whatsnew" in tombstone), tombstone);
 }
 
 setPullHook(null);
