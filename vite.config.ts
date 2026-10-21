@@ -26,8 +26,6 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // Silent-fresh: navigations are NetworkFirst, so an online load is the
-      // latest build; offline loads fall back to cache via navigateFallback.
       registerType: 'prompt',
       injectRegister: 'auto',
       manifest: false, // hand-owned public/manifest.webmanifest

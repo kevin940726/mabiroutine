@@ -113,11 +113,9 @@ export function useWhatsNew() {
   /** Opening the menu is enough to say "I saw the nudge"; the page itself
    *  stays available. The marker is synced, so the other device goes quiet. */
   const acknowledgeDot = useCallback(() => {
-    // A fresh save has no marker: the first menu open seeds it with the current
-    // release (feature when there is one), so later feature releases can dot.
-    const newest = newestFeatureRelease(releases) ?? latest;
-    if (!newest || newest.id === nudged) return;
-    setNudged(newest.id);
+    const baseline = newestFeatureRelease(releases) ?? latest;
+    if (!baseline || baseline.id === nudged) return;
+    setNudged(baseline.id);
   }, [latest, nudged, releases, setNudged]);
 
   return {

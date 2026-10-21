@@ -24,7 +24,6 @@ const fail = (msg) => {
 };
 const quote = (s) => `"${s.replace(/\s+$/, "").slice(0, 100)}"`;
 
-// --- Parser fixtures ---------------------------------------------------------
 const PAST = "2026-10-18 — An older release";
 const NOW = "2026-10-20 — The default-pin audit";
 const PREAMBLE = "# 更新記錄\n\n這一頁是給玩家看的更新記錄。\n\n";
@@ -110,7 +109,6 @@ expectReject("an h4 in a section body", H4, /is not part of a release section/);
 
 ok(`parser fixtures: ${accepted} accepted shape(s), ${rejected} rejected shape(s) with their line`);
 
-// --- The zh file parses, and the JSON is a fresh parse -----------------------
 let entries;
 try {
   entries = parseZh(read(ZH));
@@ -143,7 +141,6 @@ if (entries && committed) {
   }
 }
 
-// --- Parity with CHANGELOG.md, from the baseline forward --------------------
 const DATED = /^(\d{4}-\d{2}-\d{2}) — (.+)$/;
 const NONE = /^<!-- whats-new: none -->$/;
 const english = [];
@@ -258,7 +255,6 @@ if (entries) {
   if (!dated.length) ok(`every marker's date equals its zh heading date (${zhIds.length} section(s))`);
 }
 
-// --- Copy rules -------------------------------------------------------------
 const FILE_NAME = /\b[\w-]+\.(?:md|mdx|mjs|cjs|js|ts|tsx|jsx|json|css|html|png|webp|svg|py|sh|ya?ml)\b/;
 const HASH = /\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b/i;
 const copyProblems = (text) => {

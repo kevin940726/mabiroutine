@@ -58,8 +58,6 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
   const [ensureError, setEnsureError] = useState(false);
   const [copiedTick, setCopiedTick] = useState(0);
 
-  // Copy-confirmation bubble lives inside the dialog — the global toast would
-  // render underneath the dialog overlay.
   useEffect(() => {
     if (!copiedTick) return;
     const id = setTimeout(() => setCopiedTick(0), 1500);

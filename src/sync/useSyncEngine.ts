@@ -204,7 +204,7 @@ export function useSyncEngine(enabled: boolean): SyncEngine {
             dropDeadLink();
             return;
           }
-          return; // network/rate-limit noise — the next tick retries
+          return;
         }
       }
       const before = JSON.stringify(flattenSnapshot(buildSnapshot()));
@@ -263,7 +263,6 @@ export function useSyncEngine(enabled: boolean): SyncEngine {
             Object.fromEntries(expired.map((k) => [k, null])) as FlatMap
           );
         } catch {
-          // best-effort — the next pull retries
         }
         for (const k of expired) delete serverView[k];
       }
