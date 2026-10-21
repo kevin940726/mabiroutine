@@ -29,7 +29,7 @@ export function WhatsNewDrawer({
         <DrawerHeader>
           <DrawerTitle>更新記錄</DrawerTitle>
         </DrawerHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-2">
           {view.groups.map((group) => (
             <section key={group.date} className="mb-4 last:mb-0">
               <h3 className="mb-1.5 text-xs font-medium tabular-nums text-muted-foreground">

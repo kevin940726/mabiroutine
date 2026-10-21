@@ -18,6 +18,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - The theme toggle left the header for a new ☰ menu at its right edge: 外觀 now lives there. Every other header control is unchanged.
 
 ### Fixes
+- The changelog and shop-filter drawers get roomier mobile padding (20px, 24px from `sm`), a close button aligned to that edge, and a scrollbar gutter so the last characters never sit under the scrollbar.
 - The changelog drawer no longer explains the format above the entries, and the zh archive opens straight to its first release; the row now shows `最新 · MM/DD` instead of an unread count, and the 新功能 / 修正 badges share one width so every entry starts on the same line.
 - 上次同步 now reports when this device last reached the link (a pull counts), not the link's server-side last write. A device that only pulls no longer shows a stale time because nothing was pushed; the stamp persists across reloads.
 - Every ☰ row gives its icon a 1.25rem box equal to the text's line box, and both the icon and the 外觀 control take a 0.06em optical nudge so they meet the CJK glyphs where they actually sit; the right-hand values share the line box.

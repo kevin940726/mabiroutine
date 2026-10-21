@@ -985,7 +985,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
                     {/* Each group keeps the SAME control the header grid uses, so
                         one surface cannot drift from the other; the drawer only
                         gives them a full-width row and a label of their own. */}
-                    <div className="flex flex-col gap-3 overflow-y-auto">
+                    <div className="flex flex-col gap-3 overflow-y-auto pr-2">
                       <label className="flex flex-col gap-1.5">
                         <span className="text-xs font-medium text-muted-foreground">城鎮</span>
                         <MenuSelect
