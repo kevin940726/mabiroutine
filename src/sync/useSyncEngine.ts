@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppStore, seedMissingDefaultPins } from "@/store/useAppStore";
 import { getSession, getSessionMeta, patchSession, SyncNotFound } from "@/sync/api";
 import {
@@ -55,25 +55,29 @@ export type SyncEngine = {
   withBusy: <T>(fn: () => Promise<T>) => Promise<T | undefined>;
 };
 
+function useBusy() {
+  const [busy, setBusyState] = useState(false);
+  const ref = useRef(false);
+  const set = useCallback((v: boolean) => {
+    ref.current = v;
+    setBusyState(v);
+  }, []);
+  return [busy, set, ref] as const;
+}
+
 export function useSyncEngine(enabled: boolean): SyncEngine {
   const [open, setOpen] = useState(false);
-  const [busy, setBusyState] = useState(false);
+  const [busy, setBusy, busyRef] = useBusy();
   const [syncing, setSyncingState] = useState(false);
 
   // Mirrors for the background sync loop (runs outside React state updates).
   const linkedRef = useRef<LocalSession | null>(getSyncStatus().linked);
-  const busyRef = useRef(false);
   const lastPullAt = useRef(0);
   const inflightRef = useRef<Promise<void> | null>(null);
   const pushInflight = useRef<Promise<FlatMap | null> | null>(null);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pushFails = useRef(0);
   const pulledSessionRef = useRef<string | null>(null);
-
-  function setBusy(v: boolean): void {
-    busyRef.current = v;
-    setBusyState(v);
-  }
 
   function reachable(): void {
     markSynced();

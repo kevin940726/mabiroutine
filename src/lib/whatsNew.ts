@@ -84,6 +84,10 @@ export function newestFeatureRelease(releases: readonly Release[]): Release | nu
   return releases.find((r) => r.entries.some((e) => e.kind === "feature")) ?? null;
 }
 
+function nudgeBaseline(releases: readonly Release[], latest: Release | null): Release | null {
+  return newestFeatureRelease(releases) ?? latest;
+}
+
 export function dotFor(releases: readonly Release[], today: string, nudged = ""): boolean {
   // No marker yet (a fresh save): no dot, because nothing has been missed. The
   // first menu open seeds the baseline.
@@ -113,7 +117,7 @@ export function useWhatsNew() {
   /** Opening the menu is enough to say "I saw the nudge"; the page itself
    *  stays available. The marker is synced, so the other device goes quiet. */
   const acknowledgeDot = useCallback(() => {
-    const baseline = newestFeatureRelease(releases) ?? latest;
+    const baseline = nudgeBaseline(releases, latest);
     if (!baseline || baseline.id === nudged) return;
     setNudged(baseline.id);
   }, [latest, nudged, releases, setNudged]);

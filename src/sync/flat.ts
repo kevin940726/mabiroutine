@@ -620,6 +620,11 @@ function pickTrue(flat: FlatMap, prefix: string): string[] {
     .map(([k]) => k.slice(prefix.length));
 }
 
+// Release ids start with an ISO date, so string order is chronological.
+function laterReleaseId(a: string, b: string): string {
+  return a > b ? a : b;
+}
+
 // Merge pull: remote values wholesale (caller guarantees local already
 // pushed, so every local key exists remotely), remote tab order authoritative
 // when present (last-writer-wins — see parseCharOrder), local ordering only
@@ -716,13 +721,11 @@ export function unflattenMerge(
   const taskBuckets: Record<string, string> = {};
   for (const b of buckets.values()) Object.assign(taskBuckets, b.buckets);
   Object.assign(taskBuckets, accBuckets);
-  // Changelog nudge: keep the later release id. Ids start with an ISO date, so
-  // a string comparison is chronological; this stops an offline device that
-  // acknowledges an older release from resurrecting a dot the account already
-  // cleared. Both empty stays empty.
+  // Changelog nudge: keep the later release id, so an offline device that
+  // acknowledges an older release cannot resurrect a cleared dot.
   const localNudged = local.whatsNewNudged ?? "";
   const remoteNudged = typeof flat["meta:whatsnew"] === "string" ? (flat["meta:whatsnew"] as string) : "";
-  const whatsNewNudged = remoteNudged > localNudged ? remoteNudged : localNudged;
+  const whatsNewNudged = laterReleaseId(localNudged, remoteNudged);
   return {
     version,
     characters,

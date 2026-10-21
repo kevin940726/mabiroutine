@@ -18,6 +18,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - The theme toggle left the header for a new ☰ menu at its right edge: 外觀 now lives there. Every other header control is unchanged.
 
 ### Fixes
+- Regenerating a sync link now says so when the old link could not be revoked, instead of leaving it silently live; the confirm copy no longer promises it is already dead.
 - The changelog footer now links the same record on GitHub instead of promising earlier history the linked file does not hold; the unreleased export bullet no longer counts 安裝 App as a footer item.
 - The changelog and shop-filter drawers get roomier mobile padding (20px, 24px from `sm`), a close button aligned to that edge, and a scrollbar gutter so the last characters never sit under the scrollbar.
 - The changelog drawer no longer explains the format above the entries, and the zh archive opens straight to its first release; the row now shows `最新 · MM/DD` instead of an unread count, and the 新功能 / 修正 badges share one width so every entry starts on the same line.
@@ -28,6 +29,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - 同步 no longer reports 同步失敗 after the device is unlinked; the row falls back to 未連結.
 
 ### Chores
+- The review cleanup extracted `laterReleaseId`, a busy ref-state pair and a named nudge baseline, and corrected the PWA paragraph that still claimed prompt mode acked silently.
 - The review pass pinned `meta:whatsnew` in `test:sync` (emit-only-when-set, later-id merge, no reset tombstone), added a v22→v23 migration fixture, and aligned the plan's gate/seed wording.
 - The comment pass dropped twelve stale or false lines across the sync engine, changelog gate, drawer and service-worker config; the only code change is naming the nudge baseline in `acknowledgeDot`.
 - The zh-TW authoring rule now names the committed `tech-doc-zh-tw` skill as the review gate for `CHANGELOG-zh_TW.md`, `README-zh_TW.md` and player-facing UI copy; `test:whatsnew` stays the mechanical structure/parity check.

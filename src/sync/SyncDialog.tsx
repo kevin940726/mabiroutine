@@ -128,16 +128,18 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
         const oldId = linked.id;
         const flat = flattenSnapshot(buildSnapshot());
         const { id, updatedAt } = await createSession(creationState(flat, oldId));
+        let revoked = true;
         try {
           await deleteSession(oldId);
         } catch {
-          // The old link may linger; the new one is already live.
+          revoked = false;
         }
         saveSession({ id, updatedAt });
         stripSessionParam();
         setConfirming(null);
         if (await copyText(syncUrl(id))) setCopiedTick((t) => t + 1);
         else toast("請手動複製下方連結");
+        if (!revoked) toast("舊連結可能仍有效，請稍後再試");
       } catch (e) {
         toast(errorMessage(e));
       }
@@ -261,7 +263,7 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
           {confirming === "regen" ? (
             <div className="space-y-3 rounded-lg border border-input p-3">
               <p className="text-sm text-muted-foreground">
-                舊連結立即失效，其他裝置需用新連結重新連結；本機保持連結並複製新連結。
+                舊連結會停用，其他裝置需用新連結重新連結；本機保持連結並複製新連結。
               </p>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" size="sm" onClick={() => setConfirming(null)}>
