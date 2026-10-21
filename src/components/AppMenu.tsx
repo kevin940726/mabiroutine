@@ -91,32 +91,35 @@ export function AppMenu({
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           {updateReady && (
-            <DropdownMenuItem onSelect={acceptUpdate} className="items-baseline gap-2.5 px-2.5 py-2">
-              <ArrowUpCircle className="h-4 w-4 self-center text-muted-foreground" />
-              <span>有新版本</span>
-              <span className="ml-auto text-xs text-muted-foreground">重新載入</span>
+            <DropdownMenuItem onSelect={acceptUpdate} className="gap-2.5 px-2.5 py-2">
+              <ArrowUpCircle className="text-muted-foreground" />
+              <span className="flex flex-1 items-baseline gap-2">
+                <span>有新版本</span>
+                <span className="ml-auto text-xs text-muted-foreground">重新載入</span>
+              </span>
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem
-            onSelect={whatsNew.openDrawer}
-            className="items-baseline gap-2.5 px-2.5 py-2"
-          >
-            <History className="h-4 w-4 self-center text-muted-foreground" />
-            <span>更新記錄</span>
-            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-              {whatsNew.summary.label}
+          <DropdownMenuItem onSelect={whatsNew.openDrawer} className="gap-2.5 px-2.5 py-2">
+            <History className="text-muted-foreground" />
+            <span className="flex flex-1 items-baseline gap-2">
+              <span>更新記錄</span>
+              <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                {whatsNew.summary.label}
+              </span>
             </span>
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onSync} className="items-baseline gap-2.5 px-2.5 py-2">
-            <RefreshCw className="h-4 w-4 self-center text-muted-foreground" />
-            <span>同步</span>
-            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-              {syncLabel(status, now)}
+          <DropdownMenuItem onSelect={onSync} className="gap-2.5 px-2.5 py-2">
+            <RefreshCw className="text-muted-foreground" />
+            <span className="flex flex-1 items-baseline gap-2">
+              <span>同步</span>
+              <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                {syncLabel(status, now)}
+              </span>
             </span>
           </DropdownMenuItem>
-          <div className="flex items-center justify-between gap-2.5 px-2.5 py-2">
+          <div className="flex items-center justify-between gap-2.5 px-2.5 py-2 text-sm">
             <span className="flex items-center gap-2.5">
-              <SunMoon className="h-4 w-4 text-muted-foreground" />
+              <SunMoon className="size-[1.15em] text-muted-foreground" />
               <span className="text-sm leading-none">外觀</span>
             </span>
             {/* Radio items, not buttons: the menu swallows Tab. Segments stay
@@ -152,24 +155,24 @@ export function AppMenu({
               }}
               className="gap-2.5 px-2.5 py-2"
             >
-              <Download className="h-4 w-4 text-muted-foreground" />
+              <Download className="text-muted-foreground" />
               安裝 App
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator className="my-1.5" />
           <DropdownMenuItem onSelect={onExport} className="gap-2.5 px-2.5 py-2">
-            <FileDown className="h-4 w-4 text-muted-foreground" />
+            <FileDown className="text-muted-foreground" />
             匯出 JSON
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onImport} className="gap-2.5 px-2.5 py-2">
-            <FileUp className="h-4 w-4 text-muted-foreground" />
+            <FileUp className="text-muted-foreground" />
             匯入 JSON
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={onReset}
             className="gap-2.5 px-2.5 py-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 />
             重置所有資料
           </DropdownMenuItem>
         </DropdownMenuContent>
