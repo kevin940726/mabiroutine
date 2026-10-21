@@ -26,7 +26,10 @@ const THEME_CHOICES: { value: ThemeMode; label: string; Icon: typeof Sun }[] = [
 
 function RowIcon({ Icon, className }: { Icon: LucideIcon; className?: string }) {
   return (
-    <span aria-hidden className="flex size-5 shrink-0 items-center justify-center">
+    <span
+      aria-hidden
+      className="flex size-5 shrink-0 translate-y-[0.06em] items-center justify-center"
+    >
       <Icon className={className} />
     </span>
   );
@@ -132,7 +135,7 @@ export function AppMenu({
                 if (v === "system" || v === "light" || v === "dark") setMode(v);
               }}
               aria-label="外觀"
-              className="flex items-center gap-0.5 rounded-md bg-muted p-0.5"
+              className="flex translate-y-[0.06em] items-center gap-0.5 rounded-md bg-muted p-0.5"
             >
               {THEME_CHOICES.map(({ value, label, Icon }) => (
                 <DropdownMenuRadioItem
