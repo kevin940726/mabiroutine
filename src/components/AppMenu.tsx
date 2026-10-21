@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, Menu, Monitor, Moon, Sun } from "lucide-react";
+import { ArrowUpCircle, Download, FileDown, FileUp, History, Menu, Monitor, Moon, RefreshCw, Sun, SunMoon, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,8 +19,8 @@ import { useSyncStatus, type SyncStatus } from "@/sync/status";
 import type { ThemeMode } from "@/hooks/useTheme";
 
 const THEME_CHOICES: { value: ThemeMode; label: string; Icon: typeof Sun }[] = [
-  { value: "system", label: "跟隨系統", Icon: Monitor },
   { value: "light", label: "淺色", Icon: Sun },
+  { value: "system", label: "跟隨系統", Icon: Monitor },
   { value: "dark", label: "深色", Icon: Moon },
 ];
 
@@ -83,7 +83,7 @@ export function AppMenu({
         <DropdownMenuContent
           align="end"
           aria-label="選單"
-          className="min-w-[12rem]"
+          className="min-w-[13rem] p-1.5"
           // The changelog drawer, the sync row and the reset confirm all open a
           // dialog, and Radix returns focus to the trigger as the menu closes —
           // which lands after the dialog mounted and yanks focus back out of it.
@@ -91,25 +91,34 @@ export function AppMenu({
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           {updateReady && (
-            <DropdownMenuItem onSelect={acceptUpdate} className="items-baseline gap-2">
+            <DropdownMenuItem onSelect={acceptUpdate} className="items-baseline gap-2.5 px-2.5 py-2">
+              <ArrowUpCircle className="h-4 w-4 self-center text-muted-foreground" />
               <span>有新版本</span>
               <span className="ml-auto text-xs text-muted-foreground">重新載入</span>
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onSelect={whatsNew.openDrawer} className="items-baseline gap-2">
+          <DropdownMenuItem
+            onSelect={whatsNew.openDrawer}
+            className="items-baseline gap-2.5 px-2.5 py-2"
+          >
+            <History className="h-4 w-4 self-center text-muted-foreground" />
             <span>更新記錄</span>
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {whatsNew.summary.label}
             </span>
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onSync} className="items-baseline gap-2">
+          <DropdownMenuItem onSelect={onSync} className="items-baseline gap-2.5 px-2.5 py-2">
+            <RefreshCw className="h-4 w-4 self-center text-muted-foreground" />
             <span>同步</span>
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {syncLabel(status, now)}
             </span>
           </DropdownMenuItem>
-          <div className="flex items-center justify-between gap-3 px-2 py-1.5">
-            <span className="text-sm leading-none">外觀</span>
+          <div className="flex items-center justify-between gap-2.5 px-2.5 py-2">
+            <span className="flex items-center gap-2.5">
+              <SunMoon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm leading-none">外觀</span>
+            </span>
             {/* Radio items, not buttons: the menu swallows Tab. Segments stay
                 inline; Radix closes on select unless the event is cancelled. */}
             <DropdownMenuRadioGroup
@@ -141,19 +150,26 @@ export function AppMenu({
                 if (install.status === "prompt") install.promptInstall();
                 else setInstallOpen(true);
               }}
-              className="gap-2"
+              className="gap-2.5 px-2.5 py-2"
             >
               <Download className="h-4 w-4 text-muted-foreground" />
               安裝 App
             </DropdownMenuItem>
           )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={onExport}>匯出 JSON</DropdownMenuItem>
-          <DropdownMenuItem onSelect={onImport}>匯入 JSON</DropdownMenuItem>
+          <DropdownMenuSeparator className="my-1.5" />
+          <DropdownMenuItem onSelect={onExport} className="gap-2.5 px-2.5 py-2">
+            <FileDown className="h-4 w-4 text-muted-foreground" />
+            匯出 JSON
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={onImport} className="gap-2.5 px-2.5 py-2">
+            <FileUp className="h-4 w-4 text-muted-foreground" />
+            匯入 JSON
+          </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={onReset}
-            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+            className="gap-2.5 px-2.5 py-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
           >
+            <Trash2 className="h-4 w-4" />
             重置所有資料
           </DropdownMenuItem>
         </DropdownMenuContent>
