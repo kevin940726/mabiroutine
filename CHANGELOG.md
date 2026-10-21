@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-21 — 砂紙's cap is account-wide
+
+### Fixes
+- 砂紙's 每週 30 次 cap is shared across the account (伺服器), not per character: 艾爾文's row shipped without `scope: account`, so it read, counted and badged as a per-character cap the game does not have. It now carries the same scope as 安黛莉's 聖水 and 麗莎's 強化秘藥乳化劑 gold rows, and `docs/tracker-data.md` counts three account-scoped gold rows instead of two.
+
 ## 2026-10-21 — Three 必換 gold trades, and a count sweep
 
 ### Features

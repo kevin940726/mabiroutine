@@ -775,7 +775,8 @@
               "limit": {
                 "times": 30,
                 "period": "weekly"
-              }
+              },
+              "scope": "account"
             },
             {
               "name": "高級木材",
