@@ -6,7 +6,8 @@
 // Never commit it, never print it, never pass it as an argument. Optional
 // MABI_WORKER_URL overrides the default worker base.
 //
-//   state                             read-only: verified + candidates + overrides
+//   state                             read-only: verified + candidates + overrides + record log
+//   history [n]                       read-only: the record log, oldest first (default last 20)
 //   predict [n]                       read-only: next n spawns (from /purple-schedule)
 //   no-shift <start Taipei>           tombstone a window (stop suppressing on it)
 //   shift-amount <start> <end Taipei> override a window's end (suppression coverage)
@@ -62,6 +63,9 @@ async function getSchedule() {
   }
 }
 
+const HISTORY_UNREADABLE =
+  "unreadable (stored value is not {entries[]}; appends are skipped, nothing is overwritten)";
+
 function showState(st) {
   const at = st.verified?.updatedAt ? new Date(st.verified.updatedAt).toISOString() : "(never)";
   console.log(`verified  updatedAt ${at}  auto=${st.verified?.auto}`);
@@ -75,6 +79,30 @@ function showState(st) {
   console.log("overrides:");
   for (const o of st.overrides?.overrides ?? []) console.log(`  window  ${fmt(o.startMs)} -> ${fmt(o.endMs)}`);
   for (const t of st.overrides?.tombstones ?? []) console.log(`  ignore  ${fmt(t.startMs)} -> ${fmt(t.endMs)}`);
+  const h = st.history;
+  if (h === null) console.log(`history  ${HISTORY_UNREADABLE}`);
+  else {
+    const n = (h ?? []).length;
+    console.log(`history  ${n} ${n === 1 ? "entry" : "entries"} (newest last; \`history [n]\` lists them)`);
+  }
+}
+
+function showHistory(entries, limit) {
+  if (entries === null) {
+    console.log(`history: ${HISTORY_UNREADABLE}`);
+    return;
+  }
+  const list = entries ?? [];
+  const shown = limit >= list.length ? list : list.slice(-limit);
+  console.log(
+    `history: ${list.length} ${list.length === 1 ? "entry" : "entries"} (oldest first)` +
+      (shown.length < list.length ? `, last ${shown.length}` : "")
+  );
+  for (const e of shown) {
+    console.log(
+      `  ${String(e.kind).padEnd(6)}  ${e.at}${e.prev ? `  prev ${e.prev}` : ""}  (logged ${e.logged})`
+    );
+  }
 }
 
 // The worker only re-resolves on an override save when auto is true, so on a
@@ -119,6 +147,7 @@ const saveOverrides = (overrides, tombstones) =>
 
 const USAGE = `purple-admin <command>
   state
+  history [n]
   predict [n]
   no-shift <start Taipei>
   shift-amount <start Taipei> <effective-end Taipei>
@@ -137,6 +166,9 @@ if (!cmd || cmd === "-h" || cmd === "--help") {
 
 if (cmd === "state") {
   showState(await getState());
+} else if (cmd === "history") {
+  const limit = Math.max(1, Number(args[0] ?? 20) || 20);
+  showHistory((await getState()).history, limit);
 } else if (cmd === "predict") {
   await predict(Math.max(1, Number(args[0] ?? 4) || 4));
 } else if (cmd === "no-shift") {

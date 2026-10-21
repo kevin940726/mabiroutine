@@ -12,16 +12,19 @@ import {
   PURPLE_PERIOD_MS as P,
   bucketOccurrence,
   correctionSupersedeError,
+  formatTaipeiIso,
   isScheduledToday,
   msUntilNextPurpleFire,
   msUntilPurpleFire,
   nextOccurrence,
   occurrencesAround,
+  parseHistoryDoc,
   parseScheduleDoc,
   prevOccurrence,
   purpleBadge,
   purpleLive,
   resetPurpleTimetable,
+  scheduleHistoryEntries,
   setPurpleTimetable,
 } from "@/lib/purpleHole";
 
@@ -256,6 +259,106 @@ const now = T(10, 14, 13, 30);
     if (nextOccurrence(at, a, nx) <= at) badCases += 1;
   }
   expect(badCases === 0, "1000 random docs keep the lattice and the frozen record");
+}
+
+// --- 9. the record log (KV `purple:history`) --------------------------------
+{
+  const seam = T(10, 13, 15, 41, 2);
+  const prevRec = T(10, 12, 3, 26, 2);
+  const rec = { anchorMs: seam, prevMs: prevRec, nextMs: null };
+  const logged = "2026-10-21T13:40:00+08:00";
+  const loggedAt = T(10, 21, 13, 40);
+  eq(
+    scheduleHistoryEntries({ ...rec, anchorMs: prevRec }, rec, loggedAt),
+    [
+      {
+        kind: "anchor",
+        at: "2026-10-13T15:41:02+08:00",
+        prev: "2026-10-12T03:26:02+08:00",
+        logged,
+      },
+    ],
+    "recording a spawn appends one anchor entry with the point behind it"
+  );
+  eq(
+    scheduleHistoryEntries(rec, { ...rec, nextMs: N_1410 }, loggedAt),
+    [{ kind: "next", at: "2026-10-14T14:10:09+08:00", logged }],
+    "a correction appends one next entry and leaves the record alone"
+  );
+  // The correction's own first spawn is now the record: absorbed, not forgotten.
+  eq(
+    scheduleHistoryEntries(
+      { ...rec, nextMs: N_1410 },
+      { anchorMs: N_1410, prevMs: seam, nextMs: null },
+      T(10, 14, 15, 0)
+    ),
+    [
+      {
+        kind: "anchor",
+        at: "2026-10-14T14:10:09+08:00",
+        prev: "2026-10-13T15:41:02+08:00",
+        logged: "2026-10-14T15:00:00+08:00",
+      },
+    ],
+    "a correction the record covers is absorbed, so it logs no forget"
+  );
+  // A future correction dropped by a re-anchor was never covered by the record.
+  eq(
+    scheduleHistoryEntries(
+      { ...rec, nextMs: T(10, 22, 3, 25) },
+      { ...rec, anchorMs: T(10, 15, 12, 0), nextMs: null },
+      loggedAt
+    ),
+    [
+      {
+        kind: "anchor",
+        at: "2026-10-15T12:00:00+08:00",
+        prev: "2026-10-12T03:26:02+08:00",
+        logged,
+      },
+      { kind: "forget", at: "2026-10-22T03:25:00+08:00", logged },
+    ],
+    "a future correction a re-anchor drops leaves an anchor and a forget"
+  );
+  eq(
+    scheduleHistoryEntries({ ...rec, nextMs: N_1410 }, rec, loggedAt),
+    [{ kind: "forget", at: "2026-10-14T14:10:09+08:00", logged }],
+    "dropping a correction without moving the record logs a forget"
+  );
+  eq(scheduleHistoryEntries(rec, { ...rec }, loggedAt), [], "an unchanged publish appends nothing");
+  eq(parseHistoryDoc(null), [], "an absent log reads as empty, so the first publish appends");
+  const stored = { kind: "anchor", at: "2026-10-20T15:10:09+08:00", logged };
+  eq(parseHistoryDoc({ entries: [stored] }), [stored], "a stored log parses to its entries");
+  eq(
+    parseHistoryDoc({
+      entries: [
+        stored,
+        1,
+        { kind: "bogus", at: stored.at, logged },
+        { kind: "next", at: "x", logged },
+        { kind: "anchor", at: stored.at, logged: "x" },
+        { kind: "anchor", at: stored.at, logged, prev: "x" },
+      ],
+    }),
+    [stored],
+    "garbage entries (bad kind or non-ISO times) are dropped and the readable ones survive"
+  );
+  expect(
+    parseHistoryDoc({ entries: "garbage" }) === null &&
+      parseHistoryDoc({ nope: 1 }) === null &&
+      parseHistoryDoc("garbage") === null,
+    "a value that is not a log reads as null so a writer refuses to overwrite it"
+  );
+  eq(
+    formatTaipeiIso(T(10, 21, 14, 10, 0)),
+    "2026-10-21T14:10:00+08:00",
+    "the log keeps seconds and an explicit +08:00 offset"
+  );
+  eq(
+    formatTaipeiIso(T(10, 22, 0, 5, 9)),
+    "2026-10-22T00:05:09+08:00",
+    "midnight stays 00:xx (an ISO build, so no 24:xx ICU case)"
+  );
 }
 
 // The fallback still answers without any feed.

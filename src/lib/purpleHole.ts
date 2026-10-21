@@ -343,8 +343,7 @@ export function correctionSupersedeError(
   if (discardPassed) return null;
   const prevNext = stored?.nextMs ?? null;
   if (prevNext === null || incoming.nextMs === prevNext || prevNext > nowMs) return null;
-  const latest =
-    prevNext + Math.floor((nowMs - prevNext) / PURPLE_PERIOD_MS) * PURPLE_PERIOD_MS;
+  const latest = latestSpawnAtOrBefore(prevNext, nowMs);
   if (incoming.anchorMs >= latest) return null;
   // Seconds matter here: the value is copied into `anchorMs`, and a minute-
   // truncated reading of it would fail this same check.
@@ -362,7 +361,84 @@ function formatTaipeiSec(ms: number): string {
   return `${formatTaipei(ms)}:${s}`;
 }
 
+/** The correction's last spawn at/before `nowMs` — the one a record must cover to absorb it. */
+export function latestSpawnAtOrBefore(nextMs: number, nowMs: number): number {
+  return nextMs + Math.floor((nowMs - nextMs) / PURPLE_PERIOD_MS) * PURPLE_PERIOD_MS;
+}
 
+export type PurpleHistoryEntry = {
+  /** `anchor` = a spawn recorded as observed, `next` = a correction, `forget` = a correction dropped as never-happened. */
+  kind: "anchor" | "next" | "forget";
+  /** The spawn/correction this entry is about. */
+  at: string;
+  /** `anchor` only: the spawn recorded before it (`prevMs`), when the doc carried one. */
+  prev?: string;
+  /** When the publish that wrote the entry landed — `at` can be days earlier (a late record). */
+  logged: string;
+};
+
+type PurpleRecord = Pick<PurpleScheduleDoc, "anchorMs" | "prevMs" | "nextMs">;
+
+/** ISO-8601 Taipei wall clock with an explicit offset, seconds kept ("2026-10-20T15:10:09+08:00"). */
+export function formatTaipeiIso(ms: number): string {
+  return new Date(ms + 8 * 3600e3).toISOString().replace(/\.\d{3}Z$/, "+08:00");
+}
+
+export function scheduleHistoryEntries(
+  before: PurpleRecord,
+  after: PurpleRecord,
+  nowMs: number = Date.now()
+): PurpleHistoryEntry[] {
+  const out: PurpleHistoryEntry[] = [];
+  const logged = formatTaipeiIso(nowMs);
+  const recordMoved = after.anchorMs !== before.anchorMs || after.prevMs !== before.prevMs;
+  if (recordMoved) {
+    out.push({
+      kind: "anchor",
+      at: formatTaipeiIso(after.anchorMs),
+      ...(after.prevMs === null ? {} : { prev: formatTaipeiIso(after.prevMs) }),
+      logged,
+    });
+  }
+  if (after.nextMs !== before.nextMs && after.nextMs !== null) {
+    out.push({ kind: "next", at: formatTaipeiIso(after.nextMs), logged });
+  }
+  const prevNext = before.nextMs;
+  if (
+    prevNext !== null &&
+    after.nextMs === null &&
+    !absorbedByRecord(prevNext, after.anchorMs, nowMs)
+  ) {
+    out.push({ kind: "forget", at: formatTaipeiIso(prevNext), logged });
+  }
+  return out;
+}
+
+function absorbedByRecord(prevNext: number, anchorMs: number, nowMs: number): boolean {
+  return prevNext <= nowMs && anchorMs >= latestSpawnAtOrBefore(prevNext, nowMs);
+}
+
+/** Stored log → entries; null when the value is not one, so a writer can refuse to overwrite it. */
+export function parseHistoryDoc(raw: unknown): PurpleHistoryEntry[] | null {
+  if (raw === null || raw === undefined) return [];
+  const entries = (raw as { entries?: unknown }).entries;
+  if (!Array.isArray(entries)) return null;
+  return entries.filter(isHistoryEntry);
+}
+
+const ISO_TAIPEI_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$/;
+const isIsoTaipei = (v: unknown): boolean => typeof v === "string" && ISO_TAIPEI_RE.test(v);
+
+function isHistoryEntry(v: unknown): v is PurpleHistoryEntry {
+  if (!v || typeof v !== "object") return false;
+  const e = v as Record<string, unknown>;
+  return (
+    (e.kind === "anchor" || e.kind === "next" || e.kind === "forget") &&
+    isIsoTaipei(e.at) &&
+    isIsoTaipei(e.logged) &&
+    (e.prev === undefined || isIsoTaipei(e.prev))
+  );
+}
 
 /**
  * How long after a spawn the badge still shows it alone ("happening now").

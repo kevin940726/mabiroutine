@@ -57,8 +57,8 @@ the cap and only matters if this app is ever monetized.
 | `GET /purple-schedule` | public, CORS `*`, 60s cache | `{anchorMs, prevMs, nextMs, windows[], updatedAt, updatedBy, auto, confidence, sources[]}`; `nextMs` null = no correction, `prevMs` null = derive the row behind the anchor; `confidence: "hardcoded"` + `updatedAt: null` when KV is empty/corrupt |
 | `GET /admin` | bearer (login form) | the editor page; `noindex`, `no-store` |
 | `POST /admin/api/verify` | `{secret}` in body, once | `{ok}` / 401; 500 when `ADMIN_SECRET` unset |
-| `GET /admin/api/state` | bearer | `{verified, candidates, overrides}` |
-| `POST /admin/api/publish` | bearer, `{anchorMs, prevMs?, nextMs?, windows[], discardPassed?}` | strict-gates the whole doc (400 on garbage; `prevMs` before and `nextMs` after `anchorMs`), 409 when it would drop a passed correction that the record does not cover (`discardPassed: true` is the explicit "it never happened" bypass), stamps `admin`, **locks auto** |
+| `GET /admin/api/state` | bearer | `{verified, candidates, overrides, history}` (`history` = the record log, oldest first; `null` when the stored value is unreadable, which is also when appends are skipped) |
+| `POST /admin/api/publish` | bearer, `{anchorMs, prevMs?, nextMs?, windows[], discardPassed?}` | strict-gates the whole doc (400 on garbage; `prevMs` before and `nextMs` after `anchorMs`), 409 when it would drop a passed correction that the record does not cover (`discardPassed: true` is the explicit "it never happened" bypass), stamps `admin`, **locks auto**, and appends what it changed to `purple:history` (best-effort: a log fault is logged and skipped, the schedule write stands) |
 | `POST /admin/api/promote` | bearer | resolves candidates through overrides, writes verified, keeps auto on |
 | `POST /admin/api/auto` | bearer, `{auto: boolean}` | lock keeps values; resume re-resolves immediately |
 | `POST /admin/api/overrides` | bearer, `{overrides[], tombstones[]}` full replacement | strict-gates both lists (400), re-resolves when unlocked |
@@ -116,6 +116,7 @@ The `:59` tick stamped `scheduledTime 1791032351` (20:59:11 Taipei, not
 | `purple:candidates` | `{windows[], observedAt, sources[]}` | watcher only, every run |
 | `purple:overrides` | `{overrides[], tombstones[], updatedAt, updatedBy}` | `/admin` overrides save only |
 | `purple:last-fire` | `{spawnMs}` | purple fanout (stamped when a run finishes the lane) |
+| `purple:history` | `{entries: [{kind: "anchor" \| "next" \| "forget", at, prev?, logged}]}`, each time Taipei ISO with seconds (`2026-10-20T15:10:09+08:00`) | `/admin/api/publish` only, append-only, last 500 kept. `at` is the spawn/correction the entry is about, `logged` when the publish landed (a late record is visible). Appends only when the previous doc was readable (no baseline, no entry), a stored value that is not a log is never overwritten (append skipped; `state` shows `history: null`), and unreadable entries are dropped on read. The record log: the schedule doc keeps two points and overwrites them, this keeps the sequence. Nothing in the app or the feed reads it; `GET /admin/api/state` serves it and the skill's `history [n]` prints it (oldest first) |
 | `purple:fanout` | `{spawnMs, offset, done}` | purple fanout paging cursor, also its fire-once guard. The free plan caps subrequests at 50, so one page (~30 sends) goes per tick; a page that throws on read, or whose every send fails transiently (zero delivered, zero dead), is retried the next tick; a page that made progress advances and is never resent |
 
 Resolve rule (one path, three triggers): candidates base → same-`startMs`
@@ -214,8 +215,8 @@ game is down, so err short and exclude a window you are unsure of. The anchor
 anchor is the only one that moves the past.
 
 Scriptable: the same edits are wrapped for agents in the `purple-schedule`
-skill (`skills/purple-schedule/`, invoked as `/purple-fix`): `state` and
-`predict` are read-only, `no-shift` / `shift-amount` / `anchor` / `next` write. It reads
+skill (`skills/purple-schedule/`, invoked as `/purple-fix`): `state`, `history`
+and `predict` are read-only, `no-shift` / `shift-amount` / `anchor` / `next` write. It reads
 `MABI_ADMIN_SECRET` from the process environment and prints the new state and
 predictions. Supply it by exporting it, or keep the conventional local copy at
 `.env.admin.local` (repo root, gitignored via `.env*`) and load it with

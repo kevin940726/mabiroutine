@@ -42,6 +42,13 @@ commit, no build, no deploy.
 - A correction (`nextMs`) replaces the future: the next spawn is `nextMs`,
   then `nextMs + 36h15m`, and so on, until the next correction. The record and
   the 過去 rows stay exactly where they are.
+- **The record log** (KV `purple:history`, 2026-10-21) is separate from the
+  feed and read by nobody in the app: it appends what each publish changed
+  (`anchor` with the point behind it, `next`, `forget`) as Taipei ISO with
+  seconds plus the publish time (`logged`), oldest first, capped at 500. Use
+  `history [n]` when the question is about the *sequence* — e.g. whether a
+  re-anchored time is predictable from the recorded ones — since the doc itself
+  keeps only two points and overwrites them.
 - **The rule (maintainer, 2026-10-14): correcting the next spawn must never
   rewrite the recorded past.** `next` never moves `anchorMs`; only an explicit
   `anchor` does. A stored correction whose spawns have passed and are not yet
@@ -111,6 +118,7 @@ Edge cases, all verified against the engine:
 
 ```
 node skills/purple-schedule/scripts/purple-admin.mjs state
+node skills/purple-schedule/scripts/purple-admin.mjs history 20
 node skills/purple-schedule/scripts/purple-admin.mjs predict 5
 node skills/purple-schedule/scripts/purple-admin.mjs no-shift "2026-09-30 06:00"
 node skills/purple-schedule/scripts/purple-admin.mjs shift-amount "2026-09-30 06:00" "2026-09-30 08:00"
@@ -132,8 +140,9 @@ If the secret lives in `.env.admin.local`, prefix every command with
 
 ## Workflow
 
-1. **Read first.** `state`, then `predict`. Identify the window by its start
-   time (Taipei) among the candidates; never guess a `startMs`.
+1. **Read first.** `state`, then `predict` — and `history [n]` when the question
+   is about the sequence rather than the next spawn. Identify the window by its
+   start time (Taipei) among the candidates; never guess a `startMs`.
 2. **Pick the correction.**
    - A window should not suppress anything → `no-shift <start>`. Adds a
      tombstone and removes any override at that start, so it leaves the

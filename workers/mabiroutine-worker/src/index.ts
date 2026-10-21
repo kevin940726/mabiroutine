@@ -43,9 +43,12 @@ import {
   isInMaintenance,
   nextOccurrence,
   normalizeWindows,
+  parseHistoryDoc,
   parseScheduleDoc,
+  scheduleHistoryEntries,
   validWindowsList,
   type MaintenanceWindow,
+  type PurpleHistoryEntry,
 } from "../../../src/lib/purpleHole";
 
 type Env = {
@@ -647,6 +650,36 @@ const SCHEDULE_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Cache-Control": "public, max-age=60",
 };
+
+// ---- Purple record log (KV `purple:history`, 2026-10-21) ----
+const HISTORY_KEY = "purple:history";
+const HISTORY_MAX_ENTRIES = 500;
+
+/** null = the stored value is not a log (or the read failed): unknown, never "no records". */
+async function readHistory(env: Env): Promise<PurpleHistoryEntry[] | null> {
+  try {
+    const entries = parseHistoryDoc(await env.PURPLE.get(HISTORY_KEY, "json"));
+    if (entries) return entries;
+    console.log("purple history: stored value is not {entries[]}");
+  } catch (e) {
+    console.log(`purple history read failed: ${String(e)}`);
+  }
+  return null;
+}
+
+async function appendHistoryBestEffort(env: Env, entries: PurpleHistoryEntry[]): Promise<void> {
+  if (entries.length === 0) return;
+  const known = await readHistory(env);
+  if (known === null) return;
+  try {
+    await env.PURPLE.put(
+      HISTORY_KEY,
+      JSON.stringify({ entries: [...known, ...entries].slice(-HISTORY_MAX_ENTRIES) })
+    );
+  } catch (e) {
+    console.log(`purple history write failed: ${String(e)}`);
+  }
+}
 
 // ---- Purple watcher (2x/day Bahamut poll → candidates, never truth) ----
 //
@@ -1601,12 +1634,13 @@ export default {
     }
     if (req.method === "GET" && url.pathname === "/admin/api/state") {
       if (!adminAuthed(req, _env)) return Response.json({ error: "unauthorized" }, { status: 401 });
-      const [verified, candidates, overrides] = await Promise.all([
+      const [verified, candidates, overrides, history] = await Promise.all([
         readSchedule(_env),
         readCandidates(_env),
         readOverrides(_env),
+        readHistory(_env),
       ]);
-      return Response.json({ verified, candidates, overrides }, { headers: ADMIN_NOINDEX });
+      return Response.json({ verified, candidates, overrides, history }, { headers: ADMIN_NOINDEX });
     }
     if (req.method === "POST" && url.pathname === "/admin/api/publish") {
       if (!adminAuthed(req, _env)) return Response.json({ error: "unauthorized" }, { status: 401 });
@@ -1638,9 +1672,14 @@ export default {
       // superseded silently: its spawns would vanish from the past. The one
       // bypass is the explicit discard for a correction that never happened.
       const discardPassed = bodyObj.discardPassed === true;
-      const supersede = correctionSupersedeError(await readSchedule(_env), doc, Date.now(), discardPassed);
+      const before = await readSchedule(_env);
+      const supersede = correctionSupersedeError(before, doc, Date.now(), discardPassed);
       if (supersede) return Response.json({ error: supersede }, { status: 409 });
       await _env.PURPLE.put("purple:schedule", JSON.stringify(doc));
+      const knownBefore = before.confidence === "verified" ? before : null;
+      if (knownBefore) {
+        await appendHistoryBestEffort(_env, scheduleHistoryEntries(knownBefore, doc));
+      }
       return Response.json({ ok: true, updatedAt: doc.updatedAt });
     }
     if (req.method === "POST" && url.pathname === "/admin/api/promote") {

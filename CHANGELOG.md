@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- The purple-hole record log: KV `purple:history` appends what each `/admin/api/publish` changed — `anchor` with the point behind it, `next`, `forget` — as Taipei ISO with seconds plus the publish time (`logged`), oldest first, capped at 500. It exists because the schedule doc keeps only two points and every publish overwrites them, and a publish logged nothing, so the observed spawn sequence was lost. Nothing in the app or the feed reads it: it is agent-facing, so a re-anchored spawn time can later be compared with the recorded ones (`history [n]` in the `purple-schedule` skill, `GET /admin/api/state`). It never risks the schedule or itself: the append is best-effort, a publish with no readable previous doc logs nothing, a stored value that is not a log is never overwritten, and unreadable entries are dropped on read. `scheduleHistoryEntries` and `parseHistoryDoc` are the shared derivation and parse gate, and `test:purple` pins both — a record move is one anchor entry, a correction one next, a correction the record covers is absorbed rather than forgotten, a future correction dropped by a re-anchor still leaves a forget, an unchanged publish appends nothing, and garbage is filtered.
+
 ## 2026-10-21 — 砂紙's cap is account-wide
 
 ### Fixes
