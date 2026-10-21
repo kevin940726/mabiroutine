@@ -26,6 +26,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - 同步 no longer reports 同步失敗 after the device is unlinked; the row falls back to 未連結.
 
 ### Chores
+- The repo carries the `tech-doc-zh-tw` agent skill canonically under `.agents/skills/` plus its `skills-lock.json`; `.claude/skills/` is a generated, ignored link, and Claude Code contributors materialize it with `npx skills add kevin940726/agent-skills -s tech-doc-zh-tw -a claude-code`.
 - The changelog nudge is a synced store field (`whatsNewNudged`, `meta:whatsnew`), so the persist schema moves to `v23`; the step is a stamp only — the field defaults empty and no saved value is transformed. The flat map keeps the later release id on merge, so an offline device cannot resurrect a cleared dot.
 - The 2026-10-20 player-facing entry is rewritten under the zh-TW technical-writing rules: one bullet per pin instead of a run-on sentence, with the quantities and conditions unchanged.
 - The menu and changelog work got its comment pass: 548 comment lines deleted across 17 files, no code changes. The Radix menu/sheet behaviours, the service-worker boot window, the sync protocol's 404 branch, and the public type contracts stayed.

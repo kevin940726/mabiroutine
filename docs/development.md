@@ -42,6 +42,19 @@ Vite takes the next free port (`:5174`), so check which checkout a port serves
 before trusting a measurement (AGENTS.md § The dev loop: never start a dev server
 unasked).
 
+## Agent skills
+
+The zh-TW writing skill is committed canonically at
+`.agents/skills/tech-doc-zh-tw`; `skills-lock.json` pins its source and hash.
+Claude Code does not scan `.agents`, so materialize its link once per clone:
+
+```bash
+npx skills add kevin940726/agent-skills -s tech-doc-zh-tw -a claude-code
+```
+
+`.claude/skills/` is generated and ignored; `.agents/skills/` is the copy to
+commit. OpenCode reads it directly.
+
 ## Five-minute tour
 
 - **Game data is hand-owned JSON** — `src/data/tracker.json` (26 rows) +

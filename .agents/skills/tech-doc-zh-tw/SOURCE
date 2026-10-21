@@ -1,0 +1,25 @@
+Upstream: https://github.com/Fenng/tech-doc-style-chinese
+Commit: b119d01c9bb7cd132b3c62fafdff34227c4410d1
+License: MIT (Copyright (c) 2026 Fenng), see LICENSE
+
+Converted files (OpenCC s2twp, then Taiwan wording fixes):
+  SKILL.md
+  references/api-status-copy.md
+  references/controlled-technical-chinese.md
+  references/project-overrides-example.md
+  references/terminology-and-typography.md
+
+Excluded: scripts/, tests/, README.md, NoCode-Skill.md, .github/
+
+Hand-authored, not generated:
+  LICENSE
+  SOURCE
+  agents/openai.yaml
+  references/taiwan-terminology.md
+
+OpenCC config: s2twp
+
+Regenerate with: node scripts/sync-tech-doc-zh-tw.mjs
+Verify without writing: node scripts/sync-tech-doc-zh-tw.mjs --check
+
+This is a writing-rules port; conversion belongs to zh-tw-convert.
