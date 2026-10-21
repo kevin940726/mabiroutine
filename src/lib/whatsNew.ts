@@ -87,7 +87,7 @@ export type WhatsNewSummary = {
   unread: Release[];
   /** Every release, newest first. */
   releases: Release[];
-  /** The menu row's status text. */
+  /** The menu row's status text. Empty once caught up: the row shows its label only. */
   label: string;
 };
 
@@ -95,7 +95,7 @@ export function summaryFor(seen: string | null, entries: readonly WhatsNewEntry[
   const releases = releasesOf(entries);
   const latest = releases[0];
 
-  if (!latest) return { state: "read", unread: [], releases, label: "已讀到最新" };
+  if (!latest) return { state: "read", unread: [], releases, label: "" };
 
   const firstRun = (): WhatsNewSummary => ({
     state: "first",
@@ -116,7 +116,7 @@ export function summaryFor(seen: string | null, entries: readonly WhatsNewEntry[
     unread = releases.filter((r) => r.date >= date);
   }
 
-  if (!unread.length) return { state: "read", unread, releases, label: "已讀到最新" };
+  if (!unread.length) return { state: "read", unread, releases, label: "" };
   return {
     state: "unread",
     unread,

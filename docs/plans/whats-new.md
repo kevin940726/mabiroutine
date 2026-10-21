@@ -79,7 +79,7 @@ Contract, so it does not rot into a junk drawer:
 | Row | State shown | Opens |
 |---|---|---|
 | 有新版本 · 重新載入 | only while `updateReady` | reload |
-| 更新記錄 | `10/20 · 3 則未讀` / `最新 · 10/20` / `已讀到最新`; amber dot on ☰ only when unread | changelog drawer |
+| 更新記錄 | `10/20 · 3 則未讀` / `最新 · 10/20` / no value once caught up; amber dot on ☰ only when unread | changelog drawer |
 | 同步 | `已連結 · 2 分鐘前` / `未連結` / `同步失敗` | sync dialog |
 | 外觀 | three segments: 淺色 / 跟隨系統 / 深色 | inline, menu stays open |
 | 安裝 App | only while installable | native prompt, or a steps dialog |
@@ -175,8 +175,8 @@ Window and states:
 - No marker at all (new device, cleared storage): **no dot**. The row reads
   `最新 · 10/20`; opening the drawer shows the latest release and sets the
   marker. A badge on install would announce content the user never missed.
-- Zero unread: the row reads `已讀到最新`; the drawer shows the latest release,
-  an "已讀到最新" line, and a link to `CHANGELOG-zh_TW.md`.
+- Zero unread: the row shows no value; the drawer shows the latest release and a
+  link to the full archive on GitHub (`CHANGELOG-zh_TW.md`).
 - Rendering: unread releases, newest first, grouped under local date
   (Asia/Taipei) headings. Two releases on one day share a heading and keep their
   own bullets — the "aggregated but date-separated" shape.

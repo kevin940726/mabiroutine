@@ -127,9 +127,11 @@ export function AppMenu({
           <DropdownMenuItem onSelect={whatsNew.openDrawer} className="gap-2.5 px-2.5 py-2">
             <RowIcon Icon={History} className="text-muted-foreground" />
             <span>更新記錄</span>
-            <span className="ml-auto text-xs leading-5 text-muted-foreground tabular-nums">
-              {whatsNew.summary.label}
-            </span>
+            {whatsNew.summary.label && (
+              <span className="ml-auto text-xs leading-5 text-muted-foreground tabular-nums">
+                {whatsNew.summary.label}
+              </span>
+            )}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onSync} className="gap-2.5 px-2.5 py-2">
             <RowIcon Icon={RefreshCw} className="text-muted-foreground" />

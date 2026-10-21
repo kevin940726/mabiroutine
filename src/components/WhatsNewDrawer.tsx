@@ -1,7 +1,6 @@
 import {
   Drawer,
   DrawerContent,
-  DrawerDescription,
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
@@ -26,12 +25,9 @@ export function WhatsNewDrawer({
 }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
+      <DrawerContent aria-describedby={undefined}>
         <DrawerHeader>
           <DrawerTitle>更新記錄</DrawerTitle>
-          {/* A description is not optional: Radix warns without one, and the
-              window's own rule (unread since the last read) is worth stating. */}
-          <DrawerDescription>玩家看得到的改動，新的在上面；同一天的更新收在一起。</DrawerDescription>
         </DrawerHeader>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {view.groups.map((group) => (
@@ -48,7 +44,7 @@ export function WhatsNewDrawer({
                     >
                       <span
                         className={cn(
-                          "mt-0.5 h-fit shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium leading-4",
+                          "mt-0.5 flex h-fit w-[4.5em] shrink-0 items-center justify-center rounded py-0.5 text-[10px] font-medium leading-4",
                           entry.kind === "feature"
                             ? "bg-primary/10 text-primary"
                             : "bg-muted text-muted-foreground"
@@ -65,7 +61,7 @@ export function WhatsNewDrawer({
           ))}
           {view.caughtUp && (
             <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
-              已讀到最新。
+              更早的更新請見{" "}
               <a
                 href={ARCHIVE_URL}
                 target="_blank"
@@ -74,6 +70,7 @@ export function WhatsNewDrawer({
               >
                 GitHub 上的完整記錄
               </a>
+              。
             </p>
           )}
         </div>
