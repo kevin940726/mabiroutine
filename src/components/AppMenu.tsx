@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpCircle, Download, FileDown, FileUp, History, Menu, Monitor, Moon, RefreshCw, Sun, SunMoon, Trash2 } from "lucide-react";
+import { ArrowUpCircle, Download, FileDown, FileUp, History, Menu, Monitor, Moon, RefreshCw, Sun, SunMoon, Trash2, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,6 +23,14 @@ const THEME_CHOICES: { value: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { value: "system", label: "跟隨系統", Icon: Monitor },
   { value: "dark", label: "深色", Icon: Moon },
 ];
+
+function RowIcon({ Icon, className }: { Icon: LucideIcon; className?: string }) {
+  return (
+    <span aria-hidden className="flex size-5 shrink-0 items-center justify-center">
+      <Icon className={className} />
+    </span>
+  );
+}
 
 function syncLabel(status: SyncStatus, now: number): string {
   if (!status.linked) return "未連結";
@@ -92,20 +100,20 @@ export function AppMenu({
         >
           {updateReady && (
             <DropdownMenuItem onSelect={acceptUpdate} className="gap-2.5 px-2.5 py-2">
-              <ArrowUpCircle className="text-muted-foreground" />
+              <RowIcon Icon={ArrowUpCircle} className="text-muted-foreground" />
               <span>有新版本</span>
               <span className="ml-auto text-xs leading-5 text-muted-foreground">重新載入</span>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onSelect={whatsNew.openDrawer} className="gap-2.5 px-2.5 py-2">
-            <History className="text-muted-foreground" />
+            <RowIcon Icon={History} className="text-muted-foreground" />
             <span>更新記錄</span>
             <span className="ml-auto text-xs leading-5 text-muted-foreground tabular-nums">
               {whatsNew.summary.label}
             </span>
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onSync} className="gap-2.5 px-2.5 py-2">
-            <RefreshCw className="text-muted-foreground" />
+            <RowIcon Icon={RefreshCw} className="text-muted-foreground" />
             <span>同步</span>
             <span className="ml-auto text-xs leading-5 text-muted-foreground tabular-nums">
               {syncLabel(status, now)}
@@ -113,7 +121,7 @@ export function AppMenu({
           </DropdownMenuItem>
           <div className="flex items-center justify-between gap-2.5 px-2.5 py-2 text-sm">
             <span className="flex items-center gap-2.5">
-              <SunMoon className="size-[1em] text-muted-foreground" />
+              <RowIcon Icon={SunMoon} className="text-muted-foreground" />
               <span className="text-sm leading-none">外觀</span>
             </span>
             {/* Radio items, not buttons: the menu swallows Tab. Segments stay
@@ -149,24 +157,24 @@ export function AppMenu({
               }}
               className="gap-2.5 px-2.5 py-2"
             >
-              <Download className="text-muted-foreground" />
+              <RowIcon Icon={Download} className="text-muted-foreground" />
               安裝 App
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator className="my-1.5" />
           <DropdownMenuItem onSelect={onExport} className="gap-2.5 px-2.5 py-2">
-            <FileDown className="text-muted-foreground" />
+            <RowIcon Icon={FileDown} className="text-muted-foreground" />
             匯出 JSON
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onImport} className="gap-2.5 px-2.5 py-2">
-            <FileUp className="text-muted-foreground" />
+            <RowIcon Icon={FileUp} className="text-muted-foreground" />
             匯入 JSON
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={onReset}
             className="gap-2.5 px-2.5 py-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
           >
-            <Trash2 />
+            <RowIcon Icon={Trash2} />
             重置所有資料
           </DropdownMenuItem>
         </DropdownMenuContent>
