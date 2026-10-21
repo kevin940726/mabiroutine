@@ -32,6 +32,7 @@ import { planRound } from "@/sync/round";
 import { journalPush, journalRound } from "@/sync/journal";
 import {
   getSyncStatus,
+  markSynced,
   refreshSyncStatus,
   setSyncStatus,
   subscribeSyncStatus,
@@ -75,6 +76,7 @@ export function useSyncEngine(enabled: boolean): SyncEngine {
   }
 
   function reachable(): void {
+    markSynced();
     setSyncStatus({ failing: false });
   }
 
@@ -88,6 +90,7 @@ export function useSyncEngine(enabled: boolean): SyncEngine {
 
   function pushLanded(): void {
     pushFails.current = 0;
+    markSynced();
     setSyncStatus({ failing: false });
   }
 

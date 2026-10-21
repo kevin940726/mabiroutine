@@ -40,13 +40,18 @@ function errorMessage(e: unknown): string {
 
 function formatSyncTime(ts: number): string {
   if (!ts) return "尚未同步";
-  return `上次同步 ${new Date(ts).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}`;
+  const at = new Date(ts);
+  const today = new Date();
+  const time = at.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return at.toDateString() === today.toDateString()
+    ? `上次同步 ${time}`
+    : `上次同步 ${at.getMonth() + 1}/${at.getDate()} ${time}`;
 }
 
 type Confirming = null | "regen" | "cancel";
 
 export function SyncDialog({ engine }: { engine: SyncEngine }) {
-  const { linked, lastSyncedAt } = useSyncStatus();
+  const { linked, syncedAt } = useSyncStatus();
   const [confirming, setConfirming] = useState<Confirming>(null);
   const [pasteValue, setPasteValue] = useState("");
   const [pasteBusy, setPasteBusy] = useState(false);
@@ -302,7 +307,7 @@ export function SyncDialog({ engine }: { engine: SyncEngine }) {
                     立即同步
                   </Button>
                   <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                    {formatSyncTime(lastSyncedAt)}
+                    {formatSyncTime(syncedAt)}
                   </span>
                 </div>
                 <div className="flex items-center shrink-0">

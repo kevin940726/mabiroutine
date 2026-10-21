@@ -22,7 +22,8 @@ MabiRoutine's design principle: static game data ships with the app;
   in 更新記錄 so the drawer shows only what is new: never synced, and it
   changed no saved schema. `theme` (light / dark / system) is per-device too,
   and `mabiroutine:update-receipt` lives in `sessionStorage` for a single
-  reload to show the update receipt.
+  reload to show the update receipt. `mabiroutine:last-synced` remembers when
+  this device last reached the sync link (never synced, not part of the store).
 
 ## When the app updates (auto-migrate, nothing to do)
 

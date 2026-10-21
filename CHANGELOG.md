@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
+- 已連結 is emerald again and 同步失敗 is red on the sync row's value, so the state reads without opening the dialog; 未連結 stays muted.
 - The ☰ trigger is a circular ghost button that fills while the menu is open, and the menu carries a small caret pointing back at it.
 - The ☰ menu has a muted icon on every row, a wider card and roomier rows, and 外觀 now reads 淺色 / 跟隨系統 / 深色 so the default sits in the middle.
 - 安裝 App moved from the footer into the ☰ menu: a native prompt on Android and desktop, and a short steps dialog on iPhone and Samsung.
@@ -17,6 +18,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - The theme toggle left the header for a new ☰ menu at its right edge: 外觀 now lives there. Every other header control is unchanged.
 
 ### Fixes
+- 上次同步 now reports when this device last reached the link (a pull counts), not the link's server-side last write. A device that only pulls no longer shows a stale time because nothing was pushed; the stamp persists across reloads.
 - Every ☰ row gives its icon a 1.25rem box equal to the text's line box, and both the icon and the 外觀 control take a 0.06em optical nudge so they meet the CJK glyphs where they actually sit; the right-hand values share the line box.
 - The selected 外觀 segment now sits on the track's inner curve (6px inside the 8px track) instead of an arbitrary 5px, so the two radii are concentric.
 - The ☰ menu's label and value rows share a baseline, so the left and right halves sit on one line instead of a couple of pixels apart.

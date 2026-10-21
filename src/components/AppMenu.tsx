@@ -38,8 +38,14 @@ function RowIcon({ Icon, className }: { Icon: LucideIcon; className?: string }) 
 function syncLabel(status: SyncStatus, now: number): string {
   if (!status.linked) return "未連結";
   if (status.failing) return "同步失敗";
-  if (!status.lastSyncedAt) return "已連結";
-  return `已連結 · ${relativeTime(status.lastSyncedAt, now)}`;
+  if (!status.syncedAt) return "已連結";
+  return `已連結 · ${relativeTime(status.syncedAt, now)}`;
+}
+
+function syncTone(status: SyncStatus): string {
+  if (!status.linked) return "text-muted-foreground";
+  if (status.failing) return "text-destructive";
+  return "text-emerald-700 dark:text-emerald-400";
 }
 
 function relativeTime(ts: number, now: number): string {
@@ -128,7 +134,7 @@ export function AppMenu({
           <DropdownMenuItem onSelect={onSync} className="gap-2.5 px-2.5 py-2">
             <RowIcon Icon={RefreshCw} className="text-muted-foreground" />
             <span>同步</span>
-            <span className="ml-auto text-xs leading-5 text-muted-foreground tabular-nums">
+            <span className={`ml-auto text-xs leading-5 tabular-nums ${syncTone(status)}`}>
               {syncLabel(status, now)}
             </span>
           </DropdownMenuItem>

@@ -4,31 +4,54 @@ import { loadSession, type LocalSession } from "@/sync/session";
 export type SyncStatus = {
   /** The bound session, straight from `loadSession()`. Null = not linked. */
   linked: LocalSession | null;
-  /** `linked.updatedAt` flattened out for the row's relative time. 0 when
-   *  unlinked, or linked but never acknowledged. */
-  lastSyncedAt: number;
+  /** When this device last reached the link successfully (pull or push), from
+   *  `mabiroutine:last-synced`. 0 = never since the key was added. */
+  syncedAt: number;
   /** True once automatic pushes have failed three times running. */
   failing: boolean;
 };
 
-const EMPTY: SyncStatus = { linked: null, lastSyncedAt: 0, failing: false };
+const SYNCED_KEY = "mabiroutine:last-synced";
+
+function readSyncedAt(): number {
+  try {
+    const raw = localStorage.getItem(SYNCED_KEY);
+    const at = raw ? Number(raw) : 0;
+    return Number.isFinite(at) ? at : 0;
+  } catch {
+    return 0;
+  }
+}
+
+const EMPTY: SyncStatus = { linked: null, syncedAt: 0, failing: false };
 
 let status: SyncStatus = EMPTY;
 let initialized = false;
+let persistedAt = 0;
 const listeners = new Set<(status: SyncStatus) => void>();
 
 function readBinding(): SyncStatus {
   const linked = loadSession();
-  return { linked, lastSyncedAt: linked?.updatedAt ?? 0, failing: linked ? status.failing : false };
+  return { linked, syncedAt: status.syncedAt, failing: linked ? status.failing : false };
 }
 
 export function getSyncStatus(): SyncStatus {
   if (!initialized) {
     initialized = true;
-    status = { linked: loadSession(), lastSyncedAt: 0, failing: false };
-    status.lastSyncedAt = status.linked?.updatedAt ?? 0;
+    status = { linked: loadSession(), syncedAt: readSyncedAt(), failing: false };
   }
   return status;
+}
+
+export function markSynced(at = Date.now()): void {
+  setSyncStatus({ syncedAt: at });
+  if (at - persistedAt < 30_000) return;
+  persistedAt = at;
+  try {
+    localStorage.setItem(SYNCED_KEY, String(at));
+  } catch {
+    // Private mode: the stamp lasts this visit.
+  }
 }
 
 export function subscribeSyncStatus(listener: (status: SyncStatus) => void): () => void {
@@ -41,7 +64,7 @@ export function subscribeSyncStatus(listener: (status: SyncStatus) => void): () 
 function same(a: SyncStatus, b: SyncStatus): boolean {
   return (
     a.failing === b.failing &&
-    a.lastSyncedAt === b.lastSyncedAt &&
+    a.syncedAt === b.syncedAt &&
     a.linked?.id === b.linked?.id &&
     a.linked?.updatedAt === b.linked?.updatedAt
   );
