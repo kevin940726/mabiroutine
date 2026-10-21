@@ -93,33 +93,27 @@ export function AppMenu({
           {updateReady && (
             <DropdownMenuItem onSelect={acceptUpdate} className="gap-2.5 px-2.5 py-2">
               <ArrowUpCircle className="text-muted-foreground" />
-              <span className="flex flex-1 items-baseline gap-2">
-                <span>有新版本</span>
-                <span className="ml-auto text-xs text-muted-foreground">重新載入</span>
-              </span>
+              <span>有新版本</span>
+              <span className="ml-auto text-xs leading-5 text-muted-foreground">重新載入</span>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onSelect={whatsNew.openDrawer} className="gap-2.5 px-2.5 py-2">
             <History className="text-muted-foreground" />
-            <span className="flex flex-1 items-baseline gap-2">
-              <span>更新記錄</span>
-              <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                {whatsNew.summary.label}
-              </span>
+            <span>更新記錄</span>
+            <span className="ml-auto text-xs leading-5 text-muted-foreground tabular-nums">
+              {whatsNew.summary.label}
             </span>
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onSync} className="gap-2.5 px-2.5 py-2">
             <RefreshCw className="text-muted-foreground" />
-            <span className="flex flex-1 items-baseline gap-2">
-              <span>同步</span>
-              <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                {syncLabel(status, now)}
-              </span>
+            <span>同步</span>
+            <span className="ml-auto text-xs leading-5 text-muted-foreground tabular-nums">
+              {syncLabel(status, now)}
             </span>
           </DropdownMenuItem>
           <div className="flex items-center justify-between gap-2.5 px-2.5 py-2 text-sm">
             <span className="flex items-center gap-2.5">
-              <SunMoon className="size-[1.15em] text-muted-foreground" />
+              <SunMoon className="size-[1em] text-muted-foreground" />
               <span className="text-sm leading-none">外觀</span>
             </span>
             {/* Radio items, not buttons: the menu swallows Tab. Segments stay

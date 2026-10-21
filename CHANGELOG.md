@@ -16,7 +16,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - The theme toggle left the header for a new ☰ menu at its right edge: 外觀 now lives there. Every other header control is unchanged.
 
 ### Fixes
-- The ☰ menu's icons align against the text block rather than the row, and size in `em` against the row's text, so icon and label stay centred together when the browser font size is increased; the label/value pair keeps its baseline inside that block.
+- The ☰ menu's icons are one em tall — the same box as the text — and the right-hand values share its line box, so icon, label and value centres coincide at any browser font size.
 - The selected 外觀 segment now sits on the track's inner curve (6px inside the 8px track) instead of an arbitrary 5px, so the two radii are concentric.
 - The ☰ menu's label and value rows share a baseline, so the left and right halves sit on one line instead of a couple of pixels apart.
 - 同步 no longer reports 同步失敗 after the device is unlinked; the row falls back to 未連結.
