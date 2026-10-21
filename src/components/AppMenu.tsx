@@ -136,7 +136,7 @@ export function AppMenu({
                   onSelect={(e) => e.preventDefault()}
                   aria-label={label}
                   title={label}
-                  className="grid h-6 w-7 place-items-center rounded-[5px] p-0 text-muted-foreground transition-colors focus:bg-transparent focus:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[highlighted]:bg-transparent data-[highlighted]:text-foreground data-[state=checked]:bg-background data-[state=checked]:text-foreground data-[state=checked]:shadow-sm [&>span]:hidden"
+                  className="grid h-6 w-7 place-items-center rounded-sm p-0 text-muted-foreground transition-colors focus:bg-transparent focus:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[highlighted]:bg-transparent data-[highlighted]:text-foreground data-[state=checked]:bg-background data-[state=checked]:text-foreground data-[state=checked]:shadow-sm [&>span]:hidden"
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden />
                 </DropdownMenuRadioItem>

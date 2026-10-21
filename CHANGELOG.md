@@ -16,6 +16,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 - The theme toggle left the header for a new ☰ menu at its right edge: 外觀 now lives there. Every other header control is unchanged.
 
 ### Fixes
+- The selected 外觀 segment now sits on the track's inner curve (6px inside the 8px track) instead of an arbitrary 5px, so the two radii are concentric.
 - The ☰ menu's label and value rows share a baseline, so the left and right halves sit on one line instead of a couple of pixels apart.
 - 同步 no longer reports 同步失敗 after the device is unlinked; the row falls back to 未連結.
 - A seen marker that no longer parses now falls back to the latest release instead of claiming 已讀到最新 and hiding the unread window.
