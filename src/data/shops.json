@@ -767,6 +767,17 @@
           "name": "艾爾文",
           "items": [
             {
+              "name": "砂紙",
+              "priority": "must",
+              "cost": {
+                "amount": 9000
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
               "name": "高級木材",
               "kind": "barter",
               "cost": {
@@ -1221,6 +1232,17 @@
               "name": "白花蝶",
               "cost": {
                 "amount": 400
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "蜂蠟",
+              "priority": "must",
+              "cost": {
+                "amount": 3600
               },
               "limit": {
                 "times": 30,
@@ -3074,6 +3096,17 @@
               "name": "樹液",
               "cost": {
                 "amount": 500
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "蜂蠟",
+              "priority": "must",
+              "cost": {
+                "amount": 3600
               },
               "limit": {
                 "times": 30,

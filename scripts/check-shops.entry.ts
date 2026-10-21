@@ -173,9 +173,11 @@ for (const t of townList) {
   }
 }
 // Shop-option priority must reach the deal: a curated barter row wins when both
-// exist, otherwise the option's own tier flows through (today exactly the four
-// 推薦 quest-board scrolls). If this count moves, the new mark is either
-// intended (update the count) or a stray tier leaking a chip onto a tile.
+// exist, otherwise the option's own tier flows through. The pinned count below
+// covers only the 推薦 quest-board scrolls; 必換 gold rows (蜂蠟, 砂紙) carry the
+// other tier and are deliberately not counted here. If the extras count moves, the
+// new mark is either intended (update the count) or a stray tier leaking a chip
+// onto a tile.
 {
   const marked = shopDeals(loadShopNpcs()).filter((d) => !d.barterId && d.priority !== null);
   const extras = marked.filter((d) => d.priority === "extra");

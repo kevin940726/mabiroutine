@@ -2,7 +2,7 @@
 
 Item art lives in `public/items/`, one file per item named after its Traditional
 Chinese item name: `public/items/鹽.webp`. There is no manifest to update — the
-filename is the lookup. 218 files today (128×128 WebP, transparency kept).
+filename is the lookup. 220 files today (128×128 WebP, transparency kept).
 
 ## Resolving a name to a path
 
@@ -21,7 +21,7 @@ never a `displayName`-folded string.
 
 `displayName` (`src/lib/materials.ts`) narrows full-width `（` to `(` for reading, and the files
 keep the data's own spelling: `public/items/武器製作台設計圖(3級).webp`. Measured
-over the 192 distinct names the app looks up (`items[].name` with each row's `icon`
+over the 194 distinct names the app looks up (`items[].name` with each row's `icon`
 override substituted, plus the barter `give` and `get` lines):
 
 | | count |
@@ -86,17 +86,17 @@ does not hide a violation: it lays its tiles out with `items-start`, so a tile i
 own content height and a conditional frame would simply make that tile shorter instead
 of being stretched to look right. The fixed frame is what keeps the heights equal.
 
-**Every name the app looks up now has art**, so the placeholder is a state the
-current data no longer reaches. It stays as the designed fallback for the next name
-a data update adds before its file lands, which is why the frame is sized
-unconditionally above.
+**Every name the app looks up has art**: 蜂蠟 and 砂紙 joined `shops.json` on
+2026-10-21 and their files landed the same day, straight from the catalog source.
+The placeholder stays as the designed fallback for the next name a data update
+adds before its file lands, which is why the frame is sized unconditionally above.
 
-Counted over the names themselves: `items[].name` in `shops.json` is 167 distinct,
+Counted over the names themselves: `items[].name` in `shops.json` is 169 distinct,
 but the 24 quest-board scroll rows point their art at the shared `任務卷軸` file
-through the option's `icon`, so the names actually looked up are 144. Add the
+through the option's `icon`, so the names actually looked up are 146. Add the
 barter legs' `barter.give` / `barter.get` with the ` ×N` suffix stripped as
-`parseItemQty` does (84 + 99). Union 192 names, 192 covered; 26 spare files, so
-the directory holds 218.
+`parseItemQty` does (84 + 99). Union 194 names, 194 covered; 26 spare files, so
+the directory holds 220.
 
 One of those spare files is not an item name at all: `public/items/金幣.webp` is the
 coin a gold PRICE is drawn with (`Cost` in `src/components/shop/Cost.tsx`). It lives

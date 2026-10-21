@@ -15,7 +15,7 @@ handled for you.
 - ☀️ Dailies, weeklies, and account-wide tasks (dungeons, challenges, jobs, tower, events, guild/friend) on one page; tap to check off.
 - ⏰ Resets automatically daily and weekly at 06:00 Taipei, with a live countdown in the header; a half-finished 定期委託 round carries its three legs into the next week (only its recorded count resets).
 - 👥 Up to 6 characters, one tab each, renameable and reorderable, with separate progress.
-- 🔄 All 235 gold and barter trades, browsable by town and NPC, with have/need search, pinning to dailies, and a per-trade material breakdown.
+- 🔄 All 238 gold and barter trades, browsable by town and NPC, with have/need search, pinning to dailies, and a per-trade material breakdown.
 - ✏️ Custom tasks, drag reordering, hiding, and dark mode; a sync link also shares row and pinned order.
 - 🔗 Optional cross-device sync by link, no account; everything still works offline without it.
 - 📲 Installable on Android and desktop, iOS home-screen ready, and works offline.

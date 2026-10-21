@@ -4,6 +4,14 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-21 — Three 必換 gold trades, and a count sweep
+
+### Features
+- Three 必換 gold rows join the shop catalog, 238 trades in all: 蜂蠟 at 瓦爾特 (杜巴頓) and 吉爾摩 (班克爾), 3,600 gold each, 每週 30 次, and 砂紙 at 艾爾文 (杜加德走廊), 9,000 gold, 每週 30 次. All three carry the 必換 tier, so they sit in the shop's default 必換、推薦 view and the 優先度 filter finds them. Both item icons ship with them.
+
+### Chores
+- Stale counts in the shop code now match the 238-row catalog: `MerchantPanel`'s default view is 50 marked rows hiding 188, `shared.tsx`'s unmarked breakdown is 114 no-priority / 63 視需求 / 11 一次性, and `App.tsx`, `Tile.tsx` and `check-shops.entry.ts` no longer describe a 194-row catalog or a tier list that omits the 必換 gold rows. Measurements taken on the 194-row build (tile heights, wrap counts, the in-browser verification block) stay as dated records.
+
 ## 2026-10-20 — The default-pin audit
 
 ### Features

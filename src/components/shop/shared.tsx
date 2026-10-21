@@ -13,7 +13,7 @@ export type ShopProps = {
   pinned: Set<string>;
   onTogglePin: (id: string) => void;
   /** Show the 金幣 / 以物易物 split inside each section. Set when a town or NPC filter
-   *  narrows the list, where two labelled groups carry information; the full 194-row
+   *  narrows the list, where two labelled groups carry information; the full 238-row
    *  view is left unsplit. */
   splitKind?: boolean;
   /** Section by NPC rather than town. Set when a town or NPC filter narrows the view,
@@ -51,7 +51,7 @@ export type ShopProps = {
  * reinforcement of a distinction the word already makes in text, not the only signal.
  *
  * 視需求, 一次性 and no-priority rows get the normal border, not a colour. Measured:
- * 94 rows have no priority, 53 are 視需求 and 8 are 一次性, so 155 of 194 (80%) carried
+ * 114 rows have no priority, 63 are 視需求 and 11 are 一次性, so 188 of 238 (79%) carried
  * one of five stripe colours that said nothing.
  */
 const PRIORITY = {

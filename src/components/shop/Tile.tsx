@@ -191,7 +191,7 @@ export function Tile({
     <div
       data-shop-tile
       // the scroll target for a jump: keyed by pinId, the same id the flash uses.
-      // data-*, not an id: 194 tiles would flood the id namespace for a lookup that
+      // data-*, not an id: 238 tiles would flood the id namespace for a lookup that
       // is always a querySelector against a handful of rows.
       data-tile-key={item.pinId}
       // no pinned-specific styling: the pin button carries that state on its own. An
