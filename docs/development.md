@@ -56,7 +56,7 @@ unasked).
   (town-grouped for in-game checking); a leg's carried display limit must match
   its structured cap (`test:shops` twin parity enforces it).
 - **State is one Zustand store** — `src/store/useAppStore.ts`, persisted to
-  `localStorage` key `mabiroutine:v2` (schema `v22`, migrated on load — see the
+  `localStorage` key `mabiroutine:v2` (schema `v23`, migrated on load — see the
   store checklist in `AGENTS.md` before changing persisted shape).
 - **Resets are Taipei wall-clock** — `src/lib/reset.ts`: daily 06:00 /
   Monday 06:00 `Asia/Taipei`, evaluated lazily + on focus/visibility + 60s tick.

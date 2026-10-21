@@ -80,12 +80,17 @@ export function AppMenu({
   const install = useInstall();
   const [installOpen, setInstallOpen] = useState(false);
   const installable = install.status === "prompt" || install.status === "ios" || install.status === "samsung";
-  const dot = dotFor(whatsNew.summary, taipeiDate(now));
+  const dot = dotFor(whatsNew.releases, taipeiDate(now), whatsNew.nudged);
   return (
     <>
       {/* Not modal, like the character switcher: Radix's scroll lock would shift
           the fixed character pill. */}
-      <DropdownMenu modal={false}>
+      <DropdownMenu
+        modal={false}
+        onOpenChange={(open) => {
+          if (open) whatsNew.acknowledgeDot();
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
@@ -127,9 +132,9 @@ export function AppMenu({
           <DropdownMenuItem onSelect={whatsNew.openDrawer} className="gap-2.5 px-2.5 py-2">
             <RowIcon Icon={History} className="text-muted-foreground" />
             <span>更新記錄</span>
-            {whatsNew.summary.label && (
+            {whatsNew.label && (
               <span className="ml-auto text-xs leading-5 text-muted-foreground tabular-nums">
-                {whatsNew.summary.label}
+                {whatsNew.label}
               </span>
             )}
           </DropdownMenuItem>

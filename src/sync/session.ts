@@ -83,6 +83,7 @@ export type SyncSnapshot = Pick<
   | "prefs"
   | "globalTaskOrder"
   | "taskBuckets"
+  | "whatsNewNudged"
 >;
 
 export function buildSnapshot(): SyncSnapshot {
@@ -103,6 +104,7 @@ export function buildSnapshot(): SyncSnapshot {
     prefs: s.prefs,
     globalTaskOrder: s.globalTaskOrder,
     taskBuckets: s.taskBuckets,
+    whatsNewNudged: s.whatsNewNudged,
   };
 }
 

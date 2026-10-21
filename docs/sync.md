@@ -66,6 +66,10 @@ meta:taskorder   tracker row order, id -> number (object, 8KB cap). Authored
                  custom band is never volunteered (decision 4c)
 meta:pinorder    pinned band order, pin id -> rank (object). Absent = the
                  canonical curated/shops order (decision 4d)
+meta:whatsnew    the newest feature release whose ☰ nudge was acknowledged
+                 (release id string). Emitted only when set; a reset never
+                 tombstones it, and the merge keeps the later id, so an offline
+                 device cannot resurrect an old dot.
 pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 ```
 

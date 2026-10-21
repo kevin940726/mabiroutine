@@ -21,7 +21,7 @@ Data knowledge lives in `docs/` (read it before touching data or sync):
   terminal (the default), or ask before a background one; a silent background
   server is never the choice. Say which you used, and stop the one you started.
 
-## Store Version Bumps (persist schema `useAppStore.ts`, current `v22`)
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v23`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
 User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.

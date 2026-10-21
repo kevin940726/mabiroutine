@@ -36,6 +36,10 @@ export { parseCycleKey, isCycleKey, expiredCycleKeys };
 //                    withheld while it looks generated (see flattenSnapshot).
 //   meta:pinorder    pinned band order, pin id -> rank (object). Absent means
 //                    the canonical curated/shops order.
+//   meta:whatsnew    the newest feature release whose changelog dot this
+//                    account acknowledged (release id string). Emitted only
+//                    when set; a reset never tombstones it, and the merge keeps
+//                    the later id so an offline ack cannot regress.
 //   pref:hideCompleted
 //
 // pinnedCollapsed (the 已釘選 fold, prefs.pinnedCollapsed) is NOT synced: a fold is a
@@ -230,6 +234,11 @@ export function flattenSnapshot(s: SyncSnapshot): FlatMap {
     if (JSON.stringify(sorted).length <= MAX_ORDER_MAP_BYTES) flat["meta:pinorder"] = sorted;
   }
   if (s.prefs) flat["pref:hideCompleted"] = s.prefs.hideCompleted === true;
+  // Changelog nudge acknowledgement. Emitted only when set: a fresh device
+  // must not volunteer an empty value over a peer's acknowledgement. The diff
+  // skips tombstones for this key for the same reason (a reset does not delete
+  // the account's ack); the merge keeps the later release id.
+  if (s.whatsNewNudged) flat["meta:whatsnew"] = s.whatsNewNudged;
   return flat;
 }
 
@@ -250,6 +259,9 @@ export function diffFlat(base: FlatMap, now: FlatMap): FlatMap {
     if (k in now) continue;
     if (base[k] === null) continue;
     if (isCycleKey(k)) continue; // cycle keys expire, never delete
+    // The changelog ack is account state: a device that reset its local marker
+    // must not delete the peer's acknowledgement and resurrect their dot.
+    if (k === "meta:whatsnew") continue;
     changes[k] = null;
   }
   return changes;
@@ -576,6 +588,7 @@ export function unflattenReplace(flat: FlatMap, version: number): AppState & { v
     // The pushed row order becomes this device's canon (built-in overrides and
     // custom numbers; custom rows also carry their number on the row itself).
     globalTaskOrder: remoteOrder ?? undefined,
+    whatsNewNudged: typeof flat["meta:whatsnew"] === "string" ? (flat["meta:whatsnew"] as string) : "",
   } as AppState & { version: number };
 }
 
@@ -703,6 +716,13 @@ export function unflattenMerge(
   const taskBuckets: Record<string, string> = {};
   for (const b of buckets.values()) Object.assign(taskBuckets, b.buckets);
   Object.assign(taskBuckets, accBuckets);
+  // Changelog nudge: keep the later release id. Ids start with an ISO date, so
+  // a string comparison is chronological; this stops an offline device that
+  // acknowledges an older release from resurrecting a dot the account already
+  // cleared. Both empty stays empty.
+  const localNudged = local.whatsNewNudged ?? "";
+  const remoteNudged = typeof flat["meta:whatsnew"] === "string" ? (flat["meta:whatsnew"] as string) : "";
+  const whatsNewNudged = remoteNudged > localNudged ? remoteNudged : localNudged;
   return {
     version,
     characters,
@@ -717,5 +737,6 @@ export function unflattenMerge(
     lastWeeklyReset: local.lastWeeklyReset ?? null,
     prefs: { ...local.prefs, hideCompleted: flat["pref:hideCompleted"] === true },
     globalTaskOrder: rowOrder,
+    whatsNewNudged,
   } as AppState & { version: number };
 }

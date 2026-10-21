@@ -59,20 +59,18 @@ export function WhatsNewDrawer({
               </ul>
             </section>
           ))}
-          {view.caughtUp && (
-            <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
-              更早的更新請見{" "}
-              <a
-                href={ARCHIVE_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="underline underline-offset-2"
-              >
-                GitHub 上的完整記錄
-              </a>
-              。
-            </p>
-          )}
+          <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+            更早的更新請見{" "}
+            <a
+              href={ARCHIVE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2"
+            >
+              GitHub 上的完整記錄
+            </a>
+            。
+          </p>
         </div>
       </DrawerContent>
     </Drawer>

@@ -79,7 +79,7 @@ Contract, so it does not rot into a junk drawer:
 | Row | State shown | Opens |
 |---|---|---|
 | 有新版本 · 重新載入 | only while `updateReady` | reload |
-| 更新記錄 | `10/20 · 3 則未讀` / `最新 · 10/20` / no value once caught up; amber dot on ☰ only when unread | changelog drawer |
+| 更新記錄 | `最新 · 10/20`; amber dot on ☰ until the menu is opened (shared by sync) or the release window passes | changelog drawer |
 | 同步 | `已連結 · 2 分鐘前` / `未連結` / `同步失敗` | sync dialog |
 | 外觀 | three segments: 淺色 / 跟隨系統 / 深色 | inline, menu stays open |
 | 安裝 App | only while installable | native prompt, or a steps dialog |
@@ -163,27 +163,26 @@ The app's entries are derived, not fetched:
   hand-edited; the `.generated.` name is the warning. `AGENTS.md` says
   `src/data/*.json` is hand-edited — add the exception there when this ships.
 
-Seen state is device-local (`mabiroutine:whatsnew-seen`), storing the release id
-(the marker text). Not progress, so not in the synced store; **no schema bump**
-and no migration.
+The changelog is a page, not an inbox. There is no seen marker and no unread
+count: the drawer renders every release, and the row's `最新 · MM/DD` is just the
+newest heading. The only state is the ☰ nudge.
 
-Window and states:
-
-- Marker = the newest release actually opened (opening the drawer sets it).
-- Unread = every release newer than the marker. Count = **releases**, not
-  bullets.
-- No marker at all (new device, cleared storage): **no dot**. The row reads
-  `最新 · 10/20`; opening the drawer shows the latest release and sets the
-  marker. A badge on install would announce content the user never missed.
-- Zero unread: the row shows no value; the drawer shows the latest release and a
-  link to the full archive on GitHub (`CHANGELOG-zh_TW.md`).
-- Rendering: unread releases, newest first, grouped under local date
-  (Asia/Taipei) headings. Two releases on one day share a heading and keep their
-  own bullets — the "aggregated but date-separated" shape.
+- `whatsNewNudged` lives in the store (schema v23), not `localStorage`: it is the
+  newest feature release the account has acknowledged. It rides the sync key
+  space as `meta:whatsnew`, so opening the menu on one linked device quiets the
+  dot on the others; the merge keeps the later release id, so an offline device
+  cannot resurrect an old dot.
+- The dot points at the newest `feature` release that is not acknowledged and
+  whose Taipei heading date is today or the day before. A fixes-only release
+  never dots. A fresh save has no marker and therefore no dot; the first menu
+  open seeds it with the then-current release, so a later feature release
+  re-arms it.
+- Opening the menu acknowledges it. The acknowledgement does not change what the
+  drawer renders; the page always carries the full record.
+- Rendering: every release, newest first, grouped under the zh heading date
+  (Asia/Taipei). Two releases on one day share a heading and keep their own
+  bullets — the "aggregated but date-separated" shape.
 - Kind tag per bullet, from `### 新功能` / `### 修正`.
-- An id that no longer exists (relabelled heading) falls back to the date parsed
-  from the marker, not the zh heading, so a same-day release cannot hide behind
-  a typo.
 
 No `tab` field and no jump link. A link that lands on a tab instead of the thing
 it describes teaches people to ignore links, and with two tabs it is noise. The
@@ -208,13 +207,20 @@ disappears.
 Badges fatigue for two reasons: they accumulate, and red means "something is
 wrong". Rules:
 
-- Amber, 6px, no number **on the dot**; the row's sentence carries the count.
-- Only when an unseen entry is `feature`. A fixes-only release never dots.
-- Clears when the drawer opens, not per item.
-- Decays after two weeks: the dot means "there is something recent", not a
-  debt. The row keeps `10/20 · N 則未讀` afterwards, so nothing is lost.
+- Amber, 6px, no number **on the dot**; the row carries `最新 · MM/DD`, not a
+  count.
+- Only for the newest unacknowledged `feature` release. A fixes-only release
+  never dots.
+- Acknowledged by opening the menu, not the drawer. The marker is the synced
+  `whatsNewNudged` (`meta:whatsnew`), so a linked phone and desktop go quiet
+  together; the page is unaffected. A newer feature release re-arms it.
+- Expires after the release's Taipei day and the day after, so an ignored dot
+  cannot sit for two weeks. The changelog is day-granular, so this is a
+  calendar window, not 24 hours from the release.
 
-Status is the row's sentence; the dot is the one-time pull.
+The row is the page's latest date; the dot is a one-release nudge with a short
+backstop. The acknowledgement is synced because it is about the person, not the
+device; there is no unread state to disagree across devices.
 
 ## Update prompt
 
@@ -353,12 +359,12 @@ push, not the deploy.
 | 5 | Data rows | shipped | 匯出／匯入／重置 under the divider; reset confirms via `ConfirmDialog`; footer keeps `ExpSettingsDialog` + attribution |
 | 6 | `CHANGELOG-zh_TW.md` | shipped | root file with a preamble; its one section is the 2026-10-20 baseline (older releases stay English); `whats-new: none` for internal releases from here on |
 | 7 | Parser and generated JSON | shipped | `scripts/whats-new.mjs`: `parseZh` + `--write` / `--check`, no other mode; strict, every unknown construct throws with its line; 3 entries at the baseline |
-| 8 | Changelog drawer | shipped | device-local marker (`mabiroutine:whatsnew-seen`, no schema bump); unread = releases newer than it, counted as releases; `MM/DD` groups with a 新功能/修正 tag; first run and caught-up show the latest release only; mounted beside the menu so it outlives the close |
-| 9 | Dot policy | shipped | 6px amber on the ☰ trigger, `aria-hidden`, no number; only when unread carries a `feature` bullet and the newest unread release is ≤ 14 Asia/Taipei calendar days old (14 inclusive, future counts as recent); no dot on `first`/`read`; clears as opening writes the marker; the row keeps the count |
+| 8 | Changelog drawer | shipped | page, not inbox: every release rendered newest first, row shows `最新 · MM/DD`, no seen marker; `MM/DD` groups with a 新功能/修正 tag; mounted beside the menu so it outlives the close |
+| 9 | Dot policy | shipped | 6px amber on the ☰ trigger, `aria-hidden`, no number; newest unacknowledged `feature` release, 0–1 Asia/Taipei calendar days; opening the menu acknowledges it via the synced `whatsNewNudged` (`meta:whatsnew`); fixes-only never dots |
 | 10 | Update prompt | shipped | a `waiting` event at registration (before it completes, or within 3s of it) is a replayed pre-existing worker: takeover only, nothing set, nothing shown; a later one marks `updateReady` (`src/lib/updatePrompt.ts`) and raises one 8s toast (`有新版本可用` + `重新載入`) unless a dialog is open or the tab is hidden; the ☰ row (`有新版本 · 重新載入`) is the durable path and shares `acceptUpdate`; accept writes `mabiroutine:update-receipt` then reloads, and the App effect raises `已更新到最新版` after `SyncToasts` mounted; the 6h path reloads with no receipt |
 | 11 | Gate registration | shipped | `scripts/check-whatsnew.mjs` (`test:whatsnew`, no deps, read-only): parser fixtures, the JSON against a fresh parse via `--check`'s own `diff`, and parity with `CHANGELOG.md` from the baseline forward — every dated release has a zh section or `<!-- whats-new: none -->`, every marker resolves, nothing duplicated or reordered, marker date = heading date, no code identifiers in bullets; registered in `GATES` + the `AGENTS.md` trigger bullet, seventeen gates |
 | 12 | Cut runbook | shipped | `docs/development.md` § Cutting a release: five steps, and why the three files move in one commit (a late JSON is the previous cut in the drawer, and no build notices); `AGENTS.md` § Changelog carries the one-line authoring rule beside the release-label bullet |
-| 13 | Docs and both READMEs at ship | shipped | both READMEs state the ☰ menu and its rows, 外觀 as 跟隨系統 / 淺色 / 深色 (system default), the zh-backed drawer with its amber dot, and the nudge + receipt; `SyncButton` references in `docs/sync.md`, `docs/stories.md` and `docs/sql-migration.md` became `useSyncEngine` / `SyncDialog`; the "no update toast exists" claims in `docs/development.md`, `vite.config.ts` and `src/main.tsx` are corrected; `docs/storage.md` records `mabiroutine:whatsnew-seen` (never synced, no schema bump); `AGENTS.md` carves the generated `whatsNew.generated.json` out of the hand-edited rule |
+| 13 | Docs and both READMEs at ship | shipped | both READMEs state the ☰ menu and its rows, 外觀 as 跟隨系統 / 淺色 / 深色 (system default), the zh-backed drawer with its amber dot, and the nudge + receipt; `SyncButton` references in `docs/sync.md`, `docs/stories.md` and `docs/sql-migration.md` became `useSyncEngine` / `SyncDialog`; the "no update toast exists" claims in `docs/development.md`, `vite.config.ts` and `src/main.tsx` are corrected; `docs/storage.md` records the synced changelog nudge (`whatsNewNudged`, `meta:whatsnew`), the device-local theme and update receipt, and the generated `whatsNew.generated.json` exception; `AGENTS.md` carves the generated file out of the hand-edited rule |
 | 14 | 提醒設定 in the menu | dropped | revisit later |
 | 15 | Deep links in entries | dropped | — |
 | 16 | GitHub Releases workflow | deferred | generate from the zh section if shareable pages are wanted |

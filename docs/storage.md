@@ -17,10 +17,11 @@ MabiRoutine's design principle: static game data ships with the app;
   per-device local-only — never synced, never sent anywhere. A local-only
   sync journal (`mabiroutine:syncjournal`) keeps the last 50 sync rounds
   (pushed, dropped and adopted keys) for diagnosing a sync conflict; it is
-  per-device and never leaves the browser. So is
-  `mabiroutine:whatsnew-seen`, which remembers the newest release you opened
-  in 更新記錄 so the drawer shows only what is new: never synced, and it
-  changed no saved schema. `theme` (light / dark / system) is per-device too,
+  per-device and never leaves the browser. The changelog nudge
+  acknowledgement (`whatsNewNudged`) is different: it is part of the store
+  and the synced key space (`meta:whatsnew`), so opening the menu on one
+  linked device quiets the dot on the others; the drawer itself is a page,
+  with no unread marker. `theme` (light / dark / system) is per-device too,
   and `mabiroutine:update-receipt` lives in `sessionStorage` for a single
   reload to show the update receipt. `mabiroutine:last-synced` remembers when
   this device last reached the sync link (never synced, not part of the store).

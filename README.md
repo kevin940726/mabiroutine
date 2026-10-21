@@ -19,7 +19,7 @@ handled for you.
 - ✏️ Custom tasks, drag reordering, and hiding; a sync link also shares row and pinned order.
 - 🎨 外觀 is a single row of three segments — 淺色 / 跟隨系統 / 深色 — and the default follows your system, so a phone or desktop switching to dark repaints live.
 - ☰ The header menu is where choices live: 更新記錄, 同步 (its state, opening the same dialog), 外觀, 安裝 App, then 匯出 JSON / 匯入 JSON / 重置所有資料 under a divider. The footer keeps 實驗性功能, the GitHub link and the sources.
-- 📝 更新記錄 is the way into the changelog, and it shows only what arrived since this device last looked. The copy is [CHANGELOG-zh_TW.md](CHANGELOG-zh_TW.md), the player-facing record; the amber dot on ☰ is the one pull, and opening the drawer clears it.
+- 📝 更新記錄 opens the changelog: every release since the 2026-10-20 baseline, newest first, with the earlier history on GitHub. The amber dot on ☰ nudges once per feature release, clears when you open the menu — on any synced device — and expires after the release day and the next if you never do; a fresh install has none until the first menu open.
 - 🔗 Optional cross-device sync by link, no account; the ☰ row says whether it is linked and how long ago it last synced. Everything still works offline without it.
 - ⬆️ A tab left open across a deploy can tell you a new version is ready — one toast, and the 有新版本 · 重新載入 row that stays until you act on it — and taking it reloads into 已更新到最新版. Nothing opens by itself.
 - 📲 Installable from ☰ — a native prompt on Android and desktop, a short steps dialog on iPhone and Samsung — and it works offline.

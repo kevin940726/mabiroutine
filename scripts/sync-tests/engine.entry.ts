@@ -1016,7 +1016,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
 {
   const SID = "e21-roworder";
   const server = { flat: {} as FlatMap };
-  const STORE_VERSION = 22;
+  const STORE_VERSION = 23;
   const pack = (z9: number, a2: number, m5: number) => [
     { id: "cu-z9", name: "C-z9", kind: "daily", section: "custom", type: "check", order: z9 },
     { id: "cu-a2", name: "C-a2", kind: "daily", section: "custom", type: "check", order: a2 },
@@ -1181,7 +1181,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
 {
   const SID = "e22-pinorder";
   const server = { flat: {} as FlatMap };
-  const STORE_VERSION = 22;
+  const STORE_VERSION = 23;
   const P1 = DEFAULT_MUST_PINS[0] ?? "";
   const P2 = DEFAULT_MUST_PINS[1] ?? "";
   const P3 = SHOP_PIN;
@@ -1301,7 +1301,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   // Seeded at the CURRENT version, not the harness's default v15: the sub-counters
   // themselves arrived at v22 (weekly-goals' check → counter rework), so a v15 save
   // cannot hold leg values. No version steps run here — normalize is what is tested.
-  seedStore(migratePersisted({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 22 }, 22) as Snap);
+  seedStore(migratePersisted({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 23 }, 23) as Snap);
   const loaded = useAppStore.getState();
   const loadedTv = loaded.characters[0]?.taskValues as Record<string, unknown>;
   ok("E23 legs survive the load", loadedTv[LEGS[0]] === 2 && loadedTv[LEGS[1]] === 5 && loadedTv[LEGS[2]] === 1, loadedTv);
@@ -1340,7 +1340,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   const buckets = Object.fromEntries([GOAL, ...LEGS].map((id) => [id, LAST_WEEK]));
   // A save written last week at the current version (the sub-counters arrived at
   // v22, so the harness's v15 default would be an impossible premise here).
-  seedStore({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 22 });
+  seedStore({ ...snap(values, buckets, TODAY, LAST_WEEK), version: 23 });
   saveSession({ id: SID, updatedAt: 1 });
   // Last week's push, still server-side under last week's tags.
   server.flat = flattenSnapshot(buildSnapshot());
