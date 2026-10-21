@@ -55,6 +55,11 @@ npx skills add kevin940726/agent-skills -s tech-doc-zh-tw -a claude-code
 `.claude/skills/` is generated and ignored; `.agents/skills/` is the copy to
 commit. OpenCode reads it directly.
 
+It is the style gate for every player-facing zh-TW change — `CHANGELOG-zh_TW.md`,
+`README-zh_TW.md`, and UI copy. Load it and run its 最終檢查 before committing.
+The build gates cannot judge voice, so this is a review step; `test:whatsnew`
+only checks the changelog's structure, parity and code-free copy.
+
 ## Five-minute tour
 
 - **Game data is hand-owned JSON** — `src/data/tracker.json` (26 rows) +
@@ -291,7 +296,8 @@ one release, and they move in that same commit.
 1. Label the English section: `## Unreleased` → `## <YYYY-MM-DD> — <label>`,
    with a fresh empty `## Unreleased` above it. The label comes from the range's
    content.
-2. Add the zh section to `CHANGELOG-zh_TW.md`: same date, 1–3 bullets in player
+2. With the `tech-doc-zh-tw` skill loaded (`.agents/skills/tech-doc-zh-tw/SKILL.md`),
+   add the zh section to `CHANGELOG-zh_TW.md`: same date, 1–3 bullets in player
    voice, and a `<!-- release: … -->` marker naming the English heading
    **verbatim**. When nothing in the release is player-visible, write
    `<!-- whats-new: none -->` directly under the English heading instead —
@@ -312,6 +318,8 @@ missing from the drawer. Neither a build nor a type check notices, so
 or 3, and the pre-push hook turns that into a blocked push rather than a wrong
 deploy. The same gate pins the marker to the English heading, so a reworded
 heading fails instead of silently re-keying the release the seen state stores.
+The skill is the voice/style gate; `test:whatsnew` only sees structure, parity
+and the code-free rule.
 
 ## Gotchas
 

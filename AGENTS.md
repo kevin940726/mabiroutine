@@ -70,6 +70,13 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   heading; an internal-only release carries `<!-- whats-new: none -->` under
   that heading instead. `test:whatsnew` enforces it — the runbook is
   `docs/development.md` § Cutting a release.
+- The zh-TW copy is gated by the committed `tech-doc-zh-tw` skill
+  (`.agents/skills/tech-doc-zh-tw/SKILL.md`): load it before writing or
+  reviewing `CHANGELOG-zh_TW.md`, `README-zh_TW.md`, or any player-facing UI
+  string, and run its 最終檢查 before committing. `test:whatsnew` is the
+  mechanical gate for structure, parity and code-free copy; it cannot judge
+  voice. Game data names in `src/data/*.json` are data, not prose — leave them
+  alone.
 - Language: English always. Traditional Chinese only when quoting UI or copy text,
   or when a term has no English counterpart; `english (中文)` side by side when
   both help. (Older entries predate this — leave them.) No commit hashes in
