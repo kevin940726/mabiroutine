@@ -81,7 +81,12 @@ export function AppMenu({
           the fixed character pill. */}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="選單" className="relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="選單"
+            className="relative h-8 w-8 rounded-full data-[state=open]:bg-accent"
+          >
             <Menu className="h-4 w-4" />
             {dot && (
               <span
@@ -94,13 +99,18 @@ export function AppMenu({
         <DropdownMenuContent
           align="end"
           aria-label="選單"
-          className="min-w-[13rem] p-1.5"
+          className="min-w-[13rem] max-h-none overflow-visible p-0"
           // The changelog drawer, the sync row and the reset confirm all open a
           // dialog, and Radix returns focus to the trigger as the menu closes —
           // which lands after the dialog mounted and yanks focus back out of it.
           // Keep focus where the dialog puts it.
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
+          <span
+            aria-hidden
+            className="absolute -top-1 right-3 z-10 size-2 rotate-45 rounded-[1px] border-l border-t border-border bg-popover"
+          />
+          <div className="max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto p-1.5">
           {updateReady && (
             <DropdownMenuItem onSelect={acceptUpdate} className="gap-2.5 px-2.5 py-2">
               <RowIcon Icon={ArrowUpCircle} className="text-muted-foreground" />
@@ -180,6 +190,7 @@ export function AppMenu({
             <RowIcon Icon={Trash2} />
             重置所有資料
           </DropdownMenuItem>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
       <InstallDialog open={installOpen} onOpenChange={setInstallOpen} status={install.status} />

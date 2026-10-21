@@ -5,6 +5,7 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 ## Unreleased
 
 ### Features
+- The ☰ trigger is a circular ghost button that fills while the menu is open, and the menu carries a small caret pointing back at it.
 - The ☰ menu has a muted icon on every row, a wider card and roomier rows, and 外觀 now reads 淺色 / 跟隨系統 / 深色 so the default sits in the middle.
 - 安裝 App moved from the footer into the ☰ menu: a native prompt on Android and desktop, and a short steps dialog on iPhone and Samsung.
 - A tab that has been open across a deploy can now tell you a new version is waiting, and take it when you choose. A deploy that lands mid-session raises one toast — 有新版本可用 with a 重新載入 button, up for 8 seconds — and adds 有新版本 · 重新載入 to the top of the ☰ menu, which stays until you act on it. The toast is skipped while a dialog is open or the tab is in the background (the menu row still carries it), so an editor is never interrupted. Accepting reloads into the new bundle and then says 已更新到最新版 once; it never opens a panel by itself. A worker that was already waiting when the page loaded is not news — the page has just rendered fresh HTML — so it is taken over silently as the app boots, and the 6h absence return still reloads without claiming an update you never accepted.
