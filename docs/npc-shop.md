@@ -236,7 +236,7 @@ need a toggle because both kinds render as tiles and 類型 filters them.
 
 | Rule | Why |
 |---|---|
-| All 238 shop rows, not just the curated barter ones | The old tab showed a flat 107-row curated list, hiding most real trades |
+| All 239 shop rows, not just the curated barter ones | The old tab showed a flat 107-row curated list, hiding most real trades |
 | A tab renders only when that NPC has that kind of trade | 27 of 45 NPCs are barter-only; a dead 金幣 tab is noise |
 | Default order is `curatedOrder.ts`, gold last | The curated order is hand-written intent; `shops.json` order is not |
 | No item icons | 169 distinct item names for the shop view, all with art; not worth the capture |
@@ -559,10 +559,10 @@ Measured, not assumed. Re-run the counts if `shops.json` or `curatedOrder.ts` ch
 and measure them by having a script write a UTF-8 file rather than printing to the
 console (see the terminal trap in section 0).
 
-- `shops.json`: 238 rows, 45 NPCs, 8 towns. 121 gold (`kind` omitted), 117 barter.
+- `shops.json`: 239 rows, 45 NPCs, 8 towns. 122 gold (`kind` omitted), 117 barter.
 - 27 NPCs are barter-only, 14 are mixed, 4 are gold-only.
 - Every barter row is curated inline (stable `id`, a `priority`, and the
-  `barter.give` / `get` / `limit` display strings), so only the 121 gold rows
+  `barter.give` / `get` / `limit` display strings), so only the 122 gold rows
   need a `shop::` pin id. `barter.json` was retired 2026-10-07: the ids, tiers,
   display strings and order now live on the options plus `curatedOrder.ts`.
 - **Zero** curated rows lack a shop entry, and zero shop barter rows lack their
@@ -576,11 +576,11 @@ console (see the terminal trap in section 0).
   `精靈的痕跡` against `精靈痕跡`, which left a `situational` curated row
   unreachable anywhere. Twin cap parity pairs rows by name and was blind to
   both — which is why the check no longer depends on a second file.
-- All 121 gold rows are unique on `npc::name`; none has a null price. This is the
+- All 122 gold rows are unique on `npc::name`; none has a null price. This is the
   invariant that lets the pin id be `shop::<npc>::<name>`, and `test:shops`
   now enforces it (check 0b) instead of merely measuring it.
-- Pin counts: **all 238 pinnable** — 117 under an explicit option `id`,
-  121 gold rows under a `shop::` id. 238 distinct pin ids.
+- Pin counts: **all 239 pinnable** — 117 under an explicit option `id`,
+  122 gold rows under a `shop::` id. 239 distinct pin ids.
 
 ---
 

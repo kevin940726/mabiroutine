@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Features
+- 康納 (庫漢) now sells 蜂蠟, 3,600 gold, 每週 30 次, 必換 — the third 蜂蠟 row after 瓦爾特 and 吉爾摩, bringing the catalog to 239 trades.
+
 ## 2026-10-21 — The ☰ menu, the changelog page, and update prompts
 
 ### Features

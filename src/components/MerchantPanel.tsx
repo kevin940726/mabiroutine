@@ -22,11 +22,11 @@ import type { ShopRow } from "@/components/shop/types";
  *  first one's timer to cut the second flash short. */
 const FOCUS_FLASH_MS = 1600;
 
-/** The 優先度 a fresh visit opens with: the two tiers worth acting on. 50 of the 238
+/** The 優先度 a fresh visit opens with: the two tiers worth acting on. 51 of the 239
  *  shop rows, which is the set the priority stripe already marks, so the shop opens on
  *  what the tracker actually asks you to do rather than on the whole catalog.
  *
- *  A default, not a floor: 清除篩選 empties it to show all 238 rows, and the 優先度
+ *  A default, not a floor: 清除篩選 empties it to show all 239 rows, and the 優先度
  *  trigger is highlighted and reads 必換/推薦 from the first paint, so the filter is
  *  visible state rather than a hidden one. Without that the default would be
  *  indistinguishable from "no filter", and clearing would look like the only way to
@@ -788,7 +788,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
   // out while a priority or kind filter was live, and pressing it left them set.
   //
   // Priority counts as active whenever it is set at all, the default included: the
-  // shop opens on 必換+推薦, which is hiding 188 of the 238 rows, so there IS something
+  // shop opens on 必換+推薦, which is hiding 188 of the 239 rows, so there IS something
   // to clear and the button says so. Treating the default as "not a filter" would leave
   // the one control that reveals those rows looking disabled on the very screen it
   // applies to. Pressing it empties the filter to all rows, so the outcome matches the
@@ -810,10 +810,10 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
     setTown("all");
     setMerchant("all");
     setQuery("");
-    // Empties the priority filter to show all 238 rows, the literal meaning of 清除.
+    // Empties the priority filter to show all 239 rows, the literal meaning of 清除.
     // The 必換+推薦 default is a starting view, not a floor: re-ticking the two tiers
     // in the 優先度 menu is how you get back, and the menu shows its state so that is
-    // discoverable. Restoring the default here instead would make 清除篩選 HIDE 155
+    // discoverable. Restoring the default here instead would make 清除篩選 HIDE 188
     // rows, which is the opposite of what the words promise.
     setPriorityFilter([]);
     setKindFilter("all");

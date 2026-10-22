@@ -2787,6 +2787,17 @@
                 "get": "愛心幣 ×1",
                 "limit": "每日 3 次"
               }
+            },
+            {
+              "name": "蜂蠟",
+              "priority": "must",
+              "cost": {
+                "amount": 3600
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
             }
           ]
         },
