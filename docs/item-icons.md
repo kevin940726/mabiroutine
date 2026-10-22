@@ -2,7 +2,7 @@
 
 Item art lives in `public/items/`, one file per item named after its Traditional
 Chinese item name: `public/items/鹽.webp`. There is no manifest to update — the
-filename is the lookup. 220 files today (128×128 WebP, transparency kept).
+filename is the lookup. The art is 128×128 WebP with transparency kept.
 
 ## Resolving a name to a path
 
@@ -20,16 +20,16 @@ Use the name as the DATA spells it — half-width parens, `+` refinement kept �
 never a `displayName`-folded string.
 
 `displayName` (`src/lib/materials.ts`) narrows full-width `（` to `(` for reading, and the files
-keep the data's own spelling: `public/items/武器製作台設計圖(3級).webp`. Measured
-over the 194 distinct names the app looks up (`items[].name` with each row's `icon`
-override substituted, plus the barter `give` and `get` lines):
+keep the data's own spelling: `public/items/武器製作台設計圖(3級).webp`. The rule
+holds for every distinct name the app looks up (`items[].name` with each row's
+`icon` override substituted, plus the barter `give` and `get` lines):
 
-| | count |
+| | result |
 |---|---|
-| match on the raw form only | **11** (every `(3級)` blueprint) |
-| match on the folded form only | **0** |
+| match on the raw form only | every `(3級)` blueprint |
+| match on the folded form only | none |
 
-So folding before the lookup loses all 9 and gains nothing. This is the same rule
+So folding before the lookup loses every blueprint match and gains nothing. This is the same rule
 `materials.ts` already states for the route table — fold at the render expression,
 never a string about to be looked up. `PinnedGroups.tsx` keeps `itemName` (folded,
 for the eye) and `itemArtName` (raw, for the filesystem) side by side for exactly
@@ -52,12 +52,12 @@ display one, rather than by remembering not to fold:
 `%2B`. That is the form the URL must carry, and production is the authority: Vercel
 resolves `%2B` to `public/items/皮革+.webp`, and a literal `+` in the path does not
 resolve (404; measured against the deployed preview, 2026-10-02, along with `%20`,
-which also 404s). Five
-names carry one — `布料+`, `皮革+`, `高級布料+`, `高級木材+`, `高級生皮+` — and all
-five go out as `%2B`.
+which also 404s). The
+names that carry one — `布料+`, `皮革+`, `高級布料+`, `高級木材+`, `高級生皮+` — all
+go out as `%2B`.
 
-The parens are the opposite case, and the reason this section is worth reading
-twice. `(` and `)` are RFC 3986 sub-delims like `+`, but unlike `+` the servers
+The parens are the opposite case. `(` and `)` are RFC 3986 sub-delims like `+`, but
+unlike `+` the servers
 `+` was measured against do resolve them: Vercel serves `…設計圖(3級).webp` to the
 file (measured 2026-10-02), so the builder leaves them literal. Escaping them to
 `%28`/`%29` would be a different, unverified path, and `pnpm test:icons` pins the
@@ -91,28 +91,22 @@ of being stretched to look right. The fixed frame is what keeps the heights equa
 The placeholder stays as the designed fallback for the next name a data update
 adds before its file lands, which is why the frame is sized unconditionally above.
 
-Counted over the names themselves: `items[].name` in `shops.json` is 169 distinct,
-but the 24 quest-board scroll rows point their art at the shared `任務卷軸` file
-through the option's `icon`, so the names actually looked up are 146. Add the
-barter legs' `barter.give` / `barter.get` with the ` ×N` suffix stripped as
-`parseItemQty` does (84 + 99). Union 194 names, 194 covered; 26 spare files, so
-the directory holds 220.
+Counted over the names themselves: `items[].name` is fewer names than rows once an
+option's `icon` override collapses rows onto a shared file (the quest-board scrolls
+all use `任務卷軸`), and the barter legs add their `barter.give` / `barter.get`
+names with the ` ×N` suffix stripped as `parseItemQty` does. Every name in that
+union is covered; the directory also holds spare art, so its file count is larger
+than the name count.
 
-One of those spare files is not an item name at all: `public/items/金幣.webp` is the
+One spare file is not an item name at all: `public/items/金幣.webp` is the
 coin a gold PRICE is drawn with (`Cost` in `src/components/shop/Cost.tsx`). It lives
 here because that is where the currency art does — 喵幣 and 愛心幣 are looked up by
 their own names, while gold's currency token is `gold`, so its file is the single
 lookup `Cost` maps by hand. Named after the coin (金幣) rather than the token so the
 currency files read as one set.
 
-This section used to list sixteen names as missing. That list went stale in two
-steps — 26 icons landed in one batch, then the remainder arrived — and for a while
-the count below the line was zero. Adding 伊文 and 茉莉's weekly trades brought
-three back, all three already filled from in-game captures (魔物討伐證明 and the two
-fossils, whose stack number and rarity glow were cleaned off): none of the three had
-a source in the icon catalog at all. The history is worth keeping because the two
-facts it shows are still live: only names in `shops.json` reach a tile, and a name
-inside barter deal text renders as plain text, so a gap there has no visible
+Two coverage facts matter: only names in `shops.json` reach a tile, and
+a name inside barter deal text renders as plain text, so a gap there has no visible
 placeholder until a trade line gains art.
 
 The three `(3級)` blueprints were the leftover end of the raw-name trap above: the

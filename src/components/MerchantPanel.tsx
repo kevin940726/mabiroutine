@@ -16,26 +16,13 @@ import { writeShopJumpParams } from "@/lib/shopJump";
 import { NpcFace } from "@/components/shop/NpcFace";
 import type { ShopRow } from "@/components/shop/types";
 
-/** How long the jumped-to tile stays tinted. Long enough to find by eye after the
- *  scroll settles, short enough that it stops reading as a selected row. The timer
- *  is cleared on unmount and on a second jump so two quick jumps cannot leave the
- *  first one's timer to cut the second flash short. */
+/** How long a jumped-to tile stays tinted. */
 const FOCUS_FLASH_MS = 1600;
 
-/** The 優先度 a fresh visit opens with: the two tiers worth acting on. 51 of the 239
- *  shop rows, which is the set the priority stripe already marks, so the shop opens on
- *  what the tracker actually asks you to do rather than on the whole catalog.
- *
- *  A default, not a floor: 清除篩選 empties it to show all 239 rows, and the 優先度
- *  trigger is highlighted and reads 必換/推薦 from the first paint, so the filter is
- *  visible state rather than a hidden one. Without that the default would be
- *  indistinguishable from "no filter", and clearing would look like the only way to
- *  see rows it had been hiding. */
+/** The two tiers a fresh visit opens on; 清除篩選 clears to the whole catalog. */
 const DEFAULT_PRIORITY = ["must", "extra"];
 
-/** The 優先度 / 類型 options, shared by the header's filter grid and the floating
- *  pill so the two surfaces cannot drift apart (the pill duplicates the header
- *  by design, but not the option list). */
+/** Options shared by the header filter and the floating pill. */
 const PRIORITY_OPTIONS = [
   { value: "must", label: "必換" },
   { value: "extra", label: "推薦" },
@@ -414,8 +401,6 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
       for (const g of groups) nameCount.set(g.name, (nameCount.get(g.name) ?? 0) + 1);
       return [
         { value: "all", label: "全部 NPC", icon: <span className="grid size-5 shrink-0 place-items-center rounded-full border bg-muted"><Store className="size-3" /></span> },
-        // grouped by town: the list is already town-ordered, so headings
-        // make that visible instead of leaving 36 rows to scan
         ...groups.map((group) => ({
           value: merchantKey(group.name, group.town),
           label: (nameCount.get(group.name) ?? 0) > 1 ? `${group.name} · ${group.town}` : group.name,
@@ -528,10 +513,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
     ).length;
   }, [shown, priorityFilter, pinSet, query]);
 
-  /** Flash tiles and scroll to the first. A SET, not a key: a tracker group-parent
-   *  jump lands on every child at once, so all of them flash together under one
-   *  timer. Single-row callers pass one element. Keys that never mount (a retired
-   *  pin) simply match no tile; scrollToFocus reports it and no scroll happens. */
+  /** Flash every matching tile; a group-parent jump lands on all its children. */
   const [focusKeys, setFocusKeys] = useState<string[]>([]);
   const flashTiles = useCallback((keys: string[]) => {
     setFocusKeys(keys);
@@ -783,26 +765,12 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
     selectNpc(merchantKey(npc, town));
   };
 
-  // The reset button covers every filter in this row, the two grid filters
-  // included. They were missed when they were added, so the button stayed greyed
-  // out while a priority or kind filter was live, and pressing it left them set.
-  //
-  // Priority counts as active whenever it is set at all, the default included: the
-  // shop opens on 必換+推薦, which is hiding 188 of the 239 rows, so there IS something
-  // to clear and the button says so. Treating the default as "not a filter" would leave
-  // the one control that reveals those rows looking disabled on the very screen it
-  // applies to. Pressing it empties the filter to all rows, so the outcome matches the
-  // promise: enabled on load, disabled after it clears.
-  // The search box is a filter too: with only a query typed the reset has something
-  // to clear, so it is part of "active" and gets cleared below.
+  // The default priority counts as active, so 清除篩選 can reveal the rest of the
+  // catalog on load. The search box is a filter too.
   const filtersActive =
     town !== "all" || merchant !== "all" || priorityFilter.length > 0 || kindFilter !== "all" || query !== "";
 
-  // How many of the pill's four filter groups carry a narrowing value, for the
-  // 篩選 trigger's badge. Counted per GROUP, not per value, so ticking three
-  // 優先度 tiers reads 1 rather than 3 — the badge answers "how many things do I
-  // go into the drawer to change", which is what the trigger promises.
-  // `query` is excluded: it has its own control on the pill.
+  // Count filter groups, not values, for the 篩選 badge.
   const activeFilterCount =
     (town !== "all" ? 1 : 0) + (merchant !== "all" ? 1 : 0) + (priorityFilter.length > 0 ? 1 : 0) + (kindFilter !== "all" ? 1 : 0);
 
@@ -810,11 +778,7 @@ export function MerchantPanel({ jumpRef, onNavigateTab }: {
     setTown("all");
     setMerchant("all");
     setQuery("");
-    // Empties the priority filter to show all 239 rows, the literal meaning of 清除.
-    // The 必換+推薦 default is a starting view, not a floor: re-ticking the two tiers
-    // in the 優先度 menu is how you get back, and the menu shows its state so that is
-    // discoverable. Restoring the default here instead would make 清除篩選 HIDE 188
-    // rows, which is the opposite of what the words promise.
+    // Clear to the whole catalog; re-ticking 必換/推薦 restores the default.
     setPriorityFilter([]);
     setKindFilter("all");
     writeNpcParam("all");

@@ -4,8 +4,13 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-22 — 康納's 蜂蠟 row
+
 ### Features
 - 康納 (庫漢) now sells 蜂蠟, 3,600 gold, 每週 30 次, 必換 — the third 蜂蠟 row after 瓦爾特 and 吉爾摩, bringing the catalog to 239 trades.
+
+### Chores
+- Catalog totals left the comments and READMEs: prose now says "the whole catalog" or "every gold and barter trade", measurements that justify a layout stay as measured history, and `docs/npc-shop.md` §4 is the only current-data ledger. The stale server-shared counts in the store comment and schema are gone.
 
 ## 2026-10-21 — The ☰ menu, the changelog page, and update prompts
 

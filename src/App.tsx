@@ -39,9 +39,6 @@ import { Analytics } from "@vercel/analytics/react";
 
 const BUILTIN_TASKS = trackerJson as Task[];
 
-// Below-the-fold / on-demand routes, split out of the initial chunk:
-// MerchantPanel (all 239 shop rows + the material breakdown engine) loads on
-// first tab visit, AddTaskDialog loads on first open.
 const MerchantPanel = lazy(() =>
   import("@/components/MerchantPanel").then((m) => ({ default: m.MerchantPanel }))
 );

@@ -80,7 +80,7 @@
         "scope": {
           "enum": ["character", "account"],
           "default": "character",
-          "description": "Who the cap binds. account covers the old 伺服器-suffixed caps (today the 12 server-shared barter legs plus two gold rows) and any future per-account cap. Omit for character."
+          "description": "Who the cap binds. account covers the old 伺服器-suffixed caps (the server-shared barter and account-scoped gold rows) and any future per-account cap. Omit for character."
         },
         "priority": {
           "enum": ["must", "extra", "once", "situational"],

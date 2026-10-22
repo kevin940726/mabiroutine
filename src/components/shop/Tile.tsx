@@ -55,7 +55,7 @@ import type { ShopRow } from "./types";
 /** The tile's vertical rhythm: one value for every gap between rows.
  *
  *  4px on a phone, 8px from `sm`. The stack has five bands and therefore four gaps, so
- *  the tighter value takes 16px off every tile at once — measured across all 194 rows,
+ *  the tighter value takes 16px off every tile at once — measured on the 194-row build,
  *  which is a bigger saving than it sounds: the grid drops from 5139px to 4667px at
  *  360px on top of the town being hidden. The 8px value stays from `sm`, where there is
  *  room for the bands to breathe and the tile is not the scarce resource. */
@@ -190,9 +190,7 @@ export function Tile({
   return (
     <div
       data-shop-tile
-      // the scroll target for a jump: keyed by pinId, the same id the flash uses.
-      // data-*, not an id: 239 tiles would flood the id namespace for a lookup that
-      // is always a querySelector against a handful of rows.
+      // Scroll target for a jump; data-* keeps ids out of the DOM namespace.
       data-tile-key={item.pinId}
       // no pinned-specific styling: the pin button carries that state on its own. An
       // emerald border plus a bottom rule read as a second, louder signal for something
@@ -217,14 +215,7 @@ export function Tile({
         focused && "ring-2 ring-primary ring-offset-2 ring-offset-background"
       )}
     >
-      {/* The stripe: HIDDEN below `sm`, because on a phone the chip below already names
-          the tier in words and the stripe is the same fact in colour only. Measured: the
-          two appear on exactly the same 39 tiles, so the stripe never marks something the
-          chip does not, and on a 158px phone tile a 4px edge is a smaller share of the
-          border than on desktop. The chip's WORD is the accessible carrier anyway — see
-          the colour-blind note on `priorityEdge`, where the stripe's lightness difference
-          exists to survive scanning without reading, which a phone's shorter rows make
-          less necessary. From `sm` the stripe is unchanged. */}
+      {/* Below sm the chip already names the tier; from sm the stripe adds a colour cue. */}
       <span className={cn("absolute inset-y-0 left-0 hidden w-1 sm:block", priorityEdge(item.priority))} aria-hidden />
       {/* 28px of top padding is exactly the 24px button plus its 4px offset, so the pin
           keeps a band to itself and never meets the name */}

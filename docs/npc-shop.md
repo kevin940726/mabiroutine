@@ -14,20 +14,19 @@ the traps that cost time on this branch.
 
 ## 0. Start here
 
-### This file is expected to be current
+### Current facts vs. measurements
 
-Per the user's instruction, the ledger is updated **as the work happens**, in the
-same commit as the change it describes — not swept at the end. So if you are
-reading this and something below contradicts the tree or `git log`, the tree wins
-and the fix is to correct this file, not to trust it. Section 0 in particular was
-once five commits stale and said "nothing is queued" while nine commits of work
-stood on the branch.
+The ledger is updated **as the work happens**, in the same commit as the change it
+describes — not swept at the end. Current behavior, and the data facts in section 4,
+are the parts that must match the tree. Figures quoted inside a decision record are
+measurements from the state at the time and are intentionally not updated; when one
+disagrees with today's data, it is still history and section 4 is the current count.
+If prose about current behavior contradicts the tree, the tree wins and the prose is
+the thing to fix.
 
-### Where the branch stands
+### Status
 
-`wip/shop-browser`, unmerged, **0 behind `main`** (rebased 2026-09-30), nothing
-pushed. Per `AGENTS.md`, pushing is a separate decision from committing and needs
-explicit approval.
+The shop browser is merged into `main`; this ledger records the build.
 
 The prototype era is over: the `?shopproto=` / `?gridproto=` / `?rows=1` gates are
 gone, `src/proto-grid/` no longer exists, and the grid is the only shop view. See
@@ -68,7 +67,7 @@ Deliberately **not** doing, and why:
 - **A store version bump for gold pins.** Reasoned out in section 2; adding one
   would be wrong.
 - **Widening the pin id.** `shop::<npc>::<name>` is correct because every barter
-  row is curated, so the namespace is the 94 gold rows, which are unique on
+  row is curated, so the namespace is the gold rows, which are unique on
   `npc::name`. If a second gold listing for one NPC and item ever appears, give
   the shop row an explicit `id` instead — widening the key orphans saved pins.
   (Amendment 2026-10-05: the rule is now first-in-file-keeps-the-bare-id,
@@ -236,8 +235,8 @@ need a toggle because both kinds render as tiles and 類型 filters them.
 
 | Rule | Why |
 |---|---|
-| All 239 shop rows, not just the curated barter ones | The old tab showed a flat 107-row curated list, hiding most real trades |
-| A tab renders only when that NPC has that kind of trade | 27 of 45 NPCs are barter-only; a dead 金幣 tab is noise |
+| All shop rows, not just the curated barter ones | The old tab showed a flat 107-row curated list, hiding most real trades |
+| A tab renders only when that NPC has that kind of trade | A barter-only NPC gets no dead 金幣 tab |
 | Default order is `curatedOrder.ts`, gold last | The curated order is hand-written intent; `shops.json` order is not |
 | No item icons | 169 distinct item names for the shop view, all with art; not worth the capture |
 
@@ -254,7 +253,7 @@ need a toggle because both kinds render as tiles and 類型 filters them.
 | `src/components/shop/Tile.tsx` | The tile, its merchant band and the price line |
 | `src/components/shop/ShopGrid.tsx` | The grid entry point the panel mounts |
 | `src/components/MenuSelect.tsx` | Shared dropdown-select. Takes an optional per-option `group` (rendered as a heading), optional `ariaLabel`, optional `contentClassName`, and floors the popup at the trigger width |
-| `src/components/ui/dropdown-menu.tsx` | Capped to Radix's available height and made scrollable. This is what made 36 NPCs reachable |
+| `src/components/ui/dropdown-menu.tsx` | Capped to Radix's available height and made scrollable. This is what made every NPC reachable |
 | `src/App.tsx` | Lazy-loads `MerchantPanel` on the 商店 / 以物易物 tab. There is no A/B harness any more |
 
 ### Decisions worth remembering
@@ -298,8 +297,8 @@ narrower than its trigger.
 
 ## 2. Gold pins: shipped
 
-Pinning gold-only purchases is **built and merged into this branch**. All 194
-rows are pinnable. Phases A to D each landed as their own commit, in this order:
+Pinning gold-only purchases is **built and merged into this branch**. All rows are
+pinnable. Phases A to D each landed as their own commit, in this order:
 
 | Phase | Commit | What |
 |---|---|---|
@@ -420,8 +419,9 @@ includes the row's index within its NPC and is not a stable id.
 
 `pnpm check` green. 19 migration fixtures including T. E2 proves a real `shop::`
 id is adopted from a peer and a fabricated one is accepted by the protocol.
-In-browser at 1440px: 14 gold tiles and 14 pin buttons on 康納, 已選 9 to 10 on
-pin, the row appears in 已選交易, the tracker shows it under 以物易物已釘選 sorted
+In-browser at 1440px, against the then-14-row 康納 list: 14 gold tiles, each with a
+pin button, 已選 9 to 10 on pin, the row appears in 已選交易, the tracker shows it
+under 以物易物已釘選 sorted
 after the barter pins reading "50 金幣 · 不限次數" with no material card, and it
 survives a reload. No console errors.
 
@@ -555,9 +555,10 @@ and a fixture come back — and the prune steps must already be calling
 
 ## 4. Data facts this depends on
 
-Measured, not assumed. Re-run the counts if `shops.json` or `curatedOrder.ts` change,
-and measure them by having a script write a UTF-8 file rather than printing to the
-console (see the terminal trap in section 0).
+Measured, not assumed. This is the only current-data ledger in this file; re-run the
+counts if `shops.json` or `curatedOrder.ts` change, and do not propagate a new total
+into the measurements above. Measure them by having a script write a UTF-8 file rather
+than printing to the console (see the terminal trap in section 0).
 
 - `shops.json`: 239 rows, 45 NPCs, 8 towns. 122 gold (`kind` omitted), 117 barter.
 - 27 NPCs are barter-only, 14 are mixed, 4 are gold-only.
@@ -755,8 +756,8 @@ art is a rounded rectangle whose radius the component owns.
   wrapping cost bands from 10 to 8 at 360px and 7 to 4 at 390px. The underline is the
   affordance, the tap still opens the card, and `aria-label` names the action.
 - **The art**: native 128px inside a 72px frame, `object-contain`, no crop.
-- **The placeholder**: a designed state the current data no longer reaches — every one
-  of the 181 names the app looks up has a file (see `docs/item-icons.md`). The frame is
+- **The placeholder**: a designed state the current data no longer reaches — every name
+  the app looks up has a file (see `docs/item-icons.md`). The frame is
   still size-unconditional, so a name whose art has not landed yet keeps the row aligned.
 - **The pinned children**: item art at 20px mobile / 40px desktop, row heights unchanged
   at 105px / 88px.

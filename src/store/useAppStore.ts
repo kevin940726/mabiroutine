@@ -156,22 +156,14 @@ type Store = AppState & {  // actions
   resetAll: () => void;
 };
 
-// Server-shared barter: deals with scopeAccount (today 11 rows) share one value
-// across every character — checking
-// on any character checks all of them, like 帳號共通. They keep rendering in
-// the daily/weekly pinned subsections (NOT moved to the account section, so
-// no cycle grouping is introduced there); only their value + hide scope is
-// account-wide. Single source of truth: the deal's structured scope (the row
-// strings carried the same perChar, parity-gated in test:shops).
+// Server-shared barter: scopeAccount deals share one value across every
+// character — checking one checks all, and hide scope is account-wide — but they
+// stay in their pinned subsection rather than moving to the account section.
 export function isServerSharedBarterId(id: string): boolean {
   return SHOP_DEALS_BY_PIN.get(id)?.scopeAccount === true;
 }
 
-// One resolver for both pin namespaces. barterPins holds curated exchange ids
-// and shops.json ids, so every consumer that used to reach straight for
-// row-finding silently skipped the shop half — including clearSection,
-// which is why a gold counter would never have been clearable. Deal data is
-// resolved once here instead of at each of those call sites.
+// One resolver for both pin namespaces (curated barter and shop:: ids).
 const SHOP_DEALS_BY_PIN = shopDealsByPinId();
 
 /** Reset cycle of a pinned row, from either namespace. */

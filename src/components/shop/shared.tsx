@@ -13,7 +13,7 @@ export type ShopProps = {
   pinned: Set<string>;
   onTogglePin: (id: string) => void;
   /** Show the 金幣 / 以物易物 split inside each section. Set when a town or NPC filter
-   *  narrows the list, where two labelled groups carry information; the full 239-row
+   *  narrows the list, where two labelled groups carry information; the full catalog
    *  view is left unsplit. */
   splitKind?: boolean;
   /** Section by NPC rather than town. Set when a town or NPC filter narrows the view,
@@ -38,59 +38,21 @@ export type ShopProps = {
   preserveOrder?: boolean;
 };
 
-/**
- * Priority reads as two facts: WHICH tier (the word, 必換 vs 推薦) and WHETHER the row
- * is marked at all (the stripe down the left edge).
- *
- * Those are deliberately different channels. The stripe used to carry the tier in its
- * colour too (red for 必換, amber for 推薦), which made it invisible to a red-green
- * colour-blind reader: red and amber collapse toward each other under deuteranopia and
- * protanopia, and no shade choice fixes that. So the stripe marks only "this row is
- * worth acting on", in one colour, and the tier lives in the WORD, which needs no
- * colour vision. `tint` is the word's colour — kept per-tier because it is a redundant
- * reinforcement of a distinction the word already makes in text, not the only signal.
- *
- * 視需求, 一次性 and no-priority rows get the normal border, not a colour. Measured:
- * 114 rows have no priority, 63 are 視需求 and 11 are 一次性, so 188 of 239 (79%) carried
- * one of five stripe colours that said nothing.
- */
+/** Priority reads on two channels: the word carries the tier, the stripe only
+ *  marks the row as worth acting on (one colour survives colour blindness). */
 const PRIORITY = {
-  // One marker colour for every marked tier. Chosen on LIGHTNESS against the card
-  // (light card is near-white, dark card near-black), since lightness survives
-  // colour-blindness where hue does not: red-500 on light, red-600 on dark.
-  must: { edge: "bg-red-500 dark:bg-red-600", text: "text-red-600 dark:text-red-400", label: "必換" },
-  extra: { edge: "bg-red-500 dark:bg-red-600", text: "text-amber-600 dark:text-amber-400", label: "推薦" },
-  once: { edge: "bg-border", text: "text-sky-600 dark:text-sky-400", label: "一次性" },
-  situational: { edge: "bg-border", text: "text-zinc-500 dark:text-zinc-400", label: "視需求" },
+  must: { edge: "bg-red-500 dark:bg-red-600", label: "必換" },
+  extra: { edge: "bg-red-500 dark:bg-red-600", label: "推薦" },
 } as const;
 
-/** The verdict as a CHIP, for the tile's overlaid top-left mark.
- *
- *  The hue moves into a low-alpha tint and a ring so the word reads as a mark on the
- *  tile rather than as stray text: an absolutely-positioned word on a busy tile edge
- *  attaches itself to whatever happens to be beside it.
- *
- *  The tint is a per-TIER hue rather than the single colour `priorityEdge` uses, and
- *  that difference is deliberate. The stripe stays one colour because marked vs
- *  unmarked has to survive colour blindness as a difference in lightness; the chip's
- *  WORD carries the tier, so its colour is free to vary.
- *
- *  The dark values are lower-alpha lighter steps rather than the light values hue-
- *  swapped, following the repo's dark-tint convention: the dark card is
- *  oklch(0.205 0 0), so a light-mode tint at a real alpha glares. */
+/** The verdict chip, for the two tiers that render a word. The word carries the
+ *  tier, so the chip's colour is free to vary; the stripe stays one colour. */
 const CHIP = {
   must: "bg-red-500/12 text-red-700 ring-red-500/30 dark:bg-red-400/15 dark:text-red-300 dark:ring-red-400/30",
   extra: "bg-amber-500/12 text-amber-700 ring-amber-500/30 dark:bg-amber-400/15 dark:text-amber-300 dark:ring-amber-400/30",
-  once: "bg-sky-500/12 text-sky-700 ring-sky-500/30 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/30",
-  situational: "bg-zinc-500/12 text-zinc-600 ring-zinc-500/30 dark:bg-zinc-400/15 dark:text-zinc-300 dark:ring-zinc-400/30",
 } as const;
 
-/** Only 必換 and 推薦 render a word. 視需求 is the true default (53 rows) so naming
- *  it says nothing, and 一次性 reads as a warning but behaves like 推薦 for planning.
- *  Labels stay on the tiers that never render, so the map is total.
- *
- *  The edge marks the two tiers that render a word, in one colour. It is intentionally
- *  NOT a per-tier colour: see the PRIORITY comment — the tier is the word's job. */
+/** Only 必換 and 推薦 render a word; the edge marks those two in one colour. */
 export const priorityEdge = (p: ShopRow["priority"]) =>
   p === "must" || p === "extra" ? PRIORITY[p].edge : "bg-border";
 export const priorityText = (p: ShopRow["priority"]) =>
@@ -126,17 +88,7 @@ export function pinButton(item: ShopRow, pinned: Set<string>, onTogglePin: (id: 
   };
 }
 
-/**
- * The limit, with the （伺服器） suffix stripped.
- *
- * `limitText` is built in shops.ts:118 as `每日 N 次（伺服器）`, so the string carries
- * the scope inside it. The tile renders scope separately, and the parenthetical said
- * the same thing a second time in the same line. Stripping here is display-only; the
- * value the tracker and the store see still has it.
- *
- * This mirrors MerchantPanel.tsx, which does the same strip for the production row
- * (and both should go away together if limitText ever stops embedding scope).
- */
+/** Display-only: strip the （伺服器） suffix; the stored value keeps it. */
 export const limitOf = (i: ShopRow) => (i.limitText ?? "不限次數").replace("（伺服器）", "");
 
 /**

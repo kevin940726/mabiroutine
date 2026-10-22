@@ -20,8 +20,8 @@ explicit human "apply this" for the specific rows.
    (nipponhashi tracker TW view, notebook `barter-data.js` `verified:"tw"`,
    yenyen list) and compare against the JSON rows. No `fetch`, no scripts,
    no bulk download.
-2. **Report the diff** — added / removed / changed rows. If counts drift far
-    from `docs/tracker-data.md` (26 tracker rows, 117 curated legs), flag for human review.
+2. **Report the diff** — added / removed / changed rows. If the counts drift from
+    the data files (tracker rows, curated legs), flag for human review.
 3. **Human applies by hand** — edit `src/data/tracker.json` / `src/data/shops.json`
    directly. New barter legs need an explicit stable `id`, a `priority`, the verbatim display strings, and a position in `curatedOrder.ts` — the `test:shops` gates fail otherwise. Keep hardcodes: `barrier max 7`, `black-hole` max 7 (the stored carryable bank; the tile shows the game's combined remaining 0..8) and `black-hole-daily` as a plain check —
    do not re-derive from `韓服社群` fallback text.
@@ -41,4 +41,4 @@ explicit human "apply this" for the specific rows.
 
 ## References
 - `docs/tracker-data.md` Filtering Rules + Source terms
-- `src/data/tracker.json` (26 TW rows, hand-owned), `src/data/shops.json` (117 curated legs with stable ids, hand-owned)
+- `src/data/tracker.json` (26 TW rows, hand-owned), `src/data/shops.json` (curated legs with stable ids, hand-owned)

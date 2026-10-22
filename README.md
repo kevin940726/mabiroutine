@@ -15,7 +15,7 @@ handled for you.
 - ☀️ Dailies, weeklies, and account-wide tasks (dungeons, challenges, jobs, tower, events, guild/friend) on one page; tap to check off.
 - ⏰ Resets automatically daily and weekly at 06:00 Taipei, with a live countdown in the header; a half-finished 定期委託 round carries its three legs into the next week (only its recorded count resets).
 - 👥 Up to 6 characters, one tab each, renameable and reorderable, with separate progress.
-- 🔄 All 239 gold and barter trades, browsable by town and NPC, with have/need search, pinning to dailies, and a per-trade material breakdown.
+- 🔄 Every gold and barter trade, browsable by town and NPC, with have/need search, pinning to dailies, and a per-trade material breakdown.
 - ✏️ Custom tasks, drag reordering, and hiding; a sync link also shares row and pinned order.
 - 🎨 外觀 is a single row of three segments — 淺色 / 跟隨系統 / 深色 — and the default follows your system, so a phone or desktop switching to dark repaints live.
 - ☰ The header menu is where choices live: 更新記錄, 同步 (its state, opening the same dialog), 外觀, 安裝 App, then 匯出 JSON / 匯入 JSON / 重置所有資料 under a divider. The footer keeps 實驗性功能, the GitHub link and the sources.
