@@ -209,14 +209,18 @@ wrong". Rules:
 
 - Amber, 6px, no number **on the dot**; the row carries `最新 · MM/DD`, not a
   count.
-- Only for the newest unacknowledged `feature` release. A fixes-only release
-  never dots.
+- For the changelog, only the newest unacknowledged `feature` release. A
+  fixes-only release never dots; the update exception is below.
 - Acknowledged by opening the menu, not the drawer. The marker is the synced
   `whatsNewNudged` (`meta:whatsnew`), so a linked phone and desktop go quiet
   together; the page is unaffected. A newer feature release re-arms it.
 - Expires after the release's Taipei day and the day after, so an ignored dot
   cannot sit for two weeks. The changelog is day-granular, so this is a
   calendar window, not 24 hours from the release.
+- Exception, 2026-10-22: a ready app update (a waiting worker) also lights the
+  same dot until the menu is opened, for at most 24 hours after detection. It is
+  device-local; the reload row remains until the update is taken, and a
+  chores-only deploy may dot with no new player-facing release.
 
 The row is the page's latest date; the dot is a one-release nudge with a short
 backstop. The acknowledgement is synced because it is about the person, not the
@@ -250,19 +254,29 @@ Stages:
    enough to act on and inside the bus's 10s action TTL (the receipt default is
    2.6s). If a `[role="dialog"]` is open or the tab is hidden, skip the toast —
    never interrupt an editor — but keep `updateReady` for the menu row.
-3. **Confirm.** Accepting — the toast's button or the menu row, one shared
-   `acceptUpdate` — writes a one-shot `sessionStorage` flag
-   (`mabiroutine:update-receipt`) and reloads. The worker was already taken over,
-   so the reload is a plain `window.location.reload()`; `updateSW(true)` after
+3. **Automatic on return.** After 30 seconds to 6 hours hidden, with no dialog
+   and no focused editor, reload into a ready update (or one found by the return
+   check).
+   This writes the receipt but **not** the changelog acknowledgement: the user
+   did not see the prompt, so the post-reload feature dot should still be
+   available. A visible session that never leaves keeps the toast, dot and row.
+   The return check gets 15 seconds to find a worker; a takeover that has not
+   landed in 1 second falls back to the row rather than claiming a receipt.
+4. **Confirm.** A manual accept — the toast's button or the menu row, one shared
+   `acceptUpdate` — writes a one-shot `sessionStorage` receipt
+   (`mabiroutine:update-receipt`) plus the changelog acknowledgement
+   (`mabiroutine:update-ack`) and reloads. The worker was already taken over, so
+   the reload is a plain `window.location.reload()`; `updateSW(true)` after
    takeover is a no-op. The 6h absence path calls `updateSW(false)` before
-   reloading and writes **no** flag: that reload was not asked for, so the page
-   it lands on must not claim an update nobody accepted.
-4. **Receipt.** After mount, an App effect reads and clears the flag and raises
-   `已更新到最新版`. It is gated on hydration and runs after `SyncToasts` has
-   mounted: the bus has no queue, so a dispatch from `main.tsx` before React
-   mounts is lost. No panel opens by itself — a modal on boot is the most
-   disruptive thing this feature could do; the amber dot already carries the
-   status.
+   reloading and writes **no** flag: that reload was not asked for.
+5. **Receipt.** After mount, an App effect reads and clears the receipt and
+   raises `已更新到最新版`. If the acknowledgement flag is present, it also
+   acknowledges the newest feature release, so taking the update does not
+   produce a second dot for the same release. It is gated on hydration and runs
+   after `SyncToasts` has mounted: the bus has no queue, so a dispatch from
+   `main.tsx` before React mounts is lost. No panel opens by itself — a modal on
+   boot is the most disruptive thing this feature could do; the amber dot
+   already carries the status.
 
 The ordering is the point: **the running bundle cannot describe the release it
 has not loaded.** Its parsed notes predate the deploy, and fetching the new copy
@@ -271,12 +285,15 @@ Prompt before; after the reload the new bundle's dot is the payoff, never a
 panel.
 
 These are the only two toasts in the plan, and both are earned: one follows a
-system event that needs a decision, the other confirms the reload the user just
-asked for. The menu row outlives the nudge for anyone who ignores it. Content
+system event that needs a decision, the other confirms a reload (asked for or
+automatic). The menu row outlives the nudge for anyone who ignores it. Content
 itself never arrives as a toast; the bus is single-slot and does not pause on
 hover, so the row is the accessible path.
 
-Discovery already runs on visibility and reconnect, throttled; no new polling.
+Discovery runs on visibility and reconnect, and a visible tab also polls every
+10 minutes; the poll waits out the same throttle as every other check. The
+return check runs before that throttle, so a short app switch can still pick up
+an update.
 
 ## Gates
 
@@ -360,11 +377,11 @@ push, not the deploy.
 | 6 | `CHANGELOG-zh_TW.md` | shipped | root file with a preamble; its one section is the 2026-10-20 baseline (older releases stay English); `whats-new: none` for internal releases from here on |
 | 7 | Parser and generated JSON | shipped | `scripts/whats-new.mjs`: `parseZh` + `--write` / `--check`, no other mode; strict, every unknown construct throws with its line; 3 entries at the baseline |
 | 8 | Changelog drawer | shipped | page, not inbox: every release rendered newest first, row shows `最新 · MM/DD`, no seen marker; `MM/DD` groups with a 新功能/修正 tag; mounted beside the menu so it outlives the close |
-| 9 | Dot policy | shipped | 6px amber on the ☰ trigger, `aria-hidden`, no number; newest unacknowledged `feature` release, 0–1 Asia/Taipei calendar days; opening the menu acknowledges it via the synced `whatsNewNudged` (`meta:whatsnew`); fixes-only never dots |
-| 10 | Update prompt | shipped | a `waiting` event at registration (before it completes, or within 3s of it) is a replayed pre-existing worker: takeover only, nothing set, nothing shown; a later one marks `updateReady` (`src/lib/updatePrompt.ts`) and raises one 8s toast (`有新版本可用` + `重新載入`) unless a dialog is open or the tab is hidden; the ☰ row (`有新版本 · 重新載入`) is the durable path and shares `acceptUpdate`; accept writes `mabiroutine:update-receipt` then reloads, and the App effect raises `已更新到最新版` after `SyncToasts` mounted; the 6h path reloads with no receipt |
+| 9 | Dot policy | shipped | 6px amber on the ☰ trigger, `aria-hidden`, no number; newest unacknowledged `feature` release, 0–1 Asia/Taipei calendar days; opening the menu acknowledges it via the synced `whatsNewNudged` (`meta:whatsnew`); fixes-only never dots for the changelog. Amendment 2026-10-22: a ready client update also dots, device-locally, until the menu opens, for at most 24 hours after detection; sync failures still never dot |
+| 10 | Update prompt | shipped | a `waiting` event at registration (before it completes, or within 3s of it) is a replayed pre-existing worker: takeover only, nothing set, nothing shown; a later one marks `updateReady` (`src/lib/updatePrompt.ts`) and raises one 8s toast (`有新版本可用` + `重新載入`) unless a dialog is open or the tab is hidden; the ☰ row (`有新版本 · 重新載入`) is the durable path and shares `acceptUpdate`; accept writes `mabiroutine:update-receipt` then reloads, and the App effect raises `已更新到最新版` after `SyncToasts` mounted; the 6h path reloads with no receipt. Amendment 2026-10-22: a visible tab polls `sw.js` at most once per 10 minutes; after 30s–6h hidden, a return with no dialog/editor auto-reloads into a ready update with a receipt but no changelog ack; a manual accept also writes `mabiroutine:update-ack` so the release dot does not repeat |
 | 11 | Gate registration | shipped | `scripts/check-whatsnew.mjs` (`test:whatsnew`, no deps, read-only): parser fixtures, the JSON against a fresh parse via `--check`'s own `diff`, and parity with `CHANGELOG.md` from the baseline forward — every dated release has a zh section or `<!-- whats-new: none -->`, every marker resolves, nothing duplicated or reordered, marker date = heading date, no code identifiers in bullets; registered in `GATES` + the `AGENTS.md` trigger bullet, seventeen gates |
 | 12 | Cut runbook | shipped | `docs/development.md` § Cutting a release: five steps, and why the three files move in one commit (a late JSON is the previous cut in the drawer, and no build notices); `AGENTS.md` § Changelog carries the one-line authoring rule beside the release-label bullet |
-| 13 | Docs and both READMEs at ship | shipped | both READMEs state the ☰ menu and its rows, 外觀 as 跟隨系統 / 淺色 / 深色 (system default), the zh-backed drawer with its amber dot, and the nudge + receipt; `SyncButton` references in `docs/sync.md`, `docs/stories.md` and `docs/sql-migration.md` became `useSyncEngine` / `SyncDialog`; the "no update toast exists" claims in `docs/development.md`, `vite.config.ts` and `src/main.tsx` are corrected; `docs/storage.md` records the synced changelog nudge (`whatsNewNudged`, `meta:whatsnew`), the device-local theme and update receipt, and the generated `whatsNew.generated.json` exception; `AGENTS.md` carves the generated file out of the hand-edited rule |
+| 13 | Docs and both READMEs at ship | shipped | both READMEs carry nine short, player-facing features; the ☰ menu, theme, drawer, dot and receipt live in this plan and `docs/development.md` rather than the README. `SyncButton` references in `docs/sync.md`, `docs/stories.md` and `docs/sql-migration.md` became `useSyncEngine` / `SyncDialog`; the "no update toast exists" claims in `docs/development.md`, `vite.config.ts` and `src/main.tsx` are corrected; `docs/storage.md` records the synced changelog nudge (`whatsNewNudged`, `meta:whatsnew`), the device-local theme, update receipt and changelog acknowledgement, and the generated `whatsNew.generated.json` exception; `AGENTS.md` carves the generated file out of the hand-edited rule |
 | 14 | 提醒設定 in the menu | dropped | revisit later |
 | 15 | Deep links in entries | dropped | — |
 | 16 | GitHub Releases workflow | deferred | generate from the zh section if shareable pages are wanted |
@@ -387,8 +404,9 @@ same end `docs/plans/floating-pill-rework.md` met when its work landed.
   must fall through to `prefers-color-scheme`, and a `matchMedia` listener must
   apply OS changes while in system mode. A row inside a dropdown would unmount
   that listener.
-- Do not reuse the amber dot for sync failures or update-ready, and do not add a
-  count to the dot. The row's text carries counts.
+- Do not reuse the amber dot for sync failures; a ready app update is the one
+  exception (2026-10-22). Do not add a count to the dot. The row's text carries
+  counts.
 - The receipt toast does not queue. Raise it from an App effect after mount, or
   it is lost.
 - The release marker must match the English heading verbatim. That is the point:

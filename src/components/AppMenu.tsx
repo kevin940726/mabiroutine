@@ -12,11 +12,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { InstallDialog } from "@/components/InstallDialog";
 import { WhatsNewDrawer } from "@/components/WhatsNewDrawer";
-import { acceptUpdate, useUpdateReady } from "@/lib/updatePrompt";
+import { acceptUpdate, getUpdateReadyAt, useUpdateReady } from "@/lib/updatePrompt";
 import { useWhatsNew, dotFor, taipeiDate } from "@/lib/whatsNew";
 import { useInstall } from "@/hooks/useInstall";
 import { useSyncStatus, type SyncStatus } from "@/sync/status";
 import type { ThemeMode } from "@/hooks/useTheme";
+
+const UPDATE_DOT_MS = 24 * 60 * 60 * 1000;
 
 const THEME_CHOICES: { value: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { value: "light", label: "淺色", Icon: Sun },
@@ -79,8 +81,11 @@ export function AppMenu({
   const whatsNew = useWhatsNew();
   const install = useInstall();
   const [installOpen, setInstallOpen] = useState(false);
+  const [updateDotSeen, setUpdateDotSeen] = useState(false);
   const installable = install.status === "prompt" || install.status === "ios" || install.status === "samsung";
-  const dot = dotFor(whatsNew.releases, taipeiDate(now), whatsNew.nudged);
+  const readyAt = getUpdateReadyAt();
+  const updateDot = updateReady && !updateDotSeen && readyAt !== null && now - readyAt < UPDATE_DOT_MS;
+  const dot = updateDot || dotFor(whatsNew.releases, taipeiDate(now), whatsNew.nudged);
   return (
     <>
       {/* Not modal, like the character switcher: Radix's scroll lock would shift
@@ -88,7 +93,9 @@ export function AppMenu({
       <DropdownMenu
         modal={false}
         onOpenChange={(open) => {
-          if (open) whatsNew.acknowledgeDot();
+          if (!open) return;
+          if (updateReady) setUpdateDotSeen(true);
+          whatsNew.acknowledgeDot();
         }}
       >
         <DropdownMenuTrigger asChild>

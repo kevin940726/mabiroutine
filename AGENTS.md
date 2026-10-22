@@ -48,6 +48,11 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   files too — never let README/docs describe a previous version. Code comments for
   internal-only changes; dev-only details (commands, structure, verification) live
   in `docs/development.md`, never in the READMEs.
+- README feature bullets are one short line each, and only user-facing,
+  important or standout features: one fact per bullet, one sentence, no clause
+  stack, no app plumbing or minor UI details. Both READMEs carry the same facts in
+  their own voice; load `.agents/skills/tech-doc-zh-tw/SKILL.md` before writing or
+  reviewing `README-zh_TW.md`.
 - Write a time window as reset boundaries, not a weekday name: "Sun 06:00 → Mon
   06:00", never "only on Sunday" — the 2026-10-19 plan said the latter about a
   window the code did not implement, and the mismatch came back as a bug report.

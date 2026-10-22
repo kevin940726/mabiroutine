@@ -89,10 +89,14 @@ only checks the changelog's structure, parity and code-free copy.
   caches. A waiting worker is surfaced, not taken over silently: a deploy that
   lands mid-session raises one 8s toast (有新版本可用 + 重新載入) and the ☰ row
   有新版本 · 重新載入; accepting either reloads into the new bundle and says
-  已更新到最新版 once. A return after 6h+ away reloads once iff online, no
-  dialog open, and an update is pending. A worker already waiting at boot is
-  not announced — that page just rendered fresh HTML — and the 6h path reloads
-  with no receipt. Offline revisits fall back to the runtime `pages` cache
+  已更新到最新版 once. A visible tab polls `sw.js` at most once every 10
+  minutes, so an installed PWA left in the foreground still notices a deploy.
+  Returning after 30s–6h away reloads a ready update automatically unless a
+  dialog or editor is open, or the device is offline; the receipt still shows,
+  but that path does not acknowledge the changelog. A return after 6h+ away
+  reloads once iff online, no dialog or editor is open, and an update is
+  pending. A worker already waiting at boot is not announced — that page just
+  rendered fresh HTML — and the 6h path reloads with no receipt. Offline revisits fall back to the runtime `pages` cache
   (index.html is out of the precache by design — a precached
   NavigationRoute/directoryIndex would shadow NetworkFirst). Service worker is
   disabled in dev; test install / offline against `pnpm build && pnpm preview`.

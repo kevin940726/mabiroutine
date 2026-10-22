@@ -4,6 +4,16 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-10-22 — Auto-update on return, and a 24-hour dot
+
+### Fixes
+- The ☰ dot also marks a ready app update for up to 24 hours, or until the menu is opened; the reload row stays until the update is taken.
+- Returning after a short absence reloads a ready update automatically unless a dialog or editor is open; the receipt confirms it.
+- A tab left visible across a deploy re-checks for a new service worker at most once every 10 minutes.
+
+### Chores
+- README feature lists are now nine one-line, player-facing entries in both languages; `AGENTS.md` pins that shape, limits the list to important or standout features, and points the zh copy at `tech-doc-zh-tw`.
+
 ## 2026-10-22 — 康納's 蜂蠟 row
 
 ### Features

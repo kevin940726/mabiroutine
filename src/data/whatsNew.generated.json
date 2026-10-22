@@ -1,5 +1,23 @@
 [
   {
+    "release": "2026-10-22 — Auto-update on return, and a 24-hour dot",
+    "date": "2026-10-22",
+    "kind": "fix",
+    "text": "有新版本時，☰ 會亮起琥珀色點，最多 24 小時或打開選單後消失；重新載入列會一直留著。"
+  },
+  {
+    "release": "2026-10-22 — Auto-update on return, and a 24-hour dot",
+    "date": "2026-10-22",
+    "kind": "fix",
+    "text": "離開一下再回來時，會自動重新載入新版本（有對話框、正在輸入或離線時除外），並顯示「已更新到最新版」。"
+  },
+  {
+    "release": "2026-10-22 — Auto-update on return, and a 24-hour dot",
+    "date": "2026-10-22",
+    "kind": "fix",
+    "text": "App 開著時每 10 分鐘檢查一次新版本，不再只在切回前景或重新連線時才檢查。"
+  },
+  {
     "release": "2026-10-22 — 康納's 蜂蠟 row",
     "date": "2026-10-22",
     "kind": "feature",

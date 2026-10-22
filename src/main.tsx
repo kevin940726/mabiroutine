@@ -7,7 +7,7 @@ import { statsSummary } from './sync/stats.ts'
 import { readJournal, clearJournal } from './sync/journal.ts'
 import { budgetAsk, budgetLog, noteBudgetTrip } from './lib/networkBudget.ts'
 import { netSummary } from './lib/net.ts'
-import { acceptUpdate, BOOT_WAIT_MS, markUpdateReady } from './lib/updatePrompt.ts'
+import { acceptUpdate, autoUpdate, BOOT_WAIT_MS, getUpdateReady, markUpdateReady } from './lib/updatePrompt.ts'
 import { toastAction, TOAST_ACTION_TTL_MS } from './sync/session.ts'
 import { getUndoneReminder, resolveReminderDeepLink } from './hooks/useHourlyReminders.ts'
 import { getUndonePurpleReminder } from './hooks/usePurpleHoleReminders.ts'
@@ -165,11 +165,11 @@ if (typeof window !== 'undefined') {
 //
 // Update discovery: the browser only revalidates sw.js on navigation, so a
 // PWA resumed from memory would keep stale caches until force-restart.
-// Re-check on foreground and on reconnect — now harmless background cache
-// refreshes. No hourly interval: sessions here are minutes-long;
-// foregrounding covers every realistic stale case. Throttled so
-// app-switcher spam doesn't revalidate constantly.
 const MIN_SW_CHECK_GAP_MS = 10 * 60 * 1000;
+const SW_CHECK_SLACK_MS = 1_000;
+const SW_POLL_MS = MIN_SW_CHECK_GAP_MS + SW_CHECK_SLACK_MS;
+const AUTO_UPDATE_ABSENCE_MS = 30_000;
+const AUTO_UPDATE_FLAG_MS = 15_000;
 const ABSENCE_RELOAD_MS = 6 * 60 * 60 * 1000;
 const UPDATE_SETTLE_MS = 15_000;
 const LAST_HIDDEN_KEY = "mabiroutine:last-hidden";
@@ -182,6 +182,18 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   // inside the settle window. Always disarmed — never leaks into a session.
   let reloadOnUpdate = false;
   let disarmTimer = 0;
+  let autoAcceptUntil = 0;
+  const clearAutoAccept = () => {
+    autoAcceptUntil = 0;
+  };
+  const armAutoAccept = () => {
+    autoAcceptUntil = Date.now() + AUTO_UPDATE_FLAG_MS;
+  };
+  const consumeAutoAccept = () => {
+    if (Date.now() >= autoAcceptUntil) return false;
+    autoAcceptUntil = 0;
+    return true;
+  };
   const disarm = () => {
     reloadOnUpdate = false;
     if (disarmTimer) {
@@ -192,6 +204,35 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   // Any Radix dialog (custom-task editor, confirms, sync sheets): reloading
   // under one vaporizes its draft, so an open dialog vetoes everything.
   const hasOpenDialog = () => !!document.querySelector('[role="dialog"]');
+  const isEditing = () => {
+    const el = document.activeElement as HTMLElement | null;
+    return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+  };
+  const canAutoUpdate = () =>
+    document.visibilityState === 'visible' && navigator.onLine && !hasOpenDialog() && !isEditing();
+  const reloadIntoUpdate = () => {
+    let done = false;
+    let timer = 0;
+    const cleanup = () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', onController);
+      window.clearTimeout(timer);
+    };
+    const finish = (activated: boolean) => {
+      if (done) return;
+      done = true;
+      cleanup();
+      if (activated && canAutoUpdate()) {
+        clearAutoAccept();
+        autoUpdate();
+      } else {
+        markUpdateReady();
+      }
+    };
+    const onController = () => finish(true);
+    navigator.serviceWorker.addEventListener('controllerchange', onController);
+    timer = window.setTimeout(() => finish(false), 1_000);
+    void updateSW(false);
+  };
   const checkForSwUpdate = (reg: ServiceWorkerRegistration | undefined) => {
     if (!reg || reg.installing) return;
     if ('connection' in navigator && !navigator.onLine) return;
@@ -206,6 +247,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     } catch {
       // private mode — absence tracking off, no reload arming
     }
+    clearAutoAccept();
     disarm();
   };
   const noteVisible = (reg: ServiceWorkerRegistration | undefined) => {
@@ -216,15 +258,22 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     } catch {
       return;
     }
-    if (!last || Date.now() - last < ABSENCE_RELOAD_MS) return;
-    if (!navigator.onLine || hasOpenDialog()) return;
+    const away = last ? Date.now() - last : 0;
+    if (away >= AUTO_UPDATE_ABSENCE_MS && away < ABSENCE_RELOAD_MS && canAutoUpdate()) {
+      if (getUpdateReady()) {
+        autoUpdate();
+        return;
+      }
+      lastSwCheck = 0;
+      armAutoAccept();
+    }
+    if (!last || away < ABSENCE_RELOAD_MS) return;
+    if (!canAutoUpdate()) return;
     if (reg.waiting) {
       // Update already parked (landed while we were away) — reload into it now.
-      if (!hasOpenDialog()) {
-        disarm();
-        void updateSW(false);
-        window.location.reload();
-      }
+      disarm();
+      void updateSW(false);
+      window.location.reload();
       return;
     }
     reloadOnUpdate = true;
@@ -238,6 +287,10 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   const updateSW = registerSW({
     immediate: false,
     onNeedRefresh() {
+      if (canAutoUpdate() && consumeAutoAccept()) {
+        reloadIntoUpdate();
+        return;
+      }
       if (reloadOnUpdate && navigator.onLine && !hasOpenDialog()) {
         disarm();
         void updateSW(false);
@@ -267,6 +320,9 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
           checkForSwUpdate(reg);
         } else noteHidden();
       });
+      window.setInterval(() => {
+        if (document.visibilityState === 'visible') checkForSwUpdate(reg);
+      }, SW_POLL_MS);
       // pagehide covers OS-level kills that skip visibilitychange (mobile).
       window.addEventListener('pagehide', noteHidden);
       window.addEventListener('online', () => checkForSwUpdate(reg));

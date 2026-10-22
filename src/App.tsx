@@ -31,7 +31,8 @@ import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
 import { BLACK_HOLE_DAILY_ID, blackHoleProgressTask, blackHoleProgressValue } from "@/lib/blackHole";
 import { healClaimedReminderLanes } from "@/lib/serverPush";
-import { takeUpdateReceipt } from "@/lib/updatePrompt";
+import { takeUpdateAcknowledgement, takeUpdateReceipt } from "@/lib/updatePrompt";
+import { useWhatsNew } from "@/lib/whatsNew";
 import { focusSelectOnMount } from "@/lib/utils";
 import type { Task, TaskSection } from "@/lib/types";
 import { Plus, Pencil, Check, X, Trash2, ChevronDown, MoreHorizontal } from "lucide-react";
@@ -66,6 +67,7 @@ export default function App() {
   const resetAll = useAppStore((s) => s.resetAll);
   const customTasks = useAppStore((s) => s.customTasks);
   const barterPins = useAppStore((s) => s.barterPins);
+  const { acknowledgeDot } = useWhatsNew();
   // Slow ticker for the derived progress values (黑色坑洞's elapsed dailies):
   // the overall ring must roll at 06:00 even while the app sits open.
   const nowMs = useNow(30_000);
@@ -129,9 +131,11 @@ export default function App() {
 
   useEffect(() => {
     if (!hasHydrated) return;
+    const acknowledged = takeUpdateAcknowledgement();
     if (!takeUpdateReceipt()) return;
     toast("已更新到最新版");
-  }, [hasHydrated]);
+    if (acknowledged) acknowledgeDot();
+  }, [hasHydrated, acknowledgeDot]);
 
   // Boot + focus entry points — always pull-first (syncAndResets): the reset's
   // tombstone decision needs fresh peer markers, or a late-waking device

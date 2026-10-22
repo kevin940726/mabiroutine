@@ -21,10 +21,14 @@ MabiRoutine's design principle: static game data ships with the app;
   acknowledgement (`whatsNewNudged`) is different: it is part of the store
   and the synced key space (`meta:whatsnew`), so opening the menu on one
   linked device quiets the dot on the others; the drawer itself is a page,
-  with no unread marker. `theme` (light / dark / system) is per-device too,
-  and `mabiroutine:update-receipt` lives in `sessionStorage` for a single
-  reload to show the update receipt. `mabiroutine:last-synced` remembers when
-  this device last reached the sync link (never synced, not part of the store).
+  with no unread marker. `theme` (light / dark / system) is per-device too.
+  The update-ready state lives in `src/lib/updatePrompt.ts` module state; its
+  dot dismissal is component state. Both are device-local and never persisted.
+  `mabiroutine:update-receipt` and `mabiroutine:update-ack` live in
+  `sessionStorage` for one reload: the receipt shows 已更新到最新版, and the
+  ack (manual accept only) suppresses the changelog dot for the release just
+  taken. `mabiroutine:last-synced` remembers when this device last reached the
+  sync link (never synced, not part of the store).
 
 ## When the app updates (auto-migrate, nothing to do)
 

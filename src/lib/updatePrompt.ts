@@ -8,8 +8,10 @@ import { useSyncExternalStore } from "react";
 export const BOOT_WAIT_MS = 3000;
 
 const RECEIPT_KEY = "mabiroutine:update-receipt";
+const ACK_KEY = "mabiroutine:update-ack";
 
 let ready = false;
+let readyAt: number | null = null;
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -18,6 +20,10 @@ function emit(): void {
 
 export function getUpdateReady(): boolean {
   return ready;
+}
+
+export function getUpdateReadyAt(): number | null {
+  return readyAt;
 }
 
 export function subscribeUpdateReady(listener: () => void): () => void {
@@ -30,12 +36,14 @@ export function subscribeUpdateReady(listener: () => void): () => void {
 export function markUpdateReady(): void {
   if (ready) return;
   ready = true;
+  readyAt = Date.now();
   emit();
 }
 
 export function clearUpdateReady(): void {
   if (!ready) return;
   ready = false;
+  readyAt = null;
   emit();
 }
 
@@ -43,20 +51,39 @@ export function useUpdateReady(): boolean {
   return useSyncExternalStore(subscribeUpdateReady, getUpdateReady, () => false);
 }
 
-export function acceptUpdate(): void {
+function reloadWithReceipt(acknowledgeChangelog: boolean): void {
   clearUpdateReady();
   try {
     sessionStorage.setItem(RECEIPT_KEY, "1");
+    if (acknowledgeChangelog) sessionStorage.setItem(ACK_KEY, "1");
   } catch {
     // Blocked storage: the reload still happens, without the receipt toast.
   }
   window.location.reload();
 }
 
+export function acceptUpdate(): void {
+  reloadWithReceipt(true);
+}
+
+export function autoUpdate(): void {
+  reloadWithReceipt(false);
+}
+
 export function takeUpdateReceipt(): boolean {
   try {
     if (sessionStorage.getItem(RECEIPT_KEY) === null) return false;
     sessionStorage.removeItem(RECEIPT_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function takeUpdateAcknowledgement(): boolean {
+  try {
+    if (sessionStorage.getItem(ACK_KEY) === null) return false;
+    sessionStorage.removeItem(ACK_KEY);
     return true;
   } catch {
     return false;
