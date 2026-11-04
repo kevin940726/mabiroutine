@@ -6,8 +6,8 @@
 // Why this exists: the encoding is a correctness detail with a SILENT failure
 // mode in TWO directions, so it must not be left to a comment.
 //
-//   - The `+`: five item names end in `+` (布料+, 皮革+, 高級布料+, 高級木材+,
-//     高級生皮+), and the URL must spell it `%2B`. Vercel 404s a literal `+`,
+//   - The `+`: six item names end in `+` (布料+, 皮革+, 高級布料+, 高級木材+,
+//     高級生皮+, 裝飾製作零件+), and the URL must spell it `%2B`. Vercel 404s a literal `+`,
 //     while Vite's dev static layer does the reverse and answers its SPA fallback
 //     with HTML at 200, so a wrong spelling renders the placeholder with no
 //     error in either environment. `vite.config.ts` has a dev-only middleware for
@@ -37,12 +37,17 @@ const expectPath = (name: string, expected: string, msg: string) =>
 
 // --- the `+` refinement suffix -------------------------------------------------
 // The regression this gate is built around: the path must carry `%2B`, and the
-// five files keep a literal `+` on disk (only the URL is encoded).
+// six files keep a literal `+` on disk (only the URL is encoded).
 expectPath("皮革+", "/items/%E7%9A%AE%E9%9D%A9%2B.webp", "a `+` name is `%2B` in the URL, not a literal `+`");
 expectPath("高級木材+", "/items/%E9%AB%98%E7%B4%9A%E6%9C%A8%E6%9D%90%2B.webp", "高級木材+ keeps its `%2B`");
 expectPath("布料+", "/items/%E5%B8%83%E6%96%99%2B.webp", "布料+ keeps its `%2B`");
 expectPath("高級生皮+", "/items/%E9%AB%98%E7%B4%9A%E7%94%9F%E7%9A%AE%2B.webp", "高級生皮+ keeps its `%2B`");
 expectPath("高級布料+", "/items/%E9%AB%98%E7%B4%9A%E5%B8%83%E6%96%99%2B.webp", "高級布料+ keeps its `%2B`");
+expectPath(
+  "裝飾製作零件+",
+  "/items/%E8%A3%9D%E9%A3%BE%E8%A3%BD%E4%BD%9C%E9%9B%B6%E4%BB%B6%2B.webp",
+  "裝飾製作零件+ keeps its `%2B`",
+);
 // Guard the exact mechanism, not just the output: `.replace(/%2B/g, "+")` would
 // satisfy a naive check on the disk spelling, so assert the emitted string has no
 // bare plus left in it.

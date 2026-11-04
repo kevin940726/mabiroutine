@@ -1251,6 +1251,64 @@
               }
             },
             {
+              "name": "裝飾製作零件",
+              "priority": "must",
+              "cost": {
+                "amount": 5000
+              },
+              "limit": {
+                "times": 25,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "裝飾製作零件+",
+              "priority": "must",
+              "cost": {
+                "amount": 18000
+              },
+              "limit": {
+                "times": 16,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "高級裝飾製作零件",
+              "priority": "must",
+              "cost": {
+                "amount": 35000
+              },
+              "limit": {
+                "times": 7,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "座標轉換計",
+              "cost": {
+                "amount": 550000
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "魔力訊號加速器",
+              "cost": {
+                "amount": 750000
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
               "name": "皮革",
               "kind": "barter",
               "cost": {

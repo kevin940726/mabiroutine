@@ -6,6 +6,7 @@
 // routes (they live here now).
 // Run after touching shops.json, recipes.json, or curatedOrder.ts: pnpm test:shops
 import { CURATED_ORDER } from "@/data/curatedOrder";
+import { DEFAULT_PINS } from "@/data/defaultPins";
 import recipesJson from "@/data/recipes.json";
 import shopsJson from "@/data/shops.json";
 import { existsSync } from "node:fs";
@@ -118,6 +119,15 @@ for (const t of townList) {
   if (missing.length || extra.length) {
     fail(`curatedOrder: missing ${JSON.stringify(missing)} extra ${JSON.stringify(extra)}`);
   }
+}
+// Default pins must resolve. `DEFAULT_PINS` mixes curated barter ids with
+// derived `shop::<npc>::<name>` ids, and both the store's seeding filter and
+// the migration fixtures key on the deal's `pinId`; a stale or misspelled
+// entry would otherwise be dropped in silence.
+{
+  const byPin = new Set(shopDeals(loadShopNpcs()).map((d) => d.pinId));
+  const missing = DEFAULT_PINS.filter((id) => !byPin.has(id));
+  if (missing.length) fail(`DEFAULT_PINS id resolves to no deal: ${JSON.stringify(missing)}`);
 }
 // Twin probes: every shops.json leg must be reachable in the materials route
 // table through twinTradeLeg. The town-group conversion once left materials.ts

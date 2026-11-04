@@ -432,26 +432,28 @@ Decided by the user 2026-09-27:
 1. **Reminder bells: no.** Gold pins are not reminder-eligible. "Go spend gold"
    is not the same kind of reminder as "gather these eight herbs". Keep step 8
    out of the plan; do not touch `useHourlyReminders`.
-2. **Seeded gold pins: no, not now.** `src/data/defaultPins.ts` stays
-   barter-only. Revisit later if the gold shop earns a curated must-list of its
-   own.
+2. **Seeded gold pins: not until a row earns it.** `src/data/defaultPins.ts`
+   was barter-only until 2026-11-04, when 瓦爾特's three 裝飾製作零件 rows joined
+   it (user decision; each is a make input, so the "a *reason* per row" test
+   below is met). The rule stands: a gold row is seeded only with a stated
+   reason, never because it has a weekly cap.
    Reviewed again 2026-10-20 and deferred: "gold-only item, weekly cap" screens
    too broadly to seed as it stands. Most gold-only items have no barter output
    and no `recipes.json` route only because the source data does not model their
    gathering, and the weekly-limited set is dominated by quest-board scrolls (buy
-   the one the board asks for) and unmodelled reagent/hide inputs. What would make
+   the one the board asks for) and unmodelled reagent/hide inputs. What makes
    a small, defensible set is a *reason* per row: an item a `recipes.json` make
    route consumes, or one that completes a chain an existing default pin already
    spends.
-   Seeding that set is cheap when it exists: the derived `shop::<npc>::<name>` ids
-   need no minting and no pin migration, the prune steps and
-   `seedMissingDefaultPins` already accept `shop::` ids, and the store only has to
-   key `DEFAULT_PINS` on `deal.pinId` instead of `deal.id` — the latter is null for
-   gold rows, which is why a `shop::` entry is dropped in silence today (worth the
-   `test:shops` assertion that every `DEFAULT_PINS` id resolves, whenever this is
-   picked up). Minting an explicit `id` for every gold row is NOT the way in: the
-   shops gate requires a `priority` beside an `id`, and changing a pinned row's id
-   orphans saves. Tiering gold rows with `priority` is an independent, data-only
+   Seeding is cheap because the derived `shop::<npc>::<name>` ids need no
+   minting and no pin migration, the prune steps and `seedMissingDefaultPins`
+   already accept `shop::` ids, and the store keys `DEFAULT_MUST_PINS` on
+   `deal.pinId` — the same key for both namespaces, where `deal.id` is null for
+   gold rows and would have dropped a `shop::` entry in silence (that silent drop
+   is why `test:shops` now asserts every `DEFAULT_PINS` id resolves to a deal).
+   Minting an explicit `id` for every gold row is NOT the way in: the shops gate
+   requires a `priority` beside an `id`, and changing a pinned row's id orphans
+   saves. Tiering gold rows with `priority` is an independent, data-only
    decision — the schema, gate, tile and panel filter already read it.
 3. **Ordering: after the barter pins, and reorderable.** Shop pins sort after
    barter pins in `shops.json` order by default, and the user can drag them
@@ -560,10 +562,10 @@ counts if `shops.json` or `curatedOrder.ts` change, and do not propagate a new t
 into the measurements above. Measure them by having a script write a UTF-8 file rather
 than printing to the console (see the terminal trap in section 0).
 
-- `shops.json`: 239 rows, 45 NPCs, 8 towns. 122 gold (`kind` omitted), 117 barter.
+- `shops.json`: 244 rows, 45 NPCs, 8 towns. 127 gold (`kind` omitted), 117 barter.
 - 27 NPCs are barter-only, 14 are mixed, 4 are gold-only.
 - Every barter row is curated inline (stable `id`, a `priority`, and the
-  `barter.give` / `get` / `limit` display strings), so only the 122 gold rows
+  `barter.give` / `get` / `limit` display strings), so only the 127 gold rows
   need a `shop::` pin id. `barter.json` was retired 2026-10-07: the ids, tiers,
   display strings and order now live on the options plus `curatedOrder.ts`.
 - **Zero** curated rows lack a shop entry, and zero shop barter rows lack their
@@ -577,11 +579,11 @@ than printing to the console (see the terminal trap in section 0).
   `精靈的痕跡` against `精靈痕跡`, which left a `situational` curated row
   unreachable anywhere. Twin cap parity pairs rows by name and was blind to
   both — which is why the check no longer depends on a second file.
-- All 122 gold rows are unique on `npc::name`; none has a null price. This is the
+- All 127 gold rows are unique on `npc::name`; none has a null price. This is the
   invariant that lets the pin id be `shop::<npc>::<name>`, and `test:shops`
   now enforces it (check 0b) instead of merely measuring it.
-- Pin counts: **all 239 pinnable** — 117 under an explicit option `id`,
-  122 gold rows under a `shop::` id. 239 distinct pin ids.
+- Pin counts: **all 244 pinnable** — 117 under an explicit option `id`,
+  127 gold rows under a `shop::` id. 244 distinct pin ids.
 
 ---
 

@@ -271,7 +271,7 @@ export function shopDealToTask(deal: ShopDeal): Task {
 }
 
 export const DEFAULT_MUST_PINS: string[] = [...new Set(DEFAULT_PINS)].filter((id) =>
-  shopDeals(loadShopNpcs()).some((d) => d.id === id)
+  shopDeals(loadShopNpcs()).some((d) => d.pinId === id)
 );
 
 // Pull-aware default seeding (2026-10-06, supersedes the removed v15

@@ -27,7 +27,7 @@ function assert(cond: unknown, msg: string): void {
 
 const trackerIds = new Set((trackerJson as { id: string }[]).map((t) => t.id));
 const mustIds = [...new Set(DEFAULT_PINS)].filter((id) =>
-  shopDeals(loadShopNpcs()).some((d) => d.id === id)
+  shopDeals(loadShopNpcs()).some((d) => d.pinId === id)
 );
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 

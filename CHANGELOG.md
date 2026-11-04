@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-11-04 — 瓦爾特's 裝飾 parts, 必換 and pinned
+
+### Features
+- 瓦爾特 (杜巴頓) now stocks five 裝飾 crafting parts and devices, every row at a 每週 cap shared by the whole account: 裝飾製作零件 5,000 gold 每週 25 次, 裝飾製作零件+ 18,000 每週 16 次, 高級裝飾製作零件 35,000 每週 7 次, 座標轉換計 550,000 每週 1 次, 魔力訊號加速器 750,000 每週 1 次. All five carry their own item art, so no tile falls back to the placeholder. The three 裝飾製作零件 rows carry the 必換 tier and are pinned by default: a new save opens with them in 已選交易, and a linked save picks them up on its next sync.
+
 ## 2026-10-22 — Auto-update on return, and a 24-hour dot
 
 ### Fixes

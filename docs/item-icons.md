@@ -53,7 +53,8 @@ display one, rather than by remembering not to fold:
 resolves `%2B` to `public/items/皮革+.webp`, and a literal `+` in the path does not
 resolve (404; measured against the deployed preview, 2026-10-02, along with `%20`,
 which also 404s). The
-names that carry one — `布料+`, `皮革+`, `高級布料+`, `高級木材+`, `高級生皮+` — all
+names that carry one — `布料+`, `皮革+`, `高級布料+`, `高級木材+`, `高級生皮+`,
+`裝飾製作零件+` — all
 go out as `%2B`.
 
 The parens are the opposite case. `(` and `)` are RFC 3986 sub-delims like `+`, but
