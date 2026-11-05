@@ -4,6 +4,9 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+### Chores
+- The shop model records a purchase counter shared by several merchants (`pool`): a partner row takes the owning row's pin id, the tracker row names every merchant, and the tile marks the stock 共用 once a second row exists. `test:shops` gates the pair and carries a fixture for the success path. No row uses it yet; 瓦爾特's 裝飾 stock is the first candidate, once 黛蓮's rows land.
+
 ## 2026-11-04 — 瓦爾特's 裝飾 parts, 必換 and pinned
 
 ### Features

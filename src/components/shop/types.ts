@@ -54,4 +54,8 @@ export type ShopRow = {
   barterId: string | null;
   /** The id a pin on this row uses — barterId when curated, else a shop:: id. */
   pinId: string;
+  /** How many catalog rows share this row's purchase counter (1 = its own).
+   *  Above 1 the tile marks the stock 共用, because spending it at one merchant
+   *  spends it at the others. */
+  poolSize: number;
 };

@@ -4,7 +4,7 @@ import trackerJson from "@/data/tracker.json";
 import { CURATED_ORDER } from "@/data/curatedOrder";
 import { DEFAULT_PINS } from "@/data/defaultPins";
 import type { AppState, Character, Task } from "@/lib/types";
-import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, costText, getText, barterTaskForPin, type ShopDeal } from "@/lib/shops";
+import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, poolMembers, costText, getText, barterTaskForPin, type ShopDeal } from "@/lib/shops";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 import { carriesOverCycle, cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
 import { subTaskIds } from "@/lib/subTasks";
@@ -240,11 +240,19 @@ export function shopDealToTask(deal: ShopDeal): Task {
   const weekly = deal.limitPeriod === "weekly";
   const times = deal.limitTimes ?? 0;
   const isCounter = times > 1;
+  const members = poolMembers(deal.pinId);
+  // A pooled stock is one counter across merchants, so the row names every
+  // merchant that draws on it. Towns are added only when the pool spans them;
+  // a single-town pool reads as the bare list.
+  const npcText =
+    members.length > 1 && new Set(members.map((m) => m.town)).size > 1
+      ? members.map((m) => `${m.npc}（${m.town}）`).join(" / ")
+      : members.map((m) => m.npc).join(" / ");
   return {
     id: deal.pinId,
     name: getText(deal),
     icon: deal.kind === "barter" ? "🔄" : "🪙",
-    desc: `${costText(deal)} · ${deal.town} · ${deal.npc}`,
+    desc: `${costText(deal)} · ${deal.town} · ${npcText || deal.npc}`,
     section: weekly ? "weekly" : "daily",
     kind: weekly ? "weekly" : "daily",
     type: isCounter ? "counter" : "check",

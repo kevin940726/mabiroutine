@@ -51,6 +51,16 @@ export interface ShopDeal {
   barterId: string | null;
   /** the id a pin on this row uses: the curated barter id, or a shop:: id */
   pinId: string;
+  /** Authored pool target (`pool`): the merchant key (`npc::town`) whose row owns
+   *  this stock's purchase counter. Null when this row IS that counter, which is
+   *  every row today. */
+  poolTarget: string | null;
+  /** True when this row draws on another row's counter (a pool partner). Its
+   *  `pinId` is the canonical row's id, so a pin on either merchant is one row. */
+  pooled: boolean;
+  /** How many catalog rows share this row's counter, this row included. 1 means
+   *  the row is its own counter, which is the normal case. */
+  poolSize: number;
   /** position in the curated order list, or -1 when the deal is not curated */
   curatedIndex: number;
 }
@@ -73,6 +83,7 @@ interface RawOption {
   priority?: string;
   icon?: string;
   id?: string;
+  pool?: string;
   barter?: { give?: string; get?: string; limit?: string };
 }
 
@@ -94,6 +105,52 @@ export function shopPinId(npc: string, name: string): string {
   return `shop::${npc}::${name}`;
 }
 
+/** Split an authored `pool` target (`npc::town`) into its parts. Null for any
+ *  shape the gate rejects, so a bad value never half-resolves at runtime. */
+export function splitPoolTarget(target: string): { npc: string; town: string } | null {
+  const at = target.indexOf("::");
+  if (at <= 0) return null;
+  const npc = target.slice(0, at);
+  const town = target.slice(at + 2);
+  return npc && town ? { npc, town } : null;
+}
+
+/** Rows of one merchant with the same kind and name share this key. Two such
+ *  options are already impossible: they would collide on the pin id, and the
+ *  gate fails that first. */
+const poolLookupKey = (d: Pick<ShopDeal, "npc" | "town" | "kind" | "name">) =>
+  `${d.npc}::${d.town}::${d.kind}::${d.name}`;
+
+/**
+ * Second loader pass: a row whose `pool` names another merchant's row draws on
+ * THAT row's counter, so it takes that row's pin id. Pools are declared on the
+ * partners only, so the canonical row is found by `kind + name` under the named
+ * merchant and must not itself carry a pool (the gate rejects chains).
+ *
+ * Resolution is skipped rather than guessed when the target is malformed,
+ * dangling, or ambiguous: the row keeps its own pin id, and `test:shops` fails
+ * on the data instead.
+ */
+function resolvePools(npcs: ShopNpc[]): void {
+  const deals = npcs.flatMap((n) => n.deals);
+  const byKey = new Map<string, ShopDeal[]>();
+  for (const d of deals) byKey.set(poolLookupKey(d), [...(byKey.get(poolLookupKey(d)) ?? []), d]);
+  for (const d of deals) {
+    if (!d.poolTarget) continue;
+    const target = splitPoolTarget(d.poolTarget);
+    if (!target) continue;
+    const canonical = (byKey.get(`${target.npc}::${target.town}::${d.kind}::${d.name}`) ?? []).find(
+      (c) => !c.poolTarget
+    );
+    if (!canonical) continue;
+    d.pooled = true;
+    d.pinId = canonical.pinId;
+  }
+  const groups = new Map<string, ShopDeal[]>();
+  for (const d of deals) groups.set(d.pinId, [...(groups.get(d.pinId) ?? []), d]);
+  for (const members of groups.values()) for (const d of members) d.poolSize = members.length;
+}
+
 let pinIdCache: Set<string> | null = null;
 let byPinCache: Map<string, ShopDeal> | null = null;
 
@@ -104,16 +161,44 @@ let byPinCache: Map<string, ShopDeal> | null = null;
  * the store, the tracker and the panel all read it.
  */
 export function shopDealsByPinId(): Map<string, ShopDeal> {
-  if (!byPinCache) byPinCache = new Map(shopDeals(loadShopNpcs()).map((d) => [d.pinId, d]));
+  if (!byPinCache) {
+    byPinCache = new Map<string, ShopDeal>();
+    for (const d of shopDeals(loadShopNpcs())) {
+      const prev = byPinCache.get(d.pinId);
+      // A pooled stock has one pin id shared by its rows. The canonical row wins
+      // so the tracker row, its town and its jump target stay the one the id was
+      // minted for.
+      if (!prev || (prev.pooled && !d.pooled)) byPinCache.set(d.pinId, d);
+    }
+  }
   return byPinCache;
+}
+
+/**
+ * The catalog rows sharing one purchase counter, canonical row first, in file
+ * order. One entry for an ordinary row; several only when `pool` links them.
+ */
+let poolCache: Map<string, ShopDeal[]> | null = null;
+export function poolMembers(pinId: string): ShopDeal[] {
+  if (!poolCache) {
+    poolCache = new Map<string, ShopDeal[]>();
+    for (const d of shopDeals(loadShopNpcs())) {
+      const group = poolCache.get(d.pinId) ?? [];
+      group.push(d);
+      poolCache.set(d.pinId, group);
+    }
+    for (const [id, members] of poolCache) poolCache.set(id, [...members].sort((a, b) => Number(a.pooled) - Number(b.pooled)));
+  }
+  return poolCache.get(pinId) ?? [];
 }
 
 /**
  * The shop-namespace pin ids: the gold rows, which are the only deals with no
  * explicit id, and is what a caller validating a pin id needs. Curated rows
  * are excluded because they pin under their explicit option id, which the
- * curated set already covers. Memoized because the store builds this on every
- * load and on every version upgrade.
+ * curated set already covers. A pool partner contributes its canonical row's id
+ * and the Set collapses it, so a shared stock is one pinnable id. Memoized
+ * because the store builds this on every load and on every version upgrade.
  */
 export function shopPinIds(): Set<string> {
   if (!pinIdCache) {
@@ -207,6 +292,9 @@ export function loadShopNpcs(): ShopNpc[] {
           scopeAccount: item.scope === "account",
           barterId: typeof item.id === "string" ? item.id : null,
           pinId: typeof item.id === "string" ? item.id : shopPinId(npc, item.name),
+          poolTarget: typeof item.pool === "string" ? item.pool : null,
+          pooled: false,
+          poolSize: 1,
           priority: typeof item.priority === "string" && SHOP_PRIORITIES.has(item.priority) ? (item.priority as CuratedPriority) : null,
           icon: typeof item.icon === "string" ? item.icon : null,
           id: typeof item.id === "string" ? item.id : null,
@@ -222,6 +310,7 @@ export function loadShopNpcs(): ShopNpc[] {
       npcs.push({ name: npc, town, icon: typeof shop.icon === "string" ? shop.icon : null, deals });
     }
   }
+  resolvePools(npcs);
   npcsCache = npcs;
   return npcs;
 }

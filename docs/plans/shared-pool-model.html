@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shared purchase pools — model prototype</title>
+<style>
+  :root {
+    --ink: #1b1d21;
+    --muted: #5a616b;
+    --line: #e3e5e9;
+    --paper: #fbfbfa;
+    --accent: #0f766e;
+    --accent-soft: #e6f2f0;
+    --warn: #a16207;
+    --warn-soft: #fdf6e3;
+    --bad: #9a3412;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 20px 72px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.55 "Segoe UI", "Noto Sans TC", system-ui, sans-serif;
+  }
+  main { max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 36px 0 10px; }
+  p.lead { margin: 0 0 4px; color: var(--muted); max-width: 70ch; }
+  .question {
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    background: var(--accent-soft);
+    margin: 18px 0 0;
+    max-width: 75ch;
+  }
+  .cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  .card + .card { margin-top: 14px; }
+  .card h3 { margin: 0 0 10px; font-size: 15px; }
+  .model-pick { display: flex; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
+  .model-pick button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button {
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 11px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: #b9bec6; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.tiny { padding: 3px 8px; font-size: 12px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  tr:last-child td { border-bottom: 0; }
+  .row-actions { display: flex; gap: 6px; }
+  .pill {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .pill.shared { background: var(--warn-soft); color: var(--warn); border: 1px solid #f0e0b8; }
+  .pill.server { background: #eef6fd; color: #185a9d; border: 1px solid #d5e6f8; }
+  .pill.hidden { background: #f3f4f6; color: var(--muted); border: 1px solid var(--line); }
+  .pill.model { background: var(--accent-soft); color: var(--accent); border: 1px solid #cfe6e2; }
+  .mono { font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+  .muted { color: var(--muted); }
+  .count { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .done { color: var(--accent); }
+  .empty { color: var(--muted); font-size: 13.5px; }
+  .facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 13.5px; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; }
+  .flash { background: #fff8e1; transition: background 0s; }
+  .note { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
+  .warn { color: var(--bad); }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .scenario p { margin: 0 0 10px; }
+  ol.steps { margin: 0 0 12px; padding-left: 22px; }
+  ol.steps li { margin: 0 0 6px; }
+  ol.steps li.current { font-weight: 600; }
+  ol.steps li.done { color: var(--muted); text-decoration: line-through; }
+  .stepbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .stepbar .hint { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Shared purchase pools</h1>
+  <p class="lead">
+    A prototype of one idea: when two merchants sell the same capped stock, the cap is one counter, not one per merchant.
+    Nothing here is the real app. State lives in this page and resets on reload.
+  </p>
+  <div class="question">
+    <strong>The question:</strong> does a shared counter read better as <em>one</em> tracker row that names both merchants (model A),
+    or as one row per merchant that share a number (model B)? And does a <span class="pill shared">共用</span> marker on the tile
+    make the shared stock obvious before you pin it?
+  </div>
+
+  <div class="cols" style="margin-top: 26px">
+    <div>
+      <div class="model-pick">
+        <button id="modelA" data-model="A" aria-pressed="true">Model A — one pooled row</button>
+        <button id="modelB" data-model="B" aria-pressed="false">Model B — a row per merchant</button>
+      </div>
+
+      <h2>Catalog (what the shop shows)</h2>
+      <div class="card">
+        <h3>瓦爾特 · 杜巴頓</h3>
+        <table id="catalog-walter"></table>
+      </div>
+      <div class="card">
+        <h3>黛蓮 · 杜巴頓 <span class="pill shared">shares tab 429191508</span></h3>
+        <table id="catalog-delen"></table>
+      </div>
+      <div class="card">
+        <h3>伊文 · 杜巴頓 <span class="pill shared">shares a character-scoped tab</span></h3>
+        <table id="catalog-ivan"></table>
+      </div>
+      <div class="card">
+        <h3>凱雅拉 · 庫漢 <span class="muted" style="font-weight: 400">(the stock below is not recorded in the data yet)</span></h3>
+        <table id="catalog-kai"></table>
+      </div>
+    </div>
+
+    <div>
+      <h2>Tracker — 已選交易</h2>
+      <div class="card">
+        <table id="tracker"></table>
+        <p class="note" id="tracker-note"></p>
+      </div>
+
+      <h2>State</h2>
+      <div class="card">
+        <dl class="facts" id="facts"></dl>
+      </div>
+
+      <h2>Free play</h2>
+      <div class="card">
+        <div class="row-actions" style="flex-wrap: wrap">
+          <button id="roll">Roll the week over (週一 06:00)</button>
+          <button id="switchchar">Switch character</button>
+          <button id="clearvals">Clear every count</button>
+          <button id="reset">Reset everything</button>
+        </div>
+        <p class="note">Buy buttons in the catalog above, pin buttons in either place.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>Guided walkthroughs</h2>
+  <div class="card scenario">
+    <div class="tabs" id="scenario-tabs"></div>
+    <div id="scenario-body"></div>
+    <div class="stepbar">
+      <button class="primary" id="scenario-start">Start this walkthrough</button>
+      <button id="scenario-next" disabled>Do step 1</button>
+      <span class="hint" id="scenario-hint"></span>
+    </div>
+  </div>
+</main>
+
+<script>
+/* ============================================================================
+   Pure model. No DOM in here: every function takes state and returns state.
+   Product rows carry the client's real caps; the merchant lists are the ones
+   the client's shared tabs imply.
+   ========================================================================== */
+
+const MERCHANTS = {
+  瓦爾特: { town: "杜巴頓" },
+  黛蓮: { town: "杜巴頓" },
+  伊文: { town: "杜巴頓" },
+  凱雅拉: { town: "庫漢" },
+};
+
+// One entry per client product. `cap` is the client's restrict_amount; the
+// tab is shared, so both members see the same cap.
+const PRODUCTS = [
+  { key: "deco-1", name: "裝飾製作零件", price: 5000, costLabel: "金幣 5,000", cap: 25, period: "weekly", scope: "account", canonical: "瓦爾特", members: ["瓦爾特", "黛蓮"] },
+  { key: "deco-2", name: "裝飾製作零件+", price: 18000, costLabel: "金幣 18,000", cap: 16, period: "weekly", scope: "account", canonical: "瓦爾特", members: ["瓦爾特", "黛蓮"] },
+  { key: "deco-3", name: "高級裝飾製作零件", price: 35000, costLabel: "金幣 35,000", cap: 7, period: "weekly", scope: "account", canonical: "瓦爾特", members: ["瓦爾特", "黛蓮"] },
+  { key: "deco-4", name: "座標轉換計", price: 550000, costLabel: "金幣 550,000", cap: 1, period: "weekly", scope: "account", canonical: "瓦爾特", members: ["瓦爾特", "黛蓮"] },
+  { key: "deco-5", name: "魔力訊號加速器", price: 750000, costLabel: "金幣 750,000", cap: 1, period: "weekly", scope: "account", canonical: "瓦爾特", members: ["瓦爾特", "黛蓮"] },
+  { key: "ivan-1", name: "無主的召喚結界戰利品", price: 150, costLabel: "魔物討伐證明 ×150", cap: 5, period: "weekly", scope: "character", canonical: "伊文", members: ["伊文", "凱雅拉"] },
+];
+
+const productOf = (key) => PRODUCTS.find((p) => p.key === key);
+const pinIdFor = (product, npc) => `shop::${npc}::${product.name}`;
+/* The counter's key: the canonical merchant's pin id. Both models store the
+   value here, which is the point of the design: no new id namespace. */
+const poolKey = (product) => pinIdFor(product, product.canonical);
+/* Model A: every member row IS the pool row. Model B: each merchant pins its
+   own row, and the row reads the pool's value. */
+const rowKeyFor = (state, product, npc) =>
+  state.model === "A" ? poolKey(product) : pinIdFor(product, npc);
+/* Account pools share one number; character pools hold one per character. */
+const storageKey = (state, product) =>
+  product.scope === "account" ? `acc|${poolKey(product)}` : `v|${state.character}|${poolKey(product)}`;
+
+const initialState = (model = "A") => ({
+  model,
+  week: 1,
+  character: "艾莉",
+  pins: [],
+  values: {},
+  hidden: [],
+});
+
+function reduce(state, action) {
+  switch (action.type) {
+    case "model":
+      return { ...initialState(action.model), week: state.week, pins: [], values: {} };
+    case "pin": {
+      const key = action.rowKey;
+      return state.pins.includes(key)
+        ? { ...state, pins: state.pins.filter((k) => k !== key) }
+        : { ...state, pins: [...state.pins, key] };
+    }
+    case "buy": {
+      const product = productOf(action.productKey);
+      const key = storageKey(state, product);
+      const current = state.values[key] ?? 0;
+      const next = Math.min(product.cap, current + (action.amount ?? 1));
+      if (next === current) return state;
+      return { ...state, values: { ...state.values, [key]: next } };
+    }
+    case "unbuy": {
+      const product = productOf(action.productKey);
+      const key = storageKey(state, product);
+      const current = state.values[key] ?? 0;
+      if (!current) return state;
+      return { ...state, values: { ...state.values, [key]: current - 1 } };
+    }
+    case "hide":
+      return state.hidden.includes(action.rowKey)
+        ? { ...state, hidden: state.hidden.filter((k) => k !== action.rowKey) }
+        : { ...state, hidden: [...state.hidden, action.rowKey] };
+    case "roll":
+      return { ...state, week: state.week + 1, values: {} };
+    case "character":
+      return { ...state, character: state.character === "艾莉" ? "布莉" : "艾莉" };
+    case "clear":
+      return { ...state, values: {} };
+    case "reset":
+      return initialState(state.model);
+    default:
+      return state;
+  }
+}
+
+const readCount = (state, product) => state.values[storageKey(state, product)] ?? 0;
+const remaining = (state, product) => product.cap - readCount(state, product);
+
+/* Rows the tracker renders, in pin order. A pin whose pool has several members
+   still renders one row in model A and one row per pinned merchant in model B. */
+function pinnedRows(state) {
+  return state.pins
+    .map((rowKey) => {
+      for (const product of PRODUCTS) {
+        if (state.model === "A" && rowKey === poolKey(product)) {
+          return { rowKey, product, npc: product.canonical, npcs: product.members };
+        }
+        if (state.model === "B") {
+          const npc = product.members.find((m) => pinIdFor(product, m) === rowKey);
+          if (npc) return { rowKey, product, npc, npcs: [npc] };
+        }
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
+
+/* ============================================================================
+   Page shell. Everything below only reads the model and re-renders.
+   ========================================================================== */
+
+let state = initialState("A");
+let last = { week: state.week, character: state.character, model: state.model };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+function capText(p) {
+  const unit = p.period === "weekly" ? "每週" : "每日";
+  return `${unit} ${p.cap} 次`;
+}
+
+function countCell(state, p) {
+  const used = readCount(state, p);
+  if (p.cap === 1) {
+    return used ? `<span class="done">✓</span>` : `<span class="muted">未</span>`;
+  }
+  return `<span class="count ${used >= p.cap ? "done" : ""}">${used} / ${p.cap}</span>`;
+}
+
+function catalogRows(npc, products) {
+  return products
+    .map((p) => {
+      const rowKey = rowKeyFor(state, p, npc);
+      const pinned = state.pins.includes(rowKey);
+      const left = remaining(state, p);
+      return `<tr>
+        <td>${esc(p.name)}</td>
+        <td class="muted">${p.costLabel}</td>
+        <td>${capText(p)}
+          ${p.scope === "account" ? `<span class="pill server">伺服器</span>` : ""}
+          ${p.members.length > 1 ? `<span class="pill shared">共用</span>` : ""}
+        </td>
+        <td class="count">剩 ${left}</td>
+        <td class="row-actions">
+          <button class="tiny" data-buy="${p.key}" ${left ? "" : "disabled"}>+1</button>
+          <button class="tiny" data-unbuy="${p.key}" ${readCount(state, p) ? "" : "disabled"}>−1</button>
+          <button class="tiny ${pinned ? "primary" : ""}" data-pin="${rowKey}">${pinned ? "已釘選" : "釘選"}</button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+}
+
+function renderCatalog() {
+  const deco = PRODUCTS.filter((p) => p.key.startsWith("deco-"));
+  const ivan = PRODUCTS.filter((p) => p.key.startsWith("ivan-"));
+  $("catalog-walter").innerHTML = catalogRows("瓦爾特", deco);
+  $("catalog-delen").innerHTML = catalogRows("黛蓮", deco);
+  $("catalog-ivan").innerHTML = catalogRows("伊文", ivan);
+  $("catalog-kai").innerHTML = catalogRows("凱雅拉", ivan);
+}
+
+function renderTracker() {
+  const rows = pinnedRows(state);
+  if (!rows.length) {
+    $("tracker").innerHTML = `<tr><td class="empty">Nothing pinned yet. Pin a row in the catalog.</td></tr>`;
+  } else {
+    $("tracker").innerHTML = rows
+      .map(({ rowKey, product, npcs }) => {
+        const hidden = state.hidden.includes(rowKey);
+        const merchants = npcs.map((n) => `${n} (${MERCHANTS[n].town})`).join(" / ");
+        return `<tr class="${hidden ? "muted" : ""}">
+          <td>
+            <div>${esc(product.name)}</div>
+            <div class="muted" style="font-size:12.5px">${esc(product.costLabel)} · ${esc(merchants)}</div>
+            <div class="mono muted" style="font-size:11.5px">${esc(rowKey)}</div>
+            ${hidden ? `<span class="pill hidden">已隱藏</span>` : ""}
+          </td>
+          <td>${capText(product)}${product.scope === "account" ? ` <span class="pill server">伺服器</span>` : ""}
+            ${product.members.length > 1 ? ` <span class="pill shared">共用</span>` : ""}</td>
+          <td class="count">${countCell(state, product)}</td>
+          <td class="row-actions">
+            <button class="tiny" data-track-buy="${product.key}" ${remaining(state, product) ? "" : "disabled"}>+1</button>
+            <button class="tiny" data-track-unbuy="${product.key}" ${readCount(state, product) ? "" : "disabled"}>−1</button>
+            <button class="tiny" data-hide="${rowKey}">${hidden ? "顯示" : "隱藏"}</button>
+            <button class="tiny" data-pin="${rowKey}">取消釘選</button>
+          </td>
+        </tr>`;
+      })
+      .join("");
+  }
+  const n = rows.length;
+  $("tracker-note").innerHTML =
+    state.model === "A"
+      ? `已選 ${n} · a pooled stock is one pin, so this count is stocks, not merchants.`
+      : `已選 ${n} · model B pins each merchant, so one stock can appear twice; the counter is still one.`;
+}
+
+function renderFacts() {
+  const changed = [];
+  if (state.week !== last.week) changed.push("the week rolled over: every count reset, pins and hides kept");
+  if (state.character !== last.character) changed.push(`character switched to ${state.character}`);
+  if (state.model !== last.model) changed.push(`model switched to ${state.model}`);
+  $("facts").innerHTML = `
+    <dt>Model</dt><dd>${state.model === "A" ? "A · one pooled row" : "B · a row per merchant"} <span class="pill model">${state.model}</span></dd>
+    <dt>Character</dt><dd>${esc(state.character)}</dd>
+    <dt>Week</dt><dd>${state.week}</dd>
+    <dt>Pins</dt><dd>${state.pins.length ? state.pins.map((p) => `<span class="mono">${esc(p)}</span>`).join("<br>") : "<span class='muted'>none</span>"}</dd>
+    <dt>Hidden</dt><dd>${state.hidden.length ? state.hidden.map((p) => `<span class="mono">${esc(p)}</span>`).join("<br>") : "<span class='muted'>none</span>"}</dd>
+    <dt>Counters</dt><dd>${
+      Object.keys(state.values).length
+        ? Object.entries(state.values)
+            .map(([k, v]) => `<span class="mono">${esc(k)} = ${v}</span>`)
+            .join("<br>")
+        : "<span class='muted'>none</span>"
+    }</dd>
+    ${changed.length ? `<dt>Just now</dt><dd>${changed.map(esc).join("; ")}</dd>` : ""}
+  `;
+  last = { week: state.week, character: state.character, model: state.model };
+}
+
+function render() {
+  $("modelA").setAttribute("aria-pressed", String(state.model === "A"));
+  $("modelB").setAttribute("aria-pressed", String(state.model === "B"));
+  renderCatalog();
+  renderTracker();
+  renderFacts();
+  renderScenario();
+}
+
+function dispatch(action) {
+  state = reduce(state, action);
+  render();
+}
+
+/* --- delegated clicks ---------------------------------------------------- */
+document.addEventListener("click", (event) => {
+  const el = event.target.closest("button");
+  if (!el) return;
+  const d = el.dataset;
+  if (d.model) return dispatch({ type: "model", model: d.model });
+  if (d.buy) return dispatch({ type: "buy", productKey: d.buy });
+  if (d.unbuy) return dispatch({ type: "unbuy", productKey: d.unbuy });
+  if (d.trackBuy) return dispatch({ type: "buy", productKey: d.trackBuy });
+  if (d.trackUnbuy) return dispatch({ type: "unbuy", productKey: d.trackUnbuy });
+  if (d.pin) return dispatch({ type: "pin", rowKey: d.pin });
+  if (d.hide) return dispatch({ type: "hide", rowKey: d.hide });
+  if (el.id === "roll") return dispatch({ type: "roll" });
+  if (el.id === "switchchar") return dispatch({ type: "character" });
+  if (el.id === "clearvals") return dispatch({ type: "clear" });
+  if (el.id === "reset") return dispatch({ type: "reset" });
+});
+
+/* ============================================================================
+   Guided walkthroughs. Each step is a real action; the list below is the
+   script, so a click never does anything the free-play buttons could not.
+   ========================================================================== */
+
+const SCENARIOS = [
+  {
+    id: "stockout",
+    title: "1 · Buy the stock out at one merchant",
+    about:
+      "Model A. Pin 裝飾製作零件 at 瓦爾特, buy the whole weekly stock there, then look at 黛蓮. The point: her tile is already empty, because the counter is one stock, not one per merchant.",
+    steps: [
+      { label: "Start from a clean page in model A", action: { type: "model", model: "A" } },
+      { label: "Pin 裝飾製作零件 at 瓦爾特", action: null, rowKey: (s) => poolKey(productOf("deco-1")), kind: "pin" },
+      { label: "Buy 25 at 瓦爾特 (the whole cap)", action: null, buyAll: "deco-1" },
+      { label: "Try to buy one more at 瓦爾特 (the +1 is disabled: cap spent)", action: null, noop: true },
+      { label: "Buy one at 黛蓮 (also disabled: same stock)", action: null, noop: true },
+    ],
+  },
+  {
+    id: "twopins",
+    title: "2 · Two pins, one stock (model B)",
+    about:
+      "Model B. Pin the same stock at both merchants. The tracker now shows two rows with one shared number, and 已選 counts 2 for one purchase. Watch the counter move in both rows when you buy at either.",
+    steps: [
+      { label: "Switch to model B", action: { type: "model", model: "B" } },
+      { label: "Pin 座標轉換計 at 瓦爾特", action: null, rowKey: (s) => pinIdFor(productOf("deco-4"), "瓦爾特"), kind: "pin" },
+      { label: "Pin 座標轉換計 at 黛蓮", action: null, rowKey: (s) => pinIdFor(productOf("deco-4"), "黛蓮"), kind: "pin" },
+      { label: "Buy the weekly 1 at 黛蓮", action: { type: "buy", productKey: "deco-4" } },
+      { label: "Look at both tracker rows: same counter, two rows", action: null, noop: true },
+      { label: "Hide the 瓦爾特 row; the 黛蓮 row still shows the spent stock", action: null, rowKey: (s) => pinIdFor(productOf("deco-4"), "瓦爾特"), kind: "hide" },
+    ],
+  },
+  {
+    id: "rollover",
+    title: "3 · Week rollover",
+    about:
+      "Buy part of the stock, then cross 週一 06:00. Counts reset, pins and hides survive, and a completed ✓ row reopens. This is the case that decides whether a pooled row needs its own reset handling.",
+    steps: [
+      { label: "Back to model A, fresh page", action: { type: "model", model: "A" } },
+      { label: "Pin 魔力訊號加速器 and 裝飾製作零件+", action: null, pins: [(s) => poolKey(productOf("deco-5")), (s) => poolKey(productOf("deco-2"))] },
+      { label: "Buy the ✓ stock (魔力訊號加速器)", action: { type: "buy", productKey: "deco-5" } },
+      { label: "Buy 4 of 裝飾製作零件+", action: { type: "buy", productKey: "deco-2", amount: 4 } },
+      { label: "Roll the week over", action: { type: "roll" } },
+      { label: "Check the tracker: ✓ is back to 未, 4 went to 0, both pins stay", action: null, noop: true },
+    ],
+  },
+  {
+    id: "character",
+    title: "4 · Character scope (the 伊文 shape)",
+    about:
+      "伊文's shared tab is character-scoped, not account-scoped, and its partner sits in another town, so a pool crosses merchants and towns but not characters. Buy the stock on 艾莉, switch to 布莉, and the count starts over while the account-scoped 座標轉換計 keeps what it had. The 伺服器 badge must not appear on the 伊文 row.",
+    steps: [
+      { label: "Back to model A, fresh page", action: { type: "model", model: "A" } },
+      { label: "Pin 無主的召喚結界戰利品 (伊文) and 座標轉換計 (瓦爾特)", action: null, pins: [(s) => poolKey(productOf("ivan-1")), (s) => poolKey(productOf("deco-4"))] },
+      { label: "Buy 3 of the 伊文 stock on 艾莉", action: { type: "buy", productKey: "ivan-1", amount: 3 } },
+      { label: "Buy the 座標轉換計 (account-scoped)", action: { type: "buy", productKey: "deco-4" } },
+      { label: "Switch character to 布莉", action: { type: "character" } },
+      { label: "Read the two rows: 伊文 starts over, 座標轉換計 stays spent", action: null, noop: true },
+      { label: "Switch back to 艾莉: the 3 is still there", action: { type: "character" } },
+    ],
+  },
+];
+
+let scenarioId = SCENARIOS[0].id;
+let stepIndex = 0;
+
+function currentScenario() {
+  return SCENARIOS.find((s) => s.id === scenarioId);
+}
+
+function renderScenario() {
+  $("scenario-tabs").innerHTML = SCENARIOS.map(
+    (s) => `<button data-scenario="${s.id}" aria-selected="${s.id === scenarioId}">${esc(s.title)}</button>`,
+  ).join("");
+  const s = currentScenario();
+  $("scenario-body").innerHTML = `
+    <p>${esc(s.about)}</p>
+    <ol class="steps">
+      ${s.steps
+        .map(
+          (step, i) =>
+            `<li class="${i < stepIndex ? "done" : i === stepIndex ? "current" : ""}">${esc(step.label)}</li>`,
+        )
+        .join("")}
+    </ol>
+  `;
+  const next = s.steps[stepIndex];
+  $("scenario-next").textContent = next ? `Do step ${stepIndex + 1}` : "Walkthrough done";
+  $("scenario-next").disabled = !next;
+  $("scenario-hint").textContent = next ? "" : "Start again, or free-play.";
+}
+
+function runStep(step) {
+  if (step.action) return dispatch(step.action);
+  if (step.pins) {
+    let next = state;
+    for (const fn of step.pins) {
+      const rowKey = fn(next);
+      if (!next.pins.includes(rowKey)) next = reduce(next, { type: "pin", rowKey });
+    }
+    state = next;
+    return render();
+  }
+  if (step.rowKey) {
+    const rowKey = step.rowKey(state);
+    if (step.kind === "pin") {
+      if (!state.pins.includes(rowKey)) dispatch({ type: "pin", rowKey });
+      else render();
+    } else if (step.kind === "hide") {
+      if (!state.hidden.includes(rowKey)) dispatch({ type: "hide", rowKey });
+      else render();
+    }
+    return;
+  }
+  if (step.buyAll) {
+    const product = productOf(step.buyAll);
+    return dispatch({ type: "buy", productKey: product.key, amount: product.cap });
+  }
+  render();
+}
+
+document.addEventListener("click", (event) => {
+  const el = event.target.closest("button");
+  if (!el) return;
+  if (el.dataset.model) return; // handled above
+  if (el.dataset.scenario) {
+    scenarioId = el.dataset.scenario;
+    stepIndex = 0;
+    state = initialState(state.model);
+    return render();
+  }
+  if (el.id === "scenario-start") {
+    stepIndex = 0;
+    state = initialState(state.model);
+    runStep(currentScenario().steps[0]);
+    stepIndex = 1;
+    return render();
+  }
+  if (el.id === "scenario-next") {
+    const step = currentScenario().steps[stepIndex];
+    if (!step) return;
+    runStep(step);
+    stepIndex += 1;
+    return render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>

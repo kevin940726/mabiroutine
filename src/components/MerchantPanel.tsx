@@ -146,6 +146,7 @@ function toItem(deal: ShopDeal): ShopRow {
     curatedIndex: deal.curatedIndex,
     barterId: deal.barterId,
     pinId: deal.pinId,
+    poolSize: deal.poolSize,
   };
 }
 

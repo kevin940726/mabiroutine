@@ -129,6 +129,7 @@ for (const t of townList) {
   const missing = DEFAULT_PINS.filter((id) => !byPin.has(id));
   if (missing.length) fail(`DEFAULT_PINS id resolves to no deal: ${JSON.stringify(missing)}`);
 }
+
 // Twin probes: every shops.json leg must be reachable in the materials route
 // table through twinTradeLeg. The town-group conversion once left materials.ts
 // reading the old npc-keyed shape, which synthesized zero legs — the grid
@@ -217,7 +218,7 @@ for (const t of townList) {
 }
 
 // 1. strict shape per option
-const optKeys = new Set(["name", "kind", "cost", "get", "limit", "scope", "priority", "icon", "id", "barter"]);
+const optKeys = new Set(["name", "kind", "cost", "get", "limit", "scope", "priority", "icon", "id", "pool", "barter"]);
 const optPriorities = new Set(["must", "extra", "once", "situational"]);
 const barterTextKeys = new Set(["give", "get", "limit"]);
 const costKeys = new Set(["amount", "currency"]);
@@ -352,8 +353,119 @@ eachNpc((town, npc, items) => {
         fail(`icon target missing ${where}: public/items/${it["icon"]}.webp`);
       }
     }
+    // Pool target: `npc::town` of the row that owns the shared counter. Shape
+    // only here; whether it resolves and agrees is the check below.
+    if (it["pool"] !== undefined && (typeof it["pool"] !== "string" || !/^[^:]+::[^:]+$/.test(it["pool"] as string))) {
+      fail(`bad pool ${where}: ${JSON.stringify(it["pool"])} (write the owner's npc::town)`);
+    }
   }
 });
+
+// 0c. Pools: a partner row draws on the counter owned by the row named in `pool`
+// (`npc::town`). The partner takes that row's pin id at load, so the two must
+// agree on the whole cap and the price, or the shared counter would mean two
+// different things depending on which merchant you pinned. Declared on the
+// partners only: a row pointing at itself, at another pooled row (a chain), or
+// at nothing is drift, and a stock that is sold at one merchant does not need a
+// pool at all.
+type PoolRow = {
+  town: string;
+  npc: string;
+  kind: string;
+  name: string;
+  cost: unknown;
+  limit: unknown;
+  scope: string;
+  pool: string | null;
+};
+const poolCost = (r: PoolRow) => `${isObj(r.cost) ? (r.cost["amount"] ?? null) : null}|${isObj(r.cost) ? (r.cost["currency"] ?? "gold") : "gold"}`;
+const poolLimit = (r: PoolRow) => `${isObj(r.limit) ? (r.limit["times"] ?? null) : null}|${isObj(r.limit) ? (r.limit["period"] ?? "daily") : "daily"}`;
+/** Why `partner` cannot share `canonical`'s counter, or null when it can. */
+const poolProblem = (partner: PoolRow, canonical: PoolRow): string | null => {
+  if (!isObj(partner.limit) || partner.limit["times"] == null) return "a pool member needs a limit (a pool is a purchase cap)";
+  if (poolCost(partner) !== poolCost(canonical)) return `cost differs (${poolCost(partner)} vs ${poolCost(canonical)})`;
+  if (poolLimit(partner) !== poolLimit(canonical)) return `limit differs (${poolLimit(partner)} vs ${poolLimit(canonical)})`;
+  if (partner.scope !== canonical.scope) return `scope differs (${partner.scope} vs ${canonical.scope})`;
+  return null;
+};
+{
+  const rows: PoolRow[] = [];
+  eachNpc((town, npc, items) => {
+    for (const it of items) {
+      if (!isObj(it) || typeof it["name"] !== "string") continue;
+      rows.push({
+        town,
+        npc,
+        kind: (it["kind"] as string | undefined) ?? "shop",
+        name: it["name"],
+        cost: it["cost"],
+        limit: it["limit"],
+        scope: (it["scope"] as string | undefined) ?? "character",
+        pool: typeof it["pool"] === "string" ? it["pool"] : null,
+      });
+    }
+  });
+  const byKey = new Map<string, PoolRow[]>();
+  for (const r of rows) {
+    const key = `${r.npc}::${r.town}::${r.kind}::${r.name}`;
+    byKey.set(key, [...(byKey.get(key) ?? []), r]);
+  }
+  for (const r of rows) {
+    if (!r.pool) continue;
+    const where = `${r.town} ${r.npc} ${r.name}`;
+    const target = /^([^:]+)::([^:]+)$/.exec(r.pool);
+    if (!target) {
+      fail(`bad pool ${where}: ${JSON.stringify(r.pool)} (write the owner's npc::town)`);
+      continue;
+    }
+    const [, targetNpc, targetTown] = target;
+    if (targetNpc === r.npc && targetTown === r.town) {
+      fail(`pool points at its own row ${where}: the owner carries no pool, only its partners do`);
+      continue;
+    }
+    const found = byKey.get(`${targetNpc}::${targetTown}::${r.kind}::${r.name}`) ?? [];
+    if (found.length !== 1) {
+      fail(`pool target is not one row ${where}: ${r.pool} has ${found.length} ${r.kind} ${r.name} rows`);
+      continue;
+    }
+    const canonical = found[0];
+    if (canonical.pool) {
+      fail(`pool target is itself pooled ${where}: ${r.pool} would chain two counters`);
+      continue;
+    }
+    const problem = poolProblem(r, canonical);
+    if (problem) fail(`pool mismatch ${where} vs ${canonical.npc}: ${problem}`);
+  }
+  // The gate has to accept a correct pool too, and no row uses one yet (the
+  // second merchant a pair needs is not in the data). These fixtures run the
+  // same comparator the loop above uses, so the first real pair cannot land on
+  // an untested success path.
+  const base: PoolRow = {
+    town: "T",
+    npc: "A",
+    kind: "shop",
+    name: "X",
+    cost: { amount: 1 },
+    limit: { times: 5, period: "weekly" },
+    scope: "account",
+    pool: null,
+  };
+  const partner: PoolRow = { ...base, npc: "B", pool: "A::T" };
+  let fixtureBad = 0;
+  const expectPool = (ok: boolean, msg: string) => {
+    if (!ok) {
+      fixtureBad += 1;
+      fail(`pool fixture: ${msg}`);
+    }
+  };
+  expectPool(poolProblem(partner, base) === null, "two rows agreeing on cost, limit and scope must pool");
+  expectPool(poolProblem({ ...partner, cost: { amount: 2 } }, base) !== null, "a price mismatch must fail");
+  expectPool(poolProblem({ ...partner, limit: { times: 4, period: "weekly" } }, base) !== null, "a times mismatch must fail");
+  expectPool(poolProblem({ ...partner, limit: { times: 5, period: "daily" } }, base) !== null, "a period mismatch must fail");
+  expectPool(poolProblem({ ...partner, scope: "character" }, base) !== null, "a scope mismatch must fail");
+  expectPool(poolProblem({ ...partner, limit: undefined }, base) !== null, "a member without a limit must fail");
+  if (!fixtureBad) console.log("ok: pool comparator accepts a matching pair and rejects five mismatches");
+}
 
 // 2. currencies must be gold, a known item, or a barter give/get token.
 // Quest-sourced tokens (喵幣, 魔物討伐證明, 深淵的化石, 不死粉末, 解除詛咒藥水) resolve through their

@@ -769,5 +769,51 @@ art is a rounded rectangle whose radius the component owns.
   every line inside it (the deal, the 共需 total, the footer button) came out centred.
 - Zero console errors.
 
+## 7. Shared stocks (pools)
 
+The client shares a shop **tab** between shops, and a tab is one restock: two
+merchants that list the same capped product draw on one counter. `scope: account`
+does not cover that (it is one value across characters), so the data gained a third
+axis.
 
+- **`pool: "<npc>::<town>"`** on a partner row names the row that owns the counter.
+  The owner carries no `pool` and keeps its id; the partner takes the owner's
+  `pinId` at load, so pinning either merchant yields one tracker row. The id never
+  moves, which is why a pool cannot orphan a saved pin.
+- **Declared on partners only.** The gate (`test:shops`) rejects a self-pool, a
+  chain, a target that does not resolve to exactly one row, a missing limit, and any
+  disagreement on cost, times, period or scope. A pool is two rows minimum by
+  construction: one owner plus at least one partner.
+- **One row, not one per merchant.** `shopDealToTask` reads `poolMembers(pinId)` and
+  lists every merchant in the description when there is more than one; the section
+  count, hide flag and drag order all key on the one id.
+- **The tile marks it.** `poolSize > 1` renders a 共用 marker next to 伺服器, because
+  spending the stock at one merchant spends it at the others. With no partner
+  recorded the marker stays hidden: the app would be promising a second merchant it
+  cannot show.
+
+No row uses a pool yet. The one live case is 瓦爾特's five 裝飾 rows, whose tab is
+shared with 黛蓮; she is not in the data, so the model is proven against a
+temporary patch and waits for her rows. 伊文's weekly tab is shared with 鄧肯,
+凱雅拉 and 克雷格, but only 伊文 records any of those products. The chip is not a
+link yet: opening "both merchants" needs a pool filter, not the name search, which
+matches the same item across unrelated merchants (蜂蠟 sits at three).
+
+### Unverified until a real pair ships
+
+The data contract is gated and the resolver was proven against a temporary pair.
+The **render** is not: no row reaches it, so nothing below has been seen with
+real data. This is the checklist for the commit that adds 黛蓮's rows:
+
+- **The 共用 marker on the limit line.** That line is a flex row with no height
+  reservation (unlike the name band), so 伺服器 + 共用 at 2 columns on a 360px
+  phone is the case to measure: if the pair wraps, the tile grows and the band
+  alignment this section spent its budget on breaks.
+- **The tracker description.** A pooled row appends " / 黛蓮" to
+  `cost · town · merchants`; check it stays on one line at the mobile width, or
+  that wrapping it does not shift the row's count.
+- **Which group and jump a pinned partner takes.** Model A puts the row under the
+  canonical merchant (瓦爾特), including 在商店中查看, even when it was pinned
+  from 黛蓮's tile.
+- **The chip's click.** Not built. Decide then whether it becomes a pool filter
+  (`?pool=`) or stays decorative.

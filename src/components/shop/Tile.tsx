@@ -276,6 +276,12 @@ export function Tile({
             // tile. 12px matches the limit it annotates, so the two read as one fact.
             <span className="shrink-0 text-[12px] font-medium text-sky-700 dark:text-sky-300">伺服器</span>
           )}
+          {item.poolSize > 1 && (
+            // A pooled stock is spent by every merchant that lists it, so the row
+            // says so before you pin it. Amber, not the scope's sky: sharing is a
+            // different fact from account-wide, and the two often appear together.
+            <span className="shrink-0 text-[12px] font-medium text-amber-700 dark:text-amber-300">共用</span>
+          )}
         </p>
 
         {/* Verdict removed from the flow — it is now the absolutely-positioned
