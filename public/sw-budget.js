@@ -32,9 +32,8 @@
 //    real session; a loop at the incident's rate (16/s) trips the burst tier in
 //    about 25 seconds.
 //
-// Registered from `importScripts` in the generated Service Worker, which runs
-// BEFORE any `registerRoute` call, so this listener is first and its
-// `respondWith` answers the requests it claims. Measured in Chromium
+// Inlined at the top of the generated worker, ahead of the workbox runtime and
+// any `registerRoute`, so this listener is first. Measured in Chromium
 // 2026-10-12: a fetch event answered by one listener is not handed to later
 // listeners at all, which is why the Workbox routes neither fetch nor throw on
 // a claimed request (server-verified: 8 requests past a tier of 5 cost exactly

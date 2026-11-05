@@ -38,6 +38,8 @@ import {
   subscribeSyncStatus,
 } from "@/sync/status";
 
+const SYNC_REPOLL_MS = 10 * 60 * 1000;
+
 export type SyncEngine = {
   /** Dialog visibility. */
   open: boolean;
@@ -352,7 +354,7 @@ export function useSyncEngine(enabled: boolean): SyncEngine {
     window.addEventListener("touchstart", onActivity, { passive: true });
     const repoll = setInterval(() => {
       if (document.visibilityState === "visible" && !isIdle()) void syncAndResets();
-    }, 300_000);
+    }, SYNC_REPOLL_MS);
     markActivity();
     void pullNow();
     setPullHook(() => pullNow(true));

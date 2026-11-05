@@ -1,6 +1,5 @@
-// Server-push display + tap → deep link. Imported into the Workbox service
-// worker via workbox.importScripts — keep this file dependency-free, SW
-// scope only. The push payload is
+// Server-push display + tap → deep link. Service-worker scope only; keep this
+// file dependency-free. The push payload is
 // { title, body, tag, url?, task?, chars?, slot? }: url/task/chars ride
 // through notification.data so the click handler below deep-links exactly
 // like the Phase-0 local cards (same collapse tag, same re-buzz, same
@@ -15,6 +14,7 @@
 // NOTE: iOS PWA tap-through is best-effort — clients.openWindow/navigate
 // support there is unreliable, and the tap may just foreground the app.
 
+(function () {
 /** notification.data.slot as a number, or null when absent/foreign. */
 function slotOfCard(n) {
   const v = n && n.data ? n.data.slot : undefined;
@@ -122,3 +122,4 @@ self.addEventListener("notificationclick", (event) => {
     })()
   );
 });
+})();

@@ -118,7 +118,7 @@ so closing the menu never stops syncing.
   serialized against rounds (a push joins an in-flight round, a round awaits
   an in-flight push), so a wake's stale diff can never escape unfiltered
   between a round's GET and its merge. (→ S2)
-- **Round** (mount, tab-visible, window-focus, 5min foreground repoll — the
+- **Round** (mount, tab-visible, window-focus, 10min foreground repoll — the
   single periodic timer, owned here; App owns wake ordering only — two timers
   would double every poll; 10s throttle — hook-driven pulls via `syncAndResets`
   bypass the throttle so reset-after-pull ordering holds on boot; a throttled
@@ -145,7 +145,7 @@ so closing the menu never stops syncing.
   (tombstone once past the 8-day retention), save base + `ts` through the same
   storage flush as the store state (decision 17). TTL renewal rides a
   daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
-  routine polls skip the touch. The 5min repoll pauses after 15min without
+  routine polls skip the touch. The 10min repoll pauses after 15min without
   input (pointer/key/wheel/touch, focus, visibility all count as attention);
   the idle→active crossing runs the full pull-then-reset round so a return
   across 06:00/Monday prunes after adopting. Offline (boot included):
@@ -419,7 +419,7 @@ protected deliberately (in-memory rate limiter, no SQL counter, cap check via
 a full GET of ~230 rows only when changed; per push: the changed keys only, 0
 when clean (diff short-circuits). A push burst costs one full GET at the next
 poll, because the base's `ts` only advances with a GET (decision 17) — then
-the probe skips again. Single 5min timer — no second interval
+the probe skips again. Single 10min timer — no second interval
 anywhere (a duplicate would double every poll). Headroom
 (`docs/sql-migration.md` Quota estimate): 1000 heavy 2-device users reach ~48%
 of reads (~2x headroom, not an order of magnitude); writes are the ceiling —

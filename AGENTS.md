@@ -142,7 +142,7 @@ Each line below is when the gate fires and what its silence costs. The check lis
 - `test:prepush` — after changing `scripts/pre-push-gate.mjs` or the changelog rules: its own outcomes, pinned in a throwaway repo (a commit with no changelog change, an unlabelled `## Unreleased` on `main` stopping before the suite, a `feat/*` ref skipping that rule, a dirty tree with a failing suite, a bad revision range). The hook blocks pushes on its say-so, so a silent regression here is a rule that stops being enforced.
 - `test:icons` — after `src/lib/itemIcon.ts` or the item data. The emitted path fails silently in two directions.
 - `test:fallbacks` — after any art `<img>`, its fallback, or an art path. An error handler reassigning a missing URL loops forever (2026-10-12).
-- `test:budget` — after `public/sw-budget.js`, the workbox config, or anything changing what the SW intercepts. A disarmed guard spends the device request budget.
+- `test:budget` — after `public/sw-budget.js`, `scripts/inline-sw.mjs`, the workbox config, or anything changing what the SW intercepts. A disarmed guard spends the device request budget.
 - `test:worker` — after `workers/` or a shared `src/lib` module. No tsconfig, so an aliased runtime import or a DOM-only dependency fails only at deploy.
 - `test:reminders` — after `hourlyReminders.ts`, `useHourlyReminders.ts`, the SW push handler, or the barrier payload. The seam double-alerts.
 - `test:drag` — after `dragRules.ts` or a drag handler. A row lands outside its own group or section.

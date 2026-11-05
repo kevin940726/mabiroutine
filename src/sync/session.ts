@@ -244,10 +244,10 @@ export function shouldTouch(sessionId: string): boolean {
   }
 }
 
-// Attention tracking for the idle-pause (quota §): the 5min repoll only fires
-// while the user was recently active. Input, focus, and visibility all count
-// as attention; the value is a timestamp so tests can drive it with fake
-// clocks. Initialized at module load (load = attention).
+// Attention tracking for the idle-pause: the repoll only fires while the user
+// was recently active. Input, focus, and visibility all count as attention;
+// the value is a timestamp so tests can drive it with fake clocks. Initialized
+// at module load (load = attention).
 export const IDLE_MS = 15 * 60 * 1000;
 
 let lastActivityAt = Date.now();

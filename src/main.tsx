@@ -165,7 +165,8 @@ if (typeof window !== 'undefined') {
 //
 // Update discovery: the browser only revalidates sw.js on navigation, so a
 // PWA resumed from memory would keep stale caches until force-restart.
-const MIN_SW_CHECK_GAP_MS = 10 * 60 * 1000;
+// 30 minutes, not 10: the update check was the largest Vercel request source.
+const MIN_SW_CHECK_GAP_MS = 30 * 60 * 1000;
 const SW_CHECK_SLACK_MS = 1_000;
 const SW_POLL_MS = MIN_SW_CHECK_GAP_MS + SW_CHECK_SLACK_MS;
 const AUTO_UPDATE_ABSENCE_MS = 30_000;

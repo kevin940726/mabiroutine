@@ -35,12 +35,8 @@ export default defineConfig({
         // focuses/opens the app at ?task=&chars=. Precached like any hashed
         // asset, so tap handling versions with the shell.
         //
-        // The device request budget (public/sw-budget.js) rides the same
-        // mechanism and MUST stay in this list: its listener has to be
-        // registered before the generated `registerRoute` calls below it, or
-        // its local answer would lose the fetch event to a Workbox route. See
-        // docs/operations.md §7.
-        importScripts: ['/sw-push.js', '/sw-budget.js'],
+        // Inlined after the build by scripts/inline-sw.mjs.
+        importScripts: [],
         // index.html excluded on purpose (with npc-raw source art), and the
         // fallback disabled below: TWO generateSW defaults would otherwise
         // shadow the NetworkFirst navigate route and pin every load to the
@@ -58,6 +54,12 @@ export default defineConfig({
         // to show.
         globIgnores: [
           '**/npc-raw/**',
+          // Inlined into dist/sw.js by scripts/inline-sw.mjs. The files stay in
+          // public/ so a pre-inline client can still import them during the
+          // transition, but the new worker must not precache them: nothing
+          // requests them after the inline.
+          'sw-push.js',
+          'sw-budget.js',
           // Pre-rename clients still fall back to /npc/placeholder.png, so the
           // file is kept in public/ as a compat shim (see the 2026-10-12
           // changelog entry and `pnpm test:fallbacks`); nothing in this build
@@ -78,6 +80,7 @@ export default defineConfig({
         skipWaiting: false,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        inlineWorkboxRuntime: true,
         runtimeCaching: [
           {
             // HTML navigations: network first (4s timeout → cache), so a

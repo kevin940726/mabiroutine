@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "vercel dev --listen 52608",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/inline-sw.mjs",
     "preview": "vite preview",
     "lint": "oxlint",
     "test:migrations": "node scripts/check-migrations.mjs",

@@ -89,8 +89,12 @@ only checks the changelog's structure, parity and code-free copy.
   caches. A waiting worker is surfaced, not taken over silently: a deploy that
   lands mid-session raises one 8s toast (有新版本可用 + 重新載入) and the ☰ row
   有新版本 · 重新載入; accepting either reloads into the new bundle and says
-  已更新到最新版 once. A visible tab polls `sw.js` at most once every 10
-  minutes, so an installed PWA left in the foreground still notices a deploy.
+  已更新到最新版 once. A visible tab polls `sw.js` at most once every 30
+  minutes, and the same floor applies to visibility and `online`; the 30s-6h
+  return path still checks when it arms an auto-accept. The generated
+  worker is one file: `scripts/inline-sw.mjs` inlines the workbox runtime, the
+  budget guard and the push handler after `vite build`, so an update check
+  costs one request instead of four.
   Returning after 30s–6h away reloads a ready update automatically unless a
   dialog or editor is open, or the device is offline; the receipt still shows,
   but that path does not acknowledge the changelog. A return after 6h+ away
@@ -216,17 +220,19 @@ Publishing a doc that carries `nextMs`/`prevMs` also requires the deployed
 Worker: the pre-rule worker parses them away on publish and on every resolve,
 so a correction published early is erased while the CLI reports success; see
 `docs/operations.md` §6.
-Budget rule: `pnpm test:budget` after touching `public/sw-budget.js`, the
-workbox `runtimeCaching`/`importScripts` config, or anything that changes what
-the Service Worker intercepts. It runs the real worker script in a vm realm and
-asserts the guard's contract (never intercepts below the tiers, trips where it
-says, and past a trip gives every same-origin class a real or retryable answer:
-`/api/` 429, navigations from the preload or pages cache else the network,
-images from cache else a pixel, everything else from cache else a 503, with
-cross-origin untouched). The `importScripts` entry is load-bearing: the budget
-listener must register before the generated `registerRoute` calls, so a change
-that moves it into a route, or into `injectManifest`'s generated worker,
-silently hands the fetch event back to Workbox and disarms the guard. It also
+Budget rule: `pnpm test:budget` after touching `public/sw-budget.js`,
+`scripts/inline-sw.mjs`, the workbox `runtimeCaching` config, or anything that
+changes what the Service Worker intercepts. It runs the real worker script in a
+vm realm and asserts the guard's contract (never intercepts below the tiers,
+trips where it says, and past a trip gives every same-origin class a real or
+retryable answer: `/api/` 429, navigations from the preload or pages cache else
+the network, images from cache else a pixel, everything else from cache else a
+503, with cross-origin untouched). The guard's load order is load-bearing: its
+listener must register before the generated `registerRoute` calls, so
+`scripts/inline-sw.mjs` prepends it and fails the build if the guard is missing
+or lands after the first route. A change that moves the guard into a route, or
+into a generated worker that registers routes first, silently hands the fetch
+event back to Workbox and disarms the guard. It also
 fails any network call under `src/` made outside the three sanctioned request
 sites (`sync/api.ts` for `/api/session`, `src/lib/net.ts` for the push registry,
 `purpleHole.ts` for its own throttled feed fetch), so a new request path cannot

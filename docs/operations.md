@@ -259,10 +259,12 @@ pull` regenerates that file and would wipe the value.
   self-heals via reconcile + re-tap).
 - Deep-link: server cards carry top-level `task` (`barrier` / `purple-hole`)
   + `chars`; tap focuses/flashes via URL params or the postMessage channel.
-- Device request budget (`public/sw-budget.js`, `pnpm test:budget`): the Service
-  Worker is the only place that sees every same-origin request the page makes,
-  so it counts them per device and, past a tier, stops spending requests instead
-  of the user's patience. Tiers: 400 requests/minute, 4,000 per 30 minutes,
+- Device request budget (`public/sw-budget.js`, `scripts/inline-sw.mjs`,
+  `pnpm test:budget`): the Service Worker is the only place that sees every
+  same-origin request the page makes, so it counts them per device and, past a
+  tier, stops spending requests instead of the user's patience. The build
+  inlines the guard at the top of the generated worker, ahead of the workbox
+  runtime and the first `registerRoute`, and fails if that order breaks. Tiers: 400 requests/minute, 4,000 per 30 minutes,
   6,000 per 6 hours. Past a tier, and for 5 minutes after the last trip, every
   same-origin class gets a real or a retryable answer instead of a request:
   `/api/` as 429 (the state the sync layer already renders), navigations from
@@ -409,7 +411,7 @@ pageviews stopped exactly at the block.
 2. **Ship the shim before the fix** when a deploy renamed or deleted a URL that live clients still reference: restoring the old path (e.g. `public/npc/placeholder.png`) ends a loop in tabs you cannot reload. The code fix alone never reaches an already-open tab.
 3. Ship the fix and its gate in the same push (`test:fallbacks`, `test:budget`), changelog entry included, saying what the meter cost.
 4. Only then decide the plan: upgrading lifts the block, waiting ~30 days lets the window roll off. Upgrading does NOT deploy work a blocked push parked (ours produced no deployment at all until the upgrade landed).
-5. After the block lifts, deploy and verify by observation: the shim returns 200, art carries `max-age=86400`, and the served `/sw.js` imports `sw-budget.js`.
+5. After the block lifts, deploy and verify by observation: the shim returns 200, art carries `max-age=86400`, and the served `/sw.js` contains the budget guard ahead of its first route.
 6. Watch the daily total, not hourly noise, and expect a deploy wave (25k requests in the hour before the art cache headers existed, far less now).
 
 Two facts that cost time: the metrics pipeline lags a few minutes, so the newest

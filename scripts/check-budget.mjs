@@ -279,33 +279,39 @@ const img = (path) => ({ url: `https://app.test${path}`, destination: "image" })
   eq(later.responded, false, "after the long window has passed, requests flow again");
 }
 
-// --- 10. the wiring that ARMS the guard is present --------------------------
-// The guard is disarmed, silently and completely, by removing it from
-// `importScripts` (or by moving to a generated worker that registers routes
-// before it). The vm realm above would still pass in that world, so the wiring
-// itself is asserted here.
 {
   const config = fs.readFileSync("vite.config.ts", "utf8");
-  const listMatch = config.match(/importScripts:\s*\[([^\]]*)\]/);
+  const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  const inline = fs.readFileSync("scripts/inline-sw.mjs", "utf8");
   eq(fs.existsSync("public/sw-budget.js"), true, "public/sw-budget.js exists");
+  eq(/inlineWorkboxRuntime:\s*true/.test(config), true, "vite.config.ts inlines the workbox runtime");
+  eq(/importScripts:\s*\[\s*\]/.test(config), true, "vite.config.ts no longer imports the hand-written scripts");
   eq(
-    !!listMatch && listMatch[1].includes("'/sw-budget.js'"),
+    typeof pkg.scripts?.build === "string" && pkg.scripts.build.includes("scripts/inline-sw.mjs"),
     true,
-    "vite.config.ts imports the guard into the generated worker"
+    "the build runs scripts/inline-sw.mjs"
+  );
+  eq(
+    inline.includes("public/sw-budget.js") && inline.includes("public/sw-push.js"),
+    true,
+    "scripts/inline-sw.mjs reads the guard and the push handler"
   );
 }
 
-// --- 11. in a built worker, the guard loads before the routes ---------------
 {
   const built = "dist/sw.js";
-  if (!fs.existsSync(built)) {
-    console.log("skip: dist/sw.js not built yet (budget gate runs before build in pnpm check)");
+  const text = fs.existsSync(built) ? fs.readFileSync(built, "utf8") : "";
+  if (!text.includes("mabi-sw-inline")) {
+    console.log("skip: dist/sw.js is not an inlined build (the build gate runs after this one)");
   } else {
-    const text = fs.readFileSync(built, "utf8");
-    const guard = text.indexOf("sw-budget.js");
+    const guard = text.indexOf("mabi-budget-trip");
     const firstRoute = text.indexOf("registerRoute(");
-    eq(guard > -1, true, "the built worker imports sw-budget.js");
+    eq(guard > -1, true, "the built worker carries the budget guard");
     eq(guard > -1 && firstRoute > -1 && guard < firstRoute, true, "…before the first registerRoute call, so its listener is first");
+    eq(text.includes('self.addEventListener("push"'), true, "the built worker carries the push handler");
+    eq(text.includes('importScripts("/sw-budget.js")'), false, "the built worker no longer imports the guard");
+    eq(text.includes('importScripts("/sw-push.js")'), false, "the built worker no longer imports the push handler");
+    eq(text.includes('importScripts("/workbox-'), false, "the built worker no longer imports the workbox runtime");
   }
 }
 

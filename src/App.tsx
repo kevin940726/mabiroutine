@@ -141,7 +141,7 @@ export default function App() {
   // tombstone decision needs fresh peer markers, or a late-waking device
   // nukes the peer's same-bucket progress. Boot included (the store no
   // longer self-checks on hydrate, for the same reason).
-  // The periodic cadence lives in useSyncEngine (single 5min loop, quota §):
+  // The periodic cadence lives in useSyncEngine, as one timer:
   // this effect owns ordering on wake only, never the timer — two timers
   // would double every poll's commands.
   useEffect(() => {
