@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-11-06 — 萊莉's 幼苗 rows, 必換 and pinned
+
+### Features
+- 萊莉 (杜巴頓) now sells four 幼苗 decoration items, every row 必換, 每週 and account-scoped: 圓葉幼苗 3,000 gold 每週 10 次, 複葉幼苗 5,000 gold 每週 10 次, 尖葉幼苗 7,500 gold 每週 5 次, 裂葉幼苗 13,500 gold 每週 5 次. All four carry their own art and are pinned by default: a new save opens with them in 已選交易, and a linked save picks them up on its next sync.
+
 ## 2026-11-05 — Shared shop pools and a one-file worker
 <!-- whats-new: none -->
 

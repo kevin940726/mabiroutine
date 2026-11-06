@@ -435,8 +435,10 @@ Decided by the user 2026-09-27:
 2. **Seeded gold pins: not until a row earns it.** `src/data/defaultPins.ts`
    was barter-only until 2026-11-04, when 瓦爾特's three 裝飾製作零件 rows joined
    it (user decision; each is a make input, so the "a *reason* per row" test
-   below is met). The rule stands: a gold row is seeded only with a stated
-   reason, never because it has a weekly cap.
+   below is met), and 2026-11-06, when 萊莉's four 幼苗 decoration rows joined
+   it (user decision; decoration purchases rather than make inputs, so this is
+   an explicit exception to that test). The rule stands: a gold row is seeded
+   only with a stated reason, never because it has a weekly cap.
    Reviewed again 2026-10-20 and deferred: "gold-only item, weekly cap" screens
    too broadly to seed as it stands. Most gold-only items have no barter output
    and no `recipes.json` route only because the source data does not model their
@@ -562,10 +564,10 @@ counts if `shops.json` or `curatedOrder.ts` change, and do not propagate a new t
 into the measurements above. Measure them by having a script write a UTF-8 file rather
 than printing to the console (see the terminal trap in section 0).
 
-- `shops.json`: 244 rows, 45 NPCs, 8 towns. 127 gold (`kind` omitted), 117 barter.
-- 27 NPCs are barter-only, 14 are mixed, 4 are gold-only.
+- `shops.json`: 248 rows, 46 NPCs, 8 towns. 131 gold (`kind` omitted), 117 barter.
+- 27 NPCs are barter-only, 14 are mixed, 5 are gold-only.
 - Every barter row is curated inline (stable `id`, a `priority`, and the
-  `barter.give` / `get` / `limit` display strings), so only the 127 gold rows
+  `barter.give` / `get` / `limit` display strings), so only the 131 gold rows
   need a `shop::` pin id. `barter.json` was retired 2026-10-07: the ids, tiers,
   display strings and order now live on the options plus `curatedOrder.ts`.
 - **Zero** curated rows lack a shop entry, and zero shop barter rows lack their
@@ -579,11 +581,11 @@ than printing to the console (see the terminal trap in section 0).
   `精靈的痕跡` against `精靈痕跡`, which left a `situational` curated row
   unreachable anywhere. Twin cap parity pairs rows by name and was blind to
   both — which is why the check no longer depends on a second file.
-- All 127 gold rows are unique on `npc::name`; none has a null price. This is the
+- All 131 gold rows are unique on `npc::name`; none has a null price. This is the
   invariant that lets the pin id be `shop::<npc>::<name>`, and `test:shops`
   now enforces it (check 0b) instead of merely measuring it.
-- Pin counts: **all 244 pinnable** — 117 under an explicit option `id`,
-  127 gold rows under a `shop::` id. 244 distinct pin ids.
+- Pin counts: **all 248 pinnable** — 117 under an explicit option `id`,
+  131 gold rows under a `shop::` id. 248 distinct pin ids.
 
 ---
 

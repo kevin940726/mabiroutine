@@ -16,4 +16,8 @@ export const DEFAULT_PINS: string[] = [
   "shop::瓦爾特::裝飾製作零件",
   "shop::瓦爾特::裝飾製作零件+",
   "shop::瓦爾特::高級裝飾製作零件",
+  "shop::萊莉::圓葉幼苗",
+  "shop::萊莉::複葉幼苗",
+  "shop::萊莉::尖葉幼苗",
+  "shop::萊莉::裂葉幼苗",
 ];

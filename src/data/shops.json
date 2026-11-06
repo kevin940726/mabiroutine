@@ -1422,6 +1422,59 @@
           ]
         },
         {
+          "name": "萊莉",
+          "items": [
+            {
+              "name": "圓葉幼苗",
+              "priority": "must",
+              "cost": {
+                "amount": 3000
+              },
+              "limit": {
+                "times": 10,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "複葉幼苗",
+              "priority": "must",
+              "cost": {
+                "amount": 5000
+              },
+              "limit": {
+                "times": 10,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "尖葉幼苗",
+              "priority": "must",
+              "cost": {
+                "amount": 7500
+              },
+              "limit": {
+                "times": 5,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "裂葉幼苗",
+              "priority": "must",
+              "cost": {
+                "amount": 13500
+              },
+              "limit": {
+                "times": 5,
+                "period": "weekly"
+              },
+              "scope": "account"
+            }
+          ]
+        },
+        {
           "name": "西蒙",
           "items": [
             {
