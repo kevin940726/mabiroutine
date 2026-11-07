@@ -4,6 +4,11 @@ Reader-facing log of user-visible changes. Newest first. One section per release
 
 ## Unreleased
 
+## 2026-11-07 — 定期委託 turn-in survives an in-flight pull
+
+### Fixes
+- A tap made while a sync round is in flight is no longer overwritten by the round's stale view. The 定期委託 turn-in could reappear as the pre-turn-in legs after a refocus; the round now keeps the local edit and pushes it on the next round.
+
 ## 2026-11-06 — 萊莉's 幼苗 rows, 必換 and pinned
 
 ### Features

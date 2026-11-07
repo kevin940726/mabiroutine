@@ -131,10 +131,11 @@ function nullsOf(pushes: FlatMap[]): string[] {
   return pushes.flatMap((p) => Object.entries(p).filter(([, v]) => v === null).map(([k]) => k));
 }
 
-// Round port of useSyncEngine runPull (incl. planRound + GC), minus UI refs. The
-// decision core (planRound) is the real module; this port only wires the
-// stubbed I/O.
-function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
+function makeEngine(
+  server: { flat: FlatMap },
+  pushes: FlatMap[],
+  hooks: { duringProbe?: () => void | Promise<void>; duringPush?: () => void | Promise<void> } = {}
+) {
   // Order-withhold mirror (useSyncEngine pulledSessionRef + omit-strip): order
   // keys are stripped from pushes until this engine's first pull completes,
   // and whenever flatten omits one, so no device volunteers canon blind or
@@ -148,7 +149,9 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
     const changes = diffFlat(base, flat);
     guardOrderKeys(changes, flat, pulled);
     if (process.env.DBG) console.log("DBG-PULL", JSON.stringify({ baseKeys: Object.keys(base), changeKeys: Object.keys(changes) }));
+    const clean = Object.keys(changes).length === 0;
     const before = JSON.stringify(flattenSnapshot(buildSnapshot()));
+    if (clean) await hooks.duringProbe?.();
     const remote = { ...server.flat };
     const plan = planRound(base, changes, remote);
     if (process.env.DBG && plan.dropped.length) console.log("DBG-DROPPED", JSON.stringify(plan.dropped));
@@ -156,6 +159,7 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
       pushes.push({ ...plan.push });
       server.flat = { ...server.flat, ...plan.push };
       saveBase(session.id, { ...base, ...plan.push });
+      await hooks.duringPush?.();
     }
     if (JSON.stringify(flattenSnapshot(buildSnapshot())) !== before) return;
     const serverView = plan.view;
@@ -1370,6 +1374,60 @@ function makeEngine(server: { flat: FlatMap }, pushes: FlatMap[]) {
   ok("E25 empty ack is not emitted", !("meta:whatsnew" in flattenSnapshot({ ...local, whatsNewNudged: "" })));
   const tombstone = diffFlat({ "meta:whatsnew": "2026-10-20 — Newer" }, {});
   ok("E25 reset never tombstones the ack", !("meta:whatsnew" in tombstone), tombstone);
+}
+
+{
+  isolate();
+  const SID = "e26-mid-probe";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  let fired = false;
+  const engine = makeEngine(server, pushes, {
+    duringProbe: () => {
+      if (fired) return;
+      fired = true;
+      useAppStore.getState().setCounter(DAILY_COUNT, 3, false);
+    },
+  });
+  setPullHook(engine);
+  seedStore(snap({ [DAILY_COUNT]: 2 }, { [DAILY_COUNT]: TODAY }, TODAY, THIS_WEEK));
+  saveSession({ id: SID, updatedAt: 1 });
+  const key = `v:c1:${DAILY_COUNT}@${TODAY}`;
+  const flat = flattenSnapshot(buildSnapshot());
+  server.flat = { ...flat };
+  saveBase(SID, { ...flat });
+  await syncAndResets();
+  const tv = useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>;
+  ok("E26 mid-probe edit survives the stale view", tv[DAILY_COUNT] === 3, tv);
+  await syncAndResets();
+  ok("E26 the next round pushes the edit", server.flat[key] === 3, server.flat[key]);
+}
+
+{
+  isolate();
+  const SID = "e27-mid-push";
+  const server = { flat: {} as FlatMap };
+  const pushes: FlatMap[] = [];
+  let fired = false;
+  const engine = makeEngine(server, pushes, {
+    duringPush: () => {
+      if (fired) return;
+      fired = true;
+      useAppStore.getState().setCounter(DAILY_COUNT, 3, false);
+    },
+  });
+  setPullHook(engine);
+  seedStore(snap({ [DAILY_COUNT]: 2 }, { [DAILY_COUNT]: TODAY }, TODAY, THIS_WEEK));
+  saveSession({ id: SID, updatedAt: 1 });
+  const key = `v:c1:${DAILY_COUNT}@${TODAY}`;
+  server.flat = { [key]: 1 };
+  saveBase(SID, { [key]: 1 });
+  await syncAndResets();
+  const tv = useAppStore.getState().characters[0]?.taskValues as Record<string, unknown>;
+  ok("E27 mid-push edit survives the planned view", tv[DAILY_COUNT] === 3, tv);
+  ok("E27 pre-edit change landed", server.flat[key] === 2, server.flat[key]);
+  await syncAndResets();
+  ok("E27 the next round pushes the edit", server.flat[key] === 3, server.flat[key]);
 }
 
 setPullHook(null);

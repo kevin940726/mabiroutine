@@ -14,6 +14,10 @@
 //  E3 contested key: a device boots with an unsynced local counter whose base
 //     predates the peer's newer server value — the round drops the leftover,
 //     adopts the server value, and never pushes the stale one.
+//  E4 mid-probe race: the 定期委託 legs are 2/3/4, a pull's freshness probe is
+//     delayed, the user completes the turn-in during it, and the round keeps
+//     the turn-in instead of applying the pre-turn-in view. The turn-in also
+//     reaches the server.
 //
 // Needs an app + API base: local `pnpm dev:api` by default, or a preview
 // deployment via SYNC_TEST_BASE. Protected previews need a Vercel automation
@@ -265,6 +269,93 @@ try {
       : false;
     ok("E3 journal records the dropped contest", droppedTower, JSON.stringify(journal).slice(0, 300));
     ok("E3 journal never records a tower push", !pushedTower, JSON.stringify(journal).slice(0, 300));
+  }
+
+  {
+    const cid = "e4race";
+    const taipei = new Date(Date.now() + 8 * 3600 * 1000);
+    const day = taipei.getUTCDay();
+    const monday = new Date(taipei);
+    monday.setUTCDate(taipei.getUTCDate() - ((day + 6) % 7));
+    const week = `${monday.getUTCFullYear()}-W${String(monday.getUTCMonth() + 1).padStart(2, "0")}${String(monday.getUTCDate()).padStart(2, "0")}`;
+    const today = taipei.toISOString().slice(0, 10);
+    const ids = ["weekly-goals", "weekly-goals-deep-dungeon", "weekly-goals-dungeon", "weekly-goals-hunt"];
+    const values = { [ids[0]]: 0, [ids[1]]: 2, [ids[2]]: 3, [ids[3]]: 4 };
+    const keys = Object.fromEntries(ids.map((id) => [`v:${cid}:${id}@${week}`, values[id]]));
+    await fetch(API, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", ...AUTH },
+      body: JSON.stringify({ id: SID, changes: { ...keys, [`char:${cid}:name`]: "E4", "meta:active": cid } }),
+    });
+    const ctxD = await browser.newContext({ viewport: VIEWPORT });
+    await ctxD.addInitScript(({ cid, sid, week, today, values, keys }) => {
+      if (!/^https?:$/.test(location.protocol)) return;
+      localStorage.setItem("mabiroutine:v2", JSON.stringify({
+        state: {
+          version: 23,
+          characters: [{ id: cid, name: "E4", taskValues: values, hiddenTaskIds: [] }],
+          activeCharId: cid,
+          accountValues: {},
+          hiddenAccountTaskIds: [],
+          barterPins: [],
+          barterCustomOrder: null,
+          customTasks: [],
+          lastDailyReset: today,
+          lastWeeklyReset: week,
+          prefs: { hideCompleted: false, pinnedCollapsed: { daily: false, weekly: false } },
+          globalTaskOrder: {},
+          taskBuckets: Object.fromEntries(Object.keys(values).map((id) => [id, week])),
+          hourlyReminders: [],
+          purpleHoleReminders: [],
+        },
+        version: 23,
+      }));
+      localStorage.setItem("mabiroutine:flatbase", JSON.stringify({
+        sessionId: sid,
+        flat: { ...keys, [`char:${cid}:name`]: "E4", "meta:active": cid },
+        ts: 0,
+      }));
+      localStorage.setItem("mabiroutine:session", JSON.stringify({ id: sid, updatedAt: 0 }));
+    }, { cid, sid: SID, week, today, values, keys });
+    const tabD = await newPage(ctxD);
+    await gotoApp(tabD);
+    await waitFor(tabD, `!!document.querySelector('[data-goal-group="weekly-goals"]')`, 20000);
+    const row = tabD.locator('[data-goal-group="weekly-goals"]');
+    await row.locator("button[aria-expanded]").click();
+    const child = (name) => tabD.getByRole("button", { name: new RegExp(`^通關${name}`) });
+    const label = async (name) => (await child(name).getAttribute("aria-label")) || "";
+    const seeded = [await label("深層地下城"), await label("地下城"), await label("狩獵場")];
+    ok("E4 seeded legs are 2/3/4", seeded[0].includes(" 2 / 3") && seeded[1].includes(" 3 / 5") && seeded[2].includes(" 4 / 5"), seeded);
+    await settle(10000); // mount pull + the 10s focus throttle
+    let delayMeta = false;
+    await tabD.route("**/api/session*", async (route) => {
+      const url = route.request().url();
+      if (delayMeta && url.includes("meta=1")) {
+        delayMeta = false;
+        await settle(2500);
+      }
+      await route.continue();
+    });
+    delayMeta = true;
+    await tabD.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await settle(200);
+    await child("深層地下城").click();
+    await child("地下城").click();
+    await child("地下城").click();
+    await child("狩獵場").click();
+    await settle(7000);
+    const after = [await label("深層地下城"), await label("地下城"), await label("狩獵場")];
+    const parent = await row.locator('button[aria-label^="已回報"]').getAttribute("aria-label");
+    ok(
+      "E4 turn-in survives the in-flight probe",
+      after[0].includes(" 0 / 3") && after[1].includes(" 0 / 5") && after[2].includes(" 0 / 5") && /已回報 1 次/.test(parent || ""),
+      { after, parent }
+    );
+    const g4 = await apiGet();
+    const serverParent = (g4.state ?? {})[`v:${cid}:${ids[0]}@${week}`];
+    const serverLegs = ids.slice(1).map((id) => (g4.state ?? {})[`v:${cid}:${id}@${week}`]);
+    ok("E4 turn-in reaches the server", serverParent === 1 && serverLegs.every((v) => v === 0), { serverParent, serverLegs });
+    await ctxD.close();
   }
 } catch (e) {
   console.log(`FAIL: browser-e2e harness: ${e.message}`);

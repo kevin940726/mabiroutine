@@ -137,11 +137,13 @@ so closing the menu never stops syncing.
   adopts the remote. The accepted push overlays the GET result (a lagged/
   cached read must never resurrect a pre-push absence — this also covers the
   preloaded pre-flush read); a mid-flight edit lands the pre-edit diff through
-  the same plan and skips the apply (the edit stays local for the next round,
-  so it cannot fall through to the blind auto-push), apply wholesale via
-  `unflattenMerge` (current-bucket values only, remote order authoritative when
-  present — decisions 4b-4d — local ordering only as the no-information
-  fallback, and local-only order entries kept so they keep propagating), GC expired cycle keys
+  the same plan and skips the apply: the snapshot is taken before the freshness
+  probe and rechecked after the push, so a tap during either await stays local
+  for the next round and cannot fall through to the blind auto-push. Apply
+  wholesale via `unflattenMerge` (current-bucket values only, remote order
+  authoritative when present — decisions 4b-4d — local ordering only as the
+  no-information fallback, and local-only order entries kept so they keep
+  propagating), GC expired cycle keys
   (tombstone once past the 8-day retention), save base + `ts` through the same
   storage flush as the store state (decision 17). TTL renewal rides a
   daily beacon (`?touch=1` / `{touch: 1}`, at most once/day per session) —
@@ -493,11 +495,15 @@ No unit tests — every suite drives real code (`scripts/sync-tests/`):
 | E22 | Pin order syncs (meta:pinorder): withhold, canon adopted, canonical null says nothing, local-only pins append, unpinned drops, malformed ignored | same |
 | E23 | A grouped parent's legs carry over the weekly rollover (kept + re-stamped into the new cycle, pushed under the current tag) while the parent's count prunes | same |
 | E24 | …and a device that stayed OPEN across the rollover keeps the legs through its own pull-before-reset round (the codec tags a carried row with the current cycle) | same |
+| E25 | The changelog nudge is a one-way cap: a later release id wins, an older ack never regresses it, and a reset never tombstones it | same |
+| E26 | An edit during a clean poll's freshness probe survives the stale view and pushes on the next round | same, mid-probe port |
+| E27 | An edit during the awaited push survives the planned view and pushes on the next round | same, mid-push port |
 | F1 | State-before-base ordering in one storage flush; read-through; remove | real `storage.ts`, logging localStorage |
 | P | 300 randomized prune runs (stale removed, current kept, idempotent) | real store, seeded |
 | A | 25-parallel-PATCH atomicity, upgrades, 4xx/405, no-store | live dev API |
 | E1E | Real tap → server → second device renders checked | real Chromium (Playwright) |
 | E2E | Wake-pull leaves server value intact | same |
+| E4E | A 定期委託 turn-in during a delayed freshness probe survives, and reaches the server | same |
 
 Teeth: removing the cycle-key exemption from `diffFlat` fails E1/E4/E5 with
 the exact production wipe payload (`v:c1:parttime@…: null` on reset). Removing

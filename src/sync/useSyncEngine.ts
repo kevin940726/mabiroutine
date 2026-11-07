@@ -28,7 +28,7 @@ import {
   expiredCycleKeys,
   type FlatMap,
 } from "@/sync/flat";
-import { planRound } from "@/sync/round";
+import { planRound, type RoundDecision } from "@/sync/round";
 import { journalPush, journalRound } from "@/sync/journal";
 import {
   getSyncStatus,
@@ -197,6 +197,7 @@ export function useSyncEngine(enabled: boolean): SyncEngine {
       const localFlat = flattenSnapshot(buildSnapshot());
       const changes = diffFlat(base, localFlat);
       guardOrderKeys(changes, localFlat, pulledSessionRef.current === session.id);
+      const before = JSON.stringify(localFlat);
       const clean = Object.keys(changes).length === 0;
       const atCap = buildSnapshot().characters.length >= 6;
       if (clean && !atCap) {
@@ -213,7 +214,6 @@ export function useSyncEngine(enabled: boolean): SyncEngine {
           return;
         }
       }
-      const before = JSON.stringify(flattenSnapshot(buildSnapshot()));
       let remote = await getSession(session.id, { touch: shouldTouch(session.id) });
       reachable();
       if (remote.legacy !== undefined) {
@@ -224,10 +224,7 @@ export function useSyncEngine(enabled: boolean): SyncEngine {
         reachable();
       }
       if (!remote.state || typeof remote.state !== "object" || Array.isArray(remote.state)) return;
-      if (JSON.stringify(flattenSnapshot(buildSnapshot())) !== before) {
-        const plan = planRound(base, changes, remote.state as FlatMap);
-        const landed = Object.keys(plan.push).length === 0 || (await pushPlanned(session, plan.push));
-        if (!landed) return;
+      const abortRound = (plan: RoundDecision): void => {
         if (Object.keys(plan.push).length > 0) saveBase(session.id, { ...base, ...plan.push });
         journalRound({
           sessionId: session.id,
@@ -240,10 +237,15 @@ export function useSyncEngine(enabled: boolean): SyncEngine {
           adopted: plan.adopted,
           aborted: true,
         });
+      };
+      const dirty = JSON.stringify(flattenSnapshot(buildSnapshot())) !== before;
+      const plan = planRound(base, changes, remote.state as FlatMap);
+      const hasPush = Object.keys(plan.push).length > 0;
+      if (hasPush && !(await pushPlanned(session, plan.push))) {
         return;
       }
-      const plan = planRound(base, changes, remote.state as FlatMap);
-      if (Object.keys(plan.push).length > 0 && !(await pushPlanned(session, plan.push))) {
+      if (dirty || (hasPush && JSON.stringify(flattenSnapshot(buildSnapshot())) !== before)) {
+        abortRound(plan);
         return;
       }
       const serverView = plan.view;
