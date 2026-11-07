@@ -302,6 +302,11 @@ The cut has no commit of its own: the release label rides in the tip commit you
 push, because only `main` deploys (`AGENTS.md` § Changelog). Three files record
 one release, and they move in that same commit.
 
+Classify before cutting. Features/Fixes are only for a change a non-technical
+player can clearly see or do; technical, internal and borderline work stays in
+Chores. A range whose entries are only Chores is internal-only even when it
+shipped code, and it takes the `whats-new: none` path in step 2.
+
 1. Label the English section: `## Unreleased` → `## <YYYY-MM-DD> — <label>`,
    with a fresh empty `## Unreleased` above it. The label comes from the range's
    content.
@@ -311,6 +316,7 @@ one release, and they move in that same commit.
    **verbatim**. When nothing in the release is player-visible, write
    `<!-- whats-new: none -->` directly under the English heading instead —
    that is the only way to say "intentional" rather than "forgotten".
+   Technical and borderline work in Chores counts as nothing player-visible.
 3. `node scripts/whats-new.mjs --write` — the only writer of
    `src/data/whatsNew.generated.json`.
 4. Commit `CHANGELOG.md`, `CHANGELOG-zh_TW.md` and

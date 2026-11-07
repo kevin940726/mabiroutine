@@ -1,8 +1,14 @@
 # Changelog
 
-Reader-facing log of user-visible changes. Newest first. One section per release (a push to `main` deploys to prod); the top `Unreleased` section holds work not yet pushed and gets a date + label when it ships.
+Reader-facing log. Features and Fixes are the player-visible changes; Chores are technical and stay out of the in-app changelog. Newest first. One section per release (a push to `main` deploys to prod); the top `Unreleased` section holds work not yet pushed and gets a date + label when it ships.
 
 ## Unreleased
+
+## 2026-11-07 — Technical work stays out of the in-app changelog
+<!-- whats-new: none -->
+
+### Chores
+- The changelog rule sends technical, internal and borderline work to Chores, so the in-app changelog stays limited to changes a non-technical player can clearly see. A Chores-only release is internal-only and skips the zh and whats-new cut.
 
 ## 2026-11-07 — 定期委託 turn-in survives an in-flight pull
 

@@ -57,8 +57,13 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   06:00", never "only on Sunday" — the 2026-10-19 plan said the latter about a
   window the code did not implement, and the mismatch came back as a bug report.
 - Bullets go newest-first under the top `## Unreleased`, grouped into
-  `### Features` / `### Fixes` / `### Chores`. A user-facing change is Features or
-  Fixes; an internal or agent-only change is Chores.
+  `### Features` / `### Fixes` / `### Chores`. Features/Fixes are only for a
+  change a non-technical player can clearly see or do differently, and the
+  bullet names that effect in player language. Technical, internal, agent-only,
+  or borderline work goes under `### Chores`: technical work does not need a
+  player-facing changelog entry, and the per-commit Chores entry satisfies the
+  changelog rule without putting it in the in-app changelog. When in doubt,
+  Chores.
 - **The release label rides in the commit you push — there is no cut commit.**
   Only `main` deploys, so the cut happens as part of an approved push to it, and
   the label is one edit that belongs to the tip: rename `## Unreleased` to
@@ -69,12 +74,14 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   `chore: date the changelog` commit said nothing the heading does not, so it is
   gone. Do not amend a tip the user made: make the label its own small commit and
   say so. Skip the cut when `Unreleased` is empty.
-- A release with player-visible changes also writes its zh section in
-  `CHANGELOG-zh_TW.md` and regenerates `src/data/whatsNew.generated.json`
-  (`node scripts/whats-new.mjs --write`) in the same commit as the English
-  heading; an internal-only release carries `<!-- whats-new: none -->` under
-  that heading instead. `test:whatsnew` enforces it — the runbook is
-  `docs/development.md` § Cutting a release.
+- A release with player-visible changes (Features/Fixes) also writes its zh
+  section in `CHANGELOG-zh_TW.md` and regenerates
+  `src/data/whatsNew.generated.json` (`node scripts/whats-new.mjs --write`) in
+  the same commit as the English heading. A release whose entries are only
+  Chores, including technical and borderline work, is internal-only: no zh
+  section and no JSON, just `<!-- whats-new: none -->` under the heading.
+  `test:whatsnew` enforces it — the runbook is `docs/development.md` § Cutting a
+  release.
 - The zh-TW copy is gated by the committed `tech-doc-zh-tw` skill
   (`.agents/skills/tech-doc-zh-tw/SKILL.md`): load it before writing or
   reviewing `CHANGELOG-zh_TW.md`, `README-zh_TW.md`, or any player-facing UI
