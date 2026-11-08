@@ -16,6 +16,7 @@ import { formatCountdown } from "@/lib/reset";
 import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
 import { useNow } from "@/hooks/useNow";
 import { SchedulePopover } from "@/components/SchedulePopover";
+import { EventTag } from "@/components/EventTag";
 import { ArtImg } from "@/components/ArtImg";
 import { NPC_PLACEHOLDER_SRC, npcIconPath } from "@/lib/npcIcon";
 
@@ -556,10 +557,12 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
       ? [
           isBarter && task.priority === "must" ? <span key="must" className={cn(chip, "bg-red-100 text-red-700 dark:bg-red-900/30")}>必換</span> : null,
           task.serverShared === true ? <span key="shared" className={cn(chip, "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300")}>伺服器</span> : null,
+          task.endTime ? <EventTag key="event" endTime={task.endTime} /> : null,
         ]
       : [
           task.priority === "must" ? <span key="must" className={cn(chip, "bg-red-100 text-red-700 dark:bg-red-900/30")}>必做</span> : null,
           task.source === "custom" ? <span key="custom" className={cn(chip, "bg-blue-100 text-blue-700 dark:bg-blue-900/30")}>自訂</span> : null,
+          task.endTime ? <EventTag key="event" endTime={task.endTime} /> : null,
         ]
   ).filter((c) => c !== null);
 
@@ -1056,6 +1059,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
             {reminderEligible && <ReminderBell lane="hourly" taskId={task.id} taskName={task.name} />}
             {isBarter && task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px] shrink-0">必換</span>}
             {task.serverShared === true && <span className="rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 px-1.5 py-0.5 text-[10px] shrink-0">伺服器</span>}
+            {task.endTime && <EventTag endTime={task.endTime} />}
             {!merchantless && (
               <span className="ml-auto flex items-center gap-1 shrink-0 min-w-0">
                 <span className={cn(META_NPC, "truncate")}>{task.npc}</span>
@@ -1094,6 +1098,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
           {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
+          {task.endTime && <EventTag endTime={task.endTime} />}
           {/* The schedule marks ride the TITLE line, at desktop only. They used to
               have a band of their own, which made 深淵的黑色坑洞 the one 107px row in
               an otherwise uniform 88px list — and a height outlier destabilises the

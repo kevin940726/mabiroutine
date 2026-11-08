@@ -9,6 +9,9 @@ export type Task = {
   name: string;
   icon: string;
   desc?: string;
+  /** Event row: the row is live only before this instant (ISO with offset).
+   *  The value keeps its normal cycle; deleting the row later is the cleanup. */
+  endTime?: string;
   section: TaskSection;
   kind: ResetKind;
   // countdown = counter for progress/resets, but the tile shows remaining

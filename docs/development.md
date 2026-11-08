@@ -62,7 +62,7 @@ only checks the changelog's structure, parity and code-free copy.
 
 ## Five-minute tour
 
-- **Game data is hand-owned JSON** — `src/data/tracker.json` (26 rows) +
+- **Game data is hand-owned JSON** — `src/data/tracker.json` (27 rows) +
   `src/data/shops.json` (NPC → purchase/exchange options incl. the curated barter legs, each with a stable `id`, schema'd by
   `shops.schema.json`) +
   `src/data/curatedOrder.ts` + `src/data/defaultPins.ts` +

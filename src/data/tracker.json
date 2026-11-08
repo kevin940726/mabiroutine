@@ -256,6 +256,19 @@
     "order": 250
   },
   {
+    "id": "event-100-day-gift",
+    "name": "100 日禮物箱",
+    "icon": "🎁",
+    "desc": "活動期間於釣魚場釣魚即有機會獲得；每日上限 5 個。",
+    "section": "account",
+    "kind": "account-daily",
+    "type": "counter",
+    "max": 5,
+    "source": "builtin",
+    "endTime": "2026-11-18T06:00:00+08:00",
+    "order": 255
+  },
+  {
     "id": "acc-member",
     "name": "會員每日領取",
     "icon": "👑",

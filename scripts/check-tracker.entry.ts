@@ -55,6 +55,12 @@ for (const r of rows) {
   assert(TYPES.includes(r.type), `${r.id}: type`);
   assert(SOURCES.includes(r.source), `${r.id}: source`);
   assert(typeof r.order === "number" && Number.isFinite(r.order), `${r.id}: order`);
+  if (r.endTime !== undefined) {
+    assert(
+      typeof r.endTime === "string" && Number.isFinite(Date.parse(r.endTime)),
+      `${r.id}: endTime is a parseable ISO timestamp`
+    );
+  }
   if (r.type === "check") {
     assert(r.max === undefined, `${r.id}: a check carries no max`);
   } else if (r.max !== undefined) {

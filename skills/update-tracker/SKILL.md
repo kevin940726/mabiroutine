@@ -41,4 +41,4 @@ explicit human "apply this" for the specific rows.
 
 ## References
 - `docs/tracker-data.md` Filtering Rules + Source terms
-- `src/data/tracker.json` (26 TW rows, hand-owned), `src/data/shops.json` (curated legs with stable ids, hand-owned)
+- `src/data/tracker.json` (27 TW rows, hand-owned), `src/data/shops.json` (curated legs with stable ids, hand-owned)
