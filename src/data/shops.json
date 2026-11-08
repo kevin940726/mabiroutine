@@ -3752,7 +3752,7 @@
                 "times": 1
               },
               "id": "jennifer-lean-meat",
-              "priority": "must",
+              "priority": "situational",
               "barter": {
                 "give": "黃豆 ×10",
                 "get": "清淡的肉 ×15",

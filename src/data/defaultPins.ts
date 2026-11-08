@@ -12,7 +12,6 @@ export const DEFAULT_PINS: string[] = [
   "col-a1",
   "seumas-finest-bandage",
   "edern-silver-alloy-ingot",
-  "jennifer-lean-meat",
   "shop::瓦爾特::裝飾製作零件",
   "shop::瓦爾特::裝飾製作零件+",
   "shop::瓦爾特::高級裝飾製作零件",
