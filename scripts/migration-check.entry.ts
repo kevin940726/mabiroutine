@@ -463,10 +463,10 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 {
   const shared = shopDeals(loadShopNpcs()).filter((d) => d.id && d.scopeAccount);
   const sharedIds = shared.map((d) => d.id as string);
-  for (const id of ["tir-l1", "tir-l2", "col-a1", "col-c2", "col-c3", "tir-l3", "yen-安黛莉凱琳特製全麥麵包1-12", "yen-梅文凱琳特製全麥麵包聖水-44", "強化秘藥乳化劑", "礦山的魔力石-吉爾摩", "曠野的魔力石-吉爾摩", "dun-i9"]) {
+  for (const id of ["tir-l1", "tir-l2", "col-a1", "col-c2", "col-c3", "tir-l3", "yen-安黛莉凱琳特製全麥麵包1-12", "yen-梅文凱琳特製全麥麵包聖水-44", "強化秘藥乳化劑", "礦山的魔力石-吉爾摩", "曠野的魔力石-吉爾摩", "dun-i9", "jennifer-holy-water", "jennifer-pet-food", "jennifer-roasted-potato", "jennifer-potato-salad", "jennifer-apple-juice", "jennifer-apple-salad", "jennifer-roasted-meat", "jennifer-mayo-meat", "jennifer-food-material-box", "jennifer-abyss-pattern-box"]) {
     assert(sharedIds.includes(id), `P premise: ${id} is perChar=false (update fixture if data changed)`);
   }
-  assert(sharedIds.length === 12, `P premise: exactly 12 shared rows (found ${sharedIds.length}, update fixture if data changed)`);
+  assert(sharedIds.length === 22, `P premise: exactly 22 shared rows (found ${sharedIds.length}, update fixture if data changed)`);
   const taskOf = new Map(
     shared.map((d) => [d.id, barterTaskForPin(d.id as string) as { type: string; max?: number }])
   );

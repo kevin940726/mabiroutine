@@ -3410,6 +3410,255 @@
           "name": "珍妮佛",
           "items": [
             {
+              "name": "聖水",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "愛心幣"
+              },
+              "limit": {
+                "times": 20,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-holy-water",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×10",
+                "get": "聖水 ×1",
+                "limit": "每週 20 次 (伺服器)"
+              }
+            },
+            {
+              "name": "寵物飼料",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "愛心幣"
+              },
+              "limit": {
+                "times": 20,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-pet-food",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×10",
+                "get": "寵物飼料 ×1",
+                "limit": "每週 20 次 (伺服器)"
+              }
+            },
+            {
+              "name": "烤整顆馬鈴薯",
+              "kind": "barter",
+              "cost": {
+                "amount": 5,
+                "currency": "愛心幣"
+              },
+              "get": {
+                "amount": 2
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-roasted-potato",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×5",
+                "get": "烤整顆馬鈴薯 ×2",
+                "limit": "每週 2 次 (伺服器)"
+              }
+            },
+            {
+              "name": "馬鈴薯沙拉",
+              "kind": "barter",
+              "cost": {
+                "amount": 5,
+                "currency": "愛心幣"
+              },
+              "get": {
+                "amount": 2
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-potato-salad",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×5",
+                "get": "馬鈴薯沙拉 ×2",
+                "limit": "每週 2 次 (伺服器)"
+              }
+            },
+            {
+              "name": "蘋果汁",
+              "kind": "barter",
+              "cost": {
+                "amount": 5,
+                "currency": "愛心幣"
+              },
+              "get": {
+                "amount": 2
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-apple-juice",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×5",
+                "get": "蘋果汁 ×2",
+                "limit": "每週 2 次 (伺服器)"
+              }
+            },
+            {
+              "name": "蘋果沙拉",
+              "kind": "barter",
+              "cost": {
+                "amount": 5,
+                "currency": "愛心幣"
+              },
+              "get": {
+                "amount": 2
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-apple-salad",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×5",
+                "get": "蘋果沙拉 ×2",
+                "limit": "每週 2 次 (伺服器)"
+              }
+            },
+            {
+              "name": "烤肉",
+              "kind": "barter",
+              "cost": {
+                "amount": 5,
+                "currency": "愛心幣"
+              },
+              "get": {
+                "amount": 2
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-roasted-meat",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×5",
+                "get": "烤肉 ×2",
+                "limit": "每週 2 次 (伺服器)"
+              }
+            },
+            {
+              "name": "美乃滋炒肉",
+              "kind": "barter",
+              "cost": {
+                "amount": 5,
+                "currency": "愛心幣"
+              },
+              "get": {
+                "amount": 2
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-mayo-meat",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×5",
+                "get": "美乃滋炒肉 ×2",
+                "limit": "每週 2 次 (伺服器)"
+              }
+            },
+            {
+              "name": "料理材料選擇箱",
+              "kind": "barter",
+              "cost": {
+                "amount": 40,
+                "currency": "愛心幣"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-food-material-box",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×40",
+                "get": "料理材料選擇箱 ×1",
+                "limit": "每週 1 次 (伺服器)"
+              }
+            },
+            {
+              "name": "支配的圖樣選擇箱",
+              "kind": "barter",
+              "cost": {
+                "amount": 40,
+                "currency": "愛心幣"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "jennifer-abyss-pattern-box",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×40",
+                "get": "支配的圖樣選擇箱 ×1",
+                "limit": "每週 1 次 (伺服器)"
+              }
+            },
+            {
+              "name": "染色劑選擇箱",
+              "kind": "barter",
+              "cost": {
+                "amount": 40,
+                "currency": "愛心幣"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "id": "jennifer-dye-box",
+              "priority": "situational",
+              "barter": {
+                "give": "愛心幣 ×40",
+                "get": "染色劑選擇箱 ×1",
+                "limit": "每週 1 次"
+              }
+            },
+            {
+              "name": "共鳴板",
+              "priority": "must",
+              "cost": {
+                "amount": 10000
+              },
+              "limit": {
+                "times": 4,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
               "name": "肉",
               "cost": {
                 "amount": 250

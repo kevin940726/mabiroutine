@@ -4,6 +4,9 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+### Features
+- 珍妮佛 (班克爾) now runs the weekly 愛心幣 counter: 聖水 and 寵物飼料 at 10 每週 20 次, 烤整顆馬鈴薯, 馬鈴薯沙拉, 蘋果汁, 蘋果沙拉, 烤肉 and 美乃滋炒肉 at 5 for ×2 每週 2 次, and 料理材料選擇箱, 支配的圖樣選擇箱, 染色劑選擇箱 at 40 每週 1 次. All but 染色劑選擇箱 are account-scoped; 染色劑 is per character. 共鳴板 also joins the tab at 10,000 gold 每週 4 次, account, 必換 and pinned by default. All twelve carry their own art.
+
 ## 2026-11-07 — Technical work stays out of the in-app changelog
 <!-- whats-new: none -->
 

@@ -20,4 +20,5 @@ export const DEFAULT_PINS: string[] = [
   "shop::萊莉::複葉幼苗",
   "shop::萊莉::尖葉幼苗",
   "shop::萊莉::裂葉幼苗",
+  "shop::珍妮佛::共鳴板",
 ];

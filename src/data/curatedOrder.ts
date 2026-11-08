@@ -106,6 +106,17 @@ export const CURATED_ORDER: string[] = [
   "erin-silver-alloy-ingot1", // 艾琳 銀合金錠 ← 特殊鋼錠 ×3 · 每日 1 次 · 班克爾
   "erin-silver-alloy-ingot2", // 艾琳 銀合金錠 ← 合金鋼錠 ×30 · 每日 1 次 · 班克爾
   "edern-silver-alloy-ingot", // 艾頓 銀合金錠 ×10 ← 鱸魚辣魚湯 ×1 · 每週 1 次 · 班克爾
+  "jennifer-holy-water", // 珍妮佛 聖水 ← 愛心幣 ×10 · 每週 20 次（伺服器） · 班克爾
+  "jennifer-pet-food", // 珍妮佛 寵物飼料 ← 愛心幣 ×10 · 每週 20 次（伺服器） · 班克爾
+  "jennifer-roasted-potato", // 珍妮佛 烤整顆馬鈴薯 ×2 ← 愛心幣 ×5 · 每週 2 次（伺服器） · 班克爾
+  "jennifer-potato-salad", // 珍妮佛 馬鈴薯沙拉 ×2 ← 愛心幣 ×5 · 每週 2 次（伺服器） · 班克爾
+  "jennifer-apple-juice", // 珍妮佛 蘋果汁 ×2 ← 愛心幣 ×5 · 每週 2 次（伺服器） · 班克爾
+  "jennifer-apple-salad", // 珍妮佛 蘋果沙拉 ×2 ← 愛心幣 ×5 · 每週 2 次（伺服器） · 班克爾
+  "jennifer-roasted-meat", // 珍妮佛 烤肉 ×2 ← 愛心幣 ×5 · 每週 2 次（伺服器） · 班克爾
+  "jennifer-mayo-meat", // 珍妮佛 美乃滋炒肉 ×2 ← 愛心幣 ×5 · 每週 2 次（伺服器） · 班克爾
+  "jennifer-food-material-box", // 珍妮佛 料理材料選擇箱 ← 愛心幣 ×40 · 每週 1 次（伺服器） · 班克爾
+  "jennifer-abyss-pattern-box", // 珍妮佛 支配的圖樣選擇箱 ← 愛心幣 ×40 · 每週 1 次（伺服器） · 班克爾
+  "jennifer-dye-box", // 珍妮佛 染色劑選擇箱 ← 愛心幣 ×40 · 每週 1 次 · 班克爾
   "jennifer-lean-meat", // 珍妮佛 清淡的肉 ×15 ← 黃豆 ×10 · 每日 1 次 · 班克爾
   "卓越恢復藥水", // 康格 卓越恢復藥水 ×6 ← 豆乳防風草蛋糕 ×1 · 每日 1 次 · 班克爾
   "最高級絲綢", // 吉爾摩 最高級絲綢 ×5 ← 最高級木材 ×10 · 每日 1 次 · 班克爾
