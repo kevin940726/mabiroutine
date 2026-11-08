@@ -10,6 +10,9 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 ### Fixes
 - 珍妮佛's 清淡的肉 barter drops from 必換 to 視需求 and is no longer seeded as a default pin; a pin already saved on a device stays.
 
+### Chores
+- The browser sync E4 test now seeds the app's own Monday 06:00 week bucket instead of a calendar Monday, so the gate no longer fails when it runs before 06:00.
+
 ## 2026-11-07 — Technical work stays out of the in-app changelog
 <!-- whats-new: none -->
 

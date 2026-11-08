@@ -27,6 +27,10 @@
 // database (docs/sql-migration.md). Needs the Playwright Chromium. SKIP
 // (exit 0, loud) otherwise.
 // Throwaway session, deleted afterwards. Budget ~2 min.
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { buildSync } from "esbuild";
 import { chromium } from "playwright";
 
 const BASE = (process.env.SYNC_TEST_BASE || "http://localhost:52608").replace(/\/+$/, "");
@@ -273,12 +277,24 @@ try {
 
   {
     const cid = "e4race";
-    const taipei = new Date(Date.now() + 8 * 3600 * 1000);
-    const day = taipei.getUTCDay();
-    const monday = new Date(taipei);
-    monday.setUTCDate(taipei.getUTCDate() - ((day + 6) % 7));
-    const week = `${monday.getUTCFullYear()}-W${String(monday.getUTCMonth() + 1).padStart(2, "0")}${String(monday.getUTCDate()).padStart(2, "0")}`;
-    const today = taipei.toISOString().slice(0, 10);
+    // The app buckets a week at Monday 06:00 Taipei, not at calendar Monday
+    // midnight. Before 06:00 on Monday the current week is still the previous
+    // Monday, so a hand-rolled calendar key seeds next week and the assertion
+    // reads a key the app never touches. Use the app's own clock.
+    const resetBundle = path.resolve("node_modules/.cache/sync-tests/reset.mjs");
+    fs.mkdirSync(path.dirname(resetBundle), { recursive: true });
+    buildSync({
+      entryPoints: ["src/lib/reset.ts"],
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      outfile: resetBundle,
+      alias: { "@": "./src" },
+      logLevel: "error",
+    });
+    const { getTaipeiWeekKey, currentDailyBucket } = await import(pathToFileURL(resetBundle).href);
+    const week = getTaipeiWeekKey();
+    const today = currentDailyBucket();
     const ids = ["weekly-goals", "weekly-goals-deep-dungeon", "weekly-goals-dungeon", "weekly-goals-hunt"];
     const values = { [ids[0]]: 0, [ids[1]]: 2, [ids[2]]: 3, [ids[3]]: 4 };
     const keys = Object.fromEntries(ids.map((id) => [`v:${cid}:${id}@${week}`, values[id]]));
