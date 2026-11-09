@@ -19,6 +19,7 @@
  * always, and is the escape hatch when this gate itself is wrong.
  */
 import { execFileSync, spawnSync } from "node:child_process";
+import { readGit, readToken } from "./release-notes.mjs";
 
 const ZERO = /^0{40}$/;
 let failed = false;
@@ -87,7 +88,34 @@ if (ref === "refs/heads/main") {
   }
 }
 
-// --- 2. the suite ------------------------------------------------------------
+// --- 2. the player-facing release was reviewed ------------------------------
+if (ref === "refs/heads/main" && !failed) {
+  let release;
+  try {
+    release = readGit(process.cwd(), localSha);
+  } catch (e) {
+    fail(`cannot read the release being pushed: ${e.message}`);
+  }
+  if (release) {
+    if (release.problems.length) {
+      for (const problem of release.problems) fail(problem);
+    } else if (release.playerFacing) {
+      const token = readToken(process.cwd());
+      if (!token || token.release !== release.id || token.hash !== release.hash) {
+        fail(
+          `the player-facing release notes for "${release.id}" were not reviewed — run \`pnpm release:review\`, ` +
+            "approve or edit, then push"
+        );
+      } else {
+        console.log(`ok: release notes reviewed (${release.id})`);
+      }
+    } else {
+      console.log("ok: internal-only release, no player-facing review needed");
+    }
+  }
+}
+
+// --- 3. the suite ------------------------------------------------------------
 if (!changelogOnly && !failed) {
   const dirty = Boolean(git(["status", "--porcelain"]).trim());
   if (dirty) console.log("note: the working tree is dirty — `pnpm check` reads the tree, so it also covers unshipped work");

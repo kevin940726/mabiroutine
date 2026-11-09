@@ -139,7 +139,10 @@ The local pre-push hook (`.git/hooks/pre-push`, uncommitted by design — it als
 filters refs) calls `scripts/pre-push-gate.mjs`, which runs this suite plus the
 changelog rules: every non-merge commit in the pushed range must touch
 `CHANGELOG.md`, and a `main` push must leave `## Unreleased` empty (the release
-label was folded into the tip commit — `AGENTS.md` § Changelog). A changelog
+label was folded into the tip commit — `AGENTS.md` § Changelog). It also blocks a
+`main` push whose player-facing release is not the exact copy approved by
+`pnpm release:review` (the approval lives in `.git/release-review.json`, per
+clone; a Chores-only release has nothing to approve). A changelog or review
 failure stops before the suite. `git push --no-verify` skips the hook.
 
 There is no CI. The hook is the gate: a workflow on `main` would run after the
@@ -169,14 +172,15 @@ the fixtures in `scripts/migration-check.entry.ts` (versionless save, synthetic
 barter ids, removed-id prune, passthrough, filter sanitize). A new step needs a
 fixture block (A/B/C/D/E/F) proving old data survives: user progress always wins,
 so a step fills defaults and prunes dangling keys, never overwrites a value.
-Pre-push gate rule: `pnpm test:prepush` after changing `scripts/pre-push-gate.mjs`
-or the changelog rules it enforces. It builds a throwaway repo in the temp dir and
-pins the gate's outcomes: a commit with no `CHANGELOG.md` change fails naming the
-commit, an unlabelled `## Unreleased` on `main` fails before the suite runs, a
-`feat/*` ref skips that rule, a dirty tree with a failing suite names the dirty
-tree, and a bad revision range reports git's message rather than a stack trace. The
-stub `package.json` makes its `pnpm check` a no-op, so this never re-enters the
-suite.
+Pre-push gate rule: `pnpm test:prepush` after changing `scripts/pre-push-gate.mjs`,
+`scripts/release-review.mjs` or the changelog rules it enforces. It builds a
+throwaway repo in the temp dir and pins the gate's outcomes: a commit with no
+`CHANGELOG.md` change fails naming the commit, an unlabelled `## Unreleased` on
+`main` fails before the suite runs, a `feat/*` ref skips that rule, a player-facing
+release with no approval fails, the approved copy passes, an edit after approval
+fails again, a dirty tree with a failing suite names the dirty tree, and a bad
+revision range reports git's message rather than a stack trace. The stub
+`package.json` makes its `pnpm check` a no-op, so this never re-enters the suite.
 What's-new rule: `pnpm test:whatsnew` after touching `CHANGELOG.md`,
 `CHANGELOG-zh_TW.md`, or `src/data/whatsNew.generated.json`. `CHANGELOG-zh_TW.md`
 is the player-facing record and the app's source; the JSON is its committed
@@ -321,8 +325,14 @@ shipped code, and it takes the `whats-new: none` path in step 2.
    `src/data/whatsNew.generated.json`.
 4. Commit `CHANGELOG.md`, `CHANGELOG-zh_TW.md` and
    `src/data/whatsNew.generated.json` together.
-5. Fold the label into the tip commit as usual (`git commit --amend --no-edit`
-   once staged).
+5. `pnpm release:review`: read the English Features/Fixes and the zh copy, then
+   approve or stop, edit, and re-run. Approval records a hash of that copy in
+   `.git/release-review.json`; the pre-push gate recomputes it from the tip
+   commit, so editing either copy after approval blocks the push. A Chores-only
+   release has nothing to approve.
+6. Fold the label into the tip commit as usual (`git commit --amend --no-edit`
+   once staged). The approval is content-based, so the amend does not invalidate
+   it.
 
 The three files are one record seen three ways, which is why they cannot land
 apart: the zh file is the player-facing copy, and the JSON is the drawer's copy

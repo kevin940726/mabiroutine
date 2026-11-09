@@ -4,6 +4,9 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+### Chores
+- A release review step prints the player-facing changelog and records an approval that the pre-push gate checks, so a `main` push cannot ship notes nobody read.
+
 ## 2026-11-09 — The 活動 tag and 珍妮佛's 愛心幣 stock
 
 ### Features

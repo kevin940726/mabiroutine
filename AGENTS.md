@@ -74,6 +74,13 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   `chore: date the changelog` commit said nothing the heading does not, so it is
   gone. Do not amend a tip the user made: make the label its own small commit and
   say so. Skip the cut when `Unreleased` is empty.
+- **The player-facing release is reviewed before the push.** After the cut, run
+  `pnpm release:review`. It prints the English Features/Fixes, the zh copy and
+  the JSON state, then records an approval hash in `.git/release-review.json`.
+  Editing either copy after approval invalidates it. A `main` push is blocked
+  until the tip commit's content is approved; a Chores-only release has nothing
+  to approve. Run it in a terminal (or use `--print`/`--approve`); the token is
+  per clone and `git push --no-verify` bypasses it like every gate.
 - A release with player-visible changes (Features/Fixes) also writes its zh
   section in `CHANGELOG-zh_TW.md` and regenerates
   `src/data/whatsNew.generated.json` (`node scripts/whats-new.mjs --write`) in
@@ -139,14 +146,14 @@ Measured on PowerShell 7.6.6, Windows:
 
 `pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:prepush` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `test:whatsnew` + `build`. All seventeen must pass. The runner prints one line per gate and stops at the first failure, so the last lines are the verdict — never truncate to a tail that could hide it (`--verbose` streams a gate's own output; `node scripts/check-all.mjs <gate>…` runs a subset while iterating).
 
-Run it before you ask to push, and the hook will not have to tell you. The hook calls `scripts/pre-push-gate.mjs`, which adds the two changelog rules above: every pushed commit must touch `CHANGELOG.md`, and a `main` push must leave `## Unreleased` empty. `git push --no-verify` skips it.
+Run it before you ask to push, and the hook will not have to tell you. The hook calls `scripts/pre-push-gate.mjs`, which adds the two changelog rules above: every pushed commit must touch `CHANGELOG.md`, and a `main` push must leave `## Unreleased` empty. It also blocks a `main` push whose player-facing release has no matching approval from `pnpm release:review`. `git push --no-verify` skips it.
 
 Each line below is when the gate fires and what its silence costs. The check list, the incident behind it, and its sabotage standard are `docs/development.md` § Gates.
 
 - `test:shops` — after any `src/data` file (recipes, shops, curated order). Wrong data ships silently.
 - `test:tracker` — after `tracker.json`. Silent in the app: a broken `subTasks` link renders no child, a duplicate id steals another row's progress.
 - `test:docs` — after the row set, a row's `max`, or any doc or skill quoting those numbers. A stale instruction misleads the next writer.
-- `test:prepush` — after changing `scripts/pre-push-gate.mjs` or the changelog rules: its own outcomes, pinned in a throwaway repo (a commit with no changelog change, an unlabelled `## Unreleased` on `main` stopping before the suite, a `feat/*` ref skipping that rule, a dirty tree with a failing suite, a bad revision range). The hook blocks pushes on its say-so, so a silent regression here is a rule that stops being enforced.
+- `test:prepush` — after changing `scripts/pre-push-gate.mjs`, `scripts/release-review.mjs` or the changelog rules: its own outcomes, pinned in a throwaway repo (a commit with no changelog change, an unlabelled `## Unreleased` on `main` stopping before the suite, a `feat/*` ref skipping that rule, a player-facing release blocked until approved, the approved copy passing, an edit after approval blocking again, a dirty tree with a failing suite, a bad revision range). The hook blocks pushes on its say-so, so a silent regression here is a rule that stops being enforced.
 - `test:icons` — after `src/lib/itemIcon.ts` or the item data. The emitted path fails silently in two directions.
 - `test:fallbacks` — after any art `<img>`, its fallback, or an art path. An error handler reassigning a missing URL loops forever (2026-10-12).
 - `test:budget` — after `public/sw-budget.js`, `scripts/inline-sw.mjs`, the workbox config, or anything changing what the SW intercepts. A disarmed guard spends the device request budget.

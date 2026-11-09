@@ -21,10 +21,19 @@ import os from "node:os";
 import path from "node:path";
 
 const GATE = path.join(import.meta.dirname, "pre-push-gate.mjs");
+const REVIEW = path.join(import.meta.dirname, "release-review.mjs");
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mabiroutine-prepush-"));
 const ZERO = "0".repeat(40);
-const LABELLED = "# Changelog\n\n## Unreleased\n\n## 2026-01-01 — first\n";
+const LABELLED = "# Changelog\n\n## Unreleased\n\n## 2026-01-01 — first\n<!-- whats-new: none -->\n";
 const UNLABELLED = "# Changelog\n\n## Unreleased\n\n### Chores\n- a change\n";
+const FEATURE_EN = "# Changelog\n\n## Unreleased\n\n## 2026-01-02 — feature\n\n### Features\n- a thing\n";
+const FEATURE_ZH =
+  "# 更新記錄\n\n## 2026-01-02 — 功能\n<!-- release: 2026-01-02 — feature -->\n\n### 新功能\n- 一件事。\n";
+const FEATURE_JSON = `${JSON.stringify(
+  [{ release: "2026-01-02 — feature", date: "2026-01-02", kind: "feature", text: "一件事。" }],
+  null,
+  2
+)}\n`;
 
 let bad = 0;
 const ok = (msg) => console.log(`ok: ${msg}`);
@@ -48,6 +57,7 @@ const gate = (...args) => {
     return { status: e.status, out: `${e.stdout ?? ""}${e.stderr ?? ""}` };
   }
 };
+const review = (...args) => execFileSync(process.execPath, [REVIEW, ...args], { cwd: dir, encoding: "utf8" });
 const expect = (name, r, { status, has = [], notHas = [] }) => {
   const problems = [];
   if (r.status !== status) problems.push(`exit ${r.status}, expected ${status}`);
@@ -89,7 +99,30 @@ try {
     has: ["`## Unreleased` is empty"],
   });
 
-  // 4. a failing suite with a dirty tree says so
+  // 4. a player-facing release needs an approval of the exact copy
+  fs.mkdirSync(path.join(dir, "src/data"), { recursive: true });
+  write("CHANGELOG.md", FEATURE_EN);
+  write("CHANGELOG-zh_TW.md", FEATURE_ZH);
+  write("src/data/whatsNew.generated.json", FEATURE_JSON);
+  fs.rmSync(path.join(dir, ".git/release-review.json"), { force: true });
+  const feature = commit("feature release");
+  expect("a player-facing release is blocked until reviewed", gate(feature, ZERO, "refs/heads/main", "--changelog-only"), {
+    status: 1,
+    has: ["not reviewed", "pnpm release:review"],
+  });
+  review("--approve");
+  expect("the approved feature release passes", gate(feature, ZERO, "refs/heads/main", "--changelog-only"), {
+    status: 0,
+    has: ["release notes reviewed"],
+  });
+  write("CHANGELOG.md", FEATURE_EN.replace("a thing", "a different thing"));
+  const edited = commit("edit after approval");
+  expect("an edit after approval blocks the push", gate(edited, ZERO, "refs/heads/main", "--changelog-only"), {
+    status: 1,
+    has: ["not reviewed"],
+  });
+
+  // 5. a failing suite with a dirty tree says so
   fs.appendFileSync(path.join(dir, "CHANGELOG.md"), "scratch\n");
   expect("a failing suite names the dirty tree", gate(labelled, ZERO, "refs/heads/main"), {
     status: 1,
@@ -97,7 +130,7 @@ try {
   });
   git("checkout", "--", "CHANGELOG.md");
 
-  // 5. a commit with no changelog change fails, naming the commit
+  // 6. a commit with no changelog change fails, naming the commit
   write("src.txt", "x");
   const noEntry = commit("no changelog entry");
   expect("a commit with no changelog change fails", gate(noEntry, labelled, "refs/heads/feat/x", "--changelog-only"), {
@@ -105,7 +138,7 @@ try {
     has: [noEntry.slice(0, 7), "does not touch CHANGELOG.md"],
   });
 
-  // 6. a bad revision range reports git's message, not a stack trace
+  // 7. a bad revision range reports git's message, not a stack trace
   expect("a bad revision range reports git's message", gate(labelled, "deadbeef".repeat(5), "refs/heads/main", "--changelog-only"), {
     status: 1,
     has: ["git rev-list", "failed:"],

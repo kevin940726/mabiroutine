@@ -22,6 +22,7 @@
     "test:docs": "node scripts/check-doc-facts.mjs",
     "test:whatsnew": "node scripts/check-whatsnew.mjs",
     "test:prepush": "node scripts/check-pre-push.mjs",
+    "release:review": "node scripts/release-review.mjs",
     "test:icons": "node scripts/check-item-icons.mjs",
     "test:fallbacks": "node scripts/check-art-fallbacks.mjs",
     "test:budget": "node scripts/check-budget.mjs",
