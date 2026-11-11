@@ -316,16 +316,18 @@ const img = (path) => ({ url: `https://app.test${path}`, destination: "image" })
 }
 
 // --- 12. every app fetch is either funnelled or sanctioned ------------------
-// Three sites may call fetch() under src/, each for a stated reason
+// Four sites may call fetch() under src/, each for a stated reason
 // (docs/operations.md §7): the sync session API (counted per kind), the counted
-// net funnel, and the purple feed — which cannot use the funnel because its
+// net funnel, the purple feed — which cannot use the funnel because its
 // module is shared with the Cloudflare Worker and must stay free of ALIASED
-// runtime imports (a relative import resolves in wrangler, `@/...` does not).
+// runtime imports (a relative import resolves in wrangler, `@/...` does not) —
+// and the Link client, whose requests go to 127.0.0.1 only.
 // Comment lines are skipped so prose about the rule does not trip it.
 const SANCTIONED = [
   "src/sync/api.ts",
   "src/lib/net.ts",
   "src/lib/purpleHole.ts",
+  "src/link/client.ts",
 ];
 const walkDir = (dir) =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {

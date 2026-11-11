@@ -298,19 +298,23 @@ pull` regenerates that file and would wipe the value.
   itself); the 30-minute and 6-hour tiers are per-minute buckets, so a
   multi-hour storm cannot grow the worker's memory the way one timestamp per
   request would, at the cost of up to a minute of over-count at their edge.
-- Counted network funnel and the three sanctioned request sites: every network
-  call under `src/` goes through one of three places, and `pnpm test:budget`
+- Counted network funnel and the four sanctioned request sites: every network
+  call under `src/` goes through one of four places, and `pnpm test:budget`
   fails a call made anywhere else. `sync/api.ts` owns `/api/session` (per-kind
   counters, read with `__mabiSyncStats()`); `src/lib/net.ts` owns the push
-  registry (per-day counters, read with `__mabiNet()`); and `purpleHole.ts`
-  keeps its own `/purple-schedule` fetch, because that module is shared with the
+  registry (per-day counters, read with `__mabiNet()`); `purpleHole.ts` keeps
+  its own `/purple-schedule` fetch, because that module is shared with the
   Cloudflare Worker (the fanout imports its pure schedule math by relative path)
-  and must therefore stay free of ALIASED runtime imports. Its request is
-  bounded anyway (60s minimum gap, one in flight) and counted by the device
-  budget above. The funnel is a passthrough by contract: it counts, and it must
-  not add retries, timeouts or cache policy, because its callers are best-effort
-  and their failure semantics are their own. Bounding demand is the device
-  budget; this makes demand legible.
+  and must therefore stay free of ALIASED runtime imports, and its request is
+  bounded anyway (60s minimum gap, one in flight); and `src/link/client.ts`
+  polls the desktop producer at `127.0.0.1:6278`, which the Worker budget never
+  sees (a cross-origin request is not intercepted by the SW) and which must not
+  read as server demand. That poll starts only after a socket that once
+  connected drops, runs at 1 s while the tab is visible, and exists only while
+  the experimental switch is on. The funnel is a passthrough by contract: it
+  counts, and it must not add retries, timeouts or cache policy, because its
+  callers are best-effort and their failure semantics are their own. Bounding
+  demand is the device budget; this makes demand legible.
 - Shared modules the Worker imports must stay resolvable in wrangler: relative
   imports only for runtime values (`@/...` fails to resolve there; `import type`
   is fine because it is stripped first), and no DOM-only dependency.

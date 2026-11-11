@@ -9,6 +9,9 @@ import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBuck
 import { carriesOverCycle, cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
 import { subTaskIds } from "@/lib/subTasks";
 import { BLACK_HOLE_BANK_MAX, BLACK_HOLE_DAILY_ID, BLACK_HOLE_ID } from "@/lib/blackHole";
+import type { LinkWrite } from "@/lib/link/apply";
+import { loadLinkDevice, pinLinkRow } from "@/lib/link/device";
+import { linkEnabled } from "@/lib/link/flag";
 import { flushStorage, idleStorage } from "@/lib/storage";
 
 const BUILTIN_TASKS = trackerJson as Task[];
@@ -18,6 +21,28 @@ const BUILTIN_TASKS = trackerJson as Task[];
 function isAccountTaskId(id: string, customTasks: Task[]): boolean {
   const t = [...BUILTIN_TASKS, ...customTasks].find((x) => x.id === id);
   return t?.section === "account";
+}
+
+const BLACK_HOLE_ROWS = [BLACK_HOLE_ID, BLACK_HOLE_DAILY_ID];
+
+// The bank and its daily check are one composite, so the wire must not touch
+// either half once the user acts on one.
+function rowsPinnedWith(taskId: string): string[] {
+  return BLACK_HOLE_ROWS.includes(taskId) ? BLACK_HOLE_ROWS : [taskId];
+}
+
+function pinTap(taskId: string, isAccount: boolean, state: AppState): void {
+  if (!linkEnabled()) return;
+  for (const id of rowsPinnedWith(taskId)) {
+    const bucket = cycleBucketFor(id, state.customTasks, new Date());
+    pinLinkRow(
+      loadLinkDevice(),
+      isAccount ? "account" : "character",
+      isAccount ? null : state.activeCharId,
+      id,
+      bucket
+    );
+  }
 }
 
 function uid() {
@@ -106,10 +131,18 @@ type Store = AppState & {  // actions
   removeCharacter: (id: string) => void;
   renameCharacter: (id: string, name: string) => void;
   reorderCharacters: (orderedIds: string[]) => void;
+  adoptLinkIdentities: (plan: {
+    renames: { cid: string; name: string }[];
+    creates: { name: string }[];
+  }) => { created: { cid: string; name: string }[] };
 
   toggleCheck: (taskId: string, isAccount: boolean) => void;
   setCounter: (taskId: string, value: number, isAccount: boolean) => void;
   incCounter: (taskId: string, delta: number, isAccount: boolean) => void;
+  /** Apply Link observations to a named character or the account. Unlike the
+   *  tap actions this never uses activeCharId, and each write carries the
+   *  bucket computed from the frame's own `at`. */
+  applyLinkWrites: (writes: LinkWrite[]) => void;
   /** One write for the 黑色坑洞 pair (the weekly bank + today's daily) in ONE
    *  set: the two rows sit in different cycles (week bucket + day bucket), so
    *  no render can see one half without the other. Absent fields are left
@@ -982,8 +1015,31 @@ export const useAppStore = create<Store>()(
           return { characters: [...ordered, ...missing] };
         }),
 
+      adoptLinkIdentities: (plan) => {
+        const s = get();
+        const names = new Map(plan.renames.map((r) => [r.cid, r.name]));
+        let changed = false;
+        const characters = s.characters.map((c) => {
+          const name = names.get(c.id);
+          if (name === undefined) return c;
+          changed = true;
+          return { ...c, name };
+        });
+        const created: { cid: string; name: string }[] = [];
+        for (const item of plan.creates) {
+          if (characters.length >= 6) break;
+          const c = defaultChar(item.name);
+          characters.push(c);
+          created.push({ cid: c.id, name: item.name });
+          changed = true;
+        }
+        if (changed) set({ characters });
+        return { created };
+      },
+
       toggleCheck: (taskId, isAccount) =>
         set((s) => {
+          pinTap(taskId, isAccount, s);
           const bucket = cycleBucketFor(taskId, s.customTasks, new Date());
           // Explicit unchecked is a PRESENT false, not an absence: absence
           // means "reset pruned" and stays silent on the wire (rev 3), so
@@ -1017,6 +1073,7 @@ export const useAppStore = create<Store>()(
 
       setCounter: (taskId, value, isAccount) =>
         set((s) => {
+          pinTap(taskId, isAccount, s);
           const clamped = Math.max(0, value);
           // Zero is a PRESENT 0 for the same reason as toggleCheck's false:
           // deleting would stay silent and the server's old count would
@@ -1034,6 +1091,57 @@ export const useAppStore = create<Store>()(
             ),
           };
         }),
+      applyLinkWrites: (writes) =>
+        set((s) => {
+          if (!writes.length) return {};
+          let characters = s.characters;
+          const accountValues = { ...s.accountValues };
+          const taskBuckets = { ...s.taskBuckets };
+          let hiddenAccountTaskIds = s.hiddenAccountTaskIds;
+          let changed = false;
+          for (const w of writes) {
+            const hide = w.finished === true;
+            if (w.scope === "account") {
+              const moved =
+                accountValues[w.taskId] !== w.value || taskBuckets[w.taskId] !== w.bucket;
+              const hiding = hide && !hiddenAccountTaskIds.includes(w.taskId);
+              if (!moved && !hiding) continue;
+              if (moved) {
+                accountValues[w.taskId] = w.value;
+                taskBuckets[w.taskId] = w.bucket;
+              }
+              if (hiding) hiddenAccountTaskIds = [...hiddenAccountTaskIds, w.taskId];
+              changed = true;
+              continue;
+            }
+            const idx = characters.findIndex((c) => c.id === w.charId);
+            if (idx < 0) continue;
+            const target = characters[idx];
+            const moved =
+              target.taskValues[w.taskId] !== w.value || taskBuckets[w.taskId] !== w.bucket;
+            const hiding = hide && !target.hiddenTaskIds.includes(w.taskId);
+            if (!moved && !hiding) continue;
+            characters = characters.map((c, i) =>
+              i === idx
+                ? {
+                    ...c,
+                    taskValues: moved
+                      ? { ...c.taskValues, [w.taskId]: w.value }
+                      : c.taskValues,
+                    hiddenTaskIds: hiding
+                      ? [...c.hiddenTaskIds, w.taskId]
+                      : c.hiddenTaskIds,
+                  }
+                : c
+            );
+            if (moved) taskBuckets[w.taskId] = w.bucket;
+            changed = true;
+          }
+          return changed
+            ? { characters, accountValues, taskBuckets, hiddenAccountTaskIds }
+            : {};
+        }),
+
       incCounter: (taskId, delta, isAccount) => {
         const s = get();
         const isAcc = isAccount;
@@ -1052,6 +1160,7 @@ export const useAppStore = create<Store>()(
 
       writeBlackHole: (patch, isAccount) =>
         set((s) => {
+          pinTap(BLACK_HOLE_ID, isAccount, s);
           const now = new Date();
           const nextBuckets = { ...s.taskBuckets };
           // Stamp only the halves this write touches; each row's own cycle
@@ -1083,6 +1192,7 @@ export const useAppStore = create<Store>()(
       recordGoalRound: (taskId, isAccount, childBefore) => {
         const s = get();
         const children = subTaskIds(taskId);
+        for (const id of [taskId, ...children]) pinTap(id, isAccount, s);
         if (children.length === 0) return null;
         const char = s.getActiveChar();
         const numOf = (v: number | boolean | undefined): number =>
@@ -1117,6 +1227,7 @@ export const useAppStore = create<Store>()(
 
       restoreGoalValues: (undo, isAccount) => {
         const s = get();
+        for (const { id } of undo) pinTap(id, isAccount, s);
         const now = new Date();
         const buckets = { ...s.taskBuckets };
         // Re-stamp the CURRENT bucket: an undo pressed after the weekly rollover
@@ -1177,6 +1288,7 @@ export const useAppStore = create<Store>()(
               return !!t && t.section === "account";
             };
             const { values: nextAcc, touched } = zeroOut(s.accountValues, match);
+            for (const id of touched) pinTap(id, true, s);
             return { accountValues: nextAcc, taskBuckets: stamp(s.taskBuckets, touched) };
           }
           const char = s.getActiveChar();
@@ -1197,6 +1309,7 @@ export const useAppStore = create<Store>()(
           }
           const target = s.characters.find((c) => c.id === s.activeCharId) ?? char;
           const { values: nextVal, touched } = zeroOut(target.taskValues, idsToClear);
+          for (const id of touched) pinTap(id, false, s);
           const nextChars = s.characters.map((c) => (c.id === s.activeCharId ? { ...c, taskValues: nextVal } : c));
           // server-shared pins render in this cycle's subsection but live in
           // accountValues — a section clear clears them too (they belong to this
@@ -1205,6 +1318,7 @@ export const useAppStore = create<Store>()(
             s.barterPins.filter((pid) => isServerSharedPinId(pid) && pinCycleOf(pid) === section)
           );
           const { values: nextAcc, touched: touchedAcc } = zeroOut(s.accountValues, sharedIds);
+          for (const id of touchedAcc) pinTap(id, true, s);
           return {
             characters: nextChars,
             accountValues: nextAcc,

@@ -4,7 +4,14 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-11 — MabiRoutine Link behind the experimental switch
+<!-- whats-new: none -->
+
 ### Chores
+- MabiRoutine Link's app-side consumer reads the desktop producer at 127.0.0.1:6278 and applies its rows to the tracker, behind the 實驗性功能 switch: one menu status row, no panel, and the tower tile hides once the producer reports all 150 floors cleared.
+- Link's pin is device-local and only the feed reads it, so a tap records nothing unless the switch is on.
+- Link's evidence is the desktop log plus two browser-console lines; an account row applies without a character match, and a device without the switch never probes.
+- A new test:link gate bundles the apply layer against wire fixtures: scope, buckets, pins, identity adoption, the barrier inversion, and the silent retry ladder.
 - A release review step prints the player-facing changelog and records an approval that the pre-push gate checks, so a `main` push cannot ship notes nobody read.
 
 ## 2026-11-09 — The 活動 tag and 珍妮佛's 愛心幣 stock

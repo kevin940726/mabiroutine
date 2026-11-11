@@ -28,6 +28,7 @@ const GATES = [
   "lint",
   "test:shops",
   "test:tracker",
+  "test:link",
   "test:docs",
   "test:prepush",
   "test:icons",

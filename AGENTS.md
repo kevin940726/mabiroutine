@@ -144,7 +144,7 @@ Measured on PowerShell 7.6.6, Windows:
 
 ## Pre-push Gate (agents: run it before every push; the hook enforces it)
 
-`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:docs` + `test:prepush` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `test:whatsnew` + `build`. All seventeen must pass. The runner prints one line per gate and stops at the first failure, so the last lines are the verdict — never truncate to a tail that could hide it (`--verbose` streams a gate's own output; `node scripts/check-all.mjs <gate>…` runs a subset while iterating).
+`pnpm check` = `node scripts/check-all.mjs` = `lint` + `test:shops` + `test:tracker` + `test:link` + `test:docs` + `test:prepush` + `test:icons` + `test:fallbacks` + `test:budget` + `test:worker` + `test:reminders` + `test:drag` + `test:tap` + `test:purple` + `test:migrations` + `test:sync` + `test:whatsnew` + `build`. All eighteen must pass. The runner prints one line per gate and stops at the first failure, so the last lines are the verdict — never truncate to a tail that could hide it (`--verbose` streams a gate's own output; `node scripts/check-all.mjs <gate>…` runs a subset while iterating).
 
 Run it before you ask to push, and the hook will not have to tell you. The hook calls `scripts/pre-push-gate.mjs`, which adds the two changelog rules above: every pushed commit must touch `CHANGELOG.md`, and a `main` push must leave `## Unreleased` empty. It also blocks a `main` push whose player-facing release has no matching approval from `pnpm release:review`. `git push --no-verify` skips it.
 
@@ -152,6 +152,7 @@ Each line below is when the gate fires and what its silence costs. The check lis
 
 - `test:shops` — after any `src/data` file (recipes, shops, curated order). Wrong data ships silently.
 - `test:tracker` — after `tracker.json`. Silent in the app: a broken `subTasks` link renders no child, a duplicate id steals another row's progress.
+- `test:link` — after `src/lib/link/**`, `src/link/**`, or any tap handler that pins a row. The wire's account scope, character scope, bucket refusal, identity match, barrier inversion and black-hole composition fail silently in the panel.
 - `test:docs` — after the row set, a row's `max`, or any doc or skill quoting those numbers. A stale instruction misleads the next writer.
 - `test:prepush` — after changing `scripts/pre-push-gate.mjs`, `scripts/release-review.mjs` or the changelog rules: its own outcomes, pinned in a throwaway repo (a commit with no changelog change, an unlabelled `## Unreleased` on `main` stopping before the suite, a `feat/*` ref skipping that rule, a player-facing release blocked until approved, the approved copy passing, an edit after approval blocking again, a dirty tree with a failing suite, a bad revision range). The hook blocks pushes on its say-so, so a silent regression here is a rule that stops being enforced.
 - `test:icons` — after `src/lib/itemIcon.ts` or the item data. The emitted path fails silently in two directions.

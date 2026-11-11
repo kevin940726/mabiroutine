@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpCircle, Download, FileDown, FileUp, History, Menu, Monitor, Moon, RefreshCw, Sun, SunMoon, Trash2, type LucideIcon } from "lucide-react";
+import { ArrowUpCircle, Download, FileDown, FileUp, History, Link2, Menu, Monitor, Moon, RefreshCw, Sun, SunMoon, Trash2, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,6 +16,8 @@ import { acceptUpdate, getUpdateReadyAt, useUpdateReady } from "@/lib/updateProm
 import { useWhatsNew, dotFor, taipeiDate } from "@/lib/whatsNew";
 import { useInstall } from "@/hooks/useInstall";
 import { useSyncStatus, type SyncStatus } from "@/sync/status";
+import { useLinkStatus, type LinkStatus } from "@/link/status";
+import { linkEnabled } from "@/lib/link/flag";
 import type { ThemeMode } from "@/hooks/useTheme";
 
 const UPDATE_DOT_MS = 24 * 60 * 60 * 1000;
@@ -37,6 +39,9 @@ function RowIcon({ Icon, className }: { Icon: LucideIcon; className?: string }) 
   );
 }
 
+const WARN_TONE = "text-amber-700 dark:text-amber-400";
+const OK_TONE = "text-emerald-700 dark:text-emerald-400";
+
 function syncLabel(status: SyncStatus, now: number): string {
   if (!status.linked) return "未連結";
   if (status.failing) return "同步失敗";
@@ -47,7 +52,16 @@ function syncLabel(status: SyncStatus, now: number): string {
 function syncTone(status: SyncStatus): string {
   if (!status.linked) return "text-muted-foreground";
   if (status.failing) return "text-destructive";
-  return "text-emerald-700 dark:text-emerald-400";
+  return OK_TONE;
+}
+
+function linkRow(status: LinkStatus, now: number): { label: string; tone: string } {
+  if (status.phase === "off") return { label: "未連線", tone: "text-muted-foreground" };
+  if (status.phase === "connecting") return { label: "連線中", tone: WARN_TONE };
+  if (status.phase === "error") return { label: "連線失敗", tone: "text-destructive" };
+  if (status.lastFrameAt === null) return { label: "已連線", tone: OK_TONE };
+  const age = Math.max(0, now / 1000 - status.lastFrameAt);
+  return age > 30 ? { label: "未更新", tone: WARN_TONE } : { label: "即時", tone: OK_TONE };
 }
 
 function relativeTime(ts: number, now: number): string {
@@ -77,6 +91,9 @@ export function AppMenu({
   now: number;
 }) {
   const status = useSyncStatus();
+  const link = useLinkStatus();
+  const linkState = linkRow(link, now);
+  const linkOn = linkEnabled();
   const updateReady = useUpdateReady();
   const whatsNew = useWhatsNew();
   const install = useInstall();
@@ -145,6 +162,15 @@ export function AppMenu({
               </span>
             )}
           </DropdownMenuItem>
+          {linkOn && (
+            <div className="flex items-center gap-2.5 px-2.5 py-2 text-sm">
+              <RowIcon Icon={Link2} className="text-muted-foreground" />
+              <span>即時連結</span>
+              <span className={`ml-auto text-xs leading-5 tabular-nums ${linkState.tone}`}>
+                {linkState.label}
+              </span>
+            </div>
+          )}
           <DropdownMenuItem onSelect={onSync} className="gap-2.5 px-2.5 py-2">
             <RowIcon Icon={RefreshCw} className="text-muted-foreground" />
             <span>同步</span>

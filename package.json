@@ -19,6 +19,7 @@
     "gen-splash": "node scripts/gen-splash.cjs",
     "test:shops": "node scripts/check-shops.mjs",
     "test:tracker": "node scripts/check-tracker.mjs",
+    "test:link": "node scripts/check-link.mjs",
     "test:docs": "node scripts/check-doc-facts.mjs",
     "test:whatsnew": "node scripts/check-whatsnew.mjs",
     "test:prepush": "node scripts/check-pre-push.mjs",

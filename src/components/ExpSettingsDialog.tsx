@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { linkEnabled, setLinkEnabled } from "@/lib/link/flag";
 
 // Experimental feature toggles, registry-driven. The dialog (and its footer
 // button) render nothing while the registry is empty — the shell, row, and
@@ -56,13 +57,6 @@ function ExpRow({
   );
 }
 
-/**
- * Registry of experimental toggles. EMPTY right now — push + purple-hole
- * graduated, so the dialog (and its footer button) render nothing. The next
- * experiment registers here ({id, title, desc, read, write} plus whatever
- * teardown its flag-off needs) and the whole UI reappears on its own, with
- * batch-apply + single reload on close preserved.
- */
 type ExpToggle = {
   id: string;
   title: string;
@@ -71,7 +65,15 @@ type ExpToggle = {
   write: (on: boolean) => void;
 };
 
-const EXPERIMENTAL_TOGGLES: ExpToggle[] = [];
+const EXPERIMENTAL_TOGGLES: ExpToggle[] = [
+  {
+    id: "link",
+    title: "即時連結（MabiRoutine Link）",
+    desc: "從遊戲電腦上的 MabiRoutine Link 讀取日課與副本進度，開啟後自動連上。需要先在遊戲電腦安裝並執行 Link；只影響這台裝置。",
+    read: linkEnabled,
+    write: setLinkEnabled,
+  },
+];
 
 export function ExpSettingsDialog() {
   const [open, setOpen] = useState(false);

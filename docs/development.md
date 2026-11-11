@@ -127,7 +127,7 @@ only checks the changelog's structure, parity and code-free copy.
 
 ## Gates (run before every push)
 
-`pnpm check` runs all seventeen gates; `AGENTS.md` § Pre-push Gate is the
+`pnpm check` runs all eighteen gates; `AGENTS.md` § Pre-push Gate is the
 always-loaded copy of which gate fires on what. `scripts/check-all.mjs` is the
 runner: one line per gate (`ok <gate> 1.2s` / `FAIL <gate> <ms>`), stopping at the
 first failure, so the last lines of a run are the verdict — the old `&&` chain
@@ -155,6 +155,13 @@ Data rule: `pnpm test:shops` after touching `recipes.json`, `shops.json`, or
 `curatedOrder.ts` (shape + currency + dup + no-trade-routes + shop-gold-only + twin probes + curated completeness).
 Tracker rule: `pnpm test:tracker` after touching `tracker.json` (row shape +
 max rules + `subTasks` link integrity — a broken link is silent in the app).
+Link rule: `pnpm test:link` after touching `src/lib/link/**`, `src/link/**`, or
+any tap handler that pins a row. It bundles `scripts/check-link.entry.ts` and
+runs the pure apply layer against anonymized wire fixtures: account and
+character scope, bucket refusal, identity match and adoption, the barrier
+inversion, pin survival, and the silent retry ladder. The seam it guards fails
+silently in the panel: a row lands in the wrong scope, a stale bucket wins, or a
+pin is overwritten by the wire.
 Doc-facts rule: `pnpm test:docs` after touching the row set, a row's `max`, or any
 doc or skill that quotes those numbers. It checks that prose against
 `tracker.json` — a quoted row total, the `N daily + N weekly + N account`
@@ -237,9 +244,10 @@ listener must register before the generated `registerRoute` calls, so
 or lands after the first route. A change that moves the guard into a route, or
 into a generated worker that registers routes first, silently hands the fetch
 event back to Workbox and disarms the guard. It also
-fails any network call under `src/` made outside the three sanctioned request
+fails any network call under `src/` made outside the four sanctioned request
 sites (`sync/api.ts` for `/api/session`, `src/lib/net.ts` for the push registry,
-`purpleHole.ts` for its own throttled feed fetch), so a new request path cannot
+`purpleHole.ts` for its own throttled feed fetch, `src/link/client.ts` for the
+loopback producer snapshot), so a new request path cannot
 land uncounted. See `docs/operations.md` §7.
 Worker rule: `pnpm test:worker` after touching `workers/` or any `src/lib` module
 the Worker imports. It bundles the Worker with `wrangler deploy --dry-run`
