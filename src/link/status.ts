@@ -1,15 +1,24 @@
 import { useSyncExternalStore } from "react";
+import type { BlockedPermission } from "@/link/permission";
 
-export type LinkPhase = "off" | "connecting" | "connected" | "polling" | "error";
+export type LinkPhase =
+  | "off"
+  | "connecting"
+  | "connected"
+  | "polling"
+  | "error"
+  | "permission";
 
 export type LinkStatus = {
   phase: LinkPhase;
   lastFrameAt: number | null;
+  permission: BlockedPermission | null;
 };
 
 const EMPTY: LinkStatus = {
   phase: "off",
   lastFrameAt: null,
+  permission: null,
 };
 
 let current: LinkStatus = EMPTY;

@@ -6,10 +6,13 @@ import {
   type LinkMessage,
 } from "@/lib/link/protocol";
 import type { LinkPhase } from "@/link/status";
+import { linkPermission, type BlockedPermission, type LinkPermission } from "@/link/permission";
 
 const PING_MS = 20_000;
 const PONG_LIMIT = 3;
 const HELLO_MS = 5_000;
+const STALL_MS = 3_000;
+const CONNECTING = 0;
 const POLL_VISIBLE_MS = 1_000;
 const POLL_HIDDEN_MS = 5_000;
 const QUIET_FIRST_MS = 2_000;
@@ -19,11 +22,16 @@ export type LinkHandlers = {
   onMessage: (message: LinkMessage) => void;
   onPhase: (phase: LinkPhase, error?: string | null) => void;
   onHello?: (producer: LinkHello["producer"]) => void;
+  onPermission?: (state: BlockedPermission) => void;
 };
 
 function backoff(attempt: number): number {
   const base = Math.min(8_000, 250 * 2 ** attempt);
   return Math.round(base * (0.8 + Math.random() * 0.4));
+}
+
+function blockedState(permission: LinkPermission): BlockedPermission {
+  return permission === "denied" ? "denied" : "prompt";
 }
 
 export function quietDelay(attempt: number): number {
@@ -44,7 +52,9 @@ export class LinkClient {
   private pollTimer: number | null = null;
   private pingTimer: number | null = null;
   private helloTimer: number | null = null;
+  private stallTimer: number | null = null;
   private polling = false;
+  private blocked = false;
 
   constructor(token: string, handlers: LinkHandlers) {
     this.token = token.trim();
@@ -52,7 +62,9 @@ export class LinkClient {
   }
 
   start(): void {
-    this.stopped = false;
+    this.clearTimers();
+    this.closeSocket();
+    this.blocked = false;
     this.everConnected = false;
     this.attempt = 0;
     this.lastSeq = 0;
@@ -69,7 +81,13 @@ export class LinkClient {
   }
 
   private clearTimers(): void {
-    for (const timer of [this.retryTimer, this.pollTimer, this.pingTimer, this.helloTimer]) {
+    for (const timer of [
+      this.retryTimer,
+      this.pollTimer,
+      this.pingTimer,
+      this.helloTimer,
+      this.stallTimer,
+    ]) {
       if (timer !== null) window.clearTimeout(timer);
       if (timer !== null) window.clearInterval(timer);
     }
@@ -77,6 +95,7 @@ export class LinkClient {
     this.pollTimer = null;
     this.pingTimer = null;
     this.helloTimer = null;
+    this.stallTimer = null;
   }
 
   private closeSocket(): void {
@@ -97,19 +116,26 @@ export class LinkClient {
       return;
     }
     this.ws = ws;
+    if (this.stallTimer !== null) window.clearTimeout(this.stallTimer);
+    this.stallTimer = window.setTimeout(() => void this.checkStall(), STALL_MS);
     ws.onopen = () => {
+      if (this.ws !== ws) return;
       this.helloTimer = window.setTimeout(() => {
         if (this.ws === ws) ws.close();
       }, HELLO_MS);
     };
     ws.onmessage = (event) => {
+      if (this.ws !== ws) return;
       if (typeof event.data !== "string") return;
       const parsed = parseLinkMessage(event.data);
       if (!parsed) return;
       const message = parsed.message;
       if (message.type === "hello") {
         if (this.helloTimer !== null) window.clearTimeout(this.helloTimer);
+        if (this.stallTimer !== null) window.clearTimeout(this.stallTimer);
         this.helloTimer = null;
+        this.stallTimer = null;
+        this.blocked = false;
         this.attempt = 0;
         this.everConnected = true;
         this.pongMissed = 0;
@@ -146,13 +172,21 @@ export class LinkClient {
       // onclose carries the retry decision.
     };
     ws.onclose = () => {
-      if (this.ws === ws) this.ws = null;
+      if (this.ws !== ws) return;
+      this.ws = null;
       this.stopPing();
-      if (this.stopped) return;
+      if (this.stopped || this.blocked) return;
       if (!this.everConnected) {
         this.attempt += 1;
         this.handlers.onPhase("off", null);
-        this.retryTimer = window.setTimeout(() => this.connect(), quietDelay(this.attempt));
+        const retry = window.setTimeout(() => this.connect(), quietDelay(this.attempt));
+        this.retryTimer = retry;
+        void linkPermission().then((permission) => {
+          if (permission !== "denied" || this.stopped || this.blocked) return;
+          window.clearTimeout(retry);
+          this.retryTimer = null;
+          this.block("denied");
+        });
         return;
       }
       this.attempt += 1;
@@ -184,14 +218,39 @@ export class LinkClient {
     this.pongMissed = 0;
   }
 
+  private block(permission: BlockedPermission): void {
+    if (this.blocked) return;
+    this.blocked = true;
+    this.clearTimers();
+    this.closeSocket();
+    this.handlers.onPermission?.(permission);
+  }
+
   private fallback(error: string): void {
     if (!this.everConnected) {
-      this.stopped = true;
-      this.handlers.onPhase("off", null);
+      void linkPermission().then((permission) => {
+        if (permission === "granted") {
+          this.stopped = true;
+          this.handlers.onPhase("off", null);
+          return;
+        }
+        this.block(blockedState(permission));
+      });
       return;
     }
     this.handlers.onPhase("error", error);
     this.startPolling();
+  }
+
+  private async checkStall(): Promise<void> {
+    this.stallTimer = null;
+    if (this.stopped || this.blocked || this.everConnected) return;
+    if (!this.ws || this.ws.readyState !== CONNECTING) return;
+    const permission = await linkPermission();
+    if (this.stopped || this.blocked || this.everConnected) return;
+    if (!this.ws || this.ws.readyState !== CONNECTING) return;
+    if (permission === "granted") return;
+    this.block(blockedState(permission));
   }
 
   private startPolling(): void {

@@ -159,7 +159,8 @@ Link rule: `pnpm test:link` after touching `src/lib/link/**`, `src/link/**`, or
 any tap handler that pins a row. It bundles `scripts/check-link.entry.ts` and
 runs the pure apply layer against anonymized wire fixtures: account and
 character scope, bucket refusal, identity match and adoption, the barrier
-inversion, pin survival, and the silent retry ladder. The seam it guards fails
+inversion, pin survival, the silent retry ladder, and a stalled socket naming
+the local network permission. The seam it guards fails
 silently in the panel: a row lands in the wrong scope, a stale bucket wins, or a
 pin is overwritten by the wire.
 Doc-facts rule: `pnpm test:docs` after touching the row set, a row's `max`, or any

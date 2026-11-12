@@ -4,6 +4,14 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-13 — Link permissions and first-link adoption
+<!-- whats-new: none -->
+
+### Chores
+- First-link adoption renames any character still named 角色 N, not only untouched ones, and gives the character being played first pick, so a tester who used the app before installing Link still receives rows.
+- The Link switch applies without a reload and starts the socket from the toggle click, so Chrome's Local Network Access prompt can appear.
+- A Link socket that is still connecting after 3 s names the local network permission in the menu row and retries on click.
+
 ## 2026-11-11 — MabiRoutine Link behind the experimental switch
 <!-- whats-new: none -->
 

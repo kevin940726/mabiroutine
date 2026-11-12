@@ -294,8 +294,35 @@ const progressed = planIdentities(
   {}
 );
 assert(
-  progressed.renames.length === 0 && progressed.bindings[0]?.cid === "c1",
-  "a placeholder with progress is never renamed"
+  progressed.renames.length === 1 &&
+    progressed.renames[0].cid === "c1" &&
+    progressed.renames[0].name === "A" &&
+    progressed.bindings[0]?.cid === "c1",
+  "a default-named character with progress is adopted"
+);
+
+const playedBefore = planIdentities(
+  [{ ...localChar("c1", "角色 1"), taskValues: { abyss: 1 } }],
+  [1, 2, 3, 4, 5, 6].map((n) => ({ gameId: 1000 + n, name: `G${n}` })),
+  {}
+);
+assert(
+  playedBefore.renames.length === 1 &&
+    playedBefore.creates.length === 5 &&
+    playedBefore.bindings.length === 1 &&
+    playedBefore.unmatched.length === 0,
+  "a roster with progress is adopted and the other game characters are created"
+);
+
+const activeFirst = planIdentities(
+  [{ ...localChar("c1", "角色 1"), taskValues: { abyss: 1 } }],
+  [{ gameId: 1001, name: "A" }, { gameId: 1005, name: "E" }],
+  {},
+  1005
+);
+assert(
+  activeFirst.renames.length === 1 && activeFirst.renames[0].name === "E",
+  "the active game character takes the character with progress"
 );
 
 const deal = [...shopDealsByPinId().values()].find(
@@ -359,15 +386,63 @@ if (deal) {
 
   assert(sockets.length === 8, `a quiet probe retries until a producer answers (${sockets.length} tries)`);
   assert(
-    JSON.stringify(waits) ===
+    waits.filter((ms) => ms === 3_000).length === sockets.length,
+    "every attempt schedules one stall check"
+  );
+  const ladder = waits.filter((ms) => ms !== 3_000);
+  assert(
+    JSON.stringify(ladder) ===
       JSON.stringify([2_000, 4_000, 8_000, 16_000, 32_000, 60_000, 60_000]),
-    `the quiet retry ladder backs off to a minute (${JSON.stringify(waits)})`
+    `the quiet retry ladder backs off to a minute (${JSON.stringify(ladder)})`
   );
   assert(
     !phases.includes("error") && !phases.includes("polling"),
     "a quiet retry stays silent and never polls"
   );
   assert(quietDelay(1) === 2_000 && quietDelay(9) === 60_000, "quietDelay caps at a minute");
+}
+
+{
+  const timers: Record<number, () => void> = {};
+  class SilentSocket {
+    onopen: (() => void) | null = null;
+    onmessage: ((e: { data: string }) => void) | null = null;
+    onerror: (() => void) | null = null;
+    onclose: (() => void) | null = null;
+    readyState = 0;
+    close(): void {}
+    send(): void {}
+  }
+  const scope = globalThis as unknown as Record<string, unknown>;
+  scope.window = {
+    setTimeout: (fn: () => void, ms: number) => {
+      timers[ms] = fn;
+      return 0;
+    },
+    clearTimeout: () => {},
+    setInterval: () => 0,
+    clearInterval: () => {},
+  };
+  scope.WebSocket = SilentSocket;
+  Object.defineProperty(scope, "navigator", {
+    value: { permissions: { query: async () => ({ state: "prompt" }) } },
+    configurable: true,
+  });
+
+  let seen: string | null = null;
+  const client = new LinkClient("", {
+    onMessage: () => {},
+    onPhase: () => {},
+    onPermission: (state) => {
+      seen = state;
+    },
+  });
+  client.start();
+  timers[3_000]?.();
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+  client.stop();
+
+  assert(seen === "prompt", "a stalled socket reports the local network permission");
 }
 
 console.log("check-link: all assertions passed");

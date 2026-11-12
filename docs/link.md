@@ -12,19 +12,23 @@ the beta has no UI for it.
 
 ## Transport
 
-The app probes `127.0.0.1:6278` on load without user action. The probe is
-silent: it never shows an error and never starts the 1 s poller. When nothing
-answers it retries on a 2 s, 4 s, 8 s, 16 s, 32 s, 60 s ladder for the life of
-the tab, so a Link started after the browser, or restarted mid-session, is
-picked up on its own. There is no connect or disconnect control: the
-experimental toggle is the switch, and turning it off reloads without the feed.
-Only a producer that answers moves the status to 已連線.
+The app starts the socket when the switch is turned on, and again on load when
+it is already on. The probe is silent about failures: it never reports a
+connection error and never starts the 1 s poller. The one exception is a socket
+Chrome is holding open with no answer, which is how a permission prompt shows
+up (below). When nothing answers it retries on a 2 s, 4 s, 8 s, 16 s, 32 s,
+60 s ladder for the life of the tab, so a Link started after the browser, or
+restarted mid-session, is picked up on its own. There is no connect or
+disconnect control: the experimental toggle is the switch, it applies without a
+reload, and turning it off stops the feed. Only a producer that answers moves
+the status to 已連線.
 
 The feature is off by default and behind 實驗性功能 (footer). With it on, the
-menu shows one row (`即時連結` · 未連線 / 連線中 / 已連線 / 連線失敗 / 即時 /
-未更新) and nothing else; there is no Link panel. A snapshot poller that took
-over after a socket drop keeps reading frames, so the freshness words still
-describe them. Support evidence lives on the desktop (Link's log,
+menu shows one row (`即時連結` · 未連線 / 連線中 / 已連線 / 連線失敗 / 請允許本機網路權限 /
+本機網路權限被拒 / 即時 / 未更新) and nothing else; there is no Link panel. A
+snapshot poller that took over after a socket drop keeps reading frames, so the
+freshness words still describe them. Support evidence lives on the desktop
+(Link's log,
 and the tray menu once the desktop build is packaged) plus two browser-console
 lines the app prints itself: one on connect naming the producer's version and
 id, one on a refusal the producer cannot see (an unmatched character, a stale
@@ -50,10 +54,14 @@ bucket).
   `?token=…` only in code mode.
 - The producer sends `hello`, then `snapshot`, then `delta`. The client sends
   `{"type":"ping"}` every 20 s when idle; three missed pongs means reconnect.
-- Chrome may show a Local Network Access prompt on the first connection. It is a
-  browser permission, not a pairing code; allow it once. The background probe
-  stays on the socket and never polls; the 1 s `GET /snapshot` fallback is used
-  only after a Connect, or after a link that has connected before.
+- Chrome gates the socket with a Local Network Access prompt, which needs a user
+  gesture. Enabling the switch is that gesture: the click starts the socket, so
+  the prompt can appear. Once allowed, the permission is stored per origin and a
+  later page load connects on its own. While the permission is unanswered or
+  denied the socket stalls, so after 3 s the menu row says 請允許本機網路權限 (or
+  本機網路權限被拒). Clicking the row retries, and a permission granted while the
+  row is showing connects without another click. That row is the only control;
+  the background probe never polls.
 
 ## Envelope
 
@@ -108,9 +116,10 @@ task definition says so.
 On the first snapshot the app learns the in-game character names:
 
 - an exact name match binds silently;
-- an untouched placeholder (`角色 N`, no progress) is renamed to the game name;
-- when every local character is still a placeholder, missing game characters
-  are created up to the six-character cap;
+- a character still named `角色 N` is renamed to the game name, progress or not,
+  and the character being played takes it first;
+- when every local name is still `角色 N`, missing game characters are created
+  up to the six-character cap;
 - a name the user typed is never overwritten, and an existing custom roster is
   not duplicated just because the names differ;
 - one local and one game character bind even if the names differ, so a label
@@ -186,7 +195,9 @@ the listener's state has to run first. Start in this order:
 4. `pnpm dev` in this repo, then enable 即時連結 in 實驗性功能 at the footer
 
 The menu row shows the phase: 即時 while frames are fresh, 未更新 after 30 s
-without one (quiet is not disconnected), and 未連線 when nothing is listening. Auto-link needs no code for a page
+without one (quiet is not disconnected), 未連線 when nothing is listening, and
+請允許本機網路權限 / 本機網路權限被拒 when Chrome has not been allowed to reach the
+local network (click the row to retry). Auto-link needs no code for a page
 served from a localhost origin. The service's `--require-code` is out of scope
 for this beta: the app has no pairing UI, so auto-link is the only supported
 mode. Restarting the service is safe: the app reconnects and takes a fresh

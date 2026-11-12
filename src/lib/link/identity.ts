@@ -12,13 +12,8 @@ export type IdentityPlan = {
 const DEFAULT_NAME = /^角色 \d+$/;
 const MAX_CHARACTERS = 6;
 
-export function isDefaultCharacter(c: Character): boolean {
-  return (
-    DEFAULT_NAME.test(c.name.trim()) &&
-    Object.keys(c.taskValues).length === 0 &&
-    c.hiddenTaskIds.length === 0 &&
-    Object.keys(c.taskOrder ?? {}).length === 0
-  );
+export function hasDefaultName(c: Character): boolean {
+  return DEFAULT_NAME.test(c.name.trim());
 }
 
 function slotOf(gameId: number): number {
@@ -38,13 +33,17 @@ export function activeCid(
 export function planIdentities(
   local: Character[],
   game: LinkGameCharacter[],
-  match: Record<string, string>
+  match: Record<string, string>,
+  activeGameId?: number
 ): IdentityPlan {
   const plan: IdentityPlan = { bindings: [], renames: [], creates: [], unmatched: [] };
   const used = new Set<string>();
-  const allPlaceholders = local.length > 0 && local.every(isDefaultCharacter);
+  const allDefaultNames = local.length > 0 && local.every(hasDefaultName);
   const ordered = [...game].sort(
-    (a, b) => slotOf(a.gameId) - slotOf(b.gameId) || a.gameId - b.gameId
+    (a, b) =>
+      Number(b.gameId === activeGameId) - Number(a.gameId === activeGameId) ||
+      slotOf(a.gameId) - slotOf(b.gameId) ||
+      a.gameId - b.gameId
   );
 
   for (const g of ordered) {
@@ -63,7 +62,7 @@ export function planIdentities(
       continue;
     }
 
-    const placeholder = local.find((c) => !used.has(c.id) && isDefaultCharacter(c));
+    const placeholder = local.find((c) => !used.has(c.id) && hasDefaultName(c));
     if (placeholder) {
       used.add(placeholder.id);
       plan.renames.push({ gameId: g.gameId, cid: placeholder.id, name: g.name });
@@ -77,7 +76,7 @@ export function planIdentities(
       continue;
     }
 
-    if (allPlaceholders && local.length + plan.creates.length < MAX_CHARACTERS) {
+    if (allDefaultNames && local.length + plan.creates.length < MAX_CHARACTERS) {
       plan.creates.push({ gameId: g.gameId, name: g.name });
       continue;
     }
@@ -85,7 +84,7 @@ export function planIdentities(
     plan.unmatched.push({
       gameId: g.gameId,
       name: g.name,
-      reason: allPlaceholders ? "full" : "no-match",
+      reason: allDefaultNames ? "full" : "no-match",
     });
   }
 

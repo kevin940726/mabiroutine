@@ -17,7 +17,8 @@ import { useWhatsNew, dotFor, taipeiDate } from "@/lib/whatsNew";
 import { useInstall } from "@/hooks/useInstall";
 import { useSyncStatus, type SyncStatus } from "@/sync/status";
 import { useLinkStatus, type LinkStatus } from "@/link/status";
-import { linkEnabled } from "@/lib/link/flag";
+import { useLinkEnabled } from "@/lib/link/flag";
+import { restartLinkFeed } from "@/link/feed";
 import type { ThemeMode } from "@/hooks/useTheme";
 
 const UPDATE_DOT_MS = 24 * 60 * 60 * 1000;
@@ -55,13 +56,48 @@ function syncTone(status: SyncStatus): string {
   return OK_TONE;
 }
 
-function linkRow(status: LinkStatus, now: number): { label: string; tone: string } {
-  if (status.phase === "off") return { label: "未連線", tone: "text-muted-foreground" };
-  if (status.phase === "connecting") return { label: "連線中", tone: WARN_TONE };
-  if (status.phase === "error") return { label: "連線失敗", tone: "text-destructive" };
-  if (status.lastFrameAt === null) return { label: "已連線", tone: OK_TONE };
+function linkRow(
+  status: LinkStatus,
+  now: number
+): { label: string; tone: string; retry: boolean } {
+  if (status.phase === "off") return { label: "未連線", tone: "text-muted-foreground", retry: false };
+  if (status.phase === "connecting") return { label: "連線中", tone: WARN_TONE, retry: false };
+  if (status.phase === "permission") {
+    return status.permission === "denied"
+      ? { label: "本機網路權限被拒", tone: "text-destructive", retry: true }
+      : { label: "請允許本機網路權限", tone: WARN_TONE, retry: true };
+  }
+  if (status.phase === "error") return { label: "連線失敗", tone: "text-destructive", retry: false };
+  if (status.lastFrameAt === null) return { label: "已連線", tone: OK_TONE, retry: false };
   const age = Math.max(0, now / 1000 - status.lastFrameAt);
-  return age > 30 ? { label: "未更新", tone: WARN_TONE } : { label: "即時", tone: OK_TONE };
+  return age > 30
+    ? { label: "未更新", tone: WARN_TONE, retry: false }
+    : { label: "即時", tone: OK_TONE, retry: false };
+}
+
+function LinkMenuRow({
+  state,
+  onRetry,
+}: {
+  state: { label: string; tone: string; retry: boolean };
+  onRetry: () => void;
+}) {
+  const content = (
+    <>
+      <RowIcon Icon={Link2} className="text-muted-foreground" />
+      <span>即時連結</span>
+      <span className={`ml-auto text-xs leading-5 tabular-nums ${state.tone}`}>{state.label}</span>
+      {state.retry && <span className="text-xs leading-5 text-muted-foreground">重試</span>}
+    </>
+  );
+  if (state.retry) {
+    return (
+      <DropdownMenuItem onSelect={onRetry} className="gap-2.5 px-2.5 py-2 text-sm">
+        {content}
+      </DropdownMenuItem>
+    );
+  }
+  return <div className="flex items-center gap-2.5 px-2.5 py-2 text-sm">{content}</div>;
 }
 
 function relativeTime(ts: number, now: number): string {
@@ -93,7 +129,7 @@ export function AppMenu({
   const status = useSyncStatus();
   const link = useLinkStatus();
   const linkState = linkRow(link, now);
-  const linkOn = linkEnabled();
+  const linkOn = useLinkEnabled();
   const updateReady = useUpdateReady();
   const whatsNew = useWhatsNew();
   const install = useInstall();
@@ -162,15 +198,7 @@ export function AppMenu({
               </span>
             )}
           </DropdownMenuItem>
-          {linkOn && (
-            <div className="flex items-center gap-2.5 px-2.5 py-2 text-sm">
-              <RowIcon Icon={Link2} className="text-muted-foreground" />
-              <span>即時連結</span>
-              <span className={`ml-auto text-xs leading-5 tabular-nums ${linkState.tone}`}>
-                {linkState.label}
-              </span>
-            </div>
-          )}
+          {linkOn && <LinkMenuRow state={linkState} onRetry={restartLinkFeed} />}
           <DropdownMenuItem onSelect={onSync} className="gap-2.5 px-2.5 py-2">
             <RowIcon Icon={RefreshCw} className="text-muted-foreground" />
             <span>同步</span>

@@ -18,7 +18,7 @@ import { PillProgress } from "@/components/PillProgress";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { SyncImport } from "@/sync/SyncImport";
 import { LinkFeed } from "@/link/LinkFeed";
-import { linkEnabled } from "@/lib/link/flag";
+import { useLinkEnabled } from "@/lib/link/flag";
 import { AppMenu } from "@/components/AppMenu";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -75,7 +75,7 @@ export default function App() {
   // the overall ring must roll at 06:00 even while the app sits open.
   const nowMs = useNow(30_000);
   const [tab, setTab] = useState<"tracker" | "barter">("tracker");
-  const [linkOn] = useState(() => linkEnabled());
+  const linkOn = useLinkEnabled();
   // The shop panel's tracker-jump entry, published through its `jumpRef` prop
   // (assigned during the panel's render, so it survives Activity's hidden-tab
   // effect teardown — see the prop's comment). A ref (not state) because it is
