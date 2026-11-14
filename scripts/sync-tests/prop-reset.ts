@@ -9,7 +9,7 @@
 //  (d) immediate second call is a no-op (idempotent);
 //  (e) all non-removed values byte-identical; non-value fields untouched.
 import { useAppStore } from "@/store/useAppStore";
-import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
+import { currentDailyBucket, currentWeekendBucket, getTaipeiWeekKey, isWeekendOpen } from "@/lib/reset";
 import { carriesOverCycle, cycleBucketFor } from "@/lib/cycle";
 import trackerJson from "@/data/tracker.json";
 import { CURATED_ORDER } from "@/data/curatedOrder";
@@ -108,6 +108,21 @@ let failures = 0;
 function fail(msg: string, extra?: unknown): void {
   failures += 1;
   console.log(`FAIL: ${msg}`, extra === undefined ? "" : JSON.stringify(extra).slice(0, 300));
+}
+
+const taipei = (day: number, hour: number, minute = 0) =>
+  new Date(Date.UTC(2026, 10, day, hour - 8, minute)); // Nov 2026; 14th is a Saturday
+const weekendCases: [string, Date, string, boolean][] = [
+  ["Wed 12:00", taipei(11, 12), "2026-11-14", false],
+  ["Sat 05:59", taipei(14, 5, 59), "2026-11-14", false],
+  ["Sat 06:00", taipei(14, 6), "2026-11-14", true],
+  ["Sun 12:00", taipei(15, 12), "2026-11-14", true],
+  ["Mon 05:59", taipei(16, 5, 59), "2026-11-14", true],
+  ["Mon 06:00", taipei(16, 6), "2026-11-21", false],
+];
+for (const [name, now, bucket, open] of weekendCases) {
+  if (currentWeekendBucket(now) !== bucket) fail(`weekend ${name}: bucket`, currentWeekendBucket(now));
+  if (isWeekendOpen(now) !== open) fail(`weekend ${name}: open`, isWeekendOpen(now));
 }
 
 const N = 300;

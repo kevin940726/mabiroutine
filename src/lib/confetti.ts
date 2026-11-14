@@ -18,6 +18,7 @@ import { BLACK_HOLE_DAILY_ID, BLACK_HOLE_ID, blackHoleState } from "@/lib/blackH
 import { isTaskDone } from "@/lib/hourlyReminders";
 import { isSubTaskId } from "@/lib/subTasks";
 import { isEventLive } from "@/lib/events";
+import { isWeekendRowLive } from "@/lib/reset";
 import type { Character, Task, TaskSection } from "@/lib/types";
 
 export type CelebrationSnapshot = {
@@ -55,6 +56,7 @@ export function visibleSectionTasks(section: TaskSection, s: CelebrationSnapshot
   const take = (t: Task) => {
     if (isHidden(t, s, char)) return;
     if (!isEventLive(t.endTime, Date.now())) return;
+    if (!isWeekendRowLive(t)) return;
     if (t.id === PURPLE_HOLE_ID && !isScheduledToday(Date.now())) return;
     kept.push(t);
   };

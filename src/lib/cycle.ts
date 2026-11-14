@@ -1,4 +1,4 @@
-import { currentDailyBucket, getTaipeiWeekKey } from "@/lib/reset";
+import { currentDailyBucket, currentWeekendBucket, getTaipeiWeekKey } from "@/lib/reset";
 import trackerJson from "@/data/tracker.json";
 import { shopDealsByPinId } from "@/lib/shops";
 import { isSubTaskId } from "@/lib/subTasks";
@@ -9,9 +9,18 @@ import { isSubTaskId } from "@/lib/subTasks";
 // — the sync protocol contains no reset deletes at all (see docs/sync.md).
 // Shared by the store (provenance pruning) and the sync codec (wire tags).
 
-type Builtin = { id: string; kind: string };
+type Builtin = { id: string; kind: string; weekendOnly?: boolean };
 const BUILTIN_KIND = new Map<string, string>((trackerJson as Builtin[]).map((t) => [t.id, t.kind]));
 const WEEKLY_KINDS = new Set(["weekly", "account-weekly"]);
+// A weekend row keeps the weekly reset but lives in a 48h window, so its value
+// is tagged by the window's Saturday, not the week key (see reset.ts).
+const WEEKEND_IDS = new Set(
+  (trackerJson as Builtin[]).filter((t) => t.weekendOnly === true).map((t) => t.id)
+);
+
+export function isWeekendTask(tid: string): boolean {
+  return WEEKEND_IDS.has(tid);
+}
 
 export function isWeeklyTask(tid: string, customTasks: { id: string; kind: string }[]): boolean {
   return WEEKLY_KINDS.has(taskKind(tid, customTasks));
@@ -36,6 +45,7 @@ export function taskKind(tid: string, customTasks: { id: string; kind: string }[
 
 // The bucket a value for `tid` belongs to, computed from the current clock.
 export function cycleBucketFor(tid: string, customTasks: { id: string; kind: string }[], now: Date = new Date()): string {
+  if (isWeekendTask(tid)) return currentWeekendBucket(now);
   return WEEKLY_KINDS.has(taskKind(tid, customTasks)) ? getTaipeiWeekKey(now) : currentDailyBucket(now);
 }
 

@@ -32,6 +32,7 @@ import { useHourlyReminders, useReminderDeepLink } from "@/hooks/useHourlyRemind
 import { usePurpleHoleReminders } from "@/hooks/usePurpleHoleReminders";
 import { PURPLE_HOLE_ID, isScheduledToday } from "@/lib/purpleHole";
 import { isEventLive } from "@/lib/events";
+import { isWeekendRowLive } from "@/lib/reset";
 import { BLACK_HOLE_DAILY_ID, blackHoleProgressTask, blackHoleProgressValue } from "@/lib/blackHole";
 import { healClaimedReminderLanes } from "@/lib/serverPush";
 import { takeUpdateAcknowledgement, takeUpdateReceipt } from "@/lib/updatePrompt";
@@ -226,6 +227,9 @@ export default function App() {
   // An event row is live only before its hardcoded endTime; the 30s clock in
   // `useNow` is what removes it without a reload.
   const eventLive = (t: Task) => isEventLive(t.endTime, nowMs);
+  // Runs before the lists, so a closed row leaves the totals and denominators
+  // with it and never reaches TrackerSection's hidden parking.
+  const weekendLive = (t: Task) => isWeekendRowLive(t, new Date(nowMs));
 
   // overall progress for active char + account (hidden tasks excluded):
   // builtins + custom + pinned barter, same ruler as the section badges.
@@ -236,7 +240,7 @@ export default function App() {
       .map((id) => barterTaskForPin(id))
       .filter((t): t is Task => !!t && !hidden.has(t.id));
     const all = topLevelTasks([...BUILTIN_TASKS, ...customTasks, ...pinnedBarter])
-      .filter((t) => !hidden.has(t.id) && !excludePurple(t) && eventLive(t))
+      .filter((t) => !hidden.has(t.id) && !excludePurple(t) && eventLive(t) && weekendLive(t))
       // 黑色坑洞's ruler is resolved over the week's 14, not the stored bank
       // (the bank alone would read as done at 7, mid-week).
       .map(blackHoleProgressTask);
@@ -251,7 +255,7 @@ export default function App() {
   // it into 已隱藏項目 on off-days (render-only, stays out of progress).
   // Sub-tasks are dropped: a quest's sub-counters render inside the parent row,
   // never as a top-level row or a section denominator.
-  const topBuiltins = topLevelTasks(BUILTIN_TASKS).filter(eventLive);
+  const topBuiltins = topLevelTasks(BUILTIN_TASKS).filter(eventLive).filter(weekendLive);
   const dailyTasks = topBuiltins.filter(
     (t) => t.section === "daily"
   );

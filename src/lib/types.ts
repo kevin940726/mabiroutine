@@ -12,6 +12,11 @@ export type Task = {
   /** Event row: the row is live only before this instant (ISO with offset).
    *  The value keeps its normal cycle; deleting the row later is the cleanup. */
   endTime?: string;
+  /** Weekend row: a normal weekly row that exists only inside the
+   *  Sat 06:00 → Mon 06:00 window. Hidden outside it, and bucketed by that
+   *  window's Saturday date, so a value cannot outlive the weekend. Builtin
+   *  rows only. */
+  weekendOnly?: boolean;
   section: TaskSection;
   kind: ResetKind;
   // countdown = counter for progress/resets, but the tile shows remaining

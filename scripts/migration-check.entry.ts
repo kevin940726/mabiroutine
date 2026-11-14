@@ -796,5 +796,42 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert(out.whatsNewNudged === "2026-10-20 — The default-pin audit", "X: nudge ack survives the stamp");
 }
 
+// Y: a weekend row is builtin-only, and has no legitimate untagged value: the
+// flag and the ids shipped together, so an untagged value is imported history
+// that must not be stamped into the coming weekend.
+{
+  const out = migratePersisted(
+    {
+      version: 23,
+      characters: [
+        { id: "c1", name: "A", taskValues: { "weekend-abyss": 1 }, hiddenTaskIds: [] },
+      ],
+      activeCharId: "c1",
+      customTasks: [
+        {
+          id: "cu-weekend",
+          name: "custom",
+          icon: "⭐",
+          section: "weekly",
+          kind: "weekly",
+          type: "check",
+          source: "custom",
+          order: 10,
+          weekendOnly: true,
+        },
+      ],
+      lastWeeklyReset: getTaipeiWeekKey(new Date()),
+    },
+    23
+  ) as AnyRec;
+  const tv = (out.characters as AnyRec[])[0].taskValues as AnyRec;
+  assert(!("weekend-abyss" in tv), "Y: an untagged weekend value is pruned, not carried into the weekend");
+  const customs = out.customTasks as AnyRec[];
+  assert(
+    customs.length === 1 && !("weekendOnly" in customs[0]),
+    "Y: weekendOnly is stripped from a custom row"
+  );
+}
+
 console.log("\nAll migration fixtures passed.");
 

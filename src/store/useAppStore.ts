@@ -6,7 +6,7 @@ import { DEFAULT_PINS } from "@/data/defaultPins";
 import type { AppState, Character, Task } from "@/lib/types";
 import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, poolMembers, costText, getText, barterTaskForPin, type ShopDeal } from "@/lib/shops";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
-import { carriesOverCycle, cycleBucketFor, isWeeklyTask } from "@/lib/cycle";
+import { carriesOverCycle, cycleBucketFor, isWeekendTask, isWeeklyTask } from "@/lib/cycle";
 import { subTaskIds } from "@/lib/subTasks";
 import { BLACK_HOLE_BANK_MAX, BLACK_HOLE_DAILY_ID, BLACK_HOLE_ID } from "@/lib/blackHole";
 import type { LinkWrite } from "@/lib/link/apply";
@@ -394,6 +394,9 @@ function normalizeTaskBuckets(
       return;
     }
     if (stored === undefined) {
+      // A weekend row and its flag shipped together, so an untagged value is
+      // imported history; stamping it would carry it into the coming weekend.
+      if (isWeekendTask(tid)) return;
       if (isWeeklyTask(tid, customTasks)) {
         if (lastWeeklyReset !== null && lastWeeklyReset !== getTaipeiWeekKey(now)) return; // pre-rollover → prune
       } else if (lastDailyReset !== null && lastDailyReset !== currentDailyBucket(now)) {
@@ -462,7 +465,15 @@ function normalizePersisted(input: unknown): AppState {
     c.hiddenTaskIds = Array.isArray(c.hiddenTaskIds) ? c.hiddenTaskIds : [];
   }
   const activeOk = chars.some((c) => c.id === d.activeCharId);
-  const customTasks: Task[] = Array.isArray(d.customTasks) ? d.customTasks : [];
+  // A weekend row is a builtin contract; the add dialog never sets the flag, so
+  // a hand-edited import is the only vector. Strip it rather than honor a window
+  // on a custom row that renders all week.
+  const customTasks: Task[] = (Array.isArray(d.customTasks) ? d.customTasks : []).map((t) => {
+    if (t.weekendOnly === undefined) return t;
+    const copy = { ...t };
+    delete copy.weekendOnly;
+    return copy;
+  });
   const accountValues = d.accountValues && typeof d.accountValues === "object" ? d.accountValues : {};
   // Custom order holds only pinned, live ids: unpins (toggle or sync-merge)
   // and removed rows fall out here on next load instead of lingering. Widen to

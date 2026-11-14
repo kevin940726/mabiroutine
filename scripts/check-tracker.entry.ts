@@ -68,6 +68,11 @@ for (const r of rows) {
   } else {
     assert(r.type === "counter", `${r.id}: only a counter may omit max (unbounded)`);
   }
+  if (r.weekendOnly !== undefined) {
+    assert(r.weekendOnly === true, `${r.id}: weekendOnly is either absent or true`);
+    assert(r.section === "weekly" && r.kind === "weekly", `${r.id}: weekendOnly needs the weekly section and kind`);
+    assert(r.source === "builtin", `${r.id}: weekendOnly is builtin-only`);
+  }
 }
 
 // 2. sub-task links: every child exists, keeps the parent's prefix, matches the
@@ -226,5 +231,12 @@ assert(blackHoleTap(7, 1) === null, "a tap at bank 7 + daily used is a no-op, ne
 assert(blackHoleDec(2, 1)?.bank === 1, "a −1 correction undoes the bank first");
 assert(blackHoleDec(0, 1)?.today === false, "a −1 correction at bank 0 clears the daily");
 assert(blackHoleDec(0, 0) === null, "a −1 correction at zero is a no-op");
+
+// 6. the two weekend rows the docs and the Link producer name. The flag IS the
+//    feature (render window + bucket), so a data edit that drops it must fail
+//    here instead of silently turning the window off.
+for (const id of ["weekend-abyss", "weekend-raid"]) {
+  assert(byId.get(id)?.weekendOnly === true, `${id}: carries weekendOnly`);
+}
 
 console.log("\ntracker.json gate passed.");

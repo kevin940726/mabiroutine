@@ -16,7 +16,7 @@ import { formatCountdown } from "@/lib/reset";
 import { celebrateAfterWrite, controlPoint } from "@/lib/confetti";
 import { useNow } from "@/hooks/useNow";
 import { SchedulePopover } from "@/components/SchedulePopover";
-import { EventTag } from "@/components/EventTag";
+import { EventTag, WeekendTag } from "@/components/Tags";
 import { ArtImg } from "@/components/ArtImg";
 import { NPC_PLACEHOLDER_SRC, npcIconPath } from "@/lib/npcIcon";
 
@@ -562,6 +562,7 @@ function TaskRowMobile({ task, value, isAccount, onEdit, portrait, merchantless,
       : [
           task.priority === "must" ? <span key="must" className={cn(chip, "bg-red-100 text-red-700 dark:bg-red-900/30")}>必做</span> : null,
           task.source === "custom" ? <span key="custom" className={cn(chip, "bg-blue-100 text-blue-700 dark:bg-blue-900/30")}>自訂</span> : null,
+          task.weekendOnly ? <WeekendTag key="weekend" /> : null,
           task.endTime ? <EventTag key="event" endTime={task.endTime} /> : null,
         ]
   ).filter((c) => c !== null);
@@ -1098,6 +1099,7 @@ function TaskRowDesktop({ task, value, isAccount, onEdit, portrait, merchantless
           {purpleReminderEligible && <ReminderBell lane="purple" taskId={task.id} taskName={task.name} />}
           {task.priority === "must" && <span className="rounded bg-red-100 text-red-700 dark:bg-red-900/30 px-1.5 py-0.5 text-[10px]">必做</span>}
           {task.source === "custom" && <span className="rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px]">自訂</span>}
+          {task.weekendOnly && <WeekendTag />}
           {task.endTime && <EventTag endTime={task.endTime} />}
           {/* The schedule marks ride the TITLE line, at desktop only. They used to
               have a band of their own, which made 深淵的黑色坑洞 the one 107px row in

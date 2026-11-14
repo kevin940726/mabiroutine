@@ -4,6 +4,11 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-14 — Weekend-only rows
+
+### Features
+- Two weekend-only rows, 週末就上深淵 (clear the abyss 3 times) and 週末團隊副本 (any team raid), appear only from Sat 06:00 to Mon 06:00, carry a 週末 tag, and stay out of every total the rest of the week.
+
 ## 2026-11-13 — Link permissions and first-link adoption
 <!-- whats-new: none -->
 

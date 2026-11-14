@@ -200,6 +200,30 @@
     "order": 140
   },
   {
+    "id": "weekend-abyss",
+    "name": "週末就上深淵！",
+    "icon": "🌊",
+    "desc": "週六 06:00 至週一 06:00 限定。通關深淵 3 次即完成。",
+    "section": "weekly",
+    "kind": "weekly",
+    "type": "check",
+    "source": "builtin",
+    "weekendOnly": true,
+    "order": 141
+  },
+  {
+    "id": "weekend-raid",
+    "name": "週末團隊副本！",
+    "icon": "⚔️",
+    "desc": "週六 06:00 至週一 06:00 限定。通關任一團隊副本即完成。",
+    "section": "weekly",
+    "kind": "weekly",
+    "type": "check",
+    "source": "builtin",
+    "weekendOnly": true,
+    "order": 142
+  },
+  {
     "id": "acc-stella",
     "name": "Stella Pick",
     "icon": "🌟",

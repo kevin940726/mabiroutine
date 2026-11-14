@@ -74,8 +74,12 @@ pref:hideCompleted | filter:{priority|town|skill|onlyPinned}
 ```
 
 `{bucket}` is the Taipei day key (`YYYY-MM-DD`) for daily-kind values
-(daily, account-daily, barter rows) and the week key (`YYYY-Wmmdd`) for
-weekly kinds. Provenance lives in the store (`taskBuckets: tid -> bucket`,
+(daily, account-daily, barter rows) and the week key (`YYYY-Wmmdd`) for weekly
+kinds. A weekend-only weekly row is the one exception: it resets with the week
+but tags its value with the day key of its window's Saturday (`Sat 06:00 →
+Mon 06:00`, `currentWeekendBucket` in `lib/reset.ts`), so the value expires at
+the same Monday 06:00 boundary and 8-day GC still parses the key. Provenance
+lives in the store (`taskBuckets: tid -> bucket`,
 v13) and rides the wire on every value key. One row class carries over a
 rollover: a grouped parent's sub-counters (weekly-goals' three legs) are the live
 state of an OPEN ROUND, so a stale bucket there is RE-STAMPED into the cycle being

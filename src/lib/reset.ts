@@ -111,6 +111,28 @@ export function getTaipeiWeekKey(now: Date = new Date()): string {
   return `${p.year}-W${String(p.month).padStart(2, "0")}${String(p.day).padStart(2, "0")}`;
 }
 
+/** Start of the weekend window that ends at the next weekly reset: the
+ *  Saturday 06:00 that opens the last 48h of the week, i.e. Sat 06:00 → Mon 06:00. */
+function getWeekendWindowStart(now: Date = new Date()): Date {
+  return new Date(getNextWeeklyReset(now).getTime() - 2 * 24 * 60 * 60 * 1000);
+}
+
+export function isWeekendOpen(now: Date = new Date()): boolean {
+  return now.getTime() >= getWeekendWindowStart(now).getTime();
+}
+
+/** A weekend row is live while its window is open; every other row is live. */
+export function isWeekendRowLive(row: { weekendOnly?: boolean }, now: Date = new Date()): boolean {
+  return !row.weekendOnly || isWeekendOpen(now);
+}
+
+/** Bucket for a weekend row: the date of its window's Saturday. Stable from
+ *  that Saturday 06:00 through the Monday 06:00 reset, then flips, so the value
+ *  expires at the weekly boundary like any other weekly row. */
+export function currentWeekendBucket(now: Date = new Date()): string {
+  return getTaipeiDateKey(getWeekendWindowStart(now));
+}
+
 export function shouldDailyReset(lastResetKey: string | null, now: Date = new Date()): boolean {
   if (!lastResetKey) return true;
   // lastResetKey is date key of last daily reset bucket
