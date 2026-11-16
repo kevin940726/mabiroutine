@@ -279,6 +279,10 @@ need a toggle because both kinds render as tiles and 類型 filters them.
   direction was reversed late: full-width was the original choice and half-width
   won on width (a paren pair is 8.7px at 13px, which is the difference between one
   line and two on the longest blueprint names).
+- **A renamed merchant is still findable.** `shops.json` may carry former names in
+  `aliases`; the shop search folds them into its haystack, and nothing else reads
+  them: no label, no `?npc=` resolution, no pin. A merchant named 尚 is 史恩 now,
+  and the old name still finds its rows.
 - **Deliberately not built:** item icons (see section 0), reminder bells and
   seeded gold pins (see section 2). Removal of `barterFilters` used to be on this
   list; it shipped at store v20 (see section 0).

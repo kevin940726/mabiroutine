@@ -8,7 +8,7 @@ import { cn, focusSelectOnMount } from "@/lib/utils";
 import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { costText, getText, loadShopNpcs, merchantKey, shopCatalogRanks, shopDeals, type ShopDeal } from "@/lib/shops";
+import { costText, getText, loadShopNpcs, merchantKey, shopCatalogRanks, shopDeals, shopRowSearchText, type ShopDeal } from "@/lib/shops";
 import { displayName, parseItemQty } from "@/lib/materials";
 import { ShopGrid } from "@/components/shop/ShopGrid";
 import { compareRows } from "@/components/shop/shared";
@@ -194,7 +194,7 @@ function rowMatches(item: ShopRow, query: string) {
   const fold = (v: string) => displayName(v).replace(/\u2009/g, "").toLocaleLowerCase("zh-Hant");
   const q = fold(query.trim());
   if (!q) return true;
-  return fold(`${item.title} ${item.give} ${item.npc} ${item.town}`).includes(q);
+  return fold(shopRowSearchText(item)).includes(q);
 }
 
 function filterItems(items: ShopRow[], town: string, query: string) {

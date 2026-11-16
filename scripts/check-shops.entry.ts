@@ -13,7 +13,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { parseItemQty, stringifyLimit, twinTradeLeg } from "@/lib/materials";
 import { TOWN_ORDER } from "@/lib/towns";
-import { barterRowName, dealToBarterTask, loadShopNpcs, shopDeals, shopPinId } from "@/lib/shops";
+import { barterRowName, dealToBarterTask, loadShopNpcs, shopDeals, shopPinId, shopRowSearchText } from "@/lib/shops";
 
 type Route = { kind: string };
 const recipes = recipesJson as Record<string, { routes?: Route[] }>;
@@ -38,7 +38,7 @@ for (const k of keys(shops)) {
 }
 const townList = (Array.isArray(shops["towns"]) ? shops["towns"] : []) as unknown[];
 const townKeys = new Set(["name", "npcs"]);
-const npcKeys = new Set(["name", "icon", "items"]);
+const npcKeys = new Set(["name", "aliases", "icon", "items"]);
 for (const t of townList) {
   if (!isObj(t) || typeof t["name"] !== "string" || !Array.isArray(t["npcs"])) {
     fail(`bad town block: ${JSON.stringify(t)?.slice(0, 80)}`);
@@ -57,6 +57,12 @@ for (const t of townList) {
     }
     if (n["icon"] !== undefined && typeof n["icon"] !== "string") {
       fail(`bad icon ${t["name"]} ${n["name"]}: portraits override with a public/npc path or omit`);
+    }
+    if (
+      n["aliases"] !== undefined &&
+      (!Array.isArray(n["aliases"]) || n["aliases"].some((a) => typeof a !== "string" || a.trim() === ""))
+    ) {
+      fail(`bad aliases ${t["name"]} ${n["name"]}: an array of non-empty former names, or omit`);
     }
   }
 }
@@ -94,16 +100,46 @@ for (const t of townList) {
 // merchant. Two boards in one town needs the array escape hatch: say so here.
 for (const t of townList) {
   if (!isObj(t) || !Array.isArray(t["npcs"])) continue;
+  const town = t["name"];
   const seen = new Set<string>();
   for (const n of t["npcs"] as unknown[]) {
     if (!isObj(n) || typeof n["name"] !== "string") continue;
     if (seen.has(n["name"] as string)) {
       fail(
-        `duplicate npc ${(n["name"] as string)} in ${t["name"]}: one town cannot hold two same-name merchants ` +
+        `duplicate npc ${(n["name"] as string)} in ${town}: one town cannot hold two same-name merchants ` +
           `(split them across towns if they are distinct; a genuine same-town pair needs the schema's array escape hatch)`
       );
     }
     seen.add(n["name"] as string);
+  }
+  const aliasOwner = new Map<string, string>();
+  for (const n of t["npcs"] as unknown[]) {
+    if (!isObj(n) || typeof n["name"] !== "string" || !Array.isArray(n["aliases"])) continue;
+    const npc = n["name"];
+    for (const alias of n["aliases"]) {
+      if (typeof alias !== "string") continue;
+      if (seen.has(alias)) fail(`alias ${alias} of ${town} ${npc} is also a live NPC name in the same town`);
+      const owner = aliasOwner.get(alias);
+      if (owner === npc) fail(`alias ${alias} in ${town} is listed twice on ${npc}`);
+      else if (owner !== undefined) fail(`alias ${alias} in ${town} is claimed by both ${owner} and ${npc}`);
+      aliasOwner.set(alias, npc);
+    }
+  }
+}
+for (const t of townList) {
+  if (!isObj(t) || typeof t["name"] !== "string" || !Array.isArray(t["npcs"])) continue;
+  for (const n of t["npcs"] as unknown[]) {
+    if (!isObj(n) || typeof n["name"] !== "string" || !Array.isArray(n["aliases"])) continue;
+    const got = loadShopNpcs().find((x) => x.name === n["name"] && x.town === t["name"])?.aliases ?? [];
+    if (got.length !== n["aliases"].length || n["aliases"].some((a) => !got.includes(a as string))) {
+      fail(`loader drops aliases for ${t["name"]} ${n["name"]}: ${JSON.stringify(got)} vs ${JSON.stringify(n["aliases"])}`);
+    }
+    const haystack = shopRowSearchText({ title: "", give: "", npc: n["name"], town: t["name"] });
+    for (const alias of n["aliases"]) {
+      if (typeof alias === "string" && !haystack.includes(alias)) {
+        fail(`shop search text misses alias ${alias} of ${t["name"]} ${n["name"]}`);
+      }
+    }
   }
 }
 // Curated order list: the display order for curated rows. Every curated

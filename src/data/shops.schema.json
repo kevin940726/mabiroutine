@@ -42,6 +42,12 @@
         "name": {
           "type": "string"
         },
+        "aliases": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Former in-game names, kept so the shop search still finds this merchant. Match-only: identity stays the current `name`, so pins, sections and jump params never read this."
+        },
         "icon": {
           "type": "string",
           "description": "Portrait override: path under public/npc served as-is. Omit to use the /npc/<name>.webp convention. Exists for the day two same-name NPCs need distinct faces."

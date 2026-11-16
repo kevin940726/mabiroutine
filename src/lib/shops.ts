@@ -70,6 +70,8 @@ export interface ShopNpc {
   town: string;
   /** Portrait override from the NPC object (`icon`); null follows the convention. */
   icon: string | null;
+  /** Former in-game names (`aliases`). Search matches these; nothing identifies on them. */
+  aliases: string[];
   deals: ShopDeal[];
 }
 
@@ -251,6 +253,20 @@ export function shopNpcIcon(npc: string, town: string): string | null {
   return npcIconCache.get(merchantKey(npc, town)) ?? null;
 }
 
+let npcAliasCache: Map<string, string[]> | null = null;
+function npcAliases(npc: string, town: string): string[] {
+  if (!npcAliasCache) {
+    npcAliasCache = new Map(loadShopNpcs().map((n) => [merchantKey(n.name, n.town), n.aliases]));
+  }
+  return npcAliasCache.get(merchantKey(npc, town)) ?? [];
+}
+
+/** The text the shop search folds for one row. The NPC's former names join the
+ *  haystack, so a renamed merchant stays findable by the old name. */
+export function shopRowSearchText(row: { title: string; give: string; npc: string; town: string }): string {
+  return `${row.title} ${row.give} ${row.npc} ${npcAliases(row.npc, row.town).join(" ")} ${row.town}`;
+}
+
 /** Every NPC in shops.json.
  *
  *  The file is town-grouped arrays, and the loader preserves file order end
@@ -263,7 +279,7 @@ let npcsCache: ShopNpc[] | null = null;
 export function loadShopNpcs(): ShopNpc[] {
   if (npcsCache) return npcsCache;
   const raw = shopsJson as unknown as {
-    towns?: { name?: unknown; npcs?: { name?: unknown; icon?: unknown; items?: RawOption[] }[] }[];
+    towns?: { name?: unknown; npcs?: { name?: unknown; icon?: unknown; aliases?: unknown; items?: RawOption[] }[] }[];
   };
   const npcs: ShopNpc[] = [];
   for (const townEntry of raw.towns ?? []) {
@@ -307,7 +323,15 @@ export function loadShopNpcs(): ShopNpc[] {
           curatedIndex: typeof item.id === "string" ? (CURATED_ORDER_POS.get(item.id) ?? -1) : -1,
         };
       });
-      npcs.push({ name: npc, town, icon: typeof shop.icon === "string" ? shop.icon : null, deals });
+      npcs.push({
+        name: npc,
+        town,
+        icon: typeof shop.icon === "string" ? shop.icon : null,
+        aliases: Array.isArray(shop.aliases)
+          ? shop.aliases.filter((a): a is string => typeof a === "string" && a.trim() !== "")
+          : [],
+        deals,
+      });
     }
   }
   resolvePools(npcs);
