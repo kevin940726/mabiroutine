@@ -96,8 +96,20 @@ try {
   const labelled = commit("labelled");
   expect("a labelled `## Unreleased` passes", gate(labelled, ZERO, "refs/heads/main", "--changelog-only"), {
     status: 0,
-    has: ["`## Unreleased` is empty"],
+    has: ["`## Unreleased` is empty", "internal-only release"],
   });
+  {
+    const json = JSON.parse(review("--json"));
+    if (json.id !== "2026-01-01 — first" || json.playerFacing || json.problems.length) {
+      fail(
+        `--json reads a Chores-only release — ${JSON.stringify({
+          id: json.id,
+          playerFacing: json.playerFacing,
+          problems: json.problems,
+        })}`
+      );
+    } else ok("--json reads a Chores-only release");
+  }
 
   // 4. a player-facing release needs an approval of the exact copy
   fs.mkdirSync(path.join(dir, "src/data"), { recursive: true });
@@ -111,6 +123,17 @@ try {
     has: ["not reviewed", "pnpm release:review"],
   });
   review("--approve");
+  {
+    const json = JSON.parse(review("--json"));
+    const problems = [];
+    if (json.id !== "2026-01-02 — feature") problems.push(`id ${json.id}`);
+    if (!json.playerFacing) problems.push("not playerFacing");
+    if (json.features.length !== 1 || json.features[0] !== "a thing") problems.push(`features ${JSON.stringify(json.features)}`);
+    if (json.zh.length !== 1 || json.zh[0].text !== "一件事。") problems.push(`zh ${JSON.stringify(json.zh)}`);
+    if (!json.approved) problems.push("not approved");
+    if (problems.length) fail(`--json prints the reviewable release — ${problems.join("; ")}`);
+    else ok("--json prints the reviewable release");
+  }
   expect("the approved feature release passes", gate(feature, ZERO, "refs/heads/main", "--changelog-only"), {
     status: 0,
     has: ["release notes reviewed"],

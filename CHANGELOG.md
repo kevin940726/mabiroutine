@@ -4,7 +4,11 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-16 — Chat release review and the 尚 rename
+<!-- whats-new: none -->
+
 ### Chores
+- The push flow now cuts the release, shows the player-facing copy in a chat prompt (approve, revise, or type your own), and writes the approval token only after that yes; `release-review --json` feeds the prompt.
 - The 班克爾 merchant 尚 is 史恩 now, matching the game; `shops.json` keeps 尚 as a search-only alias on the NPC object, so typing the old name still finds both barter rows.
 
 ## 2026-11-14 — Weekend-only rows

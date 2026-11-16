@@ -4,8 +4,9 @@
  *
  *   pnpm release:review            read, then approve or stop to edit
  *   pnpm release:review --print    print only
+ *   pnpm release:review --json     print the reviewable release as JSON (the chat prompt's input)
  *   pnpm release:review --check    exit 0 only when the tip content is approved
- *   pnpm release:review --approve  approve without a prompt (scripted use)
+ *   pnpm release:review --approve  record approval without a prompt, only after the user said yes in chat
  *
  * Approval is a hash of the English Features/Fixes and the zh bullets, written
  * to `.git/release-review.json`. The pre-push gate recomputes it from the tip
@@ -28,6 +29,30 @@ if (release.problems.length) {
   for (const problem of release.problems) console.error(`- ${problem}`);
   process.exit(1);
 }
+
+const token = readToken(root);
+const approved = token?.release === release.id && token.hash === release.hash;
+if (mode === "--json") {
+  console.log(
+    JSON.stringify(
+      {
+        id: release.id,
+        playerFacing: release.playerFacing,
+        features: release.features,
+        fixes: release.fixes,
+        chores: release.chores,
+        zh: release.zhEntries,
+        json: release.jsonEntries,
+        problems: release.problems,
+        approved,
+      },
+      null,
+      2
+    )
+  );
+  process.exit(0);
+}
+
 if (!release.playerFacing) {
   console.log(`Internal-only release: ${release.id}`);
   console.log("No in-app changelog (<!-- whats-new: none -->), so there is nothing to approve.");
@@ -47,9 +72,6 @@ const zhGroups = release.zhEntries.reduce(
   },
   { feature: [], fix: [] }
 );
-
-const token = readToken(root);
-const approved = token?.release === release.id && token.hash === release.hash;
 
 console.log(`Release: ${release.id}`);
 console.log("Files: CHANGELOG.md, CHANGELOG-zh_TW.md, src/data/whatsNew.generated.json");

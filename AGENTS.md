@@ -64,23 +64,25 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   player-facing changelog entry, and the per-commit Chores entry satisfies the
   changelog rule without putting it in the in-app changelog. When in doubt,
   Chores.
-- **The release label rides in the commit you push — there is no cut commit.**
-  Only `main` deploys, so the cut happens as part of an approved push to it, and
-  the label is one edit that belongs to the tip: rename `## Unreleased` to
-  `## <YYYY-MM-DD> — <label>` (label from the range's content) with a fresh empty
-  `## Unreleased` above it, then fold that edit into the tip commit
-  (`git commit --amend --no-edit` after staging) — the tip is unpushed by
-  definition, which is exactly why the label can ride there. A separate
-  `chore: date the changelog` commit said nothing the heading does not, so it is
-  gone. Do not amend a tip the user made: make the label its own small commit and
-  say so. Skip the cut when `Unreleased` is empty.
-- **The player-facing release is reviewed before the push.** After the cut, run
-  `pnpm release:review`. It prints the English Features/Fixes, the zh copy and
-  the JSON state, then records an approval hash in `.git/release-review.json`.
-  Editing either copy after approval invalidates it. A `main` push is blocked
-  until the tip commit's content is approved; a Chores-only release has nothing
-  to approve. Run it in a terminal (or use `--print`/`--approve`); the token is
-  per clone and `git push --no-verify` bypasses it like every gate.
+- **The push flow: gate, cut, chat review, one amended commit, push.** When the
+  user says push, run `pnpm check` first. Then cut the release: rename
+  `## Unreleased` to `## <YYYY-MM-DD> — <label>` (label from the range's content)
+  with a fresh empty `## Unreleased` above it, write the zh section and
+  regenerate the JSON (next bullet), and fold all three into the tip with
+  `git commit --amend --no-edit`. There is no separate cut commit, and the amend
+  is unconditional: the tip is unpushed by definition, so amend even when the
+  user made that commit. Run `pnpm test:whatsnew` after the cut, before the
+  prompt. Skip the cut when `Unreleased` is empty.
+- **The user approves the copy in the chat; the token comes after.** Run
+  `node scripts/release-review.mjs --json` and put the label, the English
+  Features/Fixes and the zh copy in a `question` prompt with two options:
+  1 approve and push, 2 revise the label or copy, plus the free-form other. On 2
+  or a typed reply, apply the change, amend again, and ask again; loop until the
+  user picks approve. Only then run `pnpm release:review --approve` and
+  `git push`. The hash in `.git/release-review.json` is written after that yes,
+  never before, and the pre-push gate still blocks a missing or stale one. A
+  Chores-only release affects nothing in the app; ask for its label anyway.
+  `git push --no-verify` bypasses the gate like every rule here.
 - A release with player-visible changes (Features/Fixes) also writes its zh
   section in `CHANGELOG-zh_TW.md` and regenerates
   `src/data/whatsNew.generated.json` (`node scripts/whats-new.mjs --write`) in

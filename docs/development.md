@@ -332,16 +332,20 @@ shipped code, and it takes the `whats-new: none` path in step 2.
    Technical and borderline work in Chores counts as nothing player-visible.
 3. `node scripts/whats-new.mjs --write` — the only writer of
    `src/data/whatsNew.generated.json`.
-4. Commit `CHANGELOG.md`, `CHANGELOG-zh_TW.md` and
-   `src/data/whatsNew.generated.json` together.
-5. `pnpm release:review`: read the English Features/Fixes and the zh copy, then
-   approve or stop, edit, and re-run. Approval records a hash of that copy in
-   `.git/release-review.json`; the pre-push gate recomputes it from the tip
-   commit, so editing either copy after approval blocks the push. A Chores-only
-   release has nothing to approve.
-6. Fold the label into the tip commit as usual (`git commit --amend --no-edit`
-   once staged). The approval is content-based, so the amend does not invalidate
-   it.
+4. Stage the three files and fold the cut into the tip: `git commit --amend
+   --no-edit`. There is no separate cut commit, and the amend is unconditional,
+   even when the user made that commit; the hash covers content, so the amend
+   cannot invalidate an approval.
+5. `node scripts/release-review.mjs --json`: read the label, the English
+   Features/Fixes and the zh copy, then put them in a `question` prompt with two
+   options, 1 approve and push, 2 revise the label or copy, plus the free-form
+   other. On a revision, edit, stage, amend again, and ask again; loop until the
+   user picks approve. A Chores-only release still gets a prompt for its label.
+   Run `pnpm test:whatsnew` after the cut, before the prompt.
+6. After that yes, `node scripts/release-review.mjs --approve` records the hash
+   of the approved copy in `.git/release-review.json`, then `git push`. The
+   pre-push gate recomputes the hash from the tip commit, so a copy edited after
+   approval blocks the push.
 
 The three files are one record seen three ways, which is why they cannot land
 apart: the zh file is the player-facing copy, and the JSON is the drawer's copy
