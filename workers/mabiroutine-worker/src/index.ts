@@ -1586,6 +1586,7 @@ async function handleInboundEmail(message: InboundEmail, env: Env): Promise<void
 // execution. The worker only moves bytes; it never signs.
 const LINK_MANIFEST = "manifest.json";
 const LINK_PACK = /^\/link\/packs\/([0-9a-f]{64}\.zip)$/;
+const LINK_SEED = /^\/link\/seed\/([0-9a-f]{64}\.zip)$/;
 
 async function handleLink(env: Env, url: URL, head = false): Promise<Response> {
   if (!env.LINK) {
@@ -1604,9 +1605,10 @@ async function handleLink(env: Env, url: URL, head = false): Promise<Response> {
         },
       });
     }
-    const match = LINK_PACK.exec(url.pathname);
-    if (!match) return new Response("not found\n", { status: 404 });
-    const key = `packs/${match[1]}`;
+    const pack = LINK_PACK.exec(url.pathname);
+    const seed = LINK_SEED.exec(url.pathname);
+    if (!pack && !seed) return new Response("not found\n", { status: 404 });
+    const key = pack ? `packs/${pack[1]}` : `seed/${seed![1]}`;
     const object = head ? await env.LINK.head(key) : await env.LINK.get(key);
     if (!object) return new Response("not found\n", { status: 404 });
     return new Response(head ? null : (object as R2ObjectBody).body, {

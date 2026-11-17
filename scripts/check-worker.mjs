@@ -119,6 +119,7 @@ const objects = new Map([
     { body: manifestBody, size: Buffer.byteLength(manifestBody), httpEtag: '"m"' },
   ],
   [`packs/${packName}`, { body: packBytes, size: packBytes.length, httpEtag: '"p"' }],
+  [`seed/${packName}`, { body: packBytes, size: packBytes.length, httpEtag: '"s"' }],
 ]);
 const linkEnv = {
   LINK: {
@@ -168,6 +169,13 @@ check(
 check(
   (await link("/link/packs/not-a-hash.zip")).status === 404,
   "a key that is not a sha256 name is 404, not a bucket read"
+);
+const seed = await link(`/link/seed/${packName}`);
+check(
+  seed.status === 200 &&
+    seed.headers.get("Cache-Control") === "public, max-age=31536000, immutable" &&
+    Buffer.from(await seed.arrayBuffer()).equals(packBytes),
+  "the seed is served from its own content-addressed path"
 );
 check(
   (await link("/link/manifest.json", {})).status === 503,

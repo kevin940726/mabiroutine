@@ -187,6 +187,7 @@ bucket is private and the worker is the only door.
 | binding | `LINK` in `workers/mabiroutine-worker/wrangler.jsonc` |
 | manifest | `/link/manifest.json`, `Cache-Control: no-store` |
 | packs | `/link/packs/<sha256>.zip`, `Cache-Control: public, max-age=31536000, immutable` |
+| seed | `/link/seed/<sha256>.zip`, same immutable headers; the first install, link-only |
 | unknown | anything else under `/link` is 404; `/robots.txt` disallows `/link` |
 | auth | none: the link is the gate. The Ed25519 signature, not a token, is what stops a compromised bucket becoming code execution |
 | signing key | `%USERPROFILE%\.mabiroutine\link-signing.pem`, outside both repos, backed up offline by the owner |
@@ -196,12 +197,15 @@ Publish from the private repo after `packaging/build.py` has produced
 `dist/packs/latest.json`:
 
 ```powershell
-python packaging/publish.py --revision 1 --notes "First beta with the overlay."
+python packaging/publish.py --revision 1 --notes "First beta with the overlay." `
+  --seed ..\mabiroutine-private\dist\MabiRoutineLink-0.1.0-<commit>.zip
 ```
 
 It builds unless `--skip-build`, signs, uploads the two content-addressed packs
-first and `manifest.json` last, then reads both back. An interrupted upload
-leaves the old manifest in place, so no client can see a pack that is not there.
+and the seed first and `manifest.json` last, then reads every URL back. An
+interrupted upload leaves the old manifest in place, so no client can see a pack
+that is not there. The seed is uploaded only when `--seed` is given; its URL is
+the one a new tester opens:
 
 Rollback is a **new revision** whose `packs` point at the previous good hashes;
 lowering `revision` does nothing because clients only move forward. `yanked: true`

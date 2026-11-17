@@ -5,6 +5,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 ## Unreleased
 
 ### Chores
+- The Link worker serves the link-only seed zip.
 - The Link worker answers a `HEAD` request for the manifest and its packs.
 - The Link worker serves the signed manifest and its content-addressed packs.
 
