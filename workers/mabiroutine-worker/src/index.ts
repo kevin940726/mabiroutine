@@ -53,6 +53,7 @@ import {
 
 type Env = {
   PURPLE: KVNamespace;
+  LINK: R2Bucket;
   VAPID_JWK?: string;
   VAPID_SUBJECT?: string;
   TURSO_DB_URL?: string;
@@ -1576,6 +1577,52 @@ async function handleInboundEmail(message: InboundEmail, env: Env): Promise<void
   console.log(`email "${subject}" from ${message.from} → discord ${status}`);
 }
 
+// ---- Link distribution (private R2) ----
+//
+// The packs and the seed carry decoded tables, so they stay off the public repo
+// and off public release assets. The link is the gate: no token, because anyone
+// holding the exe could read one. The manifest is Ed25519-signed offline and the
+// client pins the public key, so a compromised bucket cannot become code
+// execution. The worker only moves bytes; it never signs.
+const LINK_MANIFEST = "manifest.json";
+const LINK_PACK = /^\/link\/packs\/([0-9a-f]{64}\.zip)$/;
+
+async function handleLink(env: Env, url: URL): Promise<Response> {
+  if (!env.LINK) {
+    return new Response("link bucket is not bound\n", { status: 503 });
+  }
+  try {
+    if (url.pathname === "/link/manifest.json") {
+      const object = await env.LINK.get(LINK_MANIFEST);
+      if (!object) return new Response("not found\n", { status: 404 });
+      return new Response(object.body, {
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          // A revision must be seen on the next check, never a minute later.
+          "Cache-Control": "no-store",
+          ETag: object.httpEtag,
+        },
+      });
+    }
+    const match = LINK_PACK.exec(url.pathname);
+    if (!match) return new Response("not found\n", { status: 404 });
+    const object = await env.LINK.get(`packs/${match[1]}`);
+    if (!object) return new Response("not found\n", { status: 404 });
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": "application/zip",
+        // Content-addressed: the bytes behind a name never change.
+        "Cache-Control": "public, max-age=31536000, immutable",
+        ETag: object.httpEtag,
+        "Content-Length": String(object.size),
+      },
+    });
+  } catch (e) {
+    console.log(`link read failed: ${String(e)}`);
+    return new Response("link read failed\n", { status: 502 });
+  }
+}
+
 export default {
   async email(message: InboundEmail, env: Env): Promise<void> {
     await handleInboundEmail(message, env);
@@ -1589,13 +1636,19 @@ export default {
     if (req.method === "GET" && url.pathname === "/purple-schedule") {
       return Response.json(await readSchedule(_env), { headers: SCHEDULE_HEADERS });
     }
+    if (req.method === "GET" && url.pathname.startsWith("/link/")) {
+      return handleLink(_env, url);
+    }
     // Belt-and-braces with the page's noindex meta: this robots.txt only
     // governs the worker host itself (the app serves its own), and the
     // bearer secret remains the real gate either way.
     if (req.method === "GET" && url.pathname === "/robots.txt") {
-      return new Response("User-agent: *\nDisallow: /admin\nDisallow: /admin/api/\n", {
-        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" },
-      });
+      return new Response(
+        "User-agent: *\nDisallow: /admin\nDisallow: /admin/api/\nDisallow: /link\n",
+        {
+          headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" },
+        }
+      );
     }
     if (req.method === "POST" && url.pathname === "/hooks/vercel") {
       return handleVercelHook(req, _env);

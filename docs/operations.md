@@ -175,6 +175,52 @@ no linkage). First purple card lands in the first 1-min tick inside the
 lead window, so 14–15 min before spawn — e.g. under the old 15-min tick,
 spawn 14:38 → card 14:30 reading 預計 8 分鐘後出現.
 
+### 5.1 Link distribution (`LINK`, private R2)
+
+MabiRoutine Link is link-distributed from this worker, not from the app repo and
+not from a public release asset. The packs carry decoded game tables, so the
+bucket is private and the worker is the only door.
+
+| item | value |
+|---|---|
+| bucket | `mabiroutine-link` (private; no public URL, no custom domain) |
+| binding | `LINK` in `workers/mabiroutine-worker/wrangler.jsonc` |
+| manifest | `/link/manifest.json`, `Cache-Control: no-store` |
+| packs | `/link/packs/<sha256>.zip`, `Cache-Control: public, max-age=31536000, immutable` |
+| unknown | anything else under `/link` is 404; `/robots.txt` disallows `/link` |
+| auth | none: the link is the gate. The Ed25519 signature, not a token, is what stops a compromised bucket becoming code execution |
+| signing key | `%USERPROFILE%\.mabiroutine\link-signing.pem`, outside both repos, backed up offline by the owner |
+| public key | `43yuOsyYm2fxlhiL+B8mOHzK28gDETZ+wCiG16IxoL8=` (base64 raw Ed25519, pinned in the client) |
+
+Publish from the private repo after `packaging/build.py` has produced
+`dist/packs/latest.json`:
+
+```powershell
+python packaging/publish.py --revision 1 --notes "First beta with the overlay."
+```
+
+It builds unless `--skip-build`, signs, uploads the two content-addressed packs
+first and `manifest.json` last, then reads both back. An interrupted upload
+leaves the old manifest in place, so no client can see a pack that is not there.
+
+Rollback is a **new revision** whose `packs` point at the previous good hashes;
+lowering `revision` does nothing because clients only move forward. `yanked: true`
+in the manifest stops clients that have not updated yet; a client already on the
+bad build restores its `.old` folder.
+
+R2 must be enabled on the Cloudflare account before the first upload. If
+`wrangler r2 bucket list` says `Please enable R2 through the Cloudflare Dashboard
+(10042)`, enable it in the dashboard, then:
+
+```powershell
+node node_modules/wrangler/bin/wrangler.js r2 bucket create mabiroutine-link
+pnpm worker:deploy
+curl.exe -sI https://mabiroutine-worker.kaihao.workers.dev/link/manifest.json
+```
+
+The deploy is required **before** the first publish so a propagated manifest has
+a route to answer it.
+
 ## 6. Admin workflows (`/admin`, helpers welcome — the page teaches itself)
 
 1. **Verify**: open each candidate against the Bahamut search page (date,

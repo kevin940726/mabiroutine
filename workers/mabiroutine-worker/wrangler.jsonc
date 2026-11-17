@@ -8,5 +8,9 @@
   // 1-min purple check (arithmetic covers the 36h15m cycle), 2x/day watcher.
   // Cron edits take up to ~15 min to propagate (CF-documented).
   "triggers": { "crons": ["0 * * * *", "* * * * *", "17 3,15 * * *"] },
-  "kv_namespaces": [{ "binding": "PURPLE", "id": "2c35b0732c9a4ebd8d3088824fdc9401" }]
+  "kv_namespaces": [{ "binding": "PURPLE", "id": "2c35b0732c9a4ebd8d3088824fdc9401" }],
+  // Private distribution for the MabiRoutine Link beta: the seed and the two
+  // packs are link-only, never a public release asset. The worker is the only
+  // door; see docs/operations.md.
+  "r2_buckets": [{ "binding": "LINK", "bucket_name": "mabiroutine-link" }]
 }

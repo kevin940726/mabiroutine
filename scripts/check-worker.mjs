@@ -106,6 +106,62 @@ const esm = path.join(outdir, "hook-gate.mjs");
 fs.copyFileSync(bundle, esm);
 const mod = await import(pathToFileURL(esm).href);
 
+// ---- the /link distribution contract --------------------------------------
+// The worker only moves bytes. A fake R2 stands in for the bucket so the route,
+// cache headers and refusals are testable without credentials; the live gate is
+// one curl after a deploy.
+const manifestBody = JSON.stringify({ schema: "mabiroutine.link/1", revision: 7 });
+const packBytes = Buffer.from("PK\u0003\u0004 test pack");
+const packName = `${"a".repeat(64)}.zip`;
+const objects = new Map([
+  [
+    "manifest.json",
+    { body: manifestBody, size: Buffer.byteLength(manifestBody), httpEtag: '"m"' },
+  ],
+  [`packs/${packName}`, { body: packBytes, size: packBytes.length, httpEtag: '"p"' }],
+]);
+const linkEnv = {
+  LINK: {
+    get: async (key) => {
+      const found = objects.get(key);
+      if (!found) return null;
+      return { ...found, body: new Response(found.body).body };
+    },
+  },
+};
+const link = (path, env = linkEnv) =>
+  mod.default.fetch(new Request(`https://worker.test${path}`), env);
+
+const manifest = await link("/link/manifest.json");
+check(
+  manifest.status === 200 &&
+    manifest.headers.get("Cache-Control") === "no-store" &&
+    (await manifest.text()) === manifestBody,
+  "the manifest is served byte-for-byte with no-store"
+);
+const pack = await link(`/link/packs/${packName}`);
+check(
+  pack.status === 200 &&
+    pack.headers.get("Cache-Control") === "public, max-age=31536000, immutable" &&
+    pack.headers.get("Content-Type") === "application/zip" &&
+    Buffer.from(await pack.arrayBuffer()).equals(packBytes),
+  "a content-addressed pack is immutable and downloads unchanged"
+);
+check(
+  (await link(`/link/packs/${"b".repeat(64)}.zip`)).status === 404,
+  "an unknown pack is 404"
+);
+check(
+  (await link("/link/packs/not-a-hash.zip")).status === 404,
+  "a key that is not a sha256 name is 404, not a bucket read"
+);
+check(
+  (await link("/link/manifest.json", {})).status === 503,
+  "an unbound bucket answers 503 instead of an empty manifest"
+);
+const robots = await link("/robots.txt");
+check((await robots.text()).includes("Disallow: /link"), "robots.txt keeps /link out of crawlers");
+
 const secret = "whsec_gate_secret";
 const alertsSecret = "whsec_gate_alerts";
 const hookEnv = {
