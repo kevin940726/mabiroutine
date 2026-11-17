@@ -1587,15 +1587,15 @@ async function handleInboundEmail(message: InboundEmail, env: Env): Promise<void
 const LINK_MANIFEST = "manifest.json";
 const LINK_PACK = /^\/link\/packs\/([0-9a-f]{64}\.zip)$/;
 
-async function handleLink(env: Env, url: URL): Promise<Response> {
+async function handleLink(env: Env, url: URL, head = false): Promise<Response> {
   if (!env.LINK) {
     return new Response("link bucket is not bound\n", { status: 503 });
   }
   try {
     if (url.pathname === "/link/manifest.json") {
-      const object = await env.LINK.get(LINK_MANIFEST);
+      const object = head ? await env.LINK.head(LINK_MANIFEST) : await env.LINK.get(LINK_MANIFEST);
       if (!object) return new Response("not found\n", { status: 404 });
-      return new Response(object.body, {
+      return new Response(head ? null : (object as R2ObjectBody).body, {
         headers: {
           "Content-Type": "application/json; charset=utf-8",
           // A revision must be seen on the next check, never a minute later.
@@ -1606,9 +1606,10 @@ async function handleLink(env: Env, url: URL): Promise<Response> {
     }
     const match = LINK_PACK.exec(url.pathname);
     if (!match) return new Response("not found\n", { status: 404 });
-    const object = await env.LINK.get(`packs/${match[1]}`);
+    const key = `packs/${match[1]}`;
+    const object = head ? await env.LINK.head(key) : await env.LINK.get(key);
     if (!object) return new Response("not found\n", { status: 404 });
-    return new Response(object.body, {
+    return new Response(head ? null : (object as R2ObjectBody).body, {
       headers: {
         "Content-Type": "application/zip",
         // Content-addressed: the bytes behind a name never change.
@@ -1636,8 +1637,8 @@ export default {
     if (req.method === "GET" && url.pathname === "/purple-schedule") {
       return Response.json(await readSchedule(_env), { headers: SCHEDULE_HEADERS });
     }
-    if (req.method === "GET" && url.pathname.startsWith("/link/")) {
-      return handleLink(_env, url);
+    if ((req.method === "GET" || req.method === "HEAD") && url.pathname.startsWith("/link/")) {
+      return handleLink(_env, url, req.method === "HEAD");
     }
     // Belt-and-braces with the page's noindex meta: this robots.txt only
     // governs the worker host itself (the app serves its own), and the

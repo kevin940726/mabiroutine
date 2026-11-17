@@ -127,6 +127,10 @@ const linkEnv = {
       if (!found) return null;
       return { ...found, body: new Response(found.body).body };
     },
+    head: async (key) => {
+      const found = objects.get(key);
+      return found ? { ...found } : null;
+    },
   },
 };
 const link = (path, env = linkEnv) =>
@@ -150,6 +154,16 @@ check(
 check(
   (await link(`/link/packs/${"b".repeat(64)}.zip`)).status === 404,
   "an unknown pack is 404"
+);
+const head = await mod.default.fetch(
+  new Request(`https://worker.test/link/packs/${packName}`, { method: "HEAD" }),
+  linkEnv
+);
+check(
+  head.status === 200 &&
+    head.headers.get("Content-Length") === String(packBytes.length) &&
+    (await head.text()) === "",
+  "HEAD answers the size and headers with no body"
 );
 check(
   (await link("/link/packs/not-a-hash.zip")).status === 404,
