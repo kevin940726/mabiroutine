@@ -1627,6 +1627,11 @@ async function handleLink(env: Env, url: URL, head = false): Promise<Response> {
           : "public, max-age=31536000, immutable",
         ETag: object.httpEtag,
         "Content-Length": String(object.size),
+        // Set at upload: the path is a channel alias, so the name a tester
+        // keeps has to come from the object, not from the URL.
+        ...(object.httpMetadata?.contentDisposition
+          ? { "Content-Disposition": object.httpMetadata.contentDisposition }
+          : {}),
       },
     });
   } catch (e) {

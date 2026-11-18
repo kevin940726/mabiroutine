@@ -5,6 +5,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 ## Unreleased
 
 ### Chores
+- The Link seed is served under the name stored with it, so a publish keeps its content-addressed path.
 - A channel tag, `/link/<tag>.zip`, serves the latest seed and revalidates it, so a tester's saved URL survives every publish.
 
 ## 2026-11-18 — NPC renames and Link worker serving

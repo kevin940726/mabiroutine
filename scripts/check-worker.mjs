@@ -190,6 +190,17 @@ check(
   (await link("/link/not-a-tag.zip")).status === 404,
   "an unknown channel tag is 404"
 );
+const saved = 'attachment; filename="MabiRoutineLink-0.1.0-707e21c.zip"';
+objects.set("seed/named.zip", {
+  body: packBytes,
+  size: packBytes.length,
+  httpEtag: '"n"',
+  httpMetadata: { contentDisposition: saved },
+});
+check(
+  (await link("/link/named.zip")).headers.get("Content-Disposition") === saved,
+  "the name stored with the seed is the name the browser saves"
+);
 check(
   (await link("/link/manifest.json", {})).status === 503,
   "an unbound bucket answers 503 instead of an empty manifest"
