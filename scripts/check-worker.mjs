@@ -177,6 +177,19 @@ check(
     Buffer.from(await seed.arrayBuffer()).equals(packBytes),
   "the seed is served from its own content-addressed path"
 );
+objects.set("seed/beta.zip", { body: packBytes, size: packBytes.length, httpEtag: '"t"' });
+const tag = await link("/link/beta.zip");
+check(
+  tag.status === 200 &&
+    tag.headers.get("Cache-Control") === "no-cache" &&
+    tag.headers.get("Content-Type") === "application/zip" &&
+    Buffer.from(await tag.arrayBuffer()).equals(packBytes),
+  "a channel tag serves the latest seed and is revalidated"
+);
+check(
+  (await link("/link/not-a-tag.zip")).status === 404,
+  "an unknown channel tag is 404"
+);
 check(
   (await link("/link/manifest.json", {})).status === 503,
   "an unbound bucket answers 503 instead of an empty manifest"

@@ -1587,6 +1587,9 @@ async function handleInboundEmail(message: InboundEmail, env: Env): Promise<void
 const LINK_MANIFEST = "manifest.json";
 const LINK_PACK = /^\/link\/packs\/([0-9a-f]{64}\.zip)$/;
 const LINK_SEED = /^\/link\/seed\/([0-9a-f]{64}\.zip)$/;
+// A channel alias for the latest seed, so the URL a tester keeps never changes:
+// `/link/beta.zip` and `/link/stable.zip` are replaced in the bucket on publish.
+const LINK_TAG = /^\/link\/([a-z][a-z0-9-]{0,31})\.zip$/;
 
 async function handleLink(env: Env, url: URL, head = false): Promise<Response> {
   if (!env.LINK) {
@@ -1607,15 +1610,21 @@ async function handleLink(env: Env, url: URL, head = false): Promise<Response> {
     }
     const pack = LINK_PACK.exec(url.pathname);
     const seed = LINK_SEED.exec(url.pathname);
-    if (!pack && !seed) return new Response("not found\n", { status: 404 });
-    const key = pack ? `packs/${pack[1]}` : `seed/${seed![1]}`;
+    const tag = LINK_TAG.exec(url.pathname);
+    if (!pack && !seed && !tag) return new Response("not found\n", { status: 404 });
+    const key = pack ? `packs/${pack[1]}`
+      : seed ? `seed/${seed[1]}`
+      : `seed/${tag![1]}.zip`;
     const object = head ? await env.LINK.head(key) : await env.LINK.get(key);
     if (!object) return new Response("not found\n", { status: 404 });
     return new Response(head ? null : (object as R2ObjectBody).body, {
       headers: {
         "Content-Type": "application/zip",
-        // Content-addressed: the bytes behind a name never change.
-        "Cache-Control": "public, max-age=31536000, immutable",
+        // Content-addressed bytes never change. A tag is a moving alias, so it
+        // must be revalidated: a tester who keeps the URL gets the new seed.
+        "Cache-Control": tag
+          ? "no-cache"
+          : "public, max-age=31536000, immutable",
         ETag: object.httpEtag,
         "Content-Length": String(object.size),
       },
