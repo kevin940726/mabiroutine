@@ -1,4 +1,5 @@
 import {
+  healthUrl,
   parseLinkMessage,
   snapshotUrl,
   socketUrl,
@@ -17,12 +18,14 @@ const POLL_VISIBLE_MS = 1_000;
 const POLL_HIDDEN_MS = 5_000;
 const QUIET_FIRST_MS = 2_000;
 const QUIET_MAX_MS = 60_000;
+const HEALTH_MS = 5_000;
 
 export type LinkHandlers = {
   onMessage: (message: LinkMessage) => void;
   onPhase: (phase: LinkPhase, error?: string | null) => void;
   onHello?: (producer: LinkHello["producer"]) => void;
   onPermission?: (state: BlockedPermission) => void;
+  onPaused?: (paused: boolean) => void;
 };
 
 function backoff(attempt: number): number {
@@ -53,6 +56,7 @@ export class LinkClient {
   private pingTimer: number | null = null;
   private helloTimer: number | null = null;
   private stallTimer: number | null = null;
+  private healthTimer: number | null = null;
   private polling = false;
   private blocked = false;
 
@@ -87,6 +91,7 @@ export class LinkClient {
       this.pingTimer,
       this.helloTimer,
       this.stallTimer,
+      this.healthTimer,
     ]) {
       if (timer !== null) window.clearTimeout(timer);
       if (timer !== null) window.clearInterval(timer);
@@ -96,6 +101,7 @@ export class LinkClient {
     this.pingTimer = null;
     this.helloTimer = null;
     this.stallTimer = null;
+    this.healthTimer = null;
   }
 
   private closeSocket(): void {
@@ -141,6 +147,7 @@ export class LinkClient {
         this.pongMissed = 0;
         this.stopPolling();
         this.startPing();
+        this.startHealth();
         this.handlers.onHello?.(message.producer);
         this.handlers.onPhase("connected", null);
         return;
@@ -216,6 +223,25 @@ export class LinkClient {
     if (this.pingTimer !== null) window.clearInterval(this.pingTimer);
     this.pingTimer = null;
     this.pongMissed = 0;
+  }
+
+  /** `/health` is the only route that says the user paused capture. */
+  private startHealth(): void {
+    if (this.healthTimer !== null || !this.handlers.onPaused) return;
+    void this.checkHealth();
+    this.healthTimer = window.setInterval(() => void this.checkHealth(), HEALTH_MS);
+  }
+
+  private async checkHealth(): Promise<void> {
+    if (this.stopped) return;
+    try {
+      const response = await fetch(healthUrl(this.token), { cache: "no-store" });
+      if (!response.ok) return;
+      const doc = (await response.json()) as { paused?: unknown };
+      this.handlers.onPaused?.(doc.paused === true);
+    } catch {
+      // A dead producer is the socket's story to tell, not this probe's.
+    }
   }
 
   private block(permission: BlockedPermission): void {

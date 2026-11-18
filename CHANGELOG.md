@@ -5,6 +5,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 ## Unreleased
 
 ### Chores
+- A producer that pauses capture says so on `/health`, and the 即時連結 row reads 已暫停 instead of treating the silence as stale.
 - The Link seed is served under the name stored with it, so a publish keeps its content-addressed path.
 - A channel tag, `/link/<tag>.zip`, serves the latest seed and revalidates it, so a tester's saved URL survives every publish.
 

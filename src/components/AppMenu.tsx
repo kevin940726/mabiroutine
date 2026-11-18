@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowUpCircle, Download, FileDown, FileUp, History, Link2, Menu, Monitor, Moon, RefreshCw, Sun, SunMoon, Trash2, type LucideIcon } from "lucide-react";
+import { ArrowUpCircle, Download, FileDown, FileUp, History, Link2, Menu, Monitor, MonitorDown, Moon, RefreshCw, Sun, SunMoon, Trash2, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,10 +18,15 @@ import { useInstall } from "@/hooks/useInstall";
 import { useSyncStatus, type SyncStatus } from "@/sync/status";
 import { useLinkStatus, type LinkStatus } from "@/link/status";
 import { useLinkEnabled } from "@/lib/link/flag";
+import { useLinkSeen } from "@/lib/link/seen";
 import { restartLinkFeed } from "@/link/feed";
 import type { ThemeMode } from "@/hooks/useTheme";
 
 const UPDATE_DOT_MS = 24 * 60 * 60 * 1000;
+
+// A channel tag, not a content-addressed path: the worker replaces the bytes on
+// publish, so this URL never carries a version, a date or a hash.
+const LINK_DOWNLOAD_URL = "https://mabiroutine-worker.kaihao.workers.dev/link/beta.zip";
 
 const THEME_CHOICES: { value: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { value: "light", label: "淺色", Icon: Sun },
@@ -68,6 +73,7 @@ function linkRow(
       : { label: "請允許本機網路權限", tone: WARN_TONE, retry: true };
   }
   if (status.phase === "error") return { label: "連線失敗", tone: "text-destructive", retry: false };
+  if (status.paused) return { label: "已暫停", tone: "text-muted-foreground", retry: false };
   if (status.lastFrameAt === null) return { label: "已連線", tone: OK_TONE, retry: false };
   const age = Math.max(0, now / 1000 - status.lastFrameAt);
   return age > 30
@@ -130,6 +136,7 @@ export function AppMenu({
   const link = useLinkStatus();
   const linkState = linkRow(link, now);
   const linkOn = useLinkEnabled();
+  const linkSeen = useLinkSeen();
   const updateReady = useUpdateReady();
   const whatsNew = useWhatsNew();
   const install = useInstall();
@@ -199,6 +206,15 @@ export function AppMenu({
             )}
           </DropdownMenuItem>
           {linkOn && <LinkMenuRow state={linkState} onRetry={restartLinkFeed} />}
+          {linkOn && !linkSeen && (
+            <DropdownMenuItem asChild className="gap-2.5 px-2.5 py-2">
+              <a href={LINK_DOWNLOAD_URL}>
+                <RowIcon Icon={MonitorDown} className="text-muted-foreground" />
+                <span>MabiRoutine Link</span>
+                <span className="ml-auto text-xs leading-5 text-muted-foreground">下載</span>
+              </a>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onSelect={onSync} className="gap-2.5 px-2.5 py-2">
             <RowIcon Icon={RefreshCw} className="text-muted-foreground" />
             <span>同步</span>

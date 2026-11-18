@@ -6,6 +6,7 @@ import type { LinkHello, LinkMessage } from "@/lib/link/protocol";
 import { LinkClient } from "@/link/client";
 import { setLinkStatus } from "@/link/status";
 import type { LinkPhase } from "@/link/status";
+import { markLinkSeen } from "@/lib/link/seen";
 import { watchLinkPermission, type BlockedPermission } from "@/link/permission";
 
 let client: LinkClient | null = null;
@@ -72,7 +73,8 @@ function onMessage(message: LinkMessage): void {
 }
 
 function onPhase(phase: LinkPhase): void {
-  setLinkStatus({ phase, permission: null });
+  if (phase === "off") setLinkStatus({ phase, permission: null, paused: false });
+  else setLinkStatus({ phase, permission: null });
 }
 
 function onPermission(permission: BlockedPermission): void {
@@ -99,7 +101,12 @@ function onPermission(permission: BlockedPermission): void {
 }
 
 function onHello(producer: LinkHello["producer"]): void {
+  markLinkSeen();
   console.info("[link] connected", producer.version, producer.id, producer.mode);
+}
+
+function onPaused(paused: boolean): void {
+  setLinkStatus({ paused });
 }
 
 export function startLinkFeed(): void {
@@ -109,6 +116,7 @@ export function startLinkFeed(): void {
     onPhase,
     onPermission,
     onHello,
+    onPaused,
   });
   client.start();
 }
