@@ -64,7 +64,7 @@ const EXPERIMENTAL_TOGGLES: ExpToggle[] = [
   {
     id: "link",
     title: "即時連結（MabiRoutine Link）",
-    desc: "從遊戲電腦上的 MabiRoutine Link 讀取日課與副本進度，開啟後自動連上。需要先在遊戲電腦安裝並執行 Link；只影響這台裝置。要暫時停止抓取又不關閉 Link，用系統匣圖示的「暫停擷取」。",
+    desc: "從遊戲電腦上的 MabiRoutine Link 讀取日課與副本進度，開啟後自動連上。需要先在遊戲電腦安裝並執行 Link；只影響這台裝置。要暫時停止擷取又不關閉 Link，用系統匣圖示的「暫停擷取」。",
     read: linkEnabled,
     write: (on) => {
       if (!setLinkEnabled(on)) return false;

@@ -71,15 +71,18 @@ so the sticky blurred header cannot become the containing block.
 
 Contract, so it does not rot into a junk drawer:
 
-- Eight rows at most, one divider, no submenus; 外觀 is a single row of three
-  compact radio segments; 安裝 App and 有新版本 appear only while relevant
-  (installable, update waiting).
+- Eight rows at most outside the experimental Link rows, one divider, no
+  submenus; 外觀 is a single row of three compact radio segments; 即時連結 and
+  its download prompt appear only while the experimental flag is on, 安裝 App and
+  有新版本 appear only while relevant (installable, update waiting).
 - Anything past that is a row that opens a drawer, not another item.
 
 | Row | State shown | Opens |
 |---|---|---|
 | 有新版本 · 重新載入 | only while `updateReady` | reload |
 | 更新記錄 | `最新 · 10/20`; amber dot on ☰ until the menu is opened (shared by sync) or the release window passes | changelog drawer |
+| 即時連結 | phase word, only while the experimental flag is on | retry when the local network permission is blocked |
+| MabiRoutine Link | `下載`, only while the flag is on and this device has never connected | download the current beta |
 | 同步 | `已連結 · 2 分鐘前` / `未連結` / `同步失敗` | sync dialog |
 | 外觀 | three segments: 淺色 / 跟隨系統 / 深色 | inline, menu stays open |
 | 安裝 App | only while installable | native prompt, or a steps dialog |

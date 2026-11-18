@@ -73,7 +73,7 @@ function onMessage(message: LinkMessage): void {
 }
 
 function onPhase(phase: LinkPhase): void {
-  if (phase === "off") setLinkStatus({ phase, permission: null, paused: false });
+  if (phase === "off") setLinkStatus({ phase, permission: null, capturePaused: false });
   else setLinkStatus({ phase, permission: null });
 }
 
@@ -106,7 +106,7 @@ function onHello(producer: LinkHello["producer"]): void {
 }
 
 function onPaused(paused: boolean): void {
-  setLinkStatus({ paused });
+  setLinkStatus({ capturePaused: paused });
 }
 
 export function startLinkFeed(): void {

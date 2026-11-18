@@ -24,9 +24,7 @@ import type { ThemeMode } from "@/hooks/useTheme";
 
 const UPDATE_DOT_MS = 24 * 60 * 60 * 1000;
 
-// A channel tag, not a content-addressed path: the worker replaces the bytes on
-// publish, so this URL never carries a version, a date or a hash.
-const LINK_DOWNLOAD_URL = "https://mabiroutine-worker.kaihao.workers.dev/link/beta.zip";
+const LINK_BETA_CHANNEL_URL = "https://mabiroutine-worker.kaihao.workers.dev/link/beta.zip";
 
 const THEME_CHOICES: { value: ThemeMode; label: string; Icon: typeof Sun }[] = [
   { value: "light", label: "淺色", Icon: Sun },
@@ -73,7 +71,7 @@ function linkRow(
       : { label: "請允許本機網路權限", tone: WARN_TONE, retry: true };
   }
   if (status.phase === "error") return { label: "連線失敗", tone: "text-destructive", retry: false };
-  if (status.paused) return { label: "已暫停", tone: "text-muted-foreground", retry: false };
+  if (status.capturePaused) return { label: "已暫停", tone: "text-muted-foreground", retry: false };
   if (status.lastFrameAt === null) return { label: "已連線", tone: OK_TONE, retry: false };
   const age = Math.max(0, now / 1000 - status.lastFrameAt);
   return age > 30
@@ -208,7 +206,7 @@ export function AppMenu({
           {linkOn && <LinkMenuRow state={linkState} onRetry={restartLinkFeed} />}
           {linkOn && !linkSeen && (
             <DropdownMenuItem asChild className="gap-2.5 px-2.5 py-2">
-              <a href={LINK_DOWNLOAD_URL}>
+              <a href={LINK_BETA_CHANNEL_URL}>
                 <RowIcon Icon={MonitorDown} className="text-muted-foreground" />
                 <span>MabiRoutine Link</span>
                 <span className="ml-auto text-xs leading-5 text-muted-foreground">下載</span>

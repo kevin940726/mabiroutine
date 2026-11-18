@@ -7,8 +7,11 @@ persists it.
 
 The producer is not shipped with the app. A user installs it separately, turns
 the experimental 即時連結 switch on, and opens the app; it auto-links to the
-loopback producer. A pairing code exists on the wire for `--require-code`, but
-the beta has no UI for it.
+loopback producer. While the switch is on and the device has never received a
+`hello`, the menu shows one `MabiRoutine Link` · 下載 row that fetches the
+worker's `beta` channel (`/link/beta.zip`, replaced on every publish); the row
+retires after the first connection. A pairing code exists on the wire for
+`--require-code`, but the beta has no UI for it.
 
 ## Transport
 
@@ -25,7 +28,9 @@ the status to 已連線.
 
 The feature is off by default and behind 實驗性功能 (footer). With it on, the
 menu shows one row (`即時連結` · 未連線 / 連線中 / 已連線 / 連線失敗 / 請允許本機網路權限 /
-本機網路權限被拒 / 即時 / 未更新) and nothing else; there is no Link panel. A
+本機網路權限被拒 / 已暫停 / 即時 / 未更新), plus the download row while this device has
+never seen a producer; there is no Link panel. A producer that paused capture
+says so on `/health`, so the row reads 已暫停 while the socket stays connected. A
 snapshot poller that took over after a socket drop keeps reading frames, so the
 freshness words still describe them. Support evidence lives on the desktop
 (Link's log,
@@ -37,7 +42,7 @@ bucket).
 | route | method | what |
 |---|---|---|
 | `/link/1/snapshot` | GET | one snapshot document |
-| `/link/1/health` | GET | producer id, version, mode, `lastFrameAt`, uptime, counts |
+| `/link/1/health` | GET | producer id, version, mode, paused, `lastFrameAt`, uptime, counts |
 | `/link/1/stream` | GET | server-sent events, same objects as the socket |
 | `/link/1/socket` | GET | WebSocket, `hello` then `snapshot` then `delta` |
 
@@ -61,7 +66,8 @@ bucket).
   denied the socket stalls, so after 3 s the menu row says 請允許本機網路權限 (or
   本機網路權限被拒). Clicking the row retries, and a permission granted while the
   row is showing connects without another click. That row is the only control;
-  the background probe never polls.
+  the connection probe stays silent. A connected producer's `/health` is polled
+  every 5 s for the pause state.
 
 ## Envelope
 
@@ -179,7 +185,11 @@ character switch with no row change arrives as a delta with `rows: []`.
 
 The token, `match`, pins, watermarks, the black-hole inputs and `lastFrameAt`
 live in `localStorage` under `mabiroutine:link`. They are **not** in the synced
-store: the token is private to the install, and `cid` is a local random id.
+store: the token is private to the install, and `cid` is a local random id. A
+separate `mabiroutine:link:seen` flag records that this device received a
+producer's `hello`, which retires the download row. It proves a connection, never
+a download. A blocked write keeps the flag in memory for the session, so the row
+can return on the next load.
 
 Pin key: `account:{task}@{bucket}` or `{cid}:{task}@{bucket}`.
 Watermark key: the same shape.

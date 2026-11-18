@@ -4,7 +4,11 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-19 — Link beta download and pause status
+<!-- whats-new: none -->
+
 ### Chores
+- While 即時連結 is on and this device has never seen a producer, the menu offers the MabiRoutine Link desktop beta and retires that row after the first connection; the link is the worker's `beta` channel, so the UI carries no version, date or hash.
 - A producer that pauses capture says so on `/health`, and the 即時連結 row reads 已暫停 instead of treating the silence as stale.
 - The Link seed is served under the name stored with it, so a publish keeps its content-addressed path.
 - A channel tag, `/link/<tag>.zip`, serves the latest seed and revalidates it, so a tester's saved URL survives every publish.

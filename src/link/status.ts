@@ -13,15 +13,14 @@ export type LinkStatus = {
   phase: LinkPhase;
   lastFrameAt: number | null;
   permission: BlockedPermission | null;
-  /** The desktop paused capture on purpose; frames are not late, they are off. */
-  paused: boolean;
+  capturePaused: boolean;
 };
 
 const EMPTY: LinkStatus = {
   phase: "off",
   lastFrameAt: null,
   permission: null,
-  paused: false,
+  capturePaused: false,
 };
 
 let current: LinkStatus = EMPTY;
@@ -44,8 +43,4 @@ function subscribe(listener: () => void): () => void {
 
 export function useLinkStatus(): LinkStatus {
   return useSyncExternalStore(subscribe, () => current, () => EMPTY);
-}
-
-export function getLinkStatus(): LinkStatus {
-  return current;
 }
