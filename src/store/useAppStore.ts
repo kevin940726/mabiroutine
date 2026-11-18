@@ -4,7 +4,7 @@ import trackerJson from "@/data/tracker.json";
 import { CURATED_ORDER } from "@/data/curatedOrder";
 import { DEFAULT_PINS } from "@/data/defaultPins";
 import type { AppState, Character, Task } from "@/lib/types";
-import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinIds, poolMembers, costText, getText, barterTaskForPin, type ShopDeal } from "@/lib/shops";
+import { loadShopNpcs, shopDeals, shopDealsByPinId, shopPinId, shopPinIds, parseShopPinId, poolMembers, costText, getText, barterTaskForPin, type ShopDeal } from "@/lib/shops";
 import { shouldDailyReset, shouldWeeklyReset, getTaipeiWeekKey, currentDailyBucket } from "@/lib/reset";
 import { carriesOverCycle, cycleBucketFor, isWeekendTask, isWeeklyTask } from "@/lib/cycle";
 import { subTaskIds } from "@/lib/subTasks";
@@ -343,7 +343,7 @@ export function seedMissingDefaultPins(serverFlat: Record<string, unknown>): str
 export const COUNTER_SANITY_MAX = 999;
 
 const initial: AppState = {
-  version: 23,
+  version: 24,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -452,11 +452,53 @@ export function coerceCounterBooleans(state: {
   fix(state.accountValues);
 }
 
+const RENAMED_NPC: readonly (readonly [string, string])[] = [["麥爾坎", "瑪姆斯汀"]];
+
+function renameNpcPinId(id: string): string {
+  const pin = parseShopPinId(id);
+  if (!pin) return id;
+  const to = RENAMED_NPC.find(([from]) => from === pin.npc)?.[1];
+  return to ? shopPinId(to, pin.name) : id;
+}
+
+function renameIdList(ids: unknown[]): string[] {
+  return [...new Set(ids.filter((x): x is string => typeof x === "string").map(renameNpcPinId))];
+}
+
+function renameIdMapTargetWins<T>(rec: Record<string, T>): Record<string, T> {
+  const out: Record<string, T> = {};
+  const entries = Object.entries(rec);
+  for (const [k, v] of entries) if (renameNpcPinId(k) === k) out[k] = v;
+  for (const [k, v] of entries) {
+    const nk = renameNpcPinId(k);
+    if (nk !== k && !(nk in out)) out[nk] = v;
+  }
+  return out;
+}
+
+function remapRenamedNpcPins(d: Partial<AppState>): void {
+  for (const c of Array.isArray(d.characters) ? d.characters : []) {
+    if (c.taskValues && typeof c.taskValues === "object") c.taskValues = renameIdMapTargetWins(c.taskValues);
+    if (Array.isArray(c.hiddenTaskIds)) c.hiddenTaskIds = renameIdList(c.hiddenTaskIds);
+  }
+  if (d.accountValues && typeof d.accountValues === "object") d.accountValues = renameIdMapTargetWins(d.accountValues);
+  if (Array.isArray(d.barterPins)) d.barterPins = renameIdList(d.barterPins);
+  if (Array.isArray(d.barterCustomOrder)) d.barterCustomOrder = renameIdList(d.barterCustomOrder);
+  if (d.taskBuckets && typeof d.taskBuckets === "object") d.taskBuckets = renameIdMapTargetWins(d.taskBuckets);
+  if (d.globalTaskOrder && typeof d.globalTaskOrder === "object") {
+    d.globalTaskOrder = renameIdMapTargetWins(d.globalTaskOrder);
+  }
+  if (Array.isArray(d.hiddenAccountTaskIds)) d.hiddenAccountTaskIds = renameIdList(d.hiddenAccountTaskIds);
+  if (Array.isArray(d.hourlyReminders)) d.hourlyReminders = renameIdList(d.hourlyReminders);
+  if (Array.isArray(d.purpleHoleReminders)) d.purpleHoleReminders = renameIdList(d.purpleHoleReminders);
+}
+
 // Backward-compat: fill structural defaults for data that bypassed migrate
 // (versionless ancient saves, hand-edited storage, old import backups).
 // Runs on every load AND on import — migrate version steps run after this.
 function normalizePersisted(input: unknown): AppState {
   const d = (input ?? {}) as Partial<AppState>;
+  remapRenamedNpcPins(d);
   const chars = Array.isArray(d.characters) && d.characters.length > 0 ? d.characters : [defaultChar("角色 1")];
   for (const c of chars) {
     c.id = typeof c.id === "string" && c.id ? c.id : uid();
@@ -965,8 +1007,13 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     // v22 → v23: the changelog nudge became a synced marker. Additive — the
     // field defaults to "" in normalizePersisted, so there is no data to
     // transform; the step only carries the version chain to the configured
-    // number. No save exists at 23 yet, so this is the one bump for the marker.
+    // number.
     s.version = 23;
+  }
+  if (from < 24) {
+    // v23 → v24: the merchant 麥爾坎 is 瑪姆斯汀. The pin ids it derives move in
+    // remapRenamedNpcPins; this step records the rename in the version chain.
+    s.version = 24;
   }
   // AFTER the steps, never before: the steps interpret their own booleans (v11
   // reads tower: true as 20), so an ingest coercion running first would eat the
@@ -1524,7 +1571,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 23,
+      version: 24,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       // `merge` runs on EVERY rehydration, where `migrate` runs only when the
       // stored version differs from the configured one. That difference is the

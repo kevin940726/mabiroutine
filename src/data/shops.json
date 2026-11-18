@@ -225,7 +225,8 @@
           ]
         },
         {
-          "name": "麥爾坎",
+          "name": "瑪姆斯汀",
+          "aliases": ["麥爾坎"],
           "items": [
             {
               "name": "空瓶",
@@ -288,7 +289,7 @@
               }
             },
             {
-              "name": "麥爾坎的鬆軟羊毛枕頭",
+              "name": "瑪姆斯汀的鬆軟羊毛枕頭",
               "kind": "barter",
               "cost": {
                 "amount": 5,
@@ -301,7 +302,7 @@
               "priority": "extra",
               "barter": {
                 "give": "蜘蛛網 ×5",
-                "get": "麥爾坎的鬆軟羊毛枕頭 ×1",
+                "get": "瑪姆斯汀的鬆軟羊毛枕頭 ×1",
                 "limit": "每日 1 次"
               }
             },
@@ -660,7 +661,7 @@
               "kind": "barter",
               "cost": {
                 "amount": 1,
-                "currency": "麥爾坎的鬆軟羊毛枕頭"
+                "currency": "瑪姆斯汀的鬆軟羊毛枕頭"
               },
               "limit": {
                 "times": 3
@@ -668,7 +669,7 @@
               "id": "yen-蘿拉麥爾坎的鬆軟羊毛枕頭-64",
               "priority": "situational",
               "barter": {
-                "give": "麥爾坎的鬆軟羊毛枕頭",
+                "give": "瑪姆斯汀的鬆軟羊毛枕頭",
                 "get": "旅行者點心",
                 "limit": "每日 3 次"
               }
@@ -3125,7 +3126,8 @@
       "name": "班克爾",
       "npcs": [
         {
-          "name": "伊比",
+          "name": "貝蒂",
+          "aliases": ["伊比"],
           "items": [
             {
               "name": "落葉蛾",

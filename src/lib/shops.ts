@@ -107,6 +107,16 @@ export function shopPinId(npc: string, name: string): string {
   return `shop::${npc}::${name}`;
 }
 
+/** The inverse of `shopPinId`: null for anything shaped differently, so a caller
+ *  rewriting a renamed NPC's pins never mangles an unrelated id. */
+export function parseShopPinId(id: string): { npc: string; name: string } | null {
+  if (!id.startsWith("shop::")) return null;
+  const rest = id.slice(6);
+  const at = rest.indexOf("::");
+  if (at <= 0 || at + 2 >= rest.length) return null;
+  return { npc: rest.slice(0, at), name: rest.slice(at + 2) };
+}
+
 /** Split an authored `pool` target (`npc::town`) into its parts. Null for any
  *  shape the gate rejects, so a bad value never half-resolves at runtime. */
 export function splitPoolTarget(target: string): { npc: string; town: string } | null {

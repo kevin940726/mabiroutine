@@ -281,8 +281,10 @@ need a toggle because both kinds render as tiles and 類型 filters them.
   line and two on the longest blueprint names).
 - **A renamed merchant is still findable.** `shops.json` may carry former names in
   `aliases`; the shop search folds them into its haystack, and nothing else reads
-  them: no label, no `?npc=` resolution, no pin. A merchant named 尚 is 史恩 now,
-  and the old name still finds its rows.
+  them: no label, no `?npc=` resolution, no pin. 尚 is 史恩, 麥爾坎 is 瑪姆斯汀 and
+  伊比 is 貝蒂 today, and each old name still finds its rows. A rename that reaches
+  a gold row also rewrites its pin id — see the pin-id note in `docs/tracker-data.md`
+  § Item Inventory.
 - **Deliberately not built:** item icons (see section 0), reminder bells and
   seeded gold pins (see section 2). Removal of `barterFilters` used to be on this
   list; it shipped at store v20 (see section 0).

@@ -21,7 +21,7 @@ Data knowledge lives in `docs/` (read it before touching data or sync):
   terminal (the default), or ask before a background one; a silent background
   server is never the choice. Say which you used, and stop the one you started.
 
-## Store Version Bumps (persist schema `useAppStore.ts`, current `v23`)
+## Store Version Bumps (persist schema `useAppStore.ts`, current `v24`)
 
 Key `mabiroutine:v2` is the storage slot name (stable); `version` is the schema number (bumps).
 User progress always wins — migrate only fills defaults and prunes dangling keys, never overwrites values.
@@ -30,7 +30,7 @@ Checklist when persisted shape changes (new/renamed/removed field, removed row i
 1. Bump `version` in **two** places: `initial.version` and persist config `version`.
 2. Append `if (from < N) { ...; s.version = N; }` in `migratePersisted` — chain from the previous number, keep old steps forever (users may skip releases). `normalizePersisted` runs before steps on every load, so steps can assume full shape.
 3. Removing row ids → extend the v6 prune pattern (add the new dangling container, or it generalizes already via the `valid` set from `validPinnableIds` (tracker + curated + custom + `shop::` ids)).
-4. Renaming a row id → add an explicit id-remap in the new step (prune would drop the old progress otherwise); tell the user first.
+4. Renaming a row id → add an explicit id-remap in the new step (prune would drop the old progress otherwise); tell the user first. An id the data derives from a name (`shop::<npc>::<name>` gold pins) is remapped in `normalizePersisted` instead, ahead of its bucket and drag-order passes, with the step recording the bump.
 5. `pnpm build` must pass; user-facing impact goes in `CHANGELOG.md` + READMEs (`README.md` / `README-zh_TW.md`) or `docs/storage.md` as appropriate.
 
 **Fold a bump that has not shipped — do not stack one.** `main` is what users have, so compare against it before spending a number: `git show main:src/store/useAppStore.ts | rg 'version: '`. If the current version was bumped only on your unmerged branch, no save exists at it, so two unreleased changes belong in **one** step at the same number. Add to the existing step rather than adding `N → N+1`, and say in the comment why the changes share a version. Bumping anyway is not fatal, it is just a step that can never run for anyone, kept forever by rule 2.

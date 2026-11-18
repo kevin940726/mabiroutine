@@ -4,7 +4,12 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-18 — NPC renames and Link worker serving
+<!-- whats-new: none -->
+
 ### Chores
+- The 堤爾克那 merchant 麥爾坎 is 瑪姆斯汀 and the 班克爾 merchant 伊比 is 貝蒂 now, matching the game; `shops.json` keeps both old names as search-only aliases, and the item 麥爾坎的鬆軟羊毛枕頭 follows as 瑪姆斯汀的鬆軟羊毛枕頭 with its art.
+- The store schema moves to `v24`: a saved gold pin on 麥爾坎's rows follows the rename to `shop::瑪姆斯汀::<item>` instead of dangling, while ids that merely embed the old name, `yen-蘿拉麥爾坎的鬆軟羊毛枕頭-64` included, stay as they are.
 - The Link worker serves the link-only seed zip.
 - The Link worker answers a `HEAD` request for the manifest and its packs.
 - The Link worker serves the signed manifest and its content-addressed packs.
