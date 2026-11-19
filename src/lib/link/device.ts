@@ -1,3 +1,5 @@
+import { currentDailyBucket, currentWeekendBucket, getTaipeiWeekKey } from "@/lib/reset";
+
 export type LinkStamp = { at: number; value: number | boolean; op?: number };
 export type LinkBlackHole = {
   weekly?: LinkStamp;
@@ -9,7 +11,7 @@ export type LinkDeviceState = {
   version: 1;
   token: string;
   match: Record<string, string>;
-  pins: Record<string, true>;
+  localWrites: Record<string, number>;
   watermarks: Record<string, LinkStamp>;
   blackHole: Record<string, LinkBlackHole>;
   lastFrameAt: number | null;
@@ -22,7 +24,7 @@ export function emptyLinkDevice(): LinkDeviceState {
     version: 1,
     token: "",
     match: {},
-    pins: {},
+    localWrites: {},
     watermarks: {},
     blackHole: {},
     lastFrameAt: null,
@@ -33,6 +35,24 @@ function rec(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+function pruneLocalWrites(
+  writes: Record<string, number>,
+  now: Date
+): Record<string, number> {
+  const live = new Set([
+    currentDailyBucket(now),
+    getTaipeiWeekKey(now),
+    currentWeekendBucket(now),
+  ]);
+  const out: Record<string, number> = {};
+  for (const [key, at] of Object.entries(writes)) {
+    if (!Number.isFinite(at)) continue;
+    const bucket = key.slice(key.lastIndexOf("@") + 1);
+    if (live.has(bucket)) out[key] = at;
+  }
+  return out;
+}
+
 export function loadLinkDevice(): LinkDeviceState {
   if (typeof localStorage === "undefined") return emptyLinkDevice();
   try {
@@ -40,11 +60,19 @@ export function loadLinkDevice(): LinkDeviceState {
     if (!raw) return emptyLinkDevice();
     const blob: unknown = JSON.parse(raw);
     if (!rec(blob)) return emptyLinkDevice();
+    // A saved boolean pin has no timestamp, so it is dropped; the next snapshot
+    // is allowed to heal those rows.
+    const localWrites: Record<string, number> = {};
+    if (rec(blob.localWrites)) {
+      for (const [key, at] of Object.entries(blob.localWrites)) {
+        if (typeof at === "number" && Number.isFinite(at)) localWrites[key] = at;
+      }
+    }
     return {
       version: 1,
       token: typeof blob.token === "string" ? blob.token : "",
       match: rec(blob.match) ? (blob.match as Record<string, string>) : {},
-      pins: rec(blob.pins) ? (blob.pins as Record<string, true>) : {},
+      localWrites: pruneLocalWrites(localWrites, new Date()),
       watermarks: rec(blob.watermarks)
         ? (blob.watermarks as Record<string, LinkStamp>)
         : {},
@@ -80,20 +108,26 @@ export function linkKey(
   return `${owner}:${taskId}@${bucket}`;
 }
 
-export function isPinned(state: LinkDeviceState, key: string): boolean {
-  return state.pins[key] === true;
+export function isGuarded(
+  state: LinkDeviceState,
+  key: string,
+  rowAt: number
+): boolean {
+  const at = state.localWrites[key];
+  return at !== undefined && rowAt <= at;
 }
 
-export function pinLinkRow(
+export function recordLocalWrites(
   state: LinkDeviceState,
-  scope: "character" | "account",
-  charId: string | null,
-  taskId: string,
-  bucket: string
+  keys: string[],
+  at: number
 ): LinkDeviceState {
-  const key = linkKey(scope, charId, taskId, bucket);
-  if (state.pins[key]) return state;
-  const next = { ...state, pins: { ...state.pins, [key]: true as const } };
+  const localWrites = { ...state.localWrites };
+  for (const key of keys) localWrites[key] = at;
+  const next = {
+    ...state,
+    localWrites: pruneLocalWrites(localWrites, new Date(at * 1000)),
+  };
   saveLinkDevice(next);
   return next;
 }

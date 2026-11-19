@@ -1,7 +1,8 @@
 import { applyLinkRows, type LinkApplyInput } from "@/lib/link/apply";
-import { emptyLinkDevice, linkKey } from "@/lib/link/device";
+import { emptyLinkDevice, linkKey, loadLinkDevice, saveLinkDevice } from "@/lib/link/device";
 import { activeCid, planIdentities } from "@/lib/link/identity";
-import { parseLinkMessage } from "@/lib/link/protocol";
+import { parseLinkMessage, type LinkRow } from "@/lib/link/protocol";
+import { currentDailyBucket, currentWeekendBucket, getTaipeiWeekKey } from "@/lib/reset";
 import { BLACK_HOLE } from "@/lib/link/tasks";
 import { LinkClient, quietDelay } from "@/link/client";
 import { shopDealsByPinId } from "@/lib/shops";
@@ -143,11 +144,70 @@ const unknownChar = applyLinkRows(
 );
 assert(unknownChar.writes.length === 0 && unknownChar.unresolved[0]?.reason === "no-character", "an unmatched character is counted");
 
-const pinnedKey = linkKey("character", "c1", "daily-dungeon", once.writes[0].bucket);
-const pinned = applyLinkRows(
-  base({ device: { ...emptyLinkDevice(), pins: { [pinnedKey]: true } }, rows: [rows.daily] })
+const tapKey = linkKey("character", "c1", "daily-dungeon", once.writes[0].bucket);
+const tapDevice = { ...emptyLinkDevice(), localWrites: { [tapKey]: T } };
+
+const guarded = applyLinkRows(
+  base({ device: tapDevice, rows: [{ ...rows.daily, at: T - 1 }] })
 );
-assert(pinned.writes.length === 0 && pinned.pinned[0] === pinnedKey, "a pinned row is skipped");
+assert(
+  guarded.writes.length === 0 &&
+    guarded.guarded[0]?.key === tapKey &&
+    guarded.guarded[0]?.tapAt === T,
+  "a row older than the local write is guarded"
+);
+
+const newer = applyLinkRows(
+  base({ device: tapDevice, rows: [{ ...rows.daily, at: T + 1 }] })
+);
+assert(
+  newer.writes.length === 1 && newer.device.localWrites[tapKey] === undefined,
+  "a newer observation applies and clears the guard"
+);
+
+const repeat = applyLinkRows(
+  base({
+    device: {
+      ...tapDevice,
+      watermarks: { [tapKey]: { at: T - 5, value: true } },
+    },
+    rows: [{ ...rows.daily, at: T + 1, changed: false }],
+  })
+);
+assert(
+  repeat.writes.length === 0 && repeat.device.localWrites[tapKey] === T,
+  "a same-value repeat keeps the local value"
+);
+
+const changedTrue = applyLinkRows(
+  base({
+    device: {
+      ...tapDevice,
+      watermarks: { [tapKey]: { at: T - 5, value: true } },
+    },
+    rows: [{ ...rows.daily, at: T + 1, changed: true }],
+  })
+);
+assert(
+  changedTrue.writes.length === 1 &&
+    changedTrue.device.localWrites[tapKey] === undefined,
+  "a changed row with the same value beats a repeat and clears the guard"
+);
+
+const finishedRepeat = applyLinkRows(
+  base({
+    device: {
+      ...tapDevice,
+      watermarks: { [tapKey]: { at: T - 5, value: true } },
+    },
+    rows: [{ ...rows.daily, at: T + 1, changed: false, finished: true }],
+  })
+);
+assert(
+  finishedRepeat.writes.length === 1 &&
+    finishedRepeat.writes[0].finished === true,
+  "a finished transition applies through a repeat"
+);
 
 const bh = applyLinkRows(
   base({
@@ -158,6 +218,116 @@ const bh = applyLinkRows(
 const bank = bh.writes.find((w) => w.taskId === BLACK_HOLE && w.charId === "c1");
 assert(bank?.value === 3, "black-hole 11 left + today 5 left + daily unused stores bank 3");
 assert(bh.writes.find((w) => w.taskId === "black-hole-daily")?.value === false, "the daily check still applies");
+
+if (!bank) throw new Error("black-hole bank write missing");
+const bankKey = linkKey("character", "c1", BLACK_HOLE, bank.bucket);
+const bankTap = { ...emptyLinkDevice(), localWrites: { [bankKey]: T } };
+const bankGuarded = applyLinkRows(
+  base({
+    device: bankTap,
+    rows: [rows.blackHole, rows.blackHoleToday, rows.blackHoleDaily],
+    characters: chars(),
+  })
+);
+assert(
+  !bankGuarded.writes.some((w) => w.taskId === BLACK_HOLE) &&
+    bankGuarded.guarded.some((g) => g.key === bankKey),
+  "a bank guard blocks the composite at the same time"
+);
+const bankNewer = applyLinkRows(
+  base({
+    device: bankTap,
+    nowSeconds: T + 10,
+    rows: [
+      { ...rows.blackHole, at: T + 1 },
+      { ...rows.blackHoleToday, at: T + 1 },
+      { ...rows.blackHoleDaily, at: T + 1 },
+    ],
+  })
+);
+assert(
+  bankNewer.writes.some((w) => w.taskId === BLACK_HOLE),
+  "a newer input recomputes the bank"
+);
+
+const goalRows = [
+  { task: "weekly-goals", character: { gameId: 1001, name: "角色A" }, value: 4, kind: "count", at: T, op: 170966, confidence: "proven", changed: true },
+  { task: "weekly-goals-deep-dungeon", character: { gameId: 1001, name: "角色A" }, value: 0, kind: "count", at: T, op: 170966, confidence: "proven", changed: true },
+  { task: "weekly-goals-dungeon", character: { gameId: 1001, name: "角色A" }, value: 0, kind: "count", at: T, op: 170966, confidence: "proven", changed: true },
+  { task: "weekly-goals-hunt", character: { gameId: 1001, name: "角色A" }, value: 0, kind: "count", at: T, op: 170966, confidence: "proven", changed: true },
+] satisfies LinkRow[];
+const goals = applyLinkRows(base({ rows: goalRows }));
+const goalKeys = goals.writes.map((w) =>
+  linkKey(w.scope, w.charId ?? null, w.taskId, w.bucket)
+);
+const goalTap = {
+  ...emptyLinkDevice(),
+  localWrites: Object.fromEntries(goalKeys.map((key) => [key, T])),
+};
+const turnIn = applyLinkRows(
+  base({ device: goalTap, rows: goalRows.map((row) => ({ ...row, at: T + 1 })) })
+);
+assert(
+  turnIn.writes.length === 4 &&
+    goalKeys.every((key) => turnIn.device.localWrites[key] === undefined),
+  "a newer turn-in batch applies and clears every guard"
+);
+
+if (!dayBucket) throw new Error("daily-dungeon write missing its bucket");
+const barrierKey = linkKey("character", "c1", "barrier", dayBucket);
+const barrierTap = { ...emptyLinkDevice(), localWrites: { [barrierKey]: T } };
+const barrierNewer = applyLinkRows(
+  base({ device: barrierTap, rows: [{ ...rows.barrier, at: T + 1 }] })
+);
+assert(
+  barrierNewer.writes.length === 1 && barrierNewer.writes[0].taskId === "barrier",
+  "a newer barrier observation applies"
+);
+
+const memory = new Map<string, string>();
+Object.defineProperty(globalThis, "localStorage", {
+  configurable: true,
+  value: {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      memory.set(key, String(value));
+    },
+    removeItem: (key: string) => {
+      memory.delete(key);
+    },
+  },
+});
+const now = new Date();
+const dailyNow = currentDailyBucket(now);
+const weekNow = getTaipeiWeekKey(now);
+const weekendNow = currentWeekendBucket(now);
+const oldDaily = currentDailyBucket(new Date(now.getTime() - 2 * 86400 * 1000));
+const oldWeek = getTaipeiWeekKey(new Date(now.getTime() - 8 * 86400 * 1000));
+const oldWeekend = currentWeekendBucket(new Date(now.getTime() - 8 * 86400 * 1000));
+saveLinkDevice({
+  ...emptyLinkDevice(),
+  localWrites: {
+    [`c1:daily@${dailyNow}`]: T,
+    [`c1:weekly@${weekNow}`]: T,
+    [`c1:weekend@${weekendNow}`]: T,
+    [`c1:daily@${oldDaily}`]: T,
+    [`c1:weekly@${oldWeek}`]: T,
+    [`c1:weekend@${oldWeekend}`]: T,
+  },
+});
+const loaded = loadLinkDevice();
+assert(
+  loaded.localWrites[`c1:daily@${dailyNow}`] === T &&
+    loaded.localWrites[`c1:weekly@${weekNow}`] === T &&
+    loaded.localWrites[`c1:weekend@${weekendNow}`] === T,
+  "the live daily, weekly and weekend buckets survive a load"
+);
+assert(
+  loaded.localWrites[`c1:daily@${oldDaily}`] === undefined &&
+    loaded.localWrites[`c1:weekly@${oldWeek}`] === undefined &&
+    loaded.localWrites[`c1:weekend@${oldWeekend}`] === undefined,
+  "stale daily, weekly and weekend buckets are pruned on load"
+);
 
 const bhWire = [{ ...rows.blackHole, at: T }, { ...rows.blackHoleToday, at: T }];
 const withParts = (parts: {

@@ -154,7 +154,7 @@ Each line below is when the gate fires and what its silence costs. The check lis
 
 - `test:shops` — after any `src/data` file (recipes, shops, curated order). Wrong data ships silently.
 - `test:tracker` — after `tracker.json`. Silent in the app: a broken `subTasks` link renders no child, a duplicate id steals another row's progress.
-- `test:link` — after `src/lib/link/**`, `src/link/**`, or any tap handler that pins a row. The wire's account scope, character scope, bucket refusal, identity match, barrier inversion and black-hole composition fail silently in the panel.
+- `test:link` — after `src/lib/link/**`, `src/link/**`, or any tap handler that guards a row. The wire's account scope, character scope, bucket refusal, identity match, barrier inversion and black-hole composition fail silently in the panel.
 - `test:docs` — after the row set, a row's `max`, or any doc or skill quoting those numbers. A stale instruction misleads the next writer.
 - `test:prepush` — after changing `scripts/pre-push-gate.mjs`, `scripts/release-review.mjs` or the changelog rules: its own outcomes, pinned in a throwaway repo (a commit with no changelog change, an unlabelled `## Unreleased` on `main` stopping before the suite, a `feat/*` ref skipping that rule, a player-facing release blocked until approved, the approved copy passing, an edit after approval blocking again, a dirty tree with a failing suite, a bad revision range). The hook blocks pushes on its say-so, so a silent regression here is a rule that stops being enforced.
 - `test:icons` — after `src/lib/itemIcon.ts` or the item data. The emitted path fails silently in two directions.

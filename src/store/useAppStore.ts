@@ -10,7 +10,7 @@ import { carriesOverCycle, cycleBucketFor, isWeekendTask, isWeeklyTask } from "@
 import { subTaskIds } from "@/lib/subTasks";
 import { BLACK_HOLE_BANK_MAX, BLACK_HOLE_DAILY_ID, BLACK_HOLE_ID } from "@/lib/blackHole";
 import type { LinkWrite } from "@/lib/link/apply";
-import { loadLinkDevice, pinLinkRow } from "@/lib/link/device";
+import { loadLinkDevice, linkKey, recordLocalWrites } from "@/lib/link/device";
 import { linkEnabled } from "@/lib/link/flag";
 import { flushStorage, idleStorage } from "@/lib/storage";
 
@@ -25,24 +25,24 @@ function isAccountTaskId(id: string, customTasks: Task[]): boolean {
 
 const BLACK_HOLE_ROWS = [BLACK_HOLE_ID, BLACK_HOLE_DAILY_ID];
 
-// The bank and its daily check are one composite, so the wire must not touch
-// either half once the user acts on one.
-function rowsPinnedWith(taskId: string): string[] {
+// The bank and its daily check share one composite write, so both are guarded.
+function rowsGuardedWith(taskId: string): string[] {
   return BLACK_HOLE_ROWS.includes(taskId) ? BLACK_HOLE_ROWS : [taskId];
 }
 
-function pinTap(taskId: string, isAccount: boolean, state: AppState): void {
+function guardTap(taskId: string | string[], isAccount: boolean, state: AppState): void {
   if (!linkEnabled()) return;
-  for (const id of rowsPinnedWith(taskId)) {
-    const bucket = cycleBucketFor(id, state.customTasks, new Date());
-    pinLinkRow(
-      loadLinkDevice(),
-      isAccount ? "account" : "character",
-      isAccount ? null : state.activeCharId,
-      id,
-      bucket
-    );
-  }
+  const now = new Date();
+  const at = now.getTime() / 1000;
+  const scope = isAccount ? "account" : "character";
+  const cid = isAccount ? null : state.activeCharId;
+  const ids = Array.isArray(taskId) ? taskId : [taskId];
+  const keys = ids.flatMap((id) =>
+    rowsGuardedWith(id).map((rowId) =>
+      linkKey(scope, cid, rowId, cycleBucketFor(rowId, state.customTasks, now))
+    )
+  );
+  recordLocalWrites(loadLinkDevice(), keys, at);
 }
 
 function uid() {
@@ -1097,7 +1097,7 @@ export const useAppStore = create<Store>()(
 
       toggleCheck: (taskId, isAccount) =>
         set((s) => {
-          pinTap(taskId, isAccount, s);
+          guardTap(taskId, isAccount, s);
           const bucket = cycleBucketFor(taskId, s.customTasks, new Date());
           // Explicit unchecked is a PRESENT false, not an absence: absence
           // means "reset pruned" and stays silent on the wire (rev 3), so
@@ -1131,7 +1131,7 @@ export const useAppStore = create<Store>()(
 
       setCounter: (taskId, value, isAccount) =>
         set((s) => {
-          pinTap(taskId, isAccount, s);
+          guardTap(taskId, isAccount, s);
           const clamped = Math.max(0, value);
           // Zero is a PRESENT 0 for the same reason as toggleCheck's false:
           // deleting would stay silent and the server's old count would
@@ -1218,7 +1218,7 @@ export const useAppStore = create<Store>()(
 
       writeBlackHole: (patch, isAccount) =>
         set((s) => {
-          pinTap(BLACK_HOLE_ID, isAccount, s);
+          guardTap(BLACK_HOLE_ID, isAccount, s);
           const now = new Date();
           const nextBuckets = { ...s.taskBuckets };
           // Stamp only the halves this write touches; each row's own cycle
@@ -1250,7 +1250,7 @@ export const useAppStore = create<Store>()(
       recordGoalRound: (taskId, isAccount, childBefore) => {
         const s = get();
         const children = subTaskIds(taskId);
-        for (const id of [taskId, ...children]) pinTap(id, isAccount, s);
+        guardTap([taskId, ...children], isAccount, s);
         if (children.length === 0) return null;
         const char = s.getActiveChar();
         const numOf = (v: number | boolean | undefined): number =>
@@ -1285,7 +1285,7 @@ export const useAppStore = create<Store>()(
 
       restoreGoalValues: (undo, isAccount) => {
         const s = get();
-        for (const { id } of undo) pinTap(id, isAccount, s);
+        guardTap(undo.map(({ id }) => id), isAccount, s);
         const now = new Date();
         const buckets = { ...s.taskBuckets };
         // Re-stamp the CURRENT bucket: an undo pressed after the weekly rollover
@@ -1346,7 +1346,7 @@ export const useAppStore = create<Store>()(
               return !!t && t.section === "account";
             };
             const { values: nextAcc, touched } = zeroOut(s.accountValues, match);
-            for (const id of touched) pinTap(id, true, s);
+            guardTap(touched, true, s);
             return { accountValues: nextAcc, taskBuckets: stamp(s.taskBuckets, touched) };
           }
           const char = s.getActiveChar();
@@ -1367,7 +1367,7 @@ export const useAppStore = create<Store>()(
           }
           const target = s.characters.find((c) => c.id === s.activeCharId) ?? char;
           const { values: nextVal, touched } = zeroOut(target.taskValues, idsToClear);
-          for (const id of touched) pinTap(id, false, s);
+          guardTap(touched, false, s);
           const nextChars = s.characters.map((c) => (c.id === s.activeCharId ? { ...c, taskValues: nextVal } : c));
           // server-shared pins render in this cycle's subsection but live in
           // accountValues — a section clear clears them too (they belong to this
@@ -1376,7 +1376,7 @@ export const useAppStore = create<Store>()(
             s.barterPins.filter((pid) => isServerSharedPinId(pid) && pinCycleOf(pid) === section)
           );
           const { values: nextAcc, touched: touchedAcc } = zeroOut(s.accountValues, sharedIds);
-          for (const id of touchedAcc) pinTap(id, true, s);
+          guardTap(touchedAcc, true, s);
           return {
             characters: nextChars,
             accountValues: nextAcc,

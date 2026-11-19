@@ -4,7 +4,7 @@ import { currentDailyBucket } from "@/lib/reset";
 import type { Character, Task } from "@/lib/types";
 import type { LinkRow } from "@/lib/link/protocol";
 import {
-  isPinned,
+  isGuarded,
   linkKey,
   type LinkBlackHole,
   type LinkDeviceState,
@@ -57,12 +57,18 @@ export type LinkApplyInput = {
   nowSeconds?: number;
 };
 
+export type LinkGuard = {
+  key: string;
+  tapAt: number;
+  rowAt: number;
+};
+
 export type LinkApplyResult = {
   writes: LinkWrite[];
   device: LinkDeviceState;
   unresolved: LinkUnresolved[];
   offers: LinkOffer[];
-  pinned: string[];
+  guarded: LinkGuard[];
   older: string[];
   oldCycle: string[];
 };
@@ -101,7 +107,7 @@ function blackHoleWrites(
   characters: Character[],
   customTasks: Task[],
   nowMs: number
-): { write: LinkWrite; key: string } | null {
+): { write: LinkWrite; key: string } | { guard: LinkGuard } | null {
   const parts = device.blackHole[cid];
   const weekly = parts?.weekly;
   if (!weekly) return null;
@@ -115,7 +121,9 @@ function blackHoleWrites(
   if (!bucket) return null;
   if (bucket !== cycleBucketFor(BLACK_HOLE, customTasks, new Date(nowMs))) return null;
   const key = linkKey("character", cid, BLACK_HOLE, bucket);
-  if (isPinned(device, key)) return null;
+  if (isGuarded(device, key, at)) {
+    return { guard: { key, tapAt: device.localWrites[key], rowAt: at } };
+  }
   if (!stampOk(device.watermarks[key], at)) return null;
 
   const elapsed = 6 - blackHoleX(new Date(at * 1000));
@@ -149,6 +157,7 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
   const device: LinkDeviceState = {
     ...input.device,
     match: { ...input.device.match },
+    localWrites: { ...input.device.localWrites },
     watermarks: { ...input.device.watermarks },
     blackHole: Object.fromEntries(
       Object.entries(input.device.blackHole).map(([cid, parts]) => [cid, { ...parts }])
@@ -157,7 +166,7 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
   const writes = new Map<string, LinkWrite>();
   const unresolved: LinkUnresolved[] = [];
   const offers: LinkOffer[] = [];
-  const pinned: string[] = [];
+  const guarded: LinkGuard[] = [];
   const older: string[] = [];
   const oldCycle: string[] = [];
   const touchedBh = new Set<string>();
@@ -231,8 +240,8 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
     }
     const scope = target.scope;
     const key = linkKey(scope, cid, row.task, bucket);
-    if (isPinned(device, key)) {
-      pinned.push(key);
+    if (isGuarded(device, key, row.at)) {
+      guarded.push({ key, tapAt: device.localWrites[key], rowAt: row.at });
       if (row.task === BLACK_HOLE && cid) blockedBh.add(cid);
       continue;
     }
@@ -277,6 +286,16 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
       unresolved.push({ taskId: row.task, op: row.op, reason: "unknown-task" });
       continue;
     }
+    const watermark = device.watermarks[key];
+    if (
+      row.changed === false &&
+      row.finished !== true &&
+      watermark !== undefined &&
+      value === watermark.value
+    ) {
+      device.watermarks[key] = { ...watermark, at: row.at, op: row.op };
+      continue;
+    }
     push({
       taskId: row.task,
       scope,
@@ -287,6 +306,7 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
       op: row.op,
       finished: row.finished,
     });
+    delete device.localWrites[key];
     device.watermarks[key] = { at: row.at, value };
   }
 
@@ -300,7 +320,12 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
       nowMs
     );
     if (!composite) continue;
+    if ("guard" in composite) {
+      guarded.push(composite.guard);
+      continue;
+    }
     push(composite.write);
+    delete device.localWrites[composite.key];
     device.watermarks[composite.key] = {
       at: composite.write.at,
       value: composite.write.value,
@@ -313,7 +338,7 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
     device,
     unresolved,
     offers,
-    pinned,
+    guarded,
     older,
     oldCycle,
   };

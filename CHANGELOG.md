@@ -4,6 +4,12 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-19 — Link tap guards
+<!-- whats-new: none -->
+
+### Chores
+- A manual tap no longer freezes a tracker row: the feed keeps a timestamped local write and lets a newer game observation through, while an older replay still cannot undo the tap. A repeat observation is ignored until the value changes or a turn-in resets the row.
+
 ## 2026-11-19 — Link beta download and pause status
 <!-- whats-new: none -->
 

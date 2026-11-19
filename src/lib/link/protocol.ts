@@ -16,6 +16,8 @@ export type LinkRow = {
   confidence: LinkConfidence;
   /** Optional: producers before this field existed omit it. */
   finished?: boolean;
+  /** False when the producer re-observed the same value; absent on old producers. */
+  changed?: boolean;
 };
 
 export type LinkDropped = { unknownTask: number; unresolvedCharacter: number };
@@ -109,6 +111,7 @@ export function parseLinkRow(v: unknown): LinkRow | null {
     op: v.op,
     confidence,
     finished: v.finished === true,
+    changed: v.changed === false ? false : v.changed === true ? true : undefined,
   };
 }
 

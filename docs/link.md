@@ -97,7 +97,8 @@ Every message is one JSON object:
   "at": 1794209040.12,
   "op": 170497,
   "confidence": "proven",
-  "finished": false
+  "finished": false,
+  "changed": true
 }
 ```
 
@@ -112,6 +113,7 @@ Every message is one JSON object:
 | `op` | opaque provenance id; never a lookup table in this repo |
 | `confidence` | `proven` or `observed` |
 | `finished` | `true` once the task is complete for good; the app hides that row. Optional, and a later message never unhides it |
+| `changed` | `false` when the producer re-observed the same value; a new value or a turn-in reset is `true`. Optional on old producers, where the app treats it as `true` |
 
 A row is addressed by `(task, character.gameId)`. Account tasks still carry the
 observing character, but the app writes them to `accountValues` because its
@@ -153,9 +155,12 @@ character switch with no row change arrives as a delta with `rows: []`.
    is refused. A grouped parent's sub-counters carry over and are re-stamped.
 3. **Monotonic per row.** Keep the last applied `at` per
    `(scope, owner, task, bucket)` and ignore anything not newer.
-4. **The wire never beats a pin.** A user tap records a device-local pin for
-   that row and bucket. Nothing is recorded while the switch is off, since only
-   the feed reads a pin. While the pin exists, the feed does not apply to it.
+4. **A newer change beats a local edit; a repeat does not.** A tap records the
+   device-local write time for that row and bucket. A row at or before that time
+   is ignored. A row with `changed: false` whose value equals the last applied
+   row is a repeat and does not overwrite the value; a new value, a turn-in that
+   the producer marks `changed: true`, or a `finished` transition applies. A
+   newer applying row clears the local write.
 5. **Unknown is dropped.** An unresolved task or character is counted and
    printed to the browser console. Nothing is created from the feed.
 6. **Market rows are offered.** A shop or barter id that is not pinned in the
@@ -176,22 +181,27 @@ character switch with no row change arrives as a delta with `rows: []`.
   A check or count whose `at` is not in the current daily bucket is ignored:
   after the 06:00 roll it belongs to yesterday, and trusting it stores a bank
   one too low and shows the tile one too high.
-  `black-hole-today` is an aux input, not a stored row.
+  `black-hole-today` is an aux input, not a stored row. The composite inputs are
+  stored even when `changed: false`, because the bank decays with `at`, unless a
+  local guard covers that input; the guard on the composite key decides whether
+  the bank is written.
 - `parttime-active` is aux telemetry; the app's row is `parttime`.
 - `tower`: the value is the attempts **used**. `finished` turns true at the
   150-floor cap and the app hides the row; nothing in the feed clears it.
 
 ## Device-local state
 
-The token, `match`, pins, watermarks, the black-hole inputs and `lastFrameAt`
-live in `localStorage` under `mabiroutine:link`. They are **not** in the synced
-store: the token is private to the install, and `cid` is a local random id. A
-separate `mabiroutine:link:seen` flag records that this device received a
-producer's `hello`, which retires the download row. It proves a connection, never
-a download. A blocked write keeps the flag in memory for the session, so the row
-can return on the next load.
+The token, `match`, local write times, watermarks, the black-hole inputs and
+`lastFrameAt` live in `localStorage` under `mabiroutine:link`. They are **not** in
+the synced store: the token is private to the install, and `cid` is a local
+random id. A separate `mabiroutine:link:seen` flag records that this device
+received a producer's `hello`, which retires the download row. It proves a
+connection, never a download. A blocked write keeps the flag in memory for the
+session, so the row can return on the next load. Local write entries are pruned
+to the live daily, weekly and weekend buckets on load, so a daily entry ends at
+the next 06:00 and a weekly at Monday 06:00.
 
-Pin key: `account:{task}@{bucket}` or `{cid}:{task}@{bucket}`.
+Local-write key: `account:{task}@{bucket}` or `{cid}:{task}@{bucket}`.
 Watermark key: the same shape.
 
 ## Running it locally
@@ -227,5 +237,5 @@ the commit, never as a silent change to the snapshot.
 - Create a tracker row or custom task from a wire id. Character creation is
   limited to first-link adoption, which renames a placeholder or fills an empty
   roster; apply itself creates nothing.
-- Put the token, pins or watermarks into the synced key space.
+- Put the token, local writes or watermarks into the synced key space.
 - Publish a producer opcode table. `op` is displayed as provenance, not decoded.

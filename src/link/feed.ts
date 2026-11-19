@@ -13,6 +13,8 @@ let client: LinkClient | null = null;
 let unwatch: (() => void) | null = null;
 let watching = false;
 
+const GUARD_LOG_AFTER_SECONDS = 30;
+
 function onMessage(message: LinkMessage): void {
   if (message.type !== "snapshot" && message.type !== "delta") return;
   let current = loadLinkDevice();
@@ -58,10 +60,14 @@ function onMessage(message: LinkMessage): void {
   saveLinkDevice(result.device);
   setLinkStatus({ lastFrameAt: message.lastFrameAt });
 
-  if (result.unresolved.length || result.oldCycle.length) {
+  const oldGuards = result.guarded.filter(
+    (g) => Date.now() / 1000 - g.tapAt > GUARD_LOG_AFTER_SECONDS
+  );
+  if (result.unresolved.length || result.oldCycle.length || oldGuards.length) {
     console.info("[link] refused", {
       unresolved: result.unresolved,
       oldCycle: result.oldCycle,
+      guarded: oldGuards,
     });
   }
 
