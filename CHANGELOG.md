@@ -4,6 +4,12 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-24 — Search Console verification
+<!-- whats-new: none -->
+
+### Chores
+- The home page carries the Search Console verification tag, so the property can request recrawls after a deploy.
+
 ## 2026-11-24 — Search metadata and crawl hygiene
 <!-- whats-new: none -->
 
