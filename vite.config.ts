@@ -70,6 +70,7 @@ export default defineConfig({
           // for art no in-app route ever requests.
           '**/splash/**',
           'index.html',
+          '404.html',
         ],
         navigateFallback: "",
         navigationPreload: true, // fetch starts during SW boot, hides the RTT

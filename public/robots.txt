@@ -3,5 +3,8 @@ Allow: /
 Disallow: /api/
 Disallow: /admin
 Disallow: /admin/
+Disallow: /_vercel/
+Disallow: /npc-raw/
+Disallow: /*?s=
 
 Sitemap: https://mabiroutine.vercel.app/sitemap.xml

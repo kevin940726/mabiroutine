@@ -294,7 +294,10 @@ export default function App() {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img src="/logo-96.png" alt="MabiRoutine" className="h-7 w-7 sm:h-8 sm:w-8 object-contain shrink-0" />
             <div className="min-w-0">
-              <h1 className="text-sm sm:text-base font-semibold leading-none truncate">MabiRoutine</h1>
+              <h1 className="text-sm sm:text-base font-semibold leading-none truncate">
+                MabiRoutine
+                <span className="sr-only"> — 瑪奇 Mobile 日課・週課・以物易物追蹤器</span>
+              </h1>
               {isMobile ? null : (
                 <p className="text-xs text-muted-foreground">瑪奇 Mobile 日課追蹤 · 06:00 重置</p>
               )}

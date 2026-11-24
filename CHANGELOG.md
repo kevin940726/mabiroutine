@@ -4,6 +4,12 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-24 — Search metadata and crawl hygiene
+<!-- whats-new: none -->
+
+### Chores
+- SEO: the home page now declares its site name and organization as JSON-LD, so Google can label results "MabiRoutine" instead of the hosting domain; `robots.txt` also keeps session links, raw NPC art and API responses out of the index, and unknown paths get a branded 404.
+
 ## 2026-11-19 — Link tap guards
 <!-- whats-new: none -->
 

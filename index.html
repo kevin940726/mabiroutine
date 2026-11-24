@@ -5,6 +5,7 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- iOS launch splash (pre-HTML gap): the OS shows the matching image
       while the page itself is still fetching — the inline boot splash below
@@ -58,20 +59,25 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="referrer" content="no-referrer" />
     <link rel="canonical" href="https://mabiroutine.vercel.app/" />
-    <meta name="description" content="瑪奇 Mobile 每日任務、每週任務與以物易物進度追蹤器" />
+    <meta name="description" content="免費、免註冊的《瑪奇 Mobile》台服日課與週課追蹤器：每日任務、每週任務、以物易物、角色進度與 06:00 重置倒數，可選跨裝置同步。" />
+    <meta name="application-name" content="MabiRoutine" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
     <meta property="og:url" content="https://mabiroutine.vercel.app/" />
-    <meta property="og:description" content="瑪奇 Mobile 每日任務、每週任務與以物易物進度追蹤器" />
-    <meta property="og:title" content="MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物" />
+    <meta property="og:site_name" content="MabiRoutine" />
+    <meta property="og:description" content="免費、免註冊的《瑪奇 Mobile》台服日課與週課追蹤器：每日任務、每週任務、以物易物、角色進度與 06:00 重置倒數，可選跨裝置同步。" />
+    <meta property="og:title" content="MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物追蹤器" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="zh_TW" />
     <meta property="og:image" content="https://mabiroutine.vercel.app/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物進度追蹤器" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物" />
-    <meta name="twitter:description" content="瑪奇 Mobile 每日任務、每週任務與以物易物進度追蹤器" />
+    <meta name="twitter:title" content="MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物追蹤器" />
+    <meta name="twitter:description" content="免費、免註冊的《瑪奇 Mobile》台服日課與週課追蹤器：每日任務、每週任務、以物易物、角色進度與 06:00 重置倒數，可選跨裝置同步。" />
     <meta name="twitter:image" content="https://mabiroutine.vercel.app/og-image.png" />
+    <meta name="twitter:image:alt" content="MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物進度追蹤器" />
     <meta name="theme-color" content="#0f172a" />
     <style>
       /* Boot splash: paints with the HTML itself, before the JS bundle (and
@@ -127,7 +133,42 @@
       } catch (e) {}
       if (__dark) document.documentElement.classList.add("dark");
     </script>
-    <title>MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物</title>
+    <title>MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物追蹤器</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://mabiroutine.vercel.app/#website",
+            "url": "https://mabiroutine.vercel.app/",
+            "name": "MabiRoutine",
+            "alternateName": [
+              "MabiRoutine 瑪奇Mobile 日課追蹤器",
+              "瑪奇 Mobile 日課・週課・以物易物追蹤器",
+              "mabiroutine.vercel.app"
+            ],
+            "description": "免費、免註冊的《瑪奇 Mobile》台服日課與週課追蹤器。",
+            "inLanguage": "zh-Hant",
+            "publisher": { "@id": "https://mabiroutine.vercel.app/#organization" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://mabiroutine.vercel.app/#organization",
+            "name": "MabiRoutine",
+            "url": "https://mabiroutine.vercel.app/",
+            "description": "免費、免註冊的《瑪奇 Mobile》台服日課與週課追蹤器。",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://mabiroutine.vercel.app/icon-512.png",
+              "width": 512,
+              "height": 512
+            },
+            "sameAs": ["https://github.com/kevin940726/mabiroutine"]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="boot-splash" aria-hidden="true">
@@ -153,6 +194,13 @@
         if (__sp2) __sp2.remove();
       }
     </script>
+    <noscript>
+      <div style="max-width: 40rem; margin: 4rem auto; padding: 0 1.5rem; font-family: -apple-system, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif; line-height: 1.7; color: #0f172a;">
+        <h1 style="font-size: 1.5rem; margin: 0 0 .5rem;">MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物追蹤器</h1>
+        <p style="margin: 0 0 1rem;">免費、免註冊的《瑪奇 Mobile》台服日課與週課追蹤器：每日任務、每週任務、以物易物、角色進度與 06:00 重置倒數，可選跨裝置同步。</p>
+        <p style="margin: 0;">此工具需要 JavaScript 才能顯示互動式清單。請開啟 JavaScript 後重新整理，或前往 <a href="https://github.com/kevin940726/mabiroutine">GitHub</a> 了解詳情。</p>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script>
       // Boot preload: fire the session GET before the module graph (React +

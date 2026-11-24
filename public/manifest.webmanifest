@@ -1,7 +1,7 @@
 {
-  "name": "MabiRoutine — 瑪奇 Mobile 日課",
+  "name": "MabiRoutine — 瑪奇 Mobile 日課・週課・以物易物追蹤器",
   "short_name": "MabiRoutine",
-  "description": "瑪奇 Mobile 每日每週追蹤：角色進度、以物易物、跨裝置同步",
+  "description": "免費、免註冊的《瑪奇 Mobile》台服日課與週課追蹤器：每日任務、每週任務、以物易物、角色進度與 06:00 重置倒數。",
   "id": "/",
   "start_url": "/",
   "scope": "/",
