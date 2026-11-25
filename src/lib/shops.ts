@@ -44,11 +44,12 @@ export interface ShopDeal {
   /** Stable pin id from the option (`id`): the retired barter.json id string,
    *  verbatim. Null for gold rows, which pin under the derived shop:: id. */
   id: string | null;
-  /** Legacy display strings from the option (`barter`): authored give/get/limit
-   *  text, verbatim. A barter row with no authored text gets it composed from
-   *  cost/yield/cap at load, so imported rows carry no unverified strings. Null
-   *  on shop legs. */
-  barterText: { give: string; get: string; limit: string } | null;
+  /** Display strings for a barter leg, composed at load from cost, yield and
+   *  cap (the retired barter.json wording was dropped 2026-11-25). `limit` is
+   *  null when the row is uncapped, matching `limitText` on gold rows. The
+   *  tracker renders these; the shop grid reads the structured fields instead.
+   *  Null on shop legs. */
+  barterText: { give: string; get: string; limit: string | null } | null;
   barterId: string | null;
   /** the id a pin on this row uses: the curated barter id, or a shop:: id */
   pinId: string;
@@ -87,7 +88,6 @@ interface RawOption {
   icon?: string;
   id?: string;
   pool?: string;
-  barter?: { give?: string; get?: string; limit?: string };
 }
 
 /**
@@ -239,15 +239,20 @@ function limitPeriod(limit?: { times?: number; period?: string }): "daily" | "we
 }
 
 /**
- * Display strings for a barter row that carries none. Rows imported from the
- * client have no authored text (the retired barter.json rows did, quirks
- * included), so the text is composed from the fields that are data: cost,
- * yield and cap. `test:shops` validates both shapes against the same mechanics.
+ * Display strings for a barter leg, composed from the fields that are data:
+ * cost, yield and cap. `barter.json` used to carry hand-written versions of
+ * these; they were dropped 2026-11-25 so the mechanics are the only source,
+ * and `test:shops` validates this text against them.
  */
-function composeBarterText(item: RawOption, outQty: number): { give: string; get: string; limit: string } {
-  const give = `${item.cost?.currency ?? "gold"} ×${item.cost?.amount ?? 0}`;
+function composeBarterText(item: RawOption, outQty: number): { give: string; get: string; limit: string | null } {
+  const currency = item.cost?.currency ?? "gold";
+  const amount = item.cost?.amount ?? 0;
+  // A bare name reads as one unit (parseItemQty), so the amount is written only
+  // when it is not 1.
+  const give = amount > 1 ? `${currency} ×${amount}` : currency;
   const get = outQty > 1 ? `${item.name} ×${outQty}` : item.name;
-  const limit = stringifyLimit(item.limit ?? {}, item.scope === "account" ? "account" : "character") ?? "不限次數";
+  // No cap is shown as no limit line, the same rule the gold rows follow.
+  const limit = stringifyLimit(item.limit ?? {}, item.scope === "account" ? "account" : "character");
   return { give, get, limit };
 }
 
@@ -317,12 +322,6 @@ export function loadShopNpcs(): ShopNpc[] {
         const costCurrency = item.cost?.currency ?? "gold";
         const costAmount = item.cost?.amount ?? null;
         const outQty = item.get?.amount ?? 1;
-        const authoredText =
-          typeof item.barter?.give === "string" &&
-          typeof item.barter?.get === "string" &&
-          typeof item.barter?.limit === "string"
-            ? { give: item.barter.give, get: item.barter.get, limit: item.barter.limit }
-            : null;
         return {
           key: `${town}::${npc}::${kind}::${item.name}::${index}`,
           npc,
@@ -344,7 +343,7 @@ export function loadShopNpcs(): ShopNpc[] {
           priority: typeof item.priority === "string" && SHOP_PRIORITIES.has(item.priority) ? (item.priority as CuratedPriority) : null,
           icon: typeof item.icon === "string" ? item.icon : null,
           id: typeof item.id === "string" ? item.id : null,
-          barterText: kind === "barter" ? (authoredText ?? composeBarterText(item, outQty)) : null,
+          barterText: kind === "barter" ? composeBarterText(item, outQty) : null,
           curatedIndex: typeof item.id === "string" ? (CURATED_ORDER_POS.get(item.id) ?? -1) : -1,
         };
       });
@@ -365,10 +364,10 @@ export function loadShopNpcs(): ShopNpc[] {
 }
 
 /**
- * Barter-shaped Task from the legacy display strings carried on the deal —
- * the single constructor behind every pin → task resolver. Same name shape,
- * same limit-string parsing, same order numbers as the retired row path
- * ever produced (proven: 0/107 drift at every migration step).
+ * Barter-shaped Task from the deal's composed display text — the single
+ * constructor behind every pin → task resolver. Same name shape, same
+ * limit-string parsing, same order numbers as the retired row path ever
+ * produced (proven: 0/107 drift at every migration step).
  */
 export function dealToBarterTask(input: {
   id: string;
@@ -379,11 +378,12 @@ export function dealToBarterTask(input: {
   npc: string | undefined;
   priority: BarterPriority;
   scopeAccount: boolean;
-  limit: string;
+  /** Null when the row has no cap, which renders no limit line. */
+  limit: string | null;
 }): Task {
-  // 每日/每週 N 次：N>1 → counter；N=1 或 不限次數 → check
-  const dayCount = Number(input.limit.match(/每日\s*(\d+)\s*次/)?.[1] ?? 0);
-  const weekCount = Number(input.limit.match(/每週\s*(\d+)\s*次/)?.[1] ?? 0);
+  // 每日/每週 N 次：N>1 → counter；N=1 或 no cap → check
+  const dayCount = Number(input.limit?.match(/每日\s*(\d+)\s*次/)?.[1] ?? 0);
+  const weekCount = Number(input.limit?.match(/每週\s*(\d+)\s*次/)?.[1] ?? 0);
   const weekly = weekCount > 0;
   const isCounter = (weekly ? weekCount : dayCount) > 1;
   const section = weekly ? "weekly" : "daily";
@@ -401,7 +401,7 @@ export function dealToBarterTask(input: {
     priority: input.priority,
     npc: input.npc,
     serverShared: input.scopeAccount,
-    barterMeta: { give: input.give, get: input.get, limit: input.limit },
+    barterMeta: { give: input.give, get: input.get, ...(input.limit ? { limit: input.limit } : {}) },
     order: weekly ? 150 : 80, // daily pins sit after builtin daily; weekly pins after builtin weekly
   };
 }

@@ -96,9 +96,10 @@ tiles until the art lands, not just a design fallback.
 
 Counted over the names themselves: `items[].name` is fewer names than rows once an
 option's `icon` override collapses rows onto a shared file (the quest-board scrolls
-all use `任務卷軸`), and the barter legs add their `barter.give` / `barter.get`
-names with the ` ×N` suffix stripped as `parseItemQty` does. The directory also
-holds spare art, so its 234 files are not the same set as those 303 names.
+all use `任務卷軸`), and the barter legs add the give/get names the loader composes
+from cost and yield, with the ` ×N` suffix stripped as `parseItemQty` does. The
+directory also holds spare art, so its 234 files are not the same set as those 303
+names.
 
 One spare file is not an item name at all: `public/items/金幣.webp` is the
 coin a gold PRICE is drawn with (`Cost` in `src/components/shop/Cost.tsx`). It lives

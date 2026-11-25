@@ -39,12 +39,7 @@
               },
               "scope": "account",
               "id": "yen-安黛莉凱琳特製全麥麵包1-12",
-              "priority": "must",
-              "barter": {
-                "give": "凱琳特製全麥麵包 ×10",
-                "get": "聖水 ×10",
-                "limit": "每日 1 次 (伺服器)"
-              }
+              "priority": "must"
             }
           ]
         },
@@ -62,12 +57,7 @@
                 "times": 10
               },
               "id": "tir-f1",
-              "priority": "situational",
-              "barter": {
-                "give": "分解的裝備零件 ×1",
-                "get": "鐵礦石 ×1",
-                "limit": "每日 10 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "煤炭",
@@ -83,12 +73,7 @@
                 "times": 10
               },
               "id": "tir-f2",
-              "priority": "situational",
-              "barter": {
-                "give": "分解的裝備零件 ×1",
-                "get": "煤炭 ×3",
-                "limit": "每日 10 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "合金鋼錠",
@@ -101,12 +86,7 @@
                 "times": 4
               },
               "id": "tir-f3",
-              "priority": "must",
-              "barter": {
-                "give": "鋼錠 ×2",
-                "get": "合金鋼錠 ×1",
-                "limit": "每日 4 次"
-              }
+              "priority": "must"
             },
             {
               "name": "分解的裝備零件",
@@ -122,12 +102,7 @@
                 "times": 1
               },
               "id": "tir-f4",
-              "priority": "situational",
-              "barter": {
-                "give": "礦石 ×100",
-                "get": "分解的裝備零件 ×10",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -148,12 +123,7 @@
                 "times": 10
               },
               "id": "tir-d1",
-              "priority": "situational",
-              "barter": {
-                "give": "寵物飼料 ×1",
-                "get": "高級羊毛 ×4",
-                "limit": "每日 10 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -191,12 +161,7 @@
                 "times": 1
               },
               "id": "tir-di1",
-              "priority": "extra",
-              "barter": {
-                "give": "咻咻蘑菇 ×3",
-                "get": "四葉草 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             }
           ]
         },
@@ -215,12 +180,7 @@
               },
               "scope": "account",
               "id": "yen-梅文凱琳特製全麥麵包聖水-44",
-              "priority": "extra",
-              "barter": {
-                "give": "凱琳特製全麥麵包",
-                "get": "聖水",
-                "limit": "每日 1 次 (伺服器)"
-              }
+              "priority": "extra"
             }
           ]
         },
@@ -395,12 +355,7 @@
                 "times": 1
               },
               "id": "tir-m3",
-              "priority": "situational",
-              "barter": {
-                "give": "羊毛 ×50",
-                "get": "空白樂譜 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "麥爾坎的鬆軟羊毛枕頭",
@@ -413,12 +368,7 @@
                 "times": 1
               },
               "id": "tir-m2",
-              "priority": "extra",
-              "barter": {
-                "give": "蜘蛛網 ×5",
-                "get": "麥爾坎的鬆軟羊毛枕頭 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "多用途製作台設計圖(3級)",
@@ -431,12 +381,7 @@
                 "times": 1
               },
               "id": "tir-m1",
-              "priority": "once",
-              "barter": {
-                "give": "專業營火套組 ×1",
-                "get": "多用途製作台設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             },
             {
               "name": "耐火黏土",
@@ -657,12 +602,7 @@
                 "times": 1
               },
               "id": "tir-c1",
-              "priority": "must",
-              "barter": {
-                "give": "牛奶 ×10",
-                "get": "凱琳特製全麥麵包 ×3",
-                "limit": "每日 1 次"
-              }
+              "priority": "must"
             },
             {
               "name": "食材加工設備設計圖(3級)",
@@ -675,12 +615,7 @@
                 "times": 1
               },
               "id": "tir-c2",
-              "priority": "once",
-              "barter": {
-                "give": "麵粉 ×10",
-                "get": "食材加工設備設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             }
           ]
         },
@@ -698,12 +633,7 @@
                 "times": 1
               },
               "id": "tir-a1",
-              "priority": "extra",
-              "barter": {
-                "give": "雞蛋 ×10",
-                "get": "鍊金術碎屑 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "鍊金術碎屑",
@@ -716,12 +646,7 @@
                 "times": 1
               },
               "id": "tir-a2",
-              "priority": "extra",
-              "barter": {
-                "give": "薰衣草花 ×1",
-                "get": "鍊金術碎屑 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "麵粉",
@@ -734,12 +659,7 @@
                 "times": 1
               },
               "id": "tir-a3",
-              "priority": "situational",
-              "barter": {
-                "give": "雞蛋 ×3",
-                "get": "麵粉 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "麵粉",
@@ -752,12 +672,7 @@
                 "times": 1
               },
               "id": "tir-a4",
-              "priority": "situational",
-              "barter": {
-                "give": "薰衣草花 ×1",
-                "get": "麵粉 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -775,12 +690,7 @@
                 "times": 1
               },
               "id": "tir-r1",
-              "priority": "extra",
-              "barter": {
-                "give": "美乃滋炒肉 ×2",
-                "get": "暴擊秘藥 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             }
           ]
         },
@@ -800,12 +710,7 @@
               },
               "scope": "account",
               "id": "強化秘藥乳化劑",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×5",
-                "get": "強化秘藥乳化劑 ×1",
-                "limit": "每週 10 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "強化秘藥乳化劑",
@@ -830,12 +735,7 @@
               },
               "scope": "account",
               "id": "tir-l1",
-              "priority": "must",
-              "barter": {
-                "give": "蘋果汁 ×1",
-                "get": "高級鍊金術再燃燒催化劑 ×1",
-                "limit": "每日 1 次 (伺服器)"
-              }
+              "priority": "must"
             },
             {
               "name": "高級鍊金術再燃燒催化劑",
@@ -849,12 +749,7 @@
               },
               "scope": "account",
               "id": "tir-l2",
-              "priority": "must",
-              "barter": {
-                "give": "鍊金術碎屑 ×3",
-                "get": "高級鍊金術再燃燒催化劑 ×1",
-                "limit": "每日 1 次 (伺服器)"
-              }
+              "priority": "must"
             },
             {
               "name": "稀有鍊金術再燃燒催化劑",
@@ -868,12 +763,7 @@
               },
               "scope": "account",
               "id": "tir-l3",
-              "priority": "situational",
-              "barter": {
-                "give": "高級鍊金術再燃燒催化劑 ×15",
-                "get": "稀有鍊金術再燃燒催化劑 ×1",
-                "limit": "每日 1 次 (伺服器)"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -915,12 +805,7 @@
                 "times": 3
               },
               "id": "yen-蘿拉麥爾坎的鬆軟羊毛枕頭-64",
-              "priority": "situational",
-              "barter": {
-                "give": "麥爾坎的鬆軟羊毛枕頭",
-                "get": "旅行者點心",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -1041,12 +926,7 @@
                 "times": 2
               },
               "id": "dug-e4",
-              "priority": "must",
-              "barter": {
-                "give": "炒蔬菜 ×1",
-                "get": "高級木材 ×4",
-                "limit": "每日 2 次"
-              }
+              "priority": "must"
             },
             {
               "name": "高級原木",
@@ -1059,12 +939,7 @@
                 "times": 10
               },
               "id": "dug-e3",
-              "priority": "situational",
-              "barter": {
-                "give": "高級皮革 ×1",
-                "get": "高級原木 ×1",
-                "limit": "每日 10 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "單寧粉末",
@@ -1080,12 +955,7 @@
                 "times": 10
               },
               "id": "dug-e2",
-              "priority": "situational",
-              "barter": {
-                "give": "生皮 ×5",
-                "get": "單寧粉末 ×5",
-                "limit": "每日 10 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "皮革加工設備設計圖(3級)",
@@ -1098,12 +968,7 @@
                 "times": 1
               },
               "id": "dug-e1",
-              "priority": "once",
-              "barter": {
-                "give": "布料+ ×5",
-                "get": "皮革加工設備設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             }
           ]
         },
@@ -1121,12 +986,7 @@
                 "times": 10
               },
               "id": "dug-t2",
-              "priority": "must",
-              "barter": {
-                "give": "原木 ×1",
-                "get": "生皮 ×1",
-                "limit": "每日 10 次"
-              }
+              "priority": "must"
             },
             {
               "name": "特蕾西的原木音樂盒",
@@ -1139,12 +999,7 @@
                 "times": 1
               },
               "id": "dug-t5",
-              "priority": "extra",
-              "barter": {
-                "give": "蒸蛤蜊 ×2",
-                "get": "特蕾西的原木音樂盒 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "高級生皮",
@@ -1157,12 +1012,7 @@
                 "times": 10
               },
               "id": "dug-t3",
-              "priority": "must",
-              "barter": {
-                "give": "原木 ×10",
-                "get": "高級生皮 ×1",
-                "limit": "每日 10 次"
-              }
+              "priority": "must"
             },
             {
               "name": "樹液",
@@ -1178,12 +1028,7 @@
                 "times": 5
               },
               "id": "dug-t4",
-              "priority": "extra",
-              "barter": {
-                "give": "高級原木 ×1",
-                "get": "樹液 ×4",
-                "limit": "每日 5 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "木材加工設備設計圖(3級)",
@@ -1196,12 +1041,7 @@
                 "times": 1
               },
               "id": "dug-t1",
-              "priority": "once",
-              "barter": {
-                "give": "幼蟲 ×5",
-                "get": "木材加工設備設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             }
           ]
         }
@@ -1227,12 +1067,7 @@
                 "times": 1
               },
               "id": "dun-ka1",
-              "priority": "must",
-              "barter": {
-                "give": "格莉娜的蘋果奶茶 ×2",
-                "get": "皮革+ ×10",
-                "limit": "每日 1 次"
-              }
+              "priority": "must"
             },
             {
               "name": "胡椒",
@@ -1248,12 +1083,7 @@
                 "times": 1
               },
               "id": "dun-ka3",
-              "priority": "situational",
-              "barter": {
-                "give": "不死粉末 ×5",
-                "get": "胡椒 ×2",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "檸檬",
@@ -1269,12 +1099,7 @@
                 "times": 1
               },
               "id": "dun-ka2",
-              "priority": "situational",
-              "barter": {
-                "give": "不死粉末 ×5",
-                "get": "檸檬 ×3",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -1327,12 +1152,7 @@
                 "times": 5
               },
               "id": "dun-st1",
-              "priority": "situational",
-              "barter": {
-                "give": "鍊金術碎屑 ×1",
-                "get": "火苗結晶 ×1",
-                "limit": "每日 5 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "冰霜結晶",
@@ -1345,12 +1165,7 @@
                 "times": 5
               },
               "id": "dun-st2",
-              "priority": "situational",
-              "barter": {
-                "give": "鍊金術碎屑 ×1",
-                "get": "冰霜結晶 ×1",
-                "limit": "每日 5 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "光輝結晶",
@@ -1363,12 +1178,7 @@
                 "times": 5
               },
               "id": "dun-st4",
-              "priority": "situational",
-              "barter": {
-                "give": "鍊金術碎屑 ×1",
-                "get": "光輝結晶 ×1",
-                "limit": "每日 5 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "封印結晶",
@@ -1381,12 +1191,7 @@
                 "times": 5
               },
               "id": "dun-st5",
-              "priority": "situational",
-              "barter": {
-                "give": "鍊金術碎屑 ×1",
-                "get": "封印結晶 ×1",
-                "limit": "每日 5 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "電氣結晶",
@@ -1399,12 +1204,7 @@
                 "times": 5
               },
               "id": "dun-st3",
-              "priority": "situational",
-              "barter": {
-                "give": "鍊金術碎屑 ×1",
-                "get": "電氣結晶 ×1",
-                "limit": "每日 5 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "未加工黃金原石",
@@ -1420,12 +1220,7 @@
                 "times": 1
               },
               "id": "dun-st6",
-              "priority": "situational",
-              "barter": {
-                "give": "強化再燃燒催化劑 ×5",
-                "get": "未加工黃金原石 ×7",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "未加工黃金原石",
@@ -1441,12 +1236,7 @@
                 "times": 1
               },
               "id": "dun-st7",
-              "priority": "situational",
-              "barter": {
-                "give": "稀有鍊金術再燃燒催化劑 ×50",
-                "get": "未加工黃金原石 ×7",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "強化秘藥乳化劑",
@@ -1776,12 +1566,7 @@
                 "times": 2
               },
               "id": "dun-w1",
-              "priority": "extra",
-              "barter": {
-                "give": "特蕾西的原木音樂盒 ×1",
-                "get": "皮革 ×6",
-                "limit": "每日 2 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "愛心幣",
@@ -1794,12 +1579,7 @@
                 "times": 2
               },
               "id": "dun-w2",
-              "priority": "extra",
-              "barter": {
-                "give": "真愛魚 ×5",
-                "get": "愛心幣 ×1",
-                "limit": "每日 2 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "火焰魔法榴彈",
@@ -1812,12 +1592,7 @@
                 "times": 3
               },
               "id": "dun-w3",
-              "priority": "situational",
-              "barter": {
-                "give": "暗影幽靈魚 ×5",
-                "get": "火焰魔法榴彈 ×1",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "閃電魔法榴彈",
@@ -1830,12 +1605,7 @@
                 "times": 3
               },
               "id": "dun-w4",
-              "priority": "situational",
-              "barter": {
-                "give": "暗影幽靈魚 ×5",
-                "get": "閃電魔法榴彈 ×1",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "風魔法榴彈",
@@ -1848,12 +1618,7 @@
                 "times": 3
               },
               "id": "dun-w5",
-              "priority": "situational",
-              "barter": {
-                "give": "暗影幽靈魚 ×5",
-                "get": "風魔法榴彈 ×1",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "酸蝕魔法榴彈",
@@ -1866,12 +1631,7 @@
                 "times": 3
               },
               "id": "dun-w6",
-              "priority": "situational",
-              "barter": {
-                "give": "暗影幽靈魚 ×5",
-                "get": "酸蝕魔法榴彈 ×1",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "耐火黏土",
@@ -2089,12 +1849,7 @@
                 "times": 1
               },
               "id": "dun-s4",
-              "priority": "situational",
-              "barter": {
-                "give": "高級絲綢 ×10",
-                "get": "染色劑基底 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "布料加工設備設計圖(3級)",
@@ -2107,12 +1862,7 @@
                 "times": 1
               },
               "id": "dun-s1",
-              "priority": "once",
-              "barter": {
-                "give": "幽靈螢火蟲 ×2",
-                "get": "布料加工設備設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             },
             {
               "name": "防具製作台設計圖(3級)",
@@ -2125,12 +1875,7 @@
                 "times": 1
               },
               "id": "dun-s2",
-              "priority": "once",
-              "barter": {
-                "give": "雕琢橄欖石S ×1",
-                "get": "防具製作台設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             },
             {
               "name": "布料+",
@@ -2146,12 +1891,7 @@
                 "times": 1
               },
               "id": "dun-s3",
-              "priority": "situational",
-              "barter": {
-                "give": "完美繃帶 ×100",
-                "get": "布料+ ×10",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "黃金錠堆",
@@ -2164,12 +1904,7 @@
                 "amount": 2
               },
               "id": "dun-s5",
-              "priority": "situational",
-              "barter": {
-                "give": "映夢的鏡子碎片 ×1",
-                "get": "黃金錠堆 ×2",
-                "limit": "不限次數"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -2187,12 +1922,7 @@
                 "times": 4
               },
               "id": "yen-奈麗絲合金鋼錠2特殊鋼錠-3",
-              "priority": "must",
-              "barter": {
-                "give": "合金鋼錠 ×2",
-                "get": "特殊鋼錠",
-                "limit": "每日 4 次"
-              }
+              "priority": "must"
             },
             {
               "name": "高級生皮",
@@ -2205,12 +1935,7 @@
                 "times": 10
               },
               "id": "yen-奈麗絲銅礦石高級生皮-7",
-              "priority": "must",
-              "barter": {
-                "give": "銅礦石 ×1",
-                "get": "高級生皮 ×1",
-                "limit": "每日 10 次"
-              }
+              "priority": "must"
             }
           ]
         },
@@ -2228,12 +1953,7 @@
                 "times": 1
               },
               "id": "yen-芙蘿拉格莉娜手工蛋糕2無-65",
-              "priority": "situational",
-              "barter": {
-                "give": "格莉娜手工蛋糕 ×2",
-                "get": "無主的小說書",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -2251,12 +1971,7 @@
                 "times": 1
               },
               "id": "yen-阿蘭雯馬鈴薯沙拉2絕招秘-29",
-              "priority": "extra",
-              "barter": {
-                "give": "馬鈴薯沙拉 ×2",
-                "get": "絕招秘藥",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "精靈的痕跡",
@@ -2269,12 +1984,7 @@
                 "amount": 20
               },
               "id": "yen-阿蘭雯職業大師勳章精靈痕-57",
-              "priority": "situational",
-              "barter": {
-                "give": "職業大師勳章",
-                "get": "精靈的痕跡 ×20",
-                "limit": "不限次數"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -2442,12 +2152,7 @@
                 "times": 1
               },
               "id": "dun-g2",
-              "priority": "situational",
-              "barter": {
-                "give": "牛奶燉豬肉 ×1",
-                "get": "格莉娜手工蛋糕 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "格莉娜的蘋果奶茶",
@@ -2460,12 +2165,7 @@
                 "times": 1
               },
               "id": "dun-g3",
-              "priority": "must",
-              "barter": {
-                "give": "鮮奶油 ×4",
-                "get": "格莉娜的蘋果奶茶 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "must"
             },
             {
               "name": "食物製作台設計圖(3級)",
@@ -2478,12 +2178,7 @@
                 "times": 1
               },
               "id": "dun-g1",
-              "priority": "once",
-              "barter": {
-                "give": "蘋果舒芙蕾 ×1",
-                "get": "食物製作台設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             }
           ]
         },
@@ -2591,12 +2286,7 @@
                 "times": 2
               },
               "id": "dun-ma1",
-              "priority": "situational",
-              "barter": {
-                "give": "寵物飼料 ×10",
-                "get": "生命的魔力石 ×1",
-                "limit": "每日 2 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -2617,12 +2307,7 @@
                 "times": 1
               },
               "id": "yen-傑羅姆奶油醬牛排高級絲綢-2",
-              "priority": "must",
-              "barter": {
-                "give": "奶油醬牛排",
-                "get": "高級絲綢 ×4",
-                "limit": "每日 1 次"
-              }
+              "priority": "must"
             },
             {
               "name": "絲綢",
@@ -2638,12 +2323,7 @@
                 "times": 2
               },
               "id": "yen-傑羅姆瑞可塔起司沙拉絲綢-27",
-              "priority": "extra",
-              "barter": {
-                "give": "瑞可塔起司沙拉",
-                "get": "絲綢 ×4",
-                "limit": "每日 2 次"
-              }
+              "priority": "extra"
             }
           ]
         },
@@ -2664,12 +2344,7 @@
                 "times": 2
               },
               "id": "yen-潔米蘋果舒芙蕾高級布料4-25",
-              "priority": "extra",
-              "barter": {
-                "give": "蘋果舒芙蕾",
-                "get": "高級布料 ×4",
-                "limit": "每日 2 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "高級布料+",
@@ -2685,12 +2360,7 @@
                 "times": 1
               },
               "id": "yen-潔米蘋果鮮奶油蛋糕高級布-1",
-              "priority": "must",
-              "barter": {
-                "give": "蘋果鮮奶油蛋糕",
-                "get": "高級布料+ ×4",
-                "limit": "每日 1 次"
-              }
+              "priority": "must"
             }
           ]
         },
@@ -2711,12 +2381,7 @@
                 "times": 1
               },
               "id": "yen-蕾拉無主的小說書紙10需-73",
-              "priority": "situational",
-              "barter": {
-                "give": "無主的小說書",
-                "get": "紙 ×10",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -2759,12 +2424,7 @@
                 "period": "weekly"
               },
               "id": "dun-i1",
-              "priority": "situational",
-              "barter": {
-                "give": "魔物討伐證明 ×150",
-                "get": "無主的召喚結界戰利品",
-                "limit": "每週 5 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "無主的黑色坑洞戰利品",
@@ -2778,12 +2438,7 @@
                 "period": "weekly"
               },
               "id": "dun-i2",
-              "priority": "situational",
-              "barter": {
-                "give": "魔物討伐證明 ×50",
-                "get": "無主的黑色坑洞戰利品",
-                "limit": "每週 10 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "符文碎片",
@@ -2800,12 +2455,7 @@
                 "period": "weekly"
               },
               "id": "dun-i3",
-              "priority": "situational",
-              "barter": {
-                "give": "魔物討伐證明 ×20",
-                "get": "符文碎片 ×10",
-                "limit": "每週 20 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "不死粉末",
@@ -2819,12 +2469,7 @@
                 "period": "weekly"
               },
               "id": "dun-i4",
-              "priority": "situational",
-              "barter": {
-                "give": "魔物討伐證明 ×100",
-                "get": "不死粉末",
-                "limit": "每週 5 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "解除詛咒藥水",
@@ -2838,12 +2483,7 @@
                 "period": "weekly"
               },
               "id": "dun-i5",
-              "priority": "situational",
-              "barter": {
-                "give": "魔物討伐證明 ×100",
-                "get": "解除詛咒藥水",
-                "limit": "每週 10 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "遙遠的星辰印章",
@@ -2857,12 +2497,7 @@
                 "period": "weekly"
               },
               "id": "dun-i6",
-              "priority": "must",
-              "barter": {
-                "give": "魔物討伐證明 ×200",
-                "get": "遙遠的星辰印章",
-                "limit": "每週 1 次"
-              }
+              "priority": "must"
             },
             {
               "name": "強化再燃燒催化劑",
@@ -2876,12 +2511,7 @@
                 "period": "weekly"
               },
               "id": "dun-i7",
-              "priority": "extra",
-              "barter": {
-                "give": "魔物討伐證明 ×300",
-                "get": "強化再燃燒催化劑",
-                "limit": "每週 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "菁英鍊金術再燃燒催化劑",
@@ -2895,12 +2525,7 @@
                 "period": "weekly"
               },
               "id": "dun-i8",
-              "priority": "extra",
-              "barter": {
-                "give": "魔物討伐證明 ×400",
-                "get": "菁英鍊金術再燃燒催化劑",
-                "limit": "每週 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "大塊肉",
@@ -2915,12 +2540,7 @@
               },
               "scope": "account",
               "id": "dun-i9",
-              "priority": "situational",
-              "barter": {
-                "give": "魔物討伐證明 ×100",
-                "get": "大塊肉",
-                "limit": "每週 1 次 (伺服器)"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -2942,12 +2562,7 @@
                 "period": "weekly"
               },
               "id": "dun-m1",
-              "priority": "must",
-              "barter": {
-                "give": "深淵的化石 ×100",
-                "get": "赤紅深淵的化石 ×60",
-                "limit": "每週 2 次"
-              }
+              "priority": "must"
             },
             {
               "name": "瑪斯深淵的許願壺：戰士系飾品符文",
@@ -4447,12 +4062,7 @@
                 "times": 1
               },
               "id": "yen-卡琳馬鈴薯湯3寵物飼料1-38",
-              "priority": "extra",
-              "barter": {
-                "give": "馬鈴薯湯 ×3",
-                "get": "寵物飼料 ×10",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             }
           ]
         }
@@ -4478,12 +4088,7 @@
                 "times": 1
               },
               "id": "col-a5",
-              "priority": "situational",
-              "barter": {
-                "give": "解除詛咒藥水 ×100",
-                "get": "聖水 ×10",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "銀合金錠",
@@ -4497,12 +4102,7 @@
               },
               "scope": "account",
               "id": "col-a1",
-              "priority": "must",
-              "barter": {
-                "give": "特殊鋼錠 ×2",
-                "get": "銀合金錠 ×1",
-                "limit": "每日 1 次 (伺服器)"
-              }
+              "priority": "must"
             },
             {
               "name": "銅礦石",
@@ -4518,12 +4118,7 @@
                 "times": 1
               },
               "id": "col-a2",
-              "priority": "situational",
-              "barter": {
-                "give": "白銅礦石 ×1",
-                "get": "銅礦石 ×10",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "金屬加工設備設計圖(3級)",
@@ -4536,12 +4131,7 @@
                 "times": 1
               },
               "id": "col-a3",
-              "priority": "once",
-              "barter": {
-                "give": "煤炭 ×20",
-                "get": "金屬加工設備設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             },
             {
               "name": "武器製作台設計圖(3級)",
@@ -4554,12 +4144,7 @@
                 "times": 1
               },
               "id": "col-a4",
-              "priority": "once",
-              "barter": {
-                "give": "耐熱繃帶 ×5",
-                "get": "武器製作台設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             }
           ]
         },
@@ -4637,12 +4222,7 @@
                 "times": 5
               },
               "id": "col-k3",
-              "priority": "extra",
-              "barter": {
-                "give": "淨淨蘑菇孢子 ×5",
-                "get": "健康飲料 ×1",
-                "limit": "每日 5 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "四葉草",
@@ -4658,12 +4238,7 @@
                 "times": 1
               },
               "id": "col-k4",
-              "priority": "extra",
-              "barter": {
-                "give": "蒜香橄欖油義大利麵 ×1",
-                "get": "四葉草 ×8",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "藥品加工設備設計圖(3級)",
@@ -4676,12 +4251,7 @@
                 "times": 1
               },
               "id": "col-k1",
-              "priority": "once",
-              "barter": {
-                "give": "毒囊 ×3",
-                "get": "藥品加工設備設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             },
             {
               "name": "藥品製作台設計圖(3級)",
@@ -4694,12 +4264,7 @@
                 "times": 1
               },
               "id": "col-k2",
-              "priority": "once",
-              "barter": {
-                "give": "夕陽蝴蝶 ×2",
-                "get": "藥品製作台設計圖(3級)",
-                "limit": "每日 1 次"
-              }
+              "priority": "once"
             }
           ]
         },
@@ -4852,12 +4417,7 @@
                 "times": 3
               },
               "id": "col-c1",
-              "priority": "extra",
-              "barter": {
-                "give": "健康飲料 ×1",
-                "get": "四葉草 ×3",
-                "limit": "每日 3 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "廢墟的魔力石",
@@ -4871,12 +4431,7 @@
               },
               "scope": "account",
               "id": "col-c2",
-              "priority": "situational",
-              "barter": {
-                "give": "生命的魔力石 ×1",
-                "get": "廢墟的魔力石 ×1",
-                "limit": "每日 5 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "峽谷的魔力石",
@@ -4890,12 +4445,7 @@
               },
               "scope": "account",
               "id": "col-c3",
-              "priority": "situational",
-              "barter": {
-                "give": "生命的魔力石 ×1",
-                "get": "峽谷的魔力石 ×1",
-                "limit": "每日 10 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "愛心幣",
@@ -4908,12 +4458,7 @@
                 "times": 3
               },
               "id": "col-c4",
-              "priority": "extra",
-              "barter": {
-                "give": "燈籠鮟鱇魚 ×5",
-                "get": "愛心幣 ×1",
-                "limit": "每日 3 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "蜂蠟",
@@ -4945,12 +4490,7 @@
                 "times": 3
               },
               "id": "yen-凱雅拉高級木材10凝聚的-84",
-              "priority": "situational",
-              "barter": {
-                "give": "高級木材+ ×10",
-                "get": "凝聚的風 ×3",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "毒囊",
@@ -4966,12 +4506,7 @@
                 "times": 3
               },
               "id": "yen-凱雅拉高級木材10毒囊3-67",
-              "priority": "situational",
-              "barter": {
-                "give": "高級木材+ ×10",
-                "get": "毒囊 ×3",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "高級暴擊秘藥",
@@ -4984,12 +4519,7 @@
                 "times": 1
               },
               "id": "yen-凱雅拉冰草莓飲2高級暴擊-26",
-              "priority": "extra",
-              "barter": {
-                "give": "冰草莓飲 ×2",
-                "get": "高級暴擊秘藥",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "裝水的瓶子",
@@ -5005,12 +4535,7 @@
                 "times": 1
               },
               "id": "yen-凱雅拉聖水10裝水的瓶子-83",
-              "priority": "situational",
-              "barter": {
-                "give": "聖水 ×10",
-                "get": "裝水的瓶子 ×50",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -5105,12 +4630,7 @@
                 "times": 3
               },
               "id": "古樸的包裝紙",
-              "priority": "situational",
-              "barter": {
-                "give": "裝水的瓶子 ×10",
-                "get": "古樸的包裝紙 ×1",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "卓越繃帶",
@@ -5126,12 +4646,7 @@
                 "times": 3
               },
               "id": "seumas-finest-bandage",
-              "priority": "must",
-              "barter": {
-                "give": "沙威瑪 ×1",
-                "get": "卓越繃帶 ×5",
-                "limit": "每日 3 次"
-              }
+              "priority": "must"
             }
           ]
         }
@@ -5158,12 +4673,7 @@
                 "times": 1
               },
               "id": "落葉蛾",
-              "priority": "situational",
-              "barter": {
-                "give": "用心準備的花束 ×1",
-                "get": "落葉蛾 ×10",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -5267,12 +4777,7 @@
                 "times": 1
               },
               "id": "最高級絲綢",
-              "priority": "situational",
-              "barter": {
-                "give": "最高級木材 ×10",
-                "get": "最高級絲綢 ×5",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "礦山的魔力石",
@@ -5286,12 +4791,7 @@
                 "times": 5
               },
               "id": "礦山的魔力石-吉爾摩",
-              "priority": "situational",
-              "barter": {
-                "give": "生命的魔力石 ×1",
-                "get": "礦山的魔力石 ×1",
-                "limit": "每日 5 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "曠野的魔力石",
@@ -5305,12 +4805,7 @@
                 "times": 10
               },
               "id": "曠野的魔力石-吉爾摩",
-              "priority": "situational",
-              "barter": {
-                "give": "生命的魔力石 ×1",
-                "get": "曠野的魔力石 ×1",
-                "limit": "每日 10 次 (伺服器)"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -5328,12 +4823,7 @@
                 "times": 1
               },
               "id": "erin-silver-alloy-ingot1",
-              "priority": "extra",
-              "barter": {
-                "give": "特殊鋼錠 ×3",
-                "get": "銀合金錠 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "extra"
             },
             {
               "name": "銀合金錠",
@@ -5346,12 +4836,7 @@
                 "times": 1
               },
               "id": "erin-silver-alloy-ingot2",
-              "priority": "situational",
-              "barter": {
-                "give": "合金鋼錠 ×30",
-                "get": "銀合金錠 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -5373,12 +4858,7 @@
                 "period": "weekly"
               },
               "id": "edern-silver-alloy-ingot",
-              "priority": "must",
-              "barter": {
-                "give": "鱸魚辣魚湯 ×1",
-                "get": "銀合金錠 ×10",
-                "limit": "每週 1 次"
-              }
+              "priority": "must"
             }
           ]
         },
@@ -5400,12 +4880,7 @@
                 "times": 1
               },
               "id": "裝水的瓶子-尚",
-              "priority": "situational",
-              "barter": {
-                "give": "傷痕花 ×10",
-                "get": "裝水的瓶子 ×10",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "用心準備的花束",
@@ -5418,12 +4893,7 @@
                 "times": 1
               },
               "id": "用心準備的花束",
-              "priority": "situational",
-              "barter": {
-                "give": "古樸的包裝紙 ×1",
-                "get": "用心準備的花束 ×1",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -5443,12 +4913,7 @@
               },
               "scope": "account",
               "id": "jennifer-holy-water",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×10",
-                "get": "聖水 ×1",
-                "limit": "每週 20 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "寵物飼料",
@@ -5463,12 +4928,7 @@
               },
               "scope": "account",
               "id": "jennifer-pet-food",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×10",
-                "get": "寵物飼料 ×1",
-                "limit": "每週 20 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "烤整顆馬鈴薯",
@@ -5486,12 +4946,7 @@
               },
               "scope": "account",
               "id": "jennifer-roasted-potato",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×5",
-                "get": "烤整顆馬鈴薯 ×2",
-                "limit": "每週 2 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "馬鈴薯沙拉",
@@ -5509,12 +4964,7 @@
               },
               "scope": "account",
               "id": "jennifer-potato-salad",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×5",
-                "get": "馬鈴薯沙拉 ×2",
-                "limit": "每週 2 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "蘋果汁",
@@ -5532,12 +4982,7 @@
               },
               "scope": "account",
               "id": "jennifer-apple-juice",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×5",
-                "get": "蘋果汁 ×2",
-                "limit": "每週 2 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "蘋果沙拉",
@@ -5555,12 +5000,7 @@
               },
               "scope": "account",
               "id": "jennifer-apple-salad",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×5",
-                "get": "蘋果沙拉 ×2",
-                "limit": "每週 2 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "烤肉",
@@ -5578,12 +5018,7 @@
               },
               "scope": "account",
               "id": "jennifer-roasted-meat",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×5",
-                "get": "烤肉 ×2",
-                "limit": "每週 2 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "美乃滋炒肉",
@@ -5601,12 +5036,7 @@
               },
               "scope": "account",
               "id": "jennifer-mayo-meat",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×5",
-                "get": "美乃滋炒肉 ×2",
-                "limit": "每週 2 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "料理材料選擇箱",
@@ -5621,12 +5051,7 @@
               },
               "scope": "account",
               "id": "jennifer-food-material-box",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×40",
-                "get": "料理材料選擇箱 ×1",
-                "limit": "每週 1 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "支配的圖樣選擇箱",
@@ -5641,12 +5066,7 @@
               },
               "scope": "account",
               "id": "jennifer-abyss-pattern-box",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×40",
-                "get": "支配的圖樣選擇箱 ×1",
-                "limit": "每週 1 次 (伺服器)"
-              }
+              "priority": "situational"
             },
             {
               "name": "染色劑選擇箱",
@@ -5660,12 +5080,7 @@
                 "period": "weekly"
               },
               "id": "jennifer-dye-box",
-              "priority": "situational",
-              "barter": {
-                "give": "愛心幣 ×40",
-                "get": "染色劑選擇箱 ×1",
-                "limit": "每週 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "共鳴板",
@@ -5773,12 +5188,7 @@
                 "times": 1
               },
               "id": "jennifer-lean-meat",
-              "priority": "situational",
-              "barter": {
-                "give": "黃豆 ×10",
-                "get": "清淡的肉 ×15",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -5875,12 +5285,7 @@
                 "times": 1
               },
               "id": "卓越恢復藥水",
-              "priority": "situational",
-              "barter": {
-                "give": "豆乳防風草蛋糕 ×1",
-                "get": "卓越恢復藥水 ×6",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             }
           ]
         },
@@ -5953,12 +5358,7 @@
                 "times": 3
               },
               "id": "dungeon-1",
-              "priority": "situational",
-              "barter": {
-                "give": "血紅藥草 ×1",
-                "get": "新芽蘑菇 ×1",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "愛心幣",
@@ -5971,12 +5371,7 @@
                 "times": 3
               },
               "id": "dungeon-2",
-              "priority": "situational",
-              "barter": {
-                "give": "擠著吃的點心 ×1",
-                "get": "愛心幣 ×1",
-                "limit": "每日 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "鹽",
@@ -5992,12 +5387,7 @@
                 "times": 1
               },
               "id": "dungeon-3",
-              "priority": "situational",
-              "barter": {
-                "give": "旅行者點心 ×100",
-                "get": "鹽 ×2",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "糖",
@@ -6013,12 +5403,7 @@
                 "times": 1
               },
               "id": "dungeon-4",
-              "priority": "situational",
-              "barter": {
-                "give": "繃帶 ×100",
-                "get": "糖 ×2",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "高麗菜",
@@ -6034,12 +5419,7 @@
                 "times": 1
               },
               "id": "dungeon-5",
-              "priority": "situational",
-              "barter": {
-                "give": "恢復藥水 ×100",
-                "get": "高麗菜 ×2",
-                "limit": "每日 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "毒囊",
@@ -6056,12 +5436,7 @@
                 "period": "weekly"
               },
               "id": "毒囊-貓商人",
-              "priority": "situational",
-              "barter": {
-                "give": "喵幣 ×20000",
-                "get": "毒囊 ×2",
-                "limit": "每週 1 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "曠野的魔力石",
@@ -6078,12 +5453,7 @@
                 "period": "weekly"
               },
               "id": "曠野的魔力石-貓商人",
-              "priority": "situational",
-              "barter": {
-                "give": "喵幣 ×50000",
-                "get": "曠野的魔力石 ×10",
-                "limit": "每週 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "礦山的魔力石",
@@ -6100,12 +5470,7 @@
                 "period": "weekly"
               },
               "id": "礦山的魔力石-貓商人",
-              "priority": "situational",
-              "barter": {
-                "give": "喵幣 ×50000",
-                "get": "礦山的魔力石 ×10",
-                "limit": "每週 3 次"
-              }
+              "priority": "situational"
             },
             {
               "name": "鱸魚",
@@ -6119,12 +5484,7 @@
                 "period": "weekly"
               },
               "id": "cat-merchant-sea-bass",
-              "priority": "extra",
-              "barter": {
-                "give": "喵幣 ×20000",
-                "get": "鱸魚 ×1",
-                "limit": "每週 10 次"
-              }
+              "priority": "extra"
             }
           ]
         }

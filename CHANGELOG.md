@@ -17,7 +17,8 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 ### Chores
 - Source: TW client build `59826`, trio `#442/#439/#449`; the new rows come from the 2026-11-25 handoff and the 13 艾明馬夏 envelopes the user curated.
 - `scripts/crop-npc.py` reads the opaque square of a transparent-padded client sprite instead of running the 4-side colour trim, which could not find that square.
-- Imported barter rows carry no display strings: the loader composes `give` / `get` / `limit` from cost, yield and cap, so `shops.json` holds only the client's numbers. The 128 older rows keep their authored text verbatim.
+- The legacy `barter` display block is gone from `shops.json`: the loader composes `give` / `get` / `limit` from cost, yield and cap, so the mechanics are the only copy and the data holds only the client's numbers. A bare name reads as one unit, so 68 tracker rows drop a redundant `×1` as a result.
+- An uncapped barter composes no limit text: the tracker shows no limit chip, as it already does for an uncapped gold pin, while the shop tile keeps its existing `不限次數` default.
 - `docs/npc-shop.md` §4 records the catalog: 458 rows, 59 merchants, 9 towns, 242 gold and 216 barter rows, and 443 pin ids across three shared pools.
 
 ## 2026-11-24 — Search Console verification

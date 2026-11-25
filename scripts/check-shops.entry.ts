@@ -254,9 +254,8 @@ for (const t of townList) {
 }
 
 // 1. strict shape per option
-const optKeys = new Set(["name", "kind", "cost", "get", "limit", "scope", "priority", "icon", "id", "pool", "barter"]);
+const optKeys = new Set(["name", "kind", "cost", "get", "limit", "scope", "priority", "icon", "id", "pool"]);
 const optPriorities = new Set(["must", "extra", "once", "situational"]);
-const barterTextKeys = new Set(["give", "get", "limit"]);
 const costKeys = new Set(["amount", "currency"]);
 const getKeys = new Set(["amount"]);
 const limitKeys = new Set(["times", "period"]);
@@ -354,26 +353,6 @@ eachNpc((town, npc, items) => {
     }
     if (it["id"] !== undefined && !optPriorities.has(it["priority"] as string)) {
       fail(`id without priority ${where} (a pin must carry its tier)`);
-    }
-    // Legacy display strings: all three verbatim when present (the tracker
-    // renders them, never a recomposition). A barter leg may omit them — the
-    // loader composes all three from the structured fields — but a partial
-    // block is drift. Shop legs carry none.
-    if (it["barter"] !== undefined) {
-      if (!isObj(it["barter"])) fail(`bad barter ${where}`);
-      else {
-        for (const k of keys(it["barter"])) {
-          if (!barterTextKeys.has(k)) fail(`unknown barter key ${where}: ${k}`);
-        }
-        for (const k of ["give", "get", "limit"]) {
-          if (typeof (it["barter"] as Record<string, unknown>)[k] !== "string") {
-            fail(`bad barter.${k} ${where}`);
-          }
-        }
-      }
-    }
-    if ((it["kind"] ?? "shop") !== "barter" && it["barter"] !== undefined) {
-      fail(`barter display on shop leg ${where} (display strings ride barter legs only)`);
     }
     // Art override: a data-spelled item name, never empty, whose file must be
     // on disk (an explicit pointer at nothing is author error, not art lag).
@@ -509,20 +488,14 @@ const poolProblem = (partner: PoolRow, canonical: PoolRow): string | null => {
 // recipes.json quest stubs like everything else — there is no separate
 // allowlist: if a stub is ever deleted, this gate fails loudly instead of
 // staying green behind an exception.
-const base = (s: string): string => s.split(" ×")[0];
 const known = new Set<string>(["gold", ...Object.keys(recipes)]);
 eachNpc((_town, _npc, items) => {
   for (const it of items) {
     if (!isObj(it)) continue;
     if (typeof it["name"] === "string") known.add(it["name"]);
-    const b = it["barter"];
-    if (isObj(b)) {
-      if (typeof b["give"] === "string") known.add(base(b["give"]));
-      if (typeof b["get"] === "string") known.add(base(b["get"]));
-    } else if ((it["kind"] ?? "shop") === "barter" && isObj(it["cost"])) {
-      // A barter row imported from the client carries no authored display
-      // strings; the loader composes its give/get from cost and yield, so the
-      // structured currency is the token that names the cost.
+    if ((it["kind"] ?? "shop") === "barter" && isObj(it["cost"])) {
+      // A barter leg's cost is a give token by definition; the tracker's give
+      // text is composed from it, so this is the name that token must carry.
       const currency = it["cost"]["currency"];
       if (typeof currency === "string") known.add(currency);
     }
@@ -560,17 +533,17 @@ for (const [item, e] of Object.entries(recipes)) {
 
 // 5. twin cap parity: every id-bearing leg must resolve in the materials
 // table, and its carried display limit must equal the rebuilt structured
-// limit (shops owns mechanics). A leg with no structured limit pairs with
-// 不限次數 only. Reachability + value in one check: a leg that drops out of
-// the table (or whose strings drift from its mechanics) fails here, which is
-// what caught the silent route-table collapse before. Legs the twin matcher
+// limit (shops owns mechanics). A leg with no structured limit pairs with no
+// limit line at all. Reachability + value in one check: a leg that drops out
+// of the table (or whose strings drift from its mechanics) fails here, which
+// is what caught the silent route-table collapse before. Legs the twin matcher
 // finds ambiguous by design (same npc+name+outQty twice, e.g. two currencies
 // for one item) skip the table half and check the rebuild direct from the
 // option — same mechanics, no ambiguity involved.
 for (const deal of shopDeals(loadShopNpcs())) {
   if (!deal.id || !deal.barterText) continue;
   const twin = twinTradeLeg(deal.npc, deal.name, deal.outQty, deal.town);
-  const want = twin ? (twin.limit ?? "不限次數") : "twin-ambiguous";
+  const want = twin ? (twin.limit ?? null) : "twin-ambiguous";
   if (twin && deal.barterText.limit !== want) {
     fail(`cap divergence ${deal.id}: display ${JSON.stringify(deal.barterText.limit)} vs structured ${JSON.stringify(twin.limit ?? null)}`);
     continue;
@@ -578,20 +551,18 @@ for (const deal of shopDeals(loadShopNpcs())) {
   if (!twin) {
     const opt = { times: deal.limitTimes ?? undefined, period: deal.limitPeriod ?? undefined };
     const rebuilt = (deal.limitTimes ?? 0) >= 1 ? stringifyLimit(opt, deal.scopeAccount ? "account" : "character") : null;
-    if (deal.barterText.limit !== (rebuilt ?? "不限次數")) {
+    if (deal.barterText.limit !== rebuilt) {
       fail(`cap divergence ${deal.id}: display ${JSON.stringify(deal.barterText.limit)} vs structured ${JSON.stringify(rebuilt)}`);
     }
   }
 }
 
 // 6. curated completeness: every barter leg carries its curation — a stable id
-// and a priority tier — and has display text, authored or composed at load, so
-// no row renders degraded (no badge, no breakdown, shop:: pin). This replaces
-// the old cross-file curation check: there is no second file to drift from, but
-// the display text and the structured mechanics are still two copies of one
-// fact, so they are asserted equal here (names and per-exchange quantities). A
-// split would render one item on the tracker and resolve another in the shop,
-// with every other gate green.
+// and a priority tier — and the loader gives it display text composed from the
+// mechanics, so no row renders degraded (no badge, no breakdown, shop:: pin).
+// The composed text is asserted equal to those mechanics here (names and
+// per-exchange quantities): a split would render one item on the tracker and
+// resolve another in the shop, with every other gate green.
 for (const deal of shopDeals(loadShopNpcs())) {
   if (deal.kind !== "barter") continue;
   const key = `${deal.town} ${deal.npc} ${deal.name}`;

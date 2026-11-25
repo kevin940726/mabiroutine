@@ -102,17 +102,6 @@
           "minLength": 3,
           "pattern": "^[^:]+::[^:]+$"
         },
-        "barter": {
-          "type": "object",
-          "description": "Legacy display strings for a barter leg, verbatim as authored (×N quirks and 不限次數 kept: the tracker renders these strings, never a recomposition). Optional on a barter leg: a row imported from the client carries no authored text, and the loader composes the three strings from cost, yield and cap. Absent on shop legs.",
-          "properties": {
-            "give": { "type": "string" },
-            "get": { "type": "string" },
-            "limit": { "type": "string" }
-          },
-          "required": ["give", "get", "limit"],
-          "additionalProperties": false
-        },
         "icon": {
           "type": "string",
           "description": "Art override: a data-spelled item name whose public/items file to show instead of this option's own (resolved through itemIconPath, so encoding stays centralized). Omit for own art. Every 卷軸 row points at 任務卷軸 rather than duplicating the paper file per name."

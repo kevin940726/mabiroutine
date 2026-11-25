@@ -576,16 +576,15 @@ than printing to the console (see the terminal trap in section 0).
 
 - `shops.json`: 458 rows, 59 NPCs, 9 towns. 242 gold (`kind` omitted), 216 barter.
 - 27 NPCs are barter-only, 24 are mixed, 8 are gold-only.
-- Every barter row carries a stable `id` and a `priority`; the older rows also
-  carry authored `barter.give` / `get` / `limit` display strings, while a row
-  imported from the client omits them and the loader composes the three from
-  cost, yield and cap. Either way only the 242 gold rows need a `shop::` pin id.
-  `barter.json` was retired 2026-10-07: the ids, tiers, display strings and order
-  now live on the options plus `curatedOrder.ts`.
+- Every barter row carries a stable `id` and a `priority`, and the loader
+  composes its `give` / `get` / `limit` display text from cost, yield and cap.
+  The hand-written strings inherited from `barter.json` were dropped 2026-11-25,
+  so the mechanics are the only copy and only the 242 gold rows need a `shop::`
+  pin id. The ids, tiers and order live on the options plus `curatedOrder.ts`.
 - **Zero** curated rows lack a shop entry, and zero shop barter rows lack their
   inline curation, in both directions. `test:shops` asserts it directly now
-  (check 6): a barter leg missing an `id` or a `priority` fails, and the display
-  text (authored or composed) is checked against the structured mechanics so
+  (check 6): a barter leg missing an `id` or a `priority` fails, and the
+  composed display text is checked against the structured mechanics so
   a rename on one side cannot ship. The gap history the old cross-file check
   caught is worth keeping: 阿蘭雯 was absent from `shops.json` entirely, so their
   two curated trades were injected as curated-only rows and could not be reached
