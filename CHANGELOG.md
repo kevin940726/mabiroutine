@@ -7,7 +7,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 ### Features
 - The material card now explains how to make the food a trade asks for: 南瓜派, 咖哩飯, 南瓜湯, 綠茶可麗餅蛋糕 and 金銀辣魚湯 joined the recipe data, so their give lines open the same breakdown as other craftables.
 - 山米爾平原 joins the shop tab with 伊萊恩's 8 rows: her potions, 皮革+ for 隕鐵礦石 and the 柔軟/堅硬原木 furniture barters for 最高級原木+.
-- 艾明馬夏 joins the shop tab with 13 merchants and 110 of their trades, from 佛瑞哲's ingredients and 克雷格's potions to 黛蓮's leather, cloth and 愛心幣 tools and 納里's instruments; each merchant has a portrait.
+- 艾明馬夏 joins the shop tab with 13 merchants and 111 of their trades, from 佛瑞哲's ingredients and 克雷格's potions to 黛蓮's leather, cloth and 愛心幣 tools and 納里's instruments; each merchant has a portrait.
 - The eight merchants already in the catalog carry the stock the client sells now: 88 new rows across 史帝華, 瓦爾特, 伊文, 茉莉, 蘿拉 and 麥爾坎, including 愛心幣 crafting tools, 深淵 wish-pot exchanges, 金銀辣魚湯 bandages and instruments.
 - Stocks sold at two merchants share one counter: 克雷格 draws on 伊文's 魔物討伐證明 stock, 黛蓮 on 瓦爾特's 裝飾製作零件, and 唐娜 on 安黛莉's 聖水, so a pin names every seller and one cap covers them all.
 - 麥爾坎, 尚 and 伊比 are the merchant names again, with 瑪姆斯汀, 史恩 and 貝蒂 kept as search-only aliases; 麥爾坎的鬆軟羊毛枕頭 follows the merchant, and a saved gold pin on its rows moves with it (store `v25`).
@@ -25,7 +25,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 - `parseItemQty` gains its inverse, `formatItemQty`, so the composed barter text and its parser share one shape; the pool fixtures key on `pinId === id` instead of the pooled flag.
 - Six TW-published 加工 recipes join the recipe data (柔軟木材, 堅硬木材, 最高級木材+, 飯, 乾燥茶葉, 發酵茶葉) with their four missing icons, so the components of the new food recipes resolve to a source.
 - `最高級原木+` gains its gather route (伐木 Lv.30, 山米爾平原), so the log the furniture barters ask for resolves to a source instead of having none.
-- `docs/npc-shop.md` §4 records the catalog: 457 rows, 60 merchants, 10 towns, 238 gold and 219 barter rows, and 442 pin ids across three shared pools.
+- `docs/npc-shop.md` §4 records the catalog: 458 rows, 60 merchants, 10 towns, 239 gold and 219 barter rows, and 443 pin ids across three shared pools.
 
 ## 2026-11-24 — Search Console verification
 <!-- whats-new: none -->

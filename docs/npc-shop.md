@@ -574,7 +574,7 @@ counts if `shops.json` or `curatedOrder.ts` change, and do not propagate a new t
 into the measurements above. Measure them by having a script write a UTF-8 file rather
 than printing to the console (see the terminal trap in section 0).
 
-- `shops.json`: 457 rows, 60 NPCs, 10 towns. 238 gold (`kind` omitted), 219 barter.
+- `shops.json`: 458 rows, 60 NPCs, 10 towns. 239 gold (`kind` omitted), 219 barter.
 - 27 NPCs are barter-only, 25 are mixed, 8 are gold-only.
 - Every barter row carries a stable `id` and a `priority`, and the loader
   composes its `give` / `get` / `limit` display text from cost, yield and cap.
@@ -599,10 +599,10 @@ than printing to the console (see the terminal trap in section 0).
   declared with `pool`): 克雷格 draws on 伊文's 魔物討伐證明 stock, 黛蓮 on
   瓦爾特's 裝飾製作零件, and 唐娜 on 安黛莉's 聖水. A partner takes the owner's
   pin id, so the tracker row names both merchants and one cap covers the pair.
-- Pin counts: **all 457 rows pinnable, 442 distinct ids** — every barter row
+- Pin counts: **all 458 rows pinnable, 443 distinct ids** — every barter row
   carries an explicit option `id` and every gold row a `shop::` id, but the 15
   pooled partners (9 barter, 6 gold) take their owner's id, so the distinct count
-  is 442 rather than 457.
+  is 443 rather than 458.
 
 ---
 

@@ -3782,6 +3782,16 @@
               }
             },
             {
+              "name": "錢幣瓢蟲",
+              "cost": {
+                "amount": 1000
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
               "name": "蝴蝶蜻蜓",
               "cost": {
                 "amount": 1400
