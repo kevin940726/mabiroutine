@@ -270,7 +270,8 @@ need a toggle because both kinds render as tiles and 類型 filters them.
 - **The 已選 count is the tracker's count**, so it opens at the seeded default
   pins (9) rather than 0. Intended, but visible.
 - **All rows are pinnable.** Curated barter rows pin under their explicit option
-  `id`; gold rows pin under a `shop::` id. See section 2.
+  `id`, or their pool owner's; gold rows pin under a `shop::` id, or their pool
+  owner's. See section 2.
 - **Item names are spelled one way on screen.** Parenthesis width is half-width
   everywhere the user reads, on every screen, matching the data files and the icon
   file names, with a thin space before a name's own `(3級)` suffix, and search
@@ -592,7 +593,7 @@ than printing to the console (see the terminal trap in section 0).
 - Three stocks are one purchase counter sold at two merchants (15 partner rows,
   declared with `pool`): 克雷格 draws on 伊文's 魔物討伐證明 stock, 黛蓮 on
   瓦爾特's 裝飾製作零件, and 唐娜 on 安黛莉's 聖水. A partner takes the owner's
-  pin id, so the tracker row names both merchants and one cap covers the pair.
+  pin id, so one cap covers the pair and the task description names both sellers.
 - Pin counts: **all 458 rows pinnable, 443 distinct ids** — every barter row
   carries an explicit option `id` and every gold row a `shop::` id, but the 15
   pooled partners (9 barter, 6 gold) take their owner's id, so the distinct count

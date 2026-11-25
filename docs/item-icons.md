@@ -89,10 +89,10 @@ of being stretched to look right. The fixed frame is what keeps the heights equa
 
 **Every name the app looks up has art.** 蜂蠟 and 砂紙 joined `shops.json` on
 2026-10-21 and their files landed the same day, straight from the catalog source.
-The 2026-11-25 艾明馬夏 import and the eight refreshed merchants added 94 names;
-their files landed from the same client extraction (128×128 WebP, quality 85,
-method 6), so the placeholder is again only the designed fallback for the next
-name a data update adds before its capture.
+The 2026-11-25 艾明馬夏 import and the six refreshed merchants with new stock
+added 94 names; their files landed from the same client extraction (128×128 WebP,
+quality 85, method 6), so the placeholder is again only the designed fallback for
+the next name a data update adds before its capture.
 
 Counted over the names themselves: `items[].name` is fewer names than rows once an
 option's `icon` override collapses rows onto a shared file (the quest-board scrolls

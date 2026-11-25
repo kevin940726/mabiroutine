@@ -1,5 +1,59 @@
 [
   {
+    "release": "2026-11-26 — Emain Macha, Senmai and the shop refresh",
+    "date": "2026-11-26",
+    "kind": "feature",
+    "text": "帳號區的「100 日禮物箱」已結束並移除，原位置改為「冒險家公會的補給票券」：黑色星期五活動期間每日可在商城領取 100 金幣的補給票券，2026 年 12 月 9 日（週三）06:00 結束後列會消失。"
+  },
+  {
+    "release": "2026-11-26 — Emain Macha, Senmai and the shop refresh",
+    "date": "2026-11-26",
+    "kind": "feature",
+    "text": "材料卡片現在會說明交易要求的料理怎麼做：南瓜派、咖哩飯、南瓜湯、綠茶可麗餅蛋糕與金銀辣魚湯加入配方資料，給出欄位和其他可製作道具一樣可以打開明細。"
+  },
+  {
+    "release": "2026-11-26 — Emain Macha, Senmai and the shop refresh",
+    "date": "2026-11-26",
+    "kind": "feature",
+    "text": "商店頁新增山米爾平原與伊萊恩的 8 筆商品：藥水、以隕鐵礦石兌換的皮革+，以及以最高級原木+兌換的柔軟原木與堅硬原木。"
+  },
+  {
+    "release": "2026-11-26 — Emain Macha, Senmai and the shop refresh",
+    "date": "2026-11-26",
+    "kind": "feature",
+    "text": "商店頁新增艾明馬夏與 13 位商人、110 筆交易，從佛瑞哲的食材、克雷格的藥水，到黛蓮的皮革、布料與愛心幣工具，以及納里的樂器；每位商人都附頭像。"
+  },
+  {
+    "release": "2026-11-26 — Emain Macha, Senmai and the shop refresh",
+    "date": "2026-11-26",
+    "kind": "feature",
+    "text": "目錄中既有的六位商人補上客戶端現在販售的庫存：史帝華、瓦爾特、伊文、茉莉、蘿拉與麥爾坎共 80 筆新商品，包含愛心幣製作工具、深淵許願壺兌換與樂器。"
+  },
+  {
+    "release": "2026-11-26 — Emain Macha, Senmai and the shop refresh",
+    "date": "2026-11-26",
+    "kind": "feature",
+    "text": "兩位商人共用的庫存現在只算一次購買次數：克雷格使用伊文的魔物討伐證明庫存、黛蓮使用瓦爾特的裝飾製作零件、唐娜使用安黛莉的聖水，一個釘選就涵蓋每位販售者。"
+  },
+  {
+    "release": "2026-11-26 — Emain Macha, Senmai and the shop refresh",
+    "date": "2026-11-26",
+    "kind": "feature",
+    "text": "麥爾坎、尚與伊比恢復為客戶端目前的商人名稱，瑪姆斯汀、史恩與貝蒂保留為搜尋用別名；麥爾坎的鬆軟羊毛枕頭跟著改名，已保存的金幣釘選也會跟著移動。"
+  },
+  {
+    "release": "2026-11-26 — Emain Macha, Senmai and the shop refresh",
+    "date": "2026-11-26",
+    "kind": "fix",
+    "text": "瓦爾特的空瓶與紙恢復為無購買上限；客戶端兩者都沒有每週次數限制。"
+  },
+  {
+    "release": "2026-11-26 — Emain Macha, Senmai and the shop refresh",
+    "date": "2026-11-26",
+    "kind": "fix",
+    "text": "尚的裝水的瓶子改為每 10 個傷痕花換得 10 個，原本只換得 1 個。"
+  },
+  {
     "release": "2026-11-14 — Weekend-only rows",
     "date": "2026-11-14",
     "kind": "feature",
