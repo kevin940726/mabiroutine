@@ -2199,5 +2199,139 @@
     "outQty": 1
    }
   ]
+ },
+ "柔軟木材": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "木材加工設備",
+    "level": "3",
+    "outQty": 3,
+    "components": [
+     {
+      "name": "高級木材+",
+      "qty": 15
+     },
+     {
+      "name": "柔軟原木",
+      "qty": 30
+     },
+     {
+      "name": "樹液",
+      "qty": 30
+     }
+    ]
+   }
+  ]
+ },
+ "堅硬木材": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "木材加工設備",
+    "level": "3",
+    "outQty": 3,
+    "components": [
+     {
+      "name": "高級木材+",
+      "qty": 15
+     },
+     {
+      "name": "堅硬原木",
+      "qty": 30
+     },
+     {
+      "name": "樹液",
+      "qty": 30
+     }
+    ]
+   }
+  ]
+ },
+ "最高級木材+": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "木材加工設備",
+    "level": "5",
+    "outQty": 3,
+    "components": [
+     {
+      "name": "最高級木材",
+      "qty": 5
+     },
+     {
+      "name": "最高級原木+",
+      "qty": 20
+     },
+     {
+      "name": "樹液",
+      "qty": 20
+     }
+    ]
+   }
+  ]
+ },
+ "飯": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食材加工設備",
+    "level": "5",
+    "outQty": 3,
+    "components": [
+     {
+      "name": "泡水的米",
+      "qty": 8
+     },
+     {
+      "name": "裝水的瓶子",
+      "qty": 2
+     }
+    ]
+   }
+  ]
+ },
+ "乾燥茶葉": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食材加工設備",
+    "level": "5",
+    "outQty": 3,
+    "components": [
+     {
+      "name": "茶葉",
+      "qty": 30
+     }
+    ]
+   }
+  ]
+ },
+ "發酵茶葉": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食材加工設備",
+    "level": "5",
+    "outQty": 3,
+    "components": [
+     {
+      "name": "乾燥茶葉",
+      "qty": 5
+     },
+     {
+      "name": "布料",
+      "qty": 1
+     }
+    ]
+   }
+  ]
  }
 }

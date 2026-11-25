@@ -99,7 +99,7 @@ option's `icon` override collapses rows onto a shared file (the quest-board scro
 all use `任務卷軸`), the barter legs add the give/get names the loader composes from
 cost and yield, and the breakdown adds every recipe result and component, with the
 ` ×N` suffix stripped as `parseItemQty` does. The directory also holds spare art, so
-its 338 files are not the same set as those 330 names.
+its 342 files are not the same set as those 334 names.
 
 One spare file is not an item name at all: `public/items/金幣.webp` is the
 coin a gold PRICE is drawn with (`Cost` in `src/components/shop/Cost.tsx`). It lives

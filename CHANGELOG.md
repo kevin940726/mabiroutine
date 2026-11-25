@@ -23,6 +23,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 - An uncapped barter composes no limit text: the tracker shows no limit chip, as it already does for an uncapped gold pin, while the shop tile keeps its existing `不限次數` default.
 - Item art lands for the 94 names the intake added: 328 files in `public/items`, every lookup name covered, from the client's icon pool through the same 128px WebP pipeline as the existing set.
 - `parseItemQty` gains its inverse, `formatItemQty`, so the composed barter text and its parser share one shape; the pool fixtures key on `pinId === id` instead of the pooled flag.
+- Six TW-published 加工 recipes join the recipe data (柔軟木材, 堅硬木材, 最高級木材+, 飯, 乾燥茶葉, 發酵茶葉) with their four missing icons, so the components of the new food recipes resolve to a source.
 - `最高級原木+` gains its gather route (伐木 Lv.30, 山米爾平原), so the log the furniture barters ask for resolves to a source instead of having none.
 - `docs/npc-shop.md` §4 records the catalog: 457 rows, 60 merchants, 10 towns, 238 gold and 219 barter rows, and 442 pin ids across three shared pools.
 
