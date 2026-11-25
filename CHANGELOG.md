@@ -19,6 +19,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 - `scripts/crop-npc.py` reads the opaque square of a transparent-padded client sprite instead of running the 4-side colour trim, which could not find that square.
 - The legacy `barter` display block is gone from `shops.json`: the loader composes `give` / `get` / `limit` from cost, yield and cap, so the mechanics are the only copy and the data holds only the client's numbers. A bare name reads as one unit, so 68 tracker rows drop a redundant `×1` as a result.
 - An uncapped barter composes no limit text: the tracker shows no limit chip, as it already does for an uncapped gold pin, while the shop tile keeps its existing `不限次數` default.
+- Item art lands for the 94 names the intake added: 328 files in `public/items`, every lookup name covered, from the client's icon pool through the same 128px WebP pipeline as the existing set.
 - `docs/npc-shop.md` §4 records the catalog: 458 rows, 59 merchants, 9 towns, 242 gold and 216 barter rows, and 443 pin ids across three shared pools.
 
 ## 2026-11-24 — Search Console verification
