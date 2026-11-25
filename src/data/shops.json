@@ -2743,6 +2743,86 @@
       ]
     },
     {
+      "name": "山米爾平原",
+      "npcs": [
+        {
+          "name": "伊萊恩",
+          "items": [
+            {
+              "name": "旅行者點心",
+              "cost": {
+                "amount": 600
+              }
+            },
+            {
+              "name": "繃帶",
+              "cost": {
+                "amount": 60
+              }
+            },
+            {
+              "name": "高級繃帶",
+              "cost": {
+                "amount": 400
+              }
+            },
+            {
+              "name": "最高級自動恢復藥水",
+              "cost": {
+                "amount": 2700
+              }
+            },
+            {
+              "name": "入門用伐木斧",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "入門用鐮刀",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "入門用昆蟲捕捉網",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "入門用釣竿",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "細緻道具部件",
+              "cost": {
+                "amount": 15400
+              }
+            },
+            {
+              "name": "皮革+",
+              "kind": "barter",
+              "cost": {
+                "amount": 100,
+                "currency": "隕鐵礦石"
+              },
+              "get": {
+                "amount": 3
+              },
+              "limit": {
+                "times": 1
+              },
+              "id": "sen-伊萊恩-leather-processed-hardened",
+              "priority": "situational"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "艾明馬夏",
       "npcs": [
         {
