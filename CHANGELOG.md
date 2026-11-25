@@ -6,7 +6,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ### Features
 - The material card now explains how to make the food a trade asks for: 南瓜派, 咖哩飯, 南瓜湯, 綠茶可麗餅蛋糕 and 金銀辣魚湯 joined the recipe data, so their give lines open the same breakdown as other craftables.
-- 山米爾平原 joins the shop tab with 伊萊恩's 10 rows: her potions, the 入門用 tools and 皮革+ for 隕鐵礦石.
+- 山米爾平原 joins the shop tab with 伊萊恩's 8 rows: her potions, 皮革+ for 隕鐵礦石 and the 柔軟/堅硬原木 furniture barters for 最高級原木+.
 - 艾明馬夏 joins the shop tab with 13 merchants and 110 of their trades, from 佛瑞哲's ingredients and 克雷格's potions to 黛蓮's leather, cloth and 愛心幣 tools and 納里's instruments; each merchant has a portrait.
 - The eight merchants already in the catalog carry the stock the client sells now: 88 new rows across 史帝華, 瓦爾特, 伊文, 茉莉, 蘿拉 and 麥爾坎, including 愛心幣 crafting tools, 深淵 wish-pot exchanges, 金銀辣魚湯 bandages and instruments.
 - Stocks sold at two merchants share one counter: 克雷格 draws on 伊文's 魔物討伐證明 stock, 黛蓮 on 瓦爾特's 裝飾製作零件, and 唐娜 on 安黛莉's 聖水, so a pin names every seller and one cap covers them all.
@@ -23,7 +23,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 - An uncapped barter composes no limit text: the tracker shows no limit chip, as it already does for an uncapped gold pin, while the shop tile keeps its existing `不限次數` default.
 - Item art lands for the 94 names the intake added: 328 files in `public/items`, every lookup name covered, from the client's icon pool through the same 128px WebP pipeline as the existing set.
 - `parseItemQty` gains its inverse, `formatItemQty`, so the composed barter text and its parser share one shape; the pool fixtures key on `pinId === id` instead of the pooled flag.
-- `docs/npc-shop.md` §4 records the catalog: 468 rows, 60 merchants, 10 towns, 251 gold and 217 barter rows, and 453 pin ids across three shared pools.
+- `docs/npc-shop.md` §4 records the catalog: 457 rows, 60 merchants, 10 towns, 238 gold and 219 barter rows, and 442 pin ids across three shared pools.
 
 ## 2026-11-24 — Search Console verification
 <!-- whats-new: none -->

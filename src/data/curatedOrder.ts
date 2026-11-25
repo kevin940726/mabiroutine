@@ -128,6 +128,8 @@ export const CURATED_ORDER: string[] = [
   "dun-m9", // 茉莉 末日深淵的願望壺+ ← 赤紅深淵的化石 ×10 · 杜巴頓
   "dun-m10", // 茉莉 ★6 附魔卷軸：狐狸 ← 赤紅深淵的化石 ×400 · 杜巴頓
   "sen-伊萊恩-leather-processed-hardened", // 伊萊恩 皮革+ ×3 ← 隕鐵礦石 ×100 · 每日 1 次 · 山米爾平原
+  "sen-伊萊恩-log-soft-furniture", // 伊萊恩 柔軟原木 ×3 ← 最高級原木+ ×100 · 每日 1 次 · 山米爾平原
+  "sen-伊萊恩-log-hard-furniture", // 伊萊恩 堅硬原木 ×3 ← 最高級原木+ ×100 · 每日 1 次 · 山米爾平原
   "ema-克雷格-summon-circle-reward-box-season1-a", // 克雷格 無主的召喚結界戰利品 ← 魔物討伐證明 ×150 · 每週 5 次 · 艾明馬夏
   "ema-克雷格-dimension-hole-reward-box-season1-a", // 克雷格 無主的黑色坑洞戰利品 ← 魔物討伐證明 ×50 · 每週 10 次 · 艾明馬夏
   "ema-克雷格-rune-powder-season1", // 克雷格 符文碎片 ×10 ← 魔物討伐證明 ×20 · 每週 20 次 · 艾明馬夏
