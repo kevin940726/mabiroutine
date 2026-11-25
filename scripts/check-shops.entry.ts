@@ -452,10 +452,9 @@ const poolProblem = (partner: PoolRow, canonical: PoolRow): string | null => {
     const problem = poolProblem(r, canonical);
     if (problem) fail(`pool mismatch ${where} vs ${canonical.npc}: ${problem}`);
   }
-  // The gate has to accept a correct pool too, and no row uses one yet (the
-  // second merchant a pair needs is not in the data). These fixtures run the
-  // same comparator the loop above uses, so the first real pair cannot land on
-  // an untested success path.
+  // The gate has to accept a correct pool too. These fixtures run the same
+  // comparator the loop above uses, so the first real pair cannot land on an
+  // untested success path.
   const base: PoolRow = {
     town: "T",
     npc: "A",
@@ -532,12 +531,7 @@ for (const [item, e] of Object.entries(recipes)) {
 // 5. twin cap parity: every id-bearing leg must resolve in the materials
 // table, and its carried display limit must equal the rebuilt structured
 // limit (shops owns mechanics). A leg with no structured limit pairs with no
-// limit line at all. Reachability + value in one check: a leg that drops out
-// of the table, or whose formatted limit disagrees with the rebuilt one, fails
-// here, which is what caught the silent route-table collapse before. Legs the
-// twin matcher finds ambiguous by design (same npc+name+outQty twice, e.g. two
-// currencies for one item) skip the table half and check the rebuild direct
-// from the option — same mechanics, no ambiguity involved.
+// limit line at all.
 for (const deal of shopDeals(loadShopNpcs())) {
   if (!deal.id || !deal.barterText) continue;
   const twin = twinTradeLeg(deal.npc, deal.name, deal.outQty, deal.town);

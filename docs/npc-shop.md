@@ -579,20 +579,14 @@ than printing to the console (see the terminal trap in section 0).
 - Every barter row carries a stable `id` and a `priority`, and the loader
   composes its `give` / `get` / `limit` display text from cost, yield and cap.
   The hand-written strings inherited from `barter.json` were dropped 2026-11-25,
-  so the mechanics are the only copy and only the 251 gold rows need a `shop::`
+  so the mechanics are the only copy and only the 239 gold rows need a `shop::`
   pin id. The ids, tiers and order live on the options plus `curatedOrder.ts`.
 - **Zero** curated rows lack a shop entry, and zero shop barter rows lack their
   inline curation, in both directions. `test:shops` asserts it directly now
   (check 6): a barter leg missing an `id` or a `priority` fails, and the
   composed display text is checked against the structured mechanics so
-  the formatter cannot drift from them. The gap history the old cross-file check
-  caught is worth keeping: 阿蘭雯 was absent from `shops.json` entirely, so their
-  two curated trades were injected as curated-only rows and could not be reached
-  by picking the NPC; and their 精靈的痕跡 row then missed on one character,
-  `精靈的痕跡` against `精靈痕跡`, which left a `situational` curated row
-  unreachable anywhere. Twin cap parity pairs rows by name and was blind to
-  both — which is why the check no longer depends on a second file.
-- All 251 gold rows are unique on `npc::name`; none has a null price. This is the
+  the formatter cannot drift from them.
+- All 239 gold rows are unique on `npc::name`; none has a null price. This is the
   invariant that lets the pin id be `shop::<npc>::<name>`, and `test:shops`
   now enforces it (check 0b) instead of merely measuring it.
 - Three stocks are one purchase counter sold at two merchants (15 partner rows,
@@ -820,7 +814,7 @@ matches the same item across unrelated merchants (蜂蠟 sits at three).
 
 The data contract is gated and three pairs ship. The **render** is not verified in
 a browser, so nothing below has been seen with real data. This is the checklist
-for the commit that added 黛蓮's rows:
+for verifying them:
 
 - **The 共用 marker on the limit line.** That line is a flex row with no height
   reservation (unlike the name band), so 伺服器 + 共用 at 2 columns on a 360px

@@ -5,7 +5,8 @@ NPC pfp crop: square portrait -> 76 square -> circle (transparent)
 - Opaque captures: sample each edge mid colour, scan inward until != bg
   (tolerance 8) -> left/right/top/bottom.
 - Transparent-padded client sprites: the opaque bbox, when square.
-- Must be square after trim (1px slack autofixed like before), else error.
+- An opaque capture autofixes a 1px trim slack; a transparent bbox must be
+  exactly square, else error.
   Larger squares are downscaled to 76x76 (same framing, head scale matches
   the existing portraits); smaller squares are never upscaled, else error.
 - Then circle (transparent outside, head on transparent)
@@ -88,7 +89,7 @@ def process_one(src: Path):
         # difference is invisible at these sizes.
         print(f"  [scale] downscaling {w_box} -> 76")
         square = square.resize((76, 76), Image.BICUBIC)
-    # keep square as is (green bg + head), circle will make outside transparent only
+    # keep square as is (portrait background + head), circle makes outside transparent only
     out = circle_crop(square)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     dst = OUT_DIR / (src.stem + ".webp")

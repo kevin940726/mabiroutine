@@ -26,6 +26,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 - `parseItemQty` gains its inverse, `formatItemQty`, so the composed barter text and its parser share one shape; the pool fixtures key on `pinId === id` instead of the pooled flag.
 - Six TW-published 加工 recipes join the recipe data (柔軟木材, 堅硬木材, 最高級木材+, 飯, 乾燥茶葉, 發酵茶葉) with their four missing icons, so the components of the new food recipes resolve to a source.
 - `最高級原木+` gains its gather route (伐木 Lv.30, 山米爾平原), so the log the furniture barters ask for resolves to a source instead of having none.
+- Review cleanup on the unpushed shop work: stale pool/cap/history prose removed, the gold-row count corrected to 239, and the crop script's trim rule stated for both input kinds.
 - `docs/npc-shop.md` §4 records the catalog: 458 rows, 60 merchants, 10 towns, 239 gold and 219 barter rows, and 443 pin ids across three shared pools.
 
 ## 2026-11-24 — Search Console verification

@@ -138,9 +138,9 @@ const poolLookupKey = (d: Pick<ShopDeal, "npc" | "town" | "kind" | "name">) =>
  * partners only, so the canonical row is found by `kind + name` under the named
  * merchant and must not itself carry a pool (the gate rejects chains).
  *
- * Resolution is skipped rather than guessed when the target is malformed,
- * dangling, or ambiguous: the row keeps its own pin id, and `test:shops` fails
- * on the data instead.
+ * Resolution is skipped rather than guessed when the target is malformed or
+ * dangling: the row keeps its own pin id, and `test:shops` fails on the data
+ * instead.
  */
 function resolvePools(npcs: ShopNpc[]): void {
   const deals = npcs.flatMap((n) => n.deals);
@@ -166,9 +166,9 @@ let pinIdCache: Set<string> | null = null;
 let byPinCache: Map<string, ShopDeal> | null = null;
 
 /**
- * Every deal keyed by the id a pin on it uses, so a pin id resolves to its row
- * without re-deriving anything. Memoized — the store, the tracker and the panel
- * all read it.
+ * One deal per pin id — the canonical row when a pool shares it — so a pin id
+ * resolves to a row without re-deriving anything. Memoized: the store, the
+ * tracker and the panel all read it.
  */
 export function shopDealsByPinId(): Map<string, ShopDeal> {
   if (!byPinCache) {
@@ -226,7 +226,7 @@ function limitText(limit?: { times?: number; period?: string }, scope?: string):
 /**
  * Structured twin of limitText's cycle: "weekly" only on an explicit weekly
  * period, "daily" for every other limited row (an absent period renders as
- * 每日 — most limited rows carry none), null when unlimited. Same rule as the
+ * 每日), null when unlimited. Same rule as the
  * deal lookup in cycle.ts, kept local so the dependency arrow stays
  * one-way (cycle → shops, never back).
  */
