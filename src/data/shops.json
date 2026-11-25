@@ -225,8 +225,8 @@
           ]
         },
         {
-          "name": "瑪姆斯汀",
-          "aliases": ["麥爾坎"],
+          "name": "麥爾坎",
+          "aliases": ["瑪姆斯汀"],
           "items": [
             {
               "name": "空瓶",
@@ -271,6 +271,120 @@
               }
             },
             {
+              "name": "旅行者點心",
+              "cost": {
+                "amount": 600
+              }
+            },
+            {
+              "name": "繃帶",
+              "cost": {
+                "amount": 60
+              }
+            },
+            {
+              "name": "高級繃帶",
+              "cost": {
+                "amount": 400
+              }
+            },
+            {
+              "name": "最高級自動恢復藥水",
+              "cost": {
+                "amount": 2700
+              }
+            },
+            {
+              "name": "入門用伐木斧",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "入門用鐮刀",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "入門用昆蟲捕捉網",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "入門用釣竿",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "道具部件",
+              "cost": {
+                "amount": 1800
+              }
+            },
+            {
+              "name": "空白樂譜",
+              "cost": {
+                "amount": 1500
+              }
+            },
+            {
+              "name": "魯特琴",
+              "cost": {
+                "amount": 2000
+              }
+            },
+            {
+              "name": "2和弦魯特琴",
+              "cost": {
+                "amount": 6000
+              }
+            },
+            {
+              "name": "2和弦曼陀林",
+              "cost": {
+                "amount": 40000
+              }
+            },
+            {
+              "name": "3和弦曼陀林",
+              "cost": {
+                "amount": 107000
+              }
+            },
+            {
+              "name": "民族風魯特琴",
+              "cost": {
+                "amount": 34000
+              }
+            },
+            {
+              "name": "3和弦民族風魯特琴",
+              "cost": {
+                "amount": 218000
+              }
+            },
+            {
+              "name": "民族風曼陀林",
+              "cost": {
+                "amount": 50000
+              }
+            },
+            {
+              "name": "2和弦民族風曼陀林",
+              "cost": {
+                "amount": 145000
+              }
+            },
+            {
+              "name": "3和弦民族風曼陀林",
+              "cost": {
+                "amount": 326000
+              }
+            },
+            {
               "name": "空白樂譜",
               "kind": "barter",
               "cost": {
@@ -289,7 +403,7 @@
               }
             },
             {
-              "name": "瑪姆斯汀的鬆軟羊毛枕頭",
+              "name": "麥爾坎的鬆軟羊毛枕頭",
               "kind": "barter",
               "cost": {
                 "amount": 5,
@@ -302,7 +416,7 @@
               "priority": "extra",
               "barter": {
                 "give": "蜘蛛網 ×5",
-                "get": "瑪姆斯汀的鬆軟羊毛枕頭 ×1",
+                "get": "麥爾坎的鬆軟羊毛枕頭 ×1",
                 "limit": "每日 1 次"
               }
             },
@@ -323,6 +437,116 @@
                 "get": "多用途製作台設計圖(3級)",
                 "limit": "每日 1 次"
               }
+            },
+            {
+              "name": "耐火黏土",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m4",
+              "priority": "situational"
+            },
+            {
+              "name": "圓形鋸片",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m5",
+              "priority": "situational"
+            },
+            {
+              "name": "壓板",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m6",
+              "priority": "situational"
+            },
+            {
+              "name": "製革刷",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m7",
+              "priority": "situational"
+            },
+            {
+              "name": "藥品萃取管",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m8",
+              "priority": "situational"
+            },
+            {
+              "name": "十字刀片",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m9",
+              "priority": "situational"
+            },
+            {
+              "name": "耐熱手套",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m10",
+              "priority": "situational"
+            },
+            {
+              "name": "針線盒",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m11",
+              "priority": "situational"
+            },
+            {
+              "name": "調劑工具",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m12",
+              "priority": "situational"
+            },
+            {
+              "name": "料理鍋",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m13",
+              "priority": "situational"
+            },
+            {
+              "name": "圓形磨刀石",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "tir-m14",
+              "priority": "situational"
             }
           ]
         },
@@ -658,10 +882,34 @@
           "items": [
             {
               "name": "旅行者點心",
+              "cost": {
+                "amount": 600
+              }
+            },
+            {
+              "name": "繃帶",
+              "cost": {
+                "amount": 60
+              }
+            },
+            {
+              "name": "高級繃帶",
+              "cost": {
+                "amount": 400
+              }
+            },
+            {
+              "name": "最高級自動恢復藥水",
+              "cost": {
+                "amount": 2700
+              }
+            },
+            {
+              "name": "旅行者點心",
               "kind": "barter",
               "cost": {
                 "amount": 1,
-                "currency": "瑪姆斯汀的鬆軟羊毛枕頭"
+                "currency": "麥爾坎的鬆軟羊毛枕頭"
               },
               "limit": {
                 "times": 3
@@ -669,7 +917,7 @@
               "id": "yen-蘿拉麥爾坎的鬆軟羊毛枕頭-64",
               "priority": "situational",
               "barter": {
-                "give": "瑪姆斯汀的鬆軟羊毛枕頭",
+                "give": "麥爾坎的鬆軟羊毛枕頭",
                 "get": "旅行者點心",
                 "limit": "每日 3 次"
               }
@@ -1034,6 +1282,41 @@
           "name": "史帝華",
           "items": [
             {
+              "name": "旅行者點心",
+              "cost": {
+                "amount": 600
+              }
+            },
+            {
+              "name": "繃帶",
+              "cost": {
+                "amount": 60
+              }
+            },
+            {
+              "name": "高級繃帶",
+              "cost": {
+                "amount": 400
+              }
+            },
+            {
+              "name": "最高級自動恢復藥水",
+              "cost": {
+                "amount": 2700
+              }
+            },
+            {
+              "name": "強化秘藥乳化劑",
+              "cost": {
+                "amount": 7500
+              },
+              "limit": {
+                "times": 20,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
               "name": "火苗結晶",
               "kind": "barter",
               "cost": {
@@ -1164,6 +1447,112 @@
                 "get": "未加工黃金原石 ×7",
                 "limit": "每日 1 次"
               }
+            },
+            {
+              "name": "強化秘藥乳化劑",
+              "kind": "barter",
+              "cost": {
+                "amount": 5,
+                "currency": "愛心幣"
+              },
+              "limit": {
+                "times": 10,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "dun-st8",
+              "priority": "situational"
+            },
+            {
+              "name": "瑪斯深淵的許願壺：戰士系飾品符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-st9",
+              "priority": "situational"
+            },
+            {
+              "name": "瑪斯深淵的許願壺：魔法師系飾品符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-st10",
+              "priority": "situational"
+            },
+            {
+              "name": "瑪斯深淵的許願壺：治癒師系飾品符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-st11",
+              "priority": "situational"
+            },
+            {
+              "name": "瑪斯深淵的許願壺：盜賊系飾品符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-st12",
+              "priority": "situational"
+            },
+            {
+              "name": "末日深淵的願望壺+：武器符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 900,
+                "currency": "赤紅深淵的化石"
+              },
+              "id": "dun-st13",
+              "priority": "situational"
+            },
+            {
+              "name": "末日深淵的願望壺+：防具符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "赤紅深淵的化石"
+              },
+              "id": "dun-st14",
+              "priority": "situational"
+            },
+            {
+              "name": "瑪斯深淵的許願壺",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-st15",
+              "priority": "situational"
+            },
+            {
+              "name": "末日深淵的願望壺+",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "赤紅深淵的化石"
+              },
+              "id": "dun-st16",
+              "priority": "situational"
+            },
+            {
+              "name": "★6 附魔卷軸：狐狸",
+              "kind": "barter",
+              "cost": {
+                "amount": 400,
+                "currency": "赤紅深淵的化石"
+              },
+              "id": "dun-st17",
+              "priority": "situational",
+              "icon": "任務卷軸"
             }
           ]
         },
@@ -1174,20 +1563,12 @@
               "name": "空瓶",
               "cost": {
                 "amount": 50
-              },
-              "limit": {
-                "times": 1,
-                "period": "weekly"
               }
             },
             {
               "name": "紙",
               "cost": {
                 "amount": 100
-              },
-              "limit": {
-                "times": 1,
-                "period": "weekly"
               }
             },
             {
@@ -1310,6 +1691,78 @@
               "scope": "account"
             },
             {
+              "name": "旅行者點心",
+              "cost": {
+                "amount": 600
+              }
+            },
+            {
+              "name": "繃帶",
+              "cost": {
+                "amount": 60
+              }
+            },
+            {
+              "name": "高級繃帶",
+              "cost": {
+                "amount": 400
+              }
+            },
+            {
+              "name": "最高級自動恢復藥水",
+              "cost": {
+                "amount": 2700
+              }
+            },
+            {
+              "name": "入門用伐木斧",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "入門用鐮刀",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "入門用昆蟲捕捉網",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "入門用釣竿",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "道具部件",
+              "cost": {
+                "amount": 1800
+              }
+            },
+            {
+              "name": "空白樂譜",
+              "cost": {
+                "amount": 1500
+              }
+            },
+            {
+              "name": "長笛",
+              "cost": {
+                "amount": 21000
+              }
+            },
+            {
+              "name": "民族風小提琴",
+              "cost": {
+                "amount": 123000
+              }
+            },
+            {
               "name": "皮革",
               "kind": "barter",
               "cost": {
@@ -1419,6 +1872,153 @@
                 "get": "酸蝕魔法榴彈 ×1",
                 "limit": "每日 3 次"
               }
+            },
+            {
+              "name": "耐火黏土",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w7",
+              "priority": "situational"
+            },
+            {
+              "name": "圓形鋸片",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w8",
+              "priority": "situational"
+            },
+            {
+              "name": "壓板",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w9",
+              "priority": "situational"
+            },
+            {
+              "name": "製革刷",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w10",
+              "priority": "situational"
+            },
+            {
+              "name": "藥品萃取管",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w11",
+              "priority": "situational"
+            },
+            {
+              "name": "十字刀片",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w12",
+              "priority": "situational"
+            },
+            {
+              "name": "耐熱手套",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w13",
+              "priority": "situational"
+            },
+            {
+              "name": "針線盒",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w14",
+              "priority": "situational"
+            },
+            {
+              "name": "調劑工具",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w15",
+              "priority": "situational"
+            },
+            {
+              "name": "料理鍋",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w16",
+              "priority": "situational"
+            },
+            {
+              "name": "圓形磨刀石",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w17",
+              "priority": "situational"
+            },
+            {
+              "name": "作業用弓鋸",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w18",
+              "priority": "situational"
+            },
+            {
+              "name": "高級作業用弓鋸",
+              "kind": "barter",
+              "cost": {
+                "amount": 15,
+                "currency": "愛心幣"
+              },
+              "id": "dun-w19",
+              "priority": "situational"
+            },
+            {
+              "name": "裝飾製作零件",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "牛奶燉豬肉"
+              },
+              "get": {
+                "amount": 2
+              },
+              "limit": {
+                "times": 1
+              },
+              "scope": "account",
+              "id": "dun-w20",
+              "priority": "situational"
             }
           ]
         },
@@ -2124,6 +2724,30 @@
           "name": "伊文",
           "items": [
             {
+              "name": "旅行者點心",
+              "cost": {
+                "amount": 600
+              }
+            },
+            {
+              "name": "繃帶",
+              "cost": {
+                "amount": 60
+              }
+            },
+            {
+              "name": "高級繃帶",
+              "cost": {
+                "amount": 400
+              }
+            },
+            {
+              "name": "最高級自動恢復藥水",
+              "cost": {
+                "amount": 2700
+              }
+            },
+            {
               "name": "無主的召喚結界戰利品",
               "kind": "barter",
               "cost": {
@@ -2324,6 +2948,97 @@
                 "get": "赤紅深淵的化石 ×60",
                 "limit": "每週 2 次"
               }
+            },
+            {
+              "name": "瑪斯深淵的許願壺：戰士系飾品符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-m2",
+              "priority": "situational"
+            },
+            {
+              "name": "瑪斯深淵的許願壺：魔法師系飾品符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-m3",
+              "priority": "situational"
+            },
+            {
+              "name": "瑪斯深淵的許願壺：治癒師系飾品符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-m4",
+              "priority": "situational"
+            },
+            {
+              "name": "瑪斯深淵的許願壺：盜賊系飾品符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-m5",
+              "priority": "situational"
+            },
+            {
+              "name": "末日深淵的願望壺+：武器符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 900,
+                "currency": "赤紅深淵的化石"
+              },
+              "id": "dun-m6",
+              "priority": "situational"
+            },
+            {
+              "name": "末日深淵的願望壺+：防具符文",
+              "kind": "barter",
+              "cost": {
+                "amount": 600,
+                "currency": "赤紅深淵的化石"
+              },
+              "id": "dun-m7",
+              "priority": "situational"
+            },
+            {
+              "name": "瑪斯深淵的許願壺",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "深淵的化石"
+              },
+              "id": "dun-m8",
+              "priority": "situational"
+            },
+            {
+              "name": "末日深淵的願望壺+",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "赤紅深淵的化石"
+              },
+              "id": "dun-m9",
+              "priority": "situational"
+            },
+            {
+              "name": "★6 附魔卷軸：狐狸",
+              "kind": "barter",
+              "cost": {
+                "amount": 400,
+                "currency": "赤紅深淵的化石"
+              },
+              "id": "dun-m10",
+              "priority": "situational",
+              "icon": "任務卷軸"
             }
           ]
         },
@@ -2407,6 +3122,1306 @@
                 "times": 3,
                 "period": "weekly"
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "艾明馬夏",
+      "npcs": [
+        {
+          "name": "佛瑞哲",
+          "items": [
+            {
+              "name": "麵粉",
+              "cost": {
+                "amount": 600
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "鮮奶油",
+              "cost": {
+                "amount": 1100
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "鹽",
+              "cost": {
+                "amount": 1000
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "糖",
+              "cost": {
+                "amount": 1200
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "食用油",
+              "cost": {
+                "amount": 1200
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "胡椒",
+              "cost": {
+                "amount": 2000
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "辣椒粉",
+              "cost": {
+                "amount": 3000
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "咖哩粉",
+              "cost": {
+                "amount": 3500
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "芒果冰茶",
+              "cost": {
+                "amount": 29800
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            }
+          ]
+        },
+        {
+          "name": "克雷格",
+          "items": [
+            {
+              "name": "旅行者點心",
+              "cost": {
+                "amount": 600
+              }
+            },
+            {
+              "name": "繃帶",
+              "cost": {
+                "amount": 60
+              }
+            },
+            {
+              "name": "高級繃帶",
+              "cost": {
+                "amount": 400
+              }
+            },
+            {
+              "name": "最高級自動恢復藥水",
+              "cost": {
+                "amount": 2700
+              }
+            },
+            {
+              "name": "無主的召喚結界戰利品",
+              "kind": "barter",
+              "cost": {
+                "amount": 150,
+                "currency": "魔物討伐證明"
+              },
+              "limit": {
+                "times": 5,
+                "period": "weekly"
+              },
+              "id": "ema-克雷格-summon-circle-reward-box-season1-a",
+              "priority": "situational",
+              "pool": "伊文::杜巴頓"
+            },
+            {
+              "name": "無主的黑色坑洞戰利品",
+              "kind": "barter",
+              "cost": {
+                "amount": 50,
+                "currency": "魔物討伐證明"
+              },
+              "limit": {
+                "times": 10,
+                "period": "weekly"
+              },
+              "id": "ema-克雷格-dimension-hole-reward-box-season1-a",
+              "priority": "situational",
+              "pool": "伊文::杜巴頓"
+            },
+            {
+              "name": "符文碎片",
+              "kind": "barter",
+              "cost": {
+                "amount": 20,
+                "currency": "魔物討伐證明"
+              },
+              "get": {
+                "amount": 10
+              },
+              "limit": {
+                "times": 20,
+                "period": "weekly"
+              },
+              "id": "ema-克雷格-rune-powder-season1",
+              "priority": "situational",
+              "pool": "伊文::杜巴頓"
+            },
+            {
+              "name": "不死粉末",
+              "kind": "barter",
+              "cost": {
+                "amount": 100,
+                "currency": "魔物討伐證明"
+              },
+              "limit": {
+                "times": 5,
+                "period": "weekly"
+              },
+              "id": "ema-克雷格-powder-of-immortality",
+              "priority": "situational",
+              "pool": "伊文::杜巴頓"
+            },
+            {
+              "name": "解除詛咒藥水",
+              "kind": "barter",
+              "cost": {
+                "amount": 100,
+                "currency": "魔物討伐證明"
+              },
+              "limit": {
+                "times": 10,
+                "period": "weekly"
+              },
+              "id": "ema-克雷格-curse-removal-powder",
+              "priority": "situational",
+              "pool": "伊文::杜巴頓"
+            },
+            {
+              "name": "遙遠的星辰印章",
+              "kind": "barter",
+              "cost": {
+                "amount": 200,
+                "currency": "魔物討伐證明"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "id": "ema-克雷格-abyss-drop-star-piece-box-all-piece",
+              "priority": "situational",
+              "pool": "伊文::杜巴頓"
+            },
+            {
+              "name": "強化再燃燒催化劑",
+              "kind": "barter",
+              "cost": {
+                "amount": 300,
+                "currency": "魔物討伐證明"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "id": "ema-克雷格-rune-enhance-catalyst",
+              "priority": "situational",
+              "pool": "伊文::杜巴頓"
+            },
+            {
+              "name": "菁英鍊金術再燃燒催化劑",
+              "kind": "barter",
+              "cost": {
+                "amount": 400,
+                "currency": "魔物討伐證明"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "id": "ema-克雷格-alchemy-catalyst-03",
+              "priority": "situational",
+              "pool": "伊文::杜巴頓"
+            },
+            {
+              "name": "大塊肉",
+              "kind": "barter",
+              "cost": {
+                "amount": 100,
+                "currency": "魔物討伐證明"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-克雷格-meat-heavy",
+              "priority": "situational",
+              "pool": "伊文::杜巴頓"
+            },
+            {
+              "name": "最高級耐熱繃帶",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "金銀辣魚湯"
+              },
+              "get": {
+                "amount": 3
+              },
+              "limit": {
+                "times": 1
+              },
+              "scope": "account",
+              "id": "ema-克雷格-healing-item-fire-bandage-02",
+              "priority": "situational"
+            },
+            {
+              "name": "最高級防寒繃帶",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "金銀辣魚湯"
+              },
+              "get": {
+                "amount": 3
+              },
+              "limit": {
+                "times": 1
+              },
+              "scope": "account",
+              "id": "ema-克雷格-healing-item-ice-bandage-02",
+              "priority": "situational"
+            },
+            {
+              "name": "最高級絕緣繃帶",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "金銀辣魚湯"
+              },
+              "get": {
+                "amount": 3
+              },
+              "limit": {
+                "times": 1
+              },
+              "scope": "account",
+              "id": "ema-克雷格-healing-item-electric-bandage-02",
+              "priority": "situational"
+            },
+            {
+              "name": "最高級祝福繃帶",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "金銀辣魚湯"
+              },
+              "get": {
+                "amount": 3
+              },
+              "limit": {
+                "times": 1
+              },
+              "scope": "account",
+              "id": "ema-克雷格-healing-item-blessed-bandage-02",
+              "priority": "situational"
+            },
+            {
+              "name": "最高級封印繃帶",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "金銀辣魚湯"
+              },
+              "get": {
+                "amount": 3
+              },
+              "limit": {
+                "times": 1
+              },
+              "scope": "account",
+              "id": "ema-克雷格-healing-item-black-bandage-02",
+              "priority": "situational"
+            }
+          ]
+        },
+        {
+          "name": "唐娜",
+          "items": [
+            {
+              "name": "空瓶",
+              "cost": {
+                "amount": 50
+              }
+            },
+            {
+              "name": "聖水",
+              "cost": {
+                "amount": 1500
+              },
+              "limit": {
+                "times": 5,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "pool": "安黛莉::堤爾克那"
+            },
+            {
+              "name": "聖水組合箱",
+              "kind": "barter",
+              "cost": {
+                "amount": 3,
+                "currency": "南瓜派"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-唐娜-holy-water-box-npcshop-only-10",
+              "priority": "situational"
+            },
+            {
+              "name": "聖水",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "禮物用花束"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-唐娜-holy-water",
+              "priority": "situational"
+            }
+          ]
+        },
+        {
+          "name": "喬瑟琳",
+          "items": [
+            {
+              "name": "高級設備擴建圖紙",
+              "cost": {
+                "amount": 11000
+              },
+              "limit": {
+                "times": 20,
+                "period": "weekly"
+              },
+              "scope": "account"
+            }
+          ]
+        },
+        {
+          "name": "安格妮絲",
+          "items": [
+            {
+              "name": "繃帶",
+              "cost": {
+                "amount": 60
+              }
+            },
+            {
+              "name": "高級繃帶",
+              "cost": {
+                "amount": 400
+              }
+            },
+            {
+              "name": "最高級自動恢復藥水",
+              "cost": {
+                "amount": 2700
+              }
+            },
+            {
+              "name": "卓越恢復藥水",
+              "cost": {
+                "amount": 3000
+              },
+              "limit": {
+                "times": 20,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "血紅藥草",
+              "cost": {
+                "amount": 250
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "魔力藥草",
+              "cost": {
+                "amount": 600
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "毅力草",
+              "cost": {
+                "amount": 400
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "四葉草",
+              "cost": {
+                "amount": 750
+              },
+              "limit": {
+                "times": 10,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "鎮靜草粉末",
+              "cost": {
+                "amount": 1700
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "柔柔蘑菇",
+              "cost": {
+                "amount": 1700
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "柔柔蘑菇汁液",
+              "cost": {
+                "amount": 1850
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            }
+          ]
+        },
+        {
+          "name": "布萊斯",
+          "items": [
+            {
+              "name": "閃電火烤奶油玉米",
+              "kind": "barter",
+              "cost": {
+                "amount": 30,
+                "currency": "愛心幣"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-布萊斯-food-grilled-whole-corn",
+              "priority": "situational"
+            },
+            {
+              "name": "堤爾克那改良型材料箱",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "愛心幣"
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-布萊斯-fgt2-tir-lucky-box-h",
+              "priority": "situational"
+            },
+            {
+              "name": "艾明馬夏改良型材料箱",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "愛心幣"
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-布萊斯-emain-macha-material-box-grade02",
+              "priority": "situational"
+            }
+          ]
+        },
+        {
+          "name": "歐絲拉",
+          "items": [
+            {
+              "name": "鐵錠",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "咖哩飯"
+              },
+              "get": {
+                "amount": 5
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "id": "ema-歐絲拉-bar-iron",
+              "priority": "situational"
+            },
+            {
+              "name": "隕鐵錠",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "咖哩飯"
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "id": "ema-歐絲拉-bar-meteorite",
+              "priority": "situational"
+            }
+          ]
+        },
+        {
+          "name": "納里",
+          "items": [
+            {
+              "name": "海岸祭典大鼓",
+              "kind": "barter",
+              "cost": {
+                "amount": 1000,
+                "currency": "愛心幣"
+              },
+              "id": "ema-納里-instrument-bigdrum-rare1",
+              "priority": "situational"
+            },
+            {
+              "name": "豎琴",
+              "cost": {
+                "amount": 77000
+              }
+            },
+            {
+              "name": "2和音豎琴",
+              "cost": {
+                "amount": 114000
+              }
+            },
+            {
+              "name": "稀有符文",
+              "cost": {
+                "amount": 432000
+              }
+            },
+            {
+              "name": "費爾諾特豎琴",
+              "cost": {
+                "amount": 152000
+              }
+            },
+            {
+              "name": "2和音配對音符豎琴",
+              "cost": {
+                "amount": 295000
+              }
+            },
+            {
+              "name": "3和音配對音符豎琴",
+              "cost": {
+                "amount": 847000
+              }
+            }
+          ]
+        },
+        {
+          "name": "艾莉娜",
+          "items": [
+            {
+              "name": "最高級布料+",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "綠茶可麗餅蛋糕"
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "id": "ema-艾莉娜-cloth-quality-cloth",
+              "priority": "situational"
+            }
+          ]
+        },
+        {
+          "name": "蓋維",
+          "items": [
+            {
+              "name": "畫框(馴鹿)裝飾箱",
+              "cost": {
+                "amount": 24000
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "畫框(時髦鵝)裝飾箱",
+              "cost": {
+                "amount": 27000
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "演奏會海報裝飾箱",
+              "cost": {
+                "amount": 160000
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "結實的繩索",
+              "kind": "barter",
+              "cost": {
+                "amount": 1000,
+                "currency": "分解的裝備零件"
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-蓋維-rope-strong",
+              "priority": "situational"
+            }
+          ]
+        },
+        {
+          "name": "高登",
+          "items": [
+            {
+              "name": "美乃滋炒肉",
+              "cost": {
+                "amount": 3000
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "馬鈴薯沙拉",
+              "cost": {
+                "amount": 3000
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "蘋果沙拉",
+              "cost": {
+                "amount": 3000
+              },
+              "limit": {
+                "times": 3,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "肉",
+              "cost": {
+                "amount": 250
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "清淡的肉",
+              "cost": {
+                "amount": 400
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "大蒜",
+              "cost": {
+                "amount": 1200
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "草莓",
+              "cost": {
+                "amount": 1200
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "檸檬",
+              "cost": {
+                "amount": 3000
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "胡蘿蔔",
+              "cost": {
+                "amount": 4200
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "番茄",
+              "cost": {
+                "amount": 6800
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "白蘿蔔",
+              "cost": {
+                "amount": 10000
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "麵粉",
+              "kind": "barter",
+              "cost": {
+                "amount": 30,
+                "currency": "稻米"
+              },
+              "get": {
+                "amount": 10
+              },
+              "limit": {
+                "times": 5,
+                "period": "weekly"
+              },
+              "id": "ema-高登-flour-wheat",
+              "priority": "situational"
+            },
+            {
+              "name": "厚實的馬鈴薯",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "發酵茶葉"
+              },
+              "get": {
+                "amount": 5
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-高登-vegetable-potato-heavy",
+              "priority": "situational"
+            }
+          ]
+        },
+        {
+          "name": "黛兒",
+          "items": [
+            {
+              "name": "圓葉幼苗",
+              "cost": {
+                "amount": 3000
+              },
+              "limit": {
+                "times": 10,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "複葉幼苗",
+              "cost": {
+                "amount": 5000
+              },
+              "limit": {
+                "times": 10,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "尖葉幼苗",
+              "cost": {
+                "amount": 7500
+              },
+              "limit": {
+                "times": 5,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "裂葉幼苗",
+              "cost": {
+                "amount": 13500
+              },
+              "limit": {
+                "times": 5,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "躲躲花",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "藍色繡球花"
+              },
+              "get": {
+                "amount": 10
+              },
+              "limit": {
+                "times": 3
+              },
+              "id": "ema-黛兒-herb-stanch",
+              "priority": "situational"
+            },
+            {
+              "name": "傷痕花",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "藍色繡球花"
+              },
+              "get": {
+                "amount": 10
+              },
+              "limit": {
+                "times": 3
+              },
+              "id": "ema-黛兒-herb-disinfection",
+              "priority": "situational"
+            }
+          ]
+        },
+        {
+          "name": "黛蓮",
+          "items": [
+            {
+              "name": "空瓶",
+              "cost": {
+                "amount": 50
+              }
+            },
+            {
+              "name": "紙",
+              "cost": {
+                "amount": 100
+              }
+            },
+            {
+              "name": "生皮",
+              "cost": {
+                "amount": 250
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "最高級蜘蛛網",
+              "cost": {
+                "amount": 900
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "蝴蝶蜻蜓",
+              "cost": {
+                "amount": 1400
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "羊毛",
+              "cost": {
+                "amount": 500
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "蜂蠟",
+              "cost": {
+                "amount": 3600
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "砂紙",
+              "cost": {
+                "amount": 9000
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              },
+              "scope": "account"
+            },
+            {
+              "name": "高級風箱",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-metal-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級木工用滑輪",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-wood-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級平刀",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-leather-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級織布框架",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-cloth-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級藥品固定框架",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-herb-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級食材投入口",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-food-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級鐵砧",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-weapon-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級裁縫剪刀",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-armor-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級計量秤",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-potion-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級磚塊火爐",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-cook-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級工作用放大鏡",
+              "kind": "barter",
+              "cost": {
+                "amount": 27,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-handiwork-shop-04",
+              "priority": "situational"
+            },
+            {
+              "name": "高級作業用弓鋸",
+              "kind": "barter",
+              "cost": {
+                "amount": 15,
+                "currency": "愛心幣"
+              },
+              "id": "ema-黛蓮-facility-up-deco-shop-03",
+              "priority": "situational"
+            },
+            {
+              "name": "入門用伐木斧",
+              "cost": {
+                "amount": 300
+              }
+            },
+            {
+              "name": "細緻道具部件",
+              "cost": {
+                "amount": 15400
+              }
+            },
+            {
+              "name": "裝飾製作零件",
+              "cost": {
+                "amount": 5000
+              },
+              "limit": {
+                "times": 25,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "pool": "瓦爾特::杜巴頓"
+            },
+            {
+              "name": "裝飾製作零件+",
+              "cost": {
+                "amount": 18000
+              },
+              "limit": {
+                "times": 16,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "pool": "瓦爾特::杜巴頓"
+            },
+            {
+              "name": "高級裝飾製作零件",
+              "cost": {
+                "amount": 35000
+              },
+              "limit": {
+                "times": 7,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "pool": "瓦爾特::杜巴頓"
+            },
+            {
+              "name": "座標轉換計",
+              "cost": {
+                "amount": 550000
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "pool": "瓦爾特::杜巴頓"
+            },
+            {
+              "name": "魔力訊號加速器",
+              "cost": {
+                "amount": 750000
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "pool": "瓦爾特::杜巴頓"
+            },
+            {
+              "name": "最高級皮革+",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "南瓜湯"
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "id": "ema-黛蓮-leather-processed-quality",
+              "priority": "situational"
+            },
+            {
+              "name": "最高級木材+",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "南瓜湯"
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "id": "ema-黛蓮-wood-heavy",
+              "priority": "situational"
+            },
+            {
+              "name": "裝飾製作零件+",
+              "kind": "barter",
+              "cost": {
+                "amount": 1,
+                "currency": "南瓜湯"
+              },
+              "get": {
+                "amount": 3
+              },
+              "limit": {
+                "times": 2,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-黛蓮-material-deco-parts-02",
+              "priority": "situational"
+            },
+            {
+              "name": "高級裝飾製作零件",
+              "kind": "barter",
+              "cost": {
+                "amount": 2,
+                "currency": "綠茶可麗餅蛋糕"
+              },
+              "get": {
+                "amount": 3
+              },
+              "limit": {
+                "times": 1,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-黛蓮-material-deco-parts-03",
+              "priority": "situational"
             }
           ]
         }
@@ -3126,8 +5141,8 @@
       "name": "班克爾",
       "npcs": [
         {
-          "name": "貝蒂",
-          "aliases": ["伊比"],
+          "name": "伊比",
+          "aliases": ["貝蒂"],
           "items": [
             {
               "name": "落葉蛾",
@@ -3368,8 +5383,8 @@
           ]
         },
         {
-          "name": "史恩",
-          "aliases": ["尚"],
+          "name": "尚",
+          "aliases": ["史恩"],
           "items": [
             {
               "name": "裝水的瓶子",
@@ -3378,6 +5393,9 @@
                 "amount": 10,
                 "currency": "傷痕花"
               },
+              "get": {
+                "amount": 10
+              },
               "limit": {
                 "times": 1
               },
@@ -3385,7 +5403,7 @@
               "priority": "situational",
               "barter": {
                 "give": "傷痕花 ×10",
-                "get": "裝水的瓶子 ×1",
+                "get": "裝水的瓶子 ×10",
                 "limit": "每日 1 次"
               }
             },

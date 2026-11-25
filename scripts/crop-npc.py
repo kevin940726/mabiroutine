@@ -40,17 +40,33 @@ def process_one(src: Path):
         return False
     w0, h0 = orig.size
     tol = 8
-    bg_l = orig.getpixel((0, h0//2))[:3]
-    bg_r = orig.getpixel((w0-1, h0//2))[:3]
-    bg_t = orig.getpixel((w0//2, 0))[:3]
-    bg_b = orig.getpixel((w0//2, h0-1))[:3]
-    left = next((x for x in range(w0) if d2(orig.getpixel((x, h0//2))[:3], bg_l) > tol), 0)
-    right = next((x for x in range(w0-1, -1, -1) if d2(orig.getpixel((x, h0//2))[:3], bg_r) > tol), w0-1)
-    top = next((y for y in range(h0) if d2(orig.getpixel((w0//2, y))[:3], bg_t) > tol), 0)
-    bottom = next((y for y in range(h0-1, -1, -1) if d2(orig.getpixel((w0//2, y))[:3], bg_b) > tol), h0-1)
+    # Client sprite exports pad a square portrait with transparent pixels. The
+    # 4-side colour scan cannot find that square (the padding carries the same
+    # RGB as the portrait background, so the scan runs into the artwork), so use
+    # the opaque bbox when the source has transparency and that bbox is square.
+    # Opaque captures keep the colour-scan path below unchanged.
+    alpha = orig.getchannel("A")
+    bbox = alpha.getbbox()
+    if alpha.getextrema()[0] < 255 and bbox:
+        bw, bh = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        if bw == bh:
+            left, top, right, bottom = bbox[0], bbox[1], bbox[2] - 1, bbox[3] - 1
+            print(f"  [alpha] {src.stem} {w0}x{h0} -> opaque square w{bw} h{bh}")
+        else:
+            print(f"[error] not square w{bw} h{bh} for {src.name}")
+            return False
+    else:
+        bg_l = orig.getpixel((0, h0//2))[:3]
+        bg_r = orig.getpixel((w0-1, h0//2))[:3]
+        bg_t = orig.getpixel((w0//2, 0))[:3]
+        bg_b = orig.getpixel((w0//2, h0-1))[:3]
+        left = next((x for x in range(w0) if d2(orig.getpixel((x, h0//2))[:3], bg_l) > tol), 0)
+        right = next((x for x in range(w0-1, -1, -1) if d2(orig.getpixel((x, h0//2))[:3], bg_r) > tol), w0-1)
+        top = next((y for y in range(h0) if d2(orig.getpixel((w0//2, y))[:3], bg_t) > tol), 0)
+        bottom = next((y for y in range(h0-1, -1, -1) if d2(orig.getpixel((w0//2, y))[:3], bg_b) > tol), h0-1)
+        print(f"  [4-side] {src.stem} {w0}x{h0} -> left {left} right {right} top {top} bottom {bottom}")
     w_box = right - left + 1
     h_box = bottom - top + 1
-    print(f"  [4-side] {src.stem} {w0}x{h0} -> left {left} right {right} top {top} bottom {bottom} => w{w_box} h{h_box}")
     if w_box != h_box and abs(w_box - h_box) < 2:
         if w_box > h_box:
             print(f"  [fix] w{w_box} > h{h_box} by 1px, trimming right by 1")

@@ -1,6 +1,6 @@
 import shopsJson from "@/data/shops.json";
 import { CURATED_ORDER } from "@/data/curatedOrder";
-import { displayName } from "@/lib/materials";
+import { displayName, stringifyLimit } from "@/lib/materials";
 import type { BarterPriority, Task } from "@/lib/types";
 
 export type DealKind = "shop" | "barter";
@@ -45,8 +45,9 @@ export interface ShopDeal {
    *  verbatim. Null for gold rows, which pin under the derived shop:: id. */
   id: string | null;
   /** Legacy display strings from the option (`barter`): authored give/get/limit
-   *  text, verbatim. The tracker renders these, never a recomposition — the
-   *  quirks (missing ×1, 不限次數) are data facts. Null on shop legs. */
+   *  text, verbatim. A barter row with no authored text gets it composed from
+   *  cost/yield/cap at load, so imported rows carry no unverified strings. Null
+   *  on shop legs. */
   barterText: { give: string; get: string; limit: string } | null;
   barterId: string | null;
   /** the id a pin on this row uses: the curated barter id, or a shop:: id */
@@ -237,6 +238,19 @@ function limitPeriod(limit?: { times?: number; period?: string }): "daily" | "we
   return limit.period === "weekly" ? "weekly" : "daily";
 }
 
+/**
+ * Display strings for a barter row that carries none. Rows imported from the
+ * client have no authored text (the retired barter.json rows did, quirks
+ * included), so the text is composed from the fields that are data: cost,
+ * yield and cap. `test:shops` validates both shapes against the same mechanics.
+ */
+function composeBarterText(item: RawOption, outQty: number): { give: string; get: string; limit: string } {
+  const give = `${item.cost?.currency ?? "gold"} ×${item.cost?.amount ?? 0}`;
+  const get = outQty > 1 ? `${item.name} ×${outQty}` : item.name;
+  const limit = stringifyLimit(item.limit ?? {}, item.scope === "account" ? "account" : "character") ?? "不限次數";
+  return { give, get, limit };
+}
+
 /** Curated position by stable pin id, from the curated order list. Unknown
  *  ids sink last (persisted strays sort after live rows, never among them). */
 const CURATED_ORDER_POS = new Map<string, number>(
@@ -303,6 +317,12 @@ export function loadShopNpcs(): ShopNpc[] {
         const costCurrency = item.cost?.currency ?? "gold";
         const costAmount = item.cost?.amount ?? null;
         const outQty = item.get?.amount ?? 1;
+        const authoredText =
+          typeof item.barter?.give === "string" &&
+          typeof item.barter?.get === "string" &&
+          typeof item.barter?.limit === "string"
+            ? { give: item.barter.give, get: item.barter.get, limit: item.barter.limit }
+            : null;
         return {
           key: `${town}::${npc}::${kind}::${item.name}::${index}`,
           npc,
@@ -324,12 +344,7 @@ export function loadShopNpcs(): ShopNpc[] {
           priority: typeof item.priority === "string" && SHOP_PRIORITIES.has(item.priority) ? (item.priority as CuratedPriority) : null,
           icon: typeof item.icon === "string" ? item.icon : null,
           id: typeof item.id === "string" ? item.id : null,
-          barterText:
-            typeof item.barter?.give === "string" &&
-            typeof item.barter?.get === "string" &&
-            typeof item.barter?.limit === "string"
-              ? { give: item.barter.give, get: item.barter.get, limit: item.barter.limit }
-              : null,
+          barterText: kind === "barter" ? (authoredText ?? composeBarterText(item, outQty)) : null,
           curatedIndex: typeof item.id === "string" ? (CURATED_ORDER_POS.get(item.id) ?? -1) : -1,
         };
       });

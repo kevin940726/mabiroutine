@@ -343,7 +343,7 @@ export function seedMissingDefaultPins(serverFlat: Record<string, unknown>): str
 export const COUNTER_SANITY_MAX = 999;
 
 const initial: AppState = {
-  version: 24,
+  version: 25,
   characters: [defaultChar("角色 1")],
   activeCharId: "",
   accountValues: {},
@@ -452,7 +452,7 @@ export function coerceCounterBooleans(state: {
   fix(state.accountValues);
 }
 
-const RENAMED_NPC: readonly (readonly [string, string])[] = [["麥爾坎", "瑪姆斯汀"]];
+const RENAMED_NPC: readonly (readonly [string, string])[] = [["瑪姆斯汀", "麥爾坎"]];
 
 function renameNpcPinId(id: string): string {
   const pin = parseShopPinId(id);
@@ -1015,6 +1015,13 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     // remapRenamedNpcPins; this step records the rename in the version chain.
     s.version = 24;
   }
+  if (from < 25) {
+    // v24 → v25: the client renamed the merchant back, so 瑪姆斯汀 is 麥爾坎
+    // again. The map in remapRenamedNpcPins was transposed with it, which leaves
+    // a pre-v24 save (already spelling 麥爾坎) untouched and moves only a v24
+    // save's 瑪姆斯汀 ids. This step records that in the chain.
+    s.version = 25;
+  }
   // AFTER the steps, never before: the steps interpret their own booleans (v11
   // reads tower: true as 20), so an ingest coercion running first would eat the
   // value they are looking for.
@@ -1571,7 +1578,7 @@ export const useAppStore = create<Store>()(
     {
       name: "mabiroutine:v2",
       storage: createJSONStorage(() => idleStorage),
-      version: 24,
+      version: 25,
       migrate: (persisted: unknown, version: number) => migratePersisted(persisted, version),
       // `merge` runs on EVERY rehydration, where `migrate` runs only when the
       // stored version differs from the configured one. That difference is the

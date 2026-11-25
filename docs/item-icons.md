@@ -87,17 +87,18 @@ does not hide a violation: it lays its tiles out with `items-start`, so a tile i
 own content height and a conditional frame would simply make that tile shorter instead
 of being stretched to look right. The fixed frame is what keeps the heights equal.
 
-**Every name the app looks up has art**: 蜂蠟 and 砂紙 joined `shops.json` on
-2026-10-21 and their files landed the same day, straight from the catalog source.
-The placeholder stays as the designed fallback for the next name a data update
-adds before its file lands, which is why the frame is sized unconditionally above.
+**Most names the app looks up have art; the 2026-11-25 shop intake is the gap.**
+蜂蠟 and 砂紙 joined `shops.json` on 2026-10-21 and their files landed the same
+day, straight from the catalog source. The 2026-11-25 艾明馬夏 import and the
+eight refreshed merchants added names before their captures: 94 of the 303 names
+the lookup can ask for have no file, so the placeholder is a live state on those
+tiles until the art lands, not just a design fallback.
 
 Counted over the names themselves: `items[].name` is fewer names than rows once an
 option's `icon` override collapses rows onto a shared file (the quest-board scrolls
 all use `任務卷軸`), and the barter legs add their `barter.give` / `barter.get`
-names with the ` ×N` suffix stripped as `parseItemQty` does. Every name in that
-union is covered; the directory also holds spare art, so its file count is larger
-than the name count.
+names with the ` ×N` suffix stripped as `parseItemQty` does. The directory also
+holds spare art, so its 234 files are not the same set as those 303 names.
 
 One spare file is not an item name at all: `public/items/金幣.webp` is the
 coin a gold PRICE is drawn with (`Cost` in `src/components/shop/Cost.tsx`). It lives

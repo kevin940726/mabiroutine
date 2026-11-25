@@ -356,8 +356,9 @@ eachNpc((town, npc, items) => {
       fail(`id without priority ${where} (a pin must carry its tier)`);
     }
     // Legacy display strings: all three verbatim when present (the tracker
-    // renders them, never a recomposition). Barter legs carry all three;
-    // shop legs carry none.
+    // renders them, never a recomposition). A barter leg may omit them — the
+    // loader composes all three from the structured fields — but a partial
+    // block is drift. Shop legs carry none.
     if (it["barter"] !== undefined) {
       if (!isObj(it["barter"])) fail(`bad barter ${where}`);
       else {
@@ -518,6 +519,12 @@ eachNpc((_town, _npc, items) => {
     if (isObj(b)) {
       if (typeof b["give"] === "string") known.add(base(b["give"]));
       if (typeof b["get"] === "string") known.add(base(b["get"]));
+    } else if ((it["kind"] ?? "shop") === "barter" && isObj(it["cost"])) {
+      // A barter row imported from the client carries no authored display
+      // strings; the loader composes its give/get from cost and yield, so the
+      // structured currency is the token that names the cost.
+      const currency = it["cost"]["currency"];
+      if (typeof currency === "string") known.add(currency);
     }
   }
 });
@@ -577,14 +584,14 @@ for (const deal of shopDeals(loadShopNpcs())) {
   }
 }
 
-// 6. curated completeness: every barter leg carries its curation inline —
-// a stable id, a priority tier, and the legacy display strings — so no row
-// renders degraded (no badge, no breakdown, shop:: pin). This replaces the
-// old cross-file curation check: there is no second file to drift from, but
-// the display strings and the structured mechanics are still two copies of
-// one fact, so they are asserted equal here (names and per-exchange
-// quantities). A split would render one item on the tracker and resolve
-// another in the shop, with every other gate green.
+// 6. curated completeness: every barter leg carries its curation — a stable id
+// and a priority tier — and has display text, authored or composed at load, so
+// no row renders degraded (no badge, no breakdown, shop:: pin). This replaces
+// the old cross-file curation check: there is no second file to drift from, but
+// the display text and the structured mechanics are still two copies of one
+// fact, so they are asserted equal here (names and per-exchange quantities). A
+// split would render one item on the tracker and resolve another in the shop,
+// with every other gate green.
 for (const deal of shopDeals(loadShopNpcs())) {
   if (deal.kind !== "barter") continue;
   const key = `${deal.town} ${deal.npc} ${deal.name}`;

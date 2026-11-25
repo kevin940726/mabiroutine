@@ -282,9 +282,10 @@ need a toggle because both kinds render as tiles and 類型 filters them.
 - **A renamed merchant is still findable.** `shops.json` may carry former names in
   `aliases`; the shop search folds them into its haystack, and nothing else reads
   them: no label, no `?npc=` resolution, no pin. 尚 is 史恩, 麥爾坎 is 瑪姆斯汀 and
-  伊比 is 貝蒂 today, and each old name still finds its rows. A rename that reaches
-  a gold row also rewrites its pin id — see the pin-id note in `docs/tracker-data.md`
-  § Item Inventory.
+  伊比 is 貝蒂 as of 2026-11-18; the client renamed all three back on 2026-11-25, so
+  today the names are 尚, 麥爾坎 and 伊比 and the older spellings are the aliases. A
+  rename that reaches a gold row also rewrites its pin id — see the pin-id note in
+  `docs/tracker-data.md` § Item Inventory.
 - **Deliberately not built:** item icons (see section 0), reminder bells and
   seeded gold pins (see section 2). Removal of `barterFilters` used to be on this
   list; it shipped at store v20 (see section 0).
@@ -573,16 +574,18 @@ counts if `shops.json` or `curatedOrder.ts` change, and do not propagate a new t
 into the measurements above. Measure them by having a script write a UTF-8 file rather
 than printing to the console (see the terminal trap in section 0).
 
-- `shops.json`: 260 rows, 46 NPCs, 8 towns. 132 gold (`kind` omitted), 128 barter.
-- 27 NPCs are barter-only, 14 are mixed, 5 are gold-only.
-- Every barter row is curated inline (stable `id`, a `priority`, and the
-  `barter.give` / `get` / `limit` display strings), so only the 132 gold rows
-  need a `shop::` pin id. `barter.json` was retired 2026-10-07: the ids, tiers,
-  display strings and order now live on the options plus `curatedOrder.ts`.
+- `shops.json`: 458 rows, 59 NPCs, 9 towns. 242 gold (`kind` omitted), 216 barter.
+- 27 NPCs are barter-only, 24 are mixed, 8 are gold-only.
+- Every barter row carries a stable `id` and a `priority`; the older rows also
+  carry authored `barter.give` / `get` / `limit` display strings, while a row
+  imported from the client omits them and the loader composes the three from
+  cost, yield and cap. Either way only the 242 gold rows need a `shop::` pin id.
+  `barter.json` was retired 2026-10-07: the ids, tiers, display strings and order
+  now live on the options plus `curatedOrder.ts`.
 - **Zero** curated rows lack a shop entry, and zero shop barter rows lack their
   inline curation, in both directions. `test:shops` asserts it directly now
-  (check 6): a barter leg missing an `id`, a `priority` or display strings
-  fails, and the display strings are checked against the structured mechanics so
+  (check 6): a barter leg missing an `id` or a `priority` fails, and the display
+  text (authored or composed) is checked against the structured mechanics so
   a rename on one side cannot ship. The gap history the old cross-file check
   caught is worth keeping: 阿蘭雯 was absent from `shops.json` entirely, so their
   two curated trades were injected as curated-only rows and could not be reached
@@ -590,11 +593,17 @@ than printing to the console (see the terminal trap in section 0).
   `精靈的痕跡` against `精靈痕跡`, which left a `situational` curated row
   unreachable anywhere. Twin cap parity pairs rows by name and was blind to
   both — which is why the check no longer depends on a second file.
-- All 132 gold rows are unique on `npc::name`; none has a null price. This is the
+- All 242 gold rows are unique on `npc::name`; none has a null price. This is the
   invariant that lets the pin id be `shop::<npc>::<name>`, and `test:shops`
   now enforces it (check 0b) instead of merely measuring it.
-- Pin counts: **all 260 pinnable** — 128 under an explicit option `id`,
-  132 gold rows under a `shop::` id. 260 distinct pin ids.
+- Three stocks are one purchase counter sold at two merchants (15 partner rows,
+  declared with `pool`): 克雷格 draws on 伊文's 魔物討伐證明 stock, 黛蓮 on
+  瓦爾特's 裝飾製作零件, and 唐娜 on 安黛莉's 聖水. A partner takes the owner's
+  pin id, so the tracker row names both merchants and one cap covers the pair.
+- Pin counts: **all 458 rows pinnable, 443 distinct ids** — every barter row
+  carries an explicit option `id` and every gold row a `shop::` id, but the 15
+  pooled partners (9 barter, 6 gold) take their owner's id, so the distinct count
+  is 443 rather than 458.
 
 ---
 

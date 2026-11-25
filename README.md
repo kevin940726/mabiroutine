@@ -25,9 +25,10 @@ handled for you.
 ## Sources & licenses
 
 Fan-made, non-commercial, TW-only. Not affiliated with NEXON / devCAT; game
-names, NPCs, items and art belong to their owners (NPC avatars are self-taken
-screenshots). Numbers are community-verified — the game client wins. Spot a
-rights problem? Open a GitHub issue and it comes down.
+names, NPCs, items and art belong to their owners (NPC portraits are game art:
+in-game captures and client sprite exports). Numbers are community-verified —
+the game client wins. Spot a rights problem? Open a GitHub issue and it comes
+down.
 
 - **瑪奇Mobile Wiki DB** (`mabinogimobile.nipponhashi.com/tracker/`) — tracker
   structure + reset-time cross-check (its barter page: comparison only, never
