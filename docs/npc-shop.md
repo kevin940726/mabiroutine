@@ -585,7 +585,7 @@ than printing to the console (see the terminal trap in section 0).
   inline curation, in both directions. `test:shops` asserts it directly now
   (check 6): a barter leg missing an `id` or a `priority` fails, and the
   composed display text is checked against the structured mechanics so
-  a rename on one side cannot ship. The gap history the old cross-file check
+  the formatter cannot drift from them. The gap history the old cross-file check
   caught is worth keeping: 阿蘭雯 was absent from `shops.json` entirely, so their
   two curated trades were injected as curated-only rows and could not be reached
   by picking the NPC; and their 精靈的痕跡 row then missed on one character,
@@ -811,18 +811,16 @@ axis.
   recorded the marker stays hidden: the app would be promising a second merchant it
   cannot show.
 
-No row uses a pool yet. The one live case is 瓦爾特's five 裝飾 rows, whose tab is
-shared with 黛蓮; she is not in the data, so the model is proven against a
-temporary patch and waits for her rows. 伊文's weekly tab is shared with 鄧肯,
-凱雅拉 and 克雷格, but only 伊文 records any of those products. The chip is not a
+Three pools ship now: 克雷格 draws on 伊文's 魔物討伐證明 stock, 黛蓮 on 瓦爾特's
+five 裝飾 rows, and 唐娜 on 安黛莉's 聖水. The chip is not a
 link yet: opening "both merchants" needs a pool filter, not the name search, which
 matches the same item across unrelated merchants (蜂蠟 sits at three).
 
-### Unverified until a real pair ships
+### Verification owed for the shipped pairs
 
-The data contract is gated and the resolver was proven against a temporary pair.
-The **render** is not: no row reaches it, so nothing below has been seen with
-real data. This is the checklist for the commit that adds 黛蓮's rows:
+The data contract is gated and three pairs ship. The **render** is not verified in
+a browser, so nothing below has been seen with real data. This is the checklist
+for the commit that added 黛蓮's rows:
 
 - **The 共用 marker on the limit line.** That line is a flex row with no height
   reservation (unlike the name band), so 伺服器 + 共用 at 2 columns on a 360px

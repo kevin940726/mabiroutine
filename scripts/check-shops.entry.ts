@@ -533,11 +533,11 @@ for (const [item, e] of Object.entries(recipes)) {
 // table, and its carried display limit must equal the rebuilt structured
 // limit (shops owns mechanics). A leg with no structured limit pairs with no
 // limit line at all. Reachability + value in one check: a leg that drops out
-// of the table (or whose strings drift from its mechanics) fails here, which
-// is what caught the silent route-table collapse before. Legs the twin matcher
-// finds ambiguous by design (same npc+name+outQty twice, e.g. two currencies
-// for one item) skip the table half and check the rebuild direct from the
-// option — same mechanics, no ambiguity involved.
+// of the table, or whose formatted limit disagrees with the rebuilt one, fails
+// here, which is what caught the silent route-table collapse before. Legs the
+// twin matcher finds ambiguous by design (same npc+name+outQty twice, e.g. two
+// currencies for one item) skip the table half and check the rebuild direct
+// from the option — same mechanics, no ambiguity involved.
 for (const deal of shopDeals(loadShopNpcs())) {
   if (!deal.id || !deal.barterText) continue;
   const twin = twinTradeLeg(deal.npc, deal.name, deal.outQty, deal.town);
