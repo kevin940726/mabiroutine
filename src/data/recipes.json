@@ -2188,5 +2188,16 @@
     "skill": "料理 Lv.23"
    }
   ]
+ },
+ "最高級原木+": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "伐木",
+    "level": "30",
+    "outQty": 1
+   }
+  ]
  }
 }
