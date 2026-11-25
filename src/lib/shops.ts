@@ -1,6 +1,6 @@
 import shopsJson from "@/data/shops.json";
 import { CURATED_ORDER } from "@/data/curatedOrder";
-import { displayName, stringifyLimit } from "@/lib/materials";
+import { displayName, formatItemQty, stringifyLimit } from "@/lib/materials";
 import type { BarterPriority, Task } from "@/lib/types";
 
 export type DealKind = "shop" | "barter";
@@ -45,17 +45,15 @@ export interface ShopDeal {
    *  verbatim. Null for gold rows, which pin under the derived shop:: id. */
   id: string | null;
   /** Display strings for a barter leg, composed at load from cost, yield and
-   *  cap (the retired barter.json wording was dropped 2026-11-25). `limit` is
-   *  null when the row is uncapped, matching `limitText` on gold rows. The
-   *  tracker renders these; the shop grid reads the structured fields instead.
-   *  Null on shop legs. */
+   *  cap. `limit` is null when the row is uncapped, matching `limitText` on gold
+   *  rows. The tracker renders these; the shop grid reads the structured fields
+   *  instead. Null on shop legs. */
   barterText: { give: string; get: string; limit: string | null } | null;
   barterId: string | null;
   /** the id a pin on this row uses: the curated barter id, or a shop:: id */
   pinId: string;
   /** Authored pool target (`pool`): the merchant key (`npc::town`) whose row owns
-   *  this stock's purchase counter. Null when this row IS that counter, which is
-   *  every row today. */
+   *  this stock's purchase counter. Null when this row IS that counter. */
   poolTarget: string | null;
   /** True when this row draws on another row's counter (a pool partner). Its
    *  `pinId` is the canonical row's id, so a pin on either merchant is one row. */
@@ -169,9 +167,8 @@ let byPinCache: Map<string, ShopDeal> | null = null;
 
 /**
  * Every deal keyed by the id a pin on it uses, so a pin id resolves to its row
- * without re-deriving anything. Covers both namespaces: a curated deal is
- * keyed by its explicit option id, an uncurated one by its shop:: id. Memoized —
- * the store, the tracker and the panel all read it.
+ * without re-deriving anything. Memoized — the store, the tracker and the panel
+ * all read it.
  */
 export function shopDealsByPinId(): Map<string, ShopDeal> {
   if (!byPinCache) {
@@ -207,11 +204,11 @@ export function poolMembers(pinId: string): ShopDeal[] {
 
 /**
  * The shop-namespace pin ids: the gold rows, which are the only deals with no
- * explicit id, and is what a caller validating a pin id needs. Curated rows
- * are excluded because they pin under their explicit option id, which the
- * curated set already covers. A pool partner contributes its canonical row's id
- * and the Set collapses it, so a shared stock is one pinnable id. Memoized
- * because the store builds this on every load and on every version upgrade.
+ * explicit id, and is what a caller validating a pin id needs. A curated row's
+ * pin id lives in the curated set instead (its own, or its pool owner's), so
+ * those rows stay out. A gold pool partner contributes its canonical row's id
+ * and the Set collapses it, so a shared stock is one id. Memoized because the
+ * store builds this on every load and on every version upgrade.
  */
 export function shopPinIds(): Set<string> {
   if (!pinIdCache) {
@@ -238,20 +235,9 @@ function limitPeriod(limit?: { times?: number; period?: string }): "daily" | "we
   return limit.period === "weekly" ? "weekly" : "daily";
 }
 
-/**
- * Display strings for a barter leg, composed from the fields that are data:
- * cost, yield and cap. `barter.json` used to carry hand-written versions of
- * these; they were dropped 2026-11-25 so the mechanics are the only source,
- * and `test:shops` validates this text against them.
- */
 function composeBarterText(item: RawOption, outQty: number): { give: string; get: string; limit: string | null } {
-  const currency = item.cost?.currency ?? "gold";
-  const amount = item.cost?.amount ?? 0;
-  // A bare name reads as one unit (parseItemQty), so the amount is written only
-  // when it is not 1.
-  const give = amount > 1 ? `${currency} ×${amount}` : currency;
-  const get = outQty > 1 ? `${item.name} ×${outQty}` : item.name;
-  // No cap is shown as no limit line, the same rule the gold rows follow.
+  const give = formatItemQty(item.cost?.currency ?? "gold", item.cost?.amount ?? 0);
+  const get = formatItemQty(item.name, outQty);
   const limit = stringifyLimit(item.limit ?? {}, item.scope === "account" ? "account" : "character");
   return { give, get, limit };
 }
@@ -364,10 +350,8 @@ export function loadShopNpcs(): ShopNpc[] {
 }
 
 /**
- * Barter-shaped Task from the deal's composed display text — the single
- * constructor behind every pin → task resolver. Same name shape, same
- * limit-string parsing, same order numbers as the retired row path ever
- * produced (proven: 0/107 drift at every migration step).
+ * Barter-shaped Task from the deal's composed display text: the single
+ * constructor behind every pin → task resolver.
  */
 export function dealToBarterTask(input: {
   id: string;
@@ -381,7 +365,6 @@ export function dealToBarterTask(input: {
   /** Null when the row has no cap, which renders no limit line. */
   limit: string | null;
 }): Task {
-  // 每日/每週 N 次：N>1 → counter；N=1 或 no cap → check
   const dayCount = Number(input.limit?.match(/每日\s*(\d+)\s*次/)?.[1] ?? 0);
   const weekCount = Number(input.limit?.match(/每週\s*(\d+)\s*次/)?.[1] ?? 0);
   const weekly = weekCount > 0;

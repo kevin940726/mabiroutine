@@ -494,8 +494,6 @@ eachNpc((_town, _npc, items) => {
     if (!isObj(it)) continue;
     if (typeof it["name"] === "string") known.add(it["name"]);
     if ((it["kind"] ?? "shop") === "barter" && isObj(it["cost"])) {
-      // A barter leg's cost is a give token by definition; the tracker's give
-      // text is composed from it, so this is the name that token must carry.
       const currency = it["cost"]["currency"];
       if (typeof currency === "string") known.add(currency);
     }
@@ -557,12 +555,9 @@ for (const deal of shopDeals(loadShopNpcs())) {
   }
 }
 
-// 6. curated completeness: every barter leg carries its curation — a stable id
-// and a priority tier — and the loader gives it display text composed from the
-// mechanics, so no row renders degraded (no badge, no breakdown, shop:: pin).
-// The composed text is asserted equal to those mechanics here (names and
-// per-exchange quantities): a split would render one item on the tracker and
-// resolve another in the shop, with every other gate green.
+// 6. curated completeness: every barter leg carries a stable id and a priority
+// tier, and the loader gives it display text. The text is asserted equal to the
+// mechanics here (names and per-exchange quantities).
 for (const deal of shopDeals(loadShopNpcs())) {
   if (deal.kind !== "barter") continue;
   const key = `${deal.town} ${deal.npc} ${deal.name}`;

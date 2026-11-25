@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-Simple NPC pfp crop: 4-side exact -> 76 square -> circle (transparent)
-- Input: public/npc-raw/<npc>.png  (single bg, head not necessarily centered square)
-- For each side, sample edge mid color, scan inward until != bg (tolerance 8) -> left/right/top/bottom
+NPC pfp crop: square portrait -> 76 square -> circle (transparent)
+- Input: public/npc-raw/<npc>.png
+- Opaque captures: sample each edge mid colour, scan inward until != bg
+  (tolerance 8) -> left/right/top/bottom.
+- Transparent-padded client sprites: the opaque bbox, when square.
 - Must be square after trim (1px slack autofixed like before), else error.
   Larger squares are downscaled to 76x76 (same framing, head scale matches
   the existing portraits); smaller squares are never upscaled, else error.
@@ -42,9 +44,7 @@ def process_one(src: Path):
     tol = 8
     # Client sprite exports pad a square portrait with transparent pixels. The
     # 4-side colour scan cannot find that square (the padding carries the same
-    # RGB as the portrait background, so the scan runs into the artwork), so use
-    # the opaque bbox when the source has transparency and that bbox is square.
-    # Opaque captures keep the colour-scan path below unchanged.
+    # RGB as the portrait background, so the scan runs into the artwork).
     alpha = orig.getchannel("A")
     bbox = alpha.getbbox()
     if alpha.getextrema()[0] < 255 and bbox:

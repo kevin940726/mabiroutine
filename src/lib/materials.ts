@@ -188,10 +188,15 @@ export function barterStanding(item: string, npc?: string): {
   return best;
 }
 
-/** "蘋果汁 ×1" -> { name: "蘋果汁", qty: 1 }. Every barter give is one item ×N. */
+/** "蘋果汁 ×1" -> { name: "蘋果汁", qty: 1 }; a bare name is one unit. */
 export function parseItemQty(s: string): { name: string; qty: number } {
   const m = s.match(/^(.*?)\s*[×x]\s*(\d+)\s*$/);
   return m ? { name: m[1].trim(), qty: Number(m[2]) } : { name: s.trim(), qty: 1 };
+}
+
+/** The inverse of parseItemQty: a bare name for one unit, ` ×N` above it. */
+export function formatItemQty(name: string, qty: number): string {
+  return qty > 1 ? `${name} ×${qty}` : name;
 }
 
 /**

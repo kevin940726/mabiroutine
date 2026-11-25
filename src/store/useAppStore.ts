@@ -1016,10 +1016,8 @@ export function migratePersisted(persisted: unknown, version: number): AppState 
     s.version = 24;
   }
   if (from < 25) {
-    // v24 → v25: the client renamed the merchant back, so 瑪姆斯汀 is 麥爾坎
-    // again. The map in remapRenamedNpcPins was transposed with it, which leaves
-    // a pre-v24 save (already spelling 麥爾坎) untouched and moves only a v24
-    // save's 瑪姆斯汀 ids. This step records that in the chain.
+    // v24 → v25: the merchant 瑪姆斯汀 is 麥爾坎 again. The pin ids it derives
+    // move in remapRenamedNpcPins; this step records the rename in the chain.
     s.version = 25;
   }
   // AFTER the steps, never before: the steps interpret their own booleans (v11

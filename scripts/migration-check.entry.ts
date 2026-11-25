@@ -412,11 +412,9 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 }
 
 // N: store dealToBarterTask (via barterTaskForPin section) and sync taskKind agree
-// on every curated id — a limit-format change must move both together. A pooled
-// partner is excluded: it carries its own id for the curated order, but its pin
-// is the owner's id, so its own id is not a pin key at all.
+// on every pin-key curated id — a limit-format change must move both together.
 {
-  const deals = shopDeals(loadShopNpcs()).filter((d) => d.id && d.barterText && !d.pooled);
+  const deals = shopDeals(loadShopNpcs()).filter((d) => d.id && d.barterText && d.pinId === d.id);
   for (const d of deals) {
     const task = barterTaskForPin(d.id!);
     const syncKind = taskKind(d.id!, []);
@@ -463,7 +461,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 // shape) -> values move to accountValues (checks OR, counters max + capped
 // at the live max), hides union to the global list, per-char copies cleared
 {
-  const shared = shopDeals(loadShopNpcs()).filter((d) => d.id && d.scopeAccount && !d.pooled);
+  const shared = shopDeals(loadShopNpcs()).filter((d) => d.id && d.scopeAccount && d.pinId === d.id);
   const sharedIds = shared.map((d) => d.id as string);
   for (const id of ["tir-l1", "tir-l2", "col-a1", "col-c2", "col-c3", "tir-l3", "yen-安黛莉凱琳特製全麥麵包1-12", "yen-梅文凱琳特製全麥麵包聖水-44", "強化秘藥乳化劑", "礦山的魔力石-吉爾摩", "曠野的魔力石-吉爾摩", "dun-i9", "jennifer-holy-water", "jennifer-pet-food", "jennifer-roasted-potato", "jennifer-potato-salad", "jennifer-apple-juice", "jennifer-apple-salad", "jennifer-roasted-meat", "jennifer-mayo-meat", "jennifer-food-material-box", "jennifer-abyss-pattern-box"]) {
     assert(sharedIds.includes(id), `P premise: ${id} is perChar=false (update fixture if data changed)`);
@@ -836,9 +834,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
 }
 
 // Z: the merchant rename remaps the gold pin ids it derives; ids that only embed
-// the old name stay. v24 renamed 麥爾坎 to 瑪姆斯汀 and v25 renamed it back, so
-// the direction here is the current one (瑪姆斯汀 -> 麥爾坎); a pre-v24 save
-// already spelled 麥爾坎 and is left alone.
+// a merchant name stay.
 {
   const oldPin = "shop::瑪姆斯汀::生皮";
   const newPin = "shop::麥爾坎::生皮";
@@ -846,7 +842,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   const deals = shopDeals(loadShopNpcs());
   assert(!deals.some((d) => d.pinId === oldPin), "Z premise: no row pins under the v24 merchant name (update fixture if 瑪姆斯汀 returns)");
   assert(deals.some((d) => d.pinId === newPin), "Z premise: the renamed merchant's gold row exists");
-  assert(deals.some((d) => d.id === itemId), "Z premise: the item id that embeds the old name still exists");
+  assert(deals.some((d) => d.id === itemId), "Z premise: the item id that embeds a merchant name still exists");
 
   const week = getTaipeiWeekKey(new Date());
   const out = migratePersisted(
@@ -872,7 +868,7 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert(out.version === 25, "Z: reaches v25");
   const zPins = out.barterPins as string[];
   assert(zPins.includes(newPin) && !zPins.includes(oldPin), "Z: the gold pin moves to the new id instead of being dropped");
-  assert(zPins.includes(itemId), "Z: the item id that embeds the old name is untouched");
+  assert(zPins.includes(itemId), "Z: the item id that embeds a merchant name is untouched");
   const [z1] = out.characters as AnyRec[];
   const zv = z1.taskValues as AnyRec;
   assert(zv[newPin] === 2 && !(oldPin in zv), "Z: per-char progress moves with the id");
