@@ -280,16 +280,15 @@
     "order": 250
   },
   {
-    "id": "event-100-day-gift",
-    "name": "100 日禮物箱",
-    "icon": "🎁",
-    "desc": "活動期間於釣魚場釣魚即有機會獲得；每日上限 5 個。",
+    "id": "event-bf-supply-ticket",
+    "name": "冒險家公會的補給票券",
+    "icon": "🎫",
+    "desc": "黑色星期五活動期間，每日可在商城領取 100 金幣的補給票券。",
     "section": "account",
     "kind": "account-daily",
-    "type": "counter",
-    "max": 5,
+    "type": "check",
     "source": "builtin",
-    "endTime": "2026-11-18T06:00:00+08:00",
+    "endTime": "2026-12-09T06:00:00+08:00",
     "order": 255
   },
   {

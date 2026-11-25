@@ -53,7 +53,7 @@ KO mirrors for diff only: `/ko/tracker/`, `/ko/barter/` — never seed, only dif
 | acc-shopfree | 商店免費禮包 | account-daily | 商城每日免費物品領取 | nipponhashi |
 | acc-attendance | 每日簽到 | account-daily | 出席獎勵領取 | nipponhashi |
 | acc-member | 會員每日領取 | account-daily | 會員每日道具會寄到伺服器信箱（06:00 發放），記得收。 | nipponhashi |
-| event-100-day-gift | 100 日禮物箱 | account-daily counter 0/5 | 活動期間於釣魚場釣魚即有機會獲得；每日上限 5 個。活動至 2026/11/18（週三）06:00。 | user hand-added 2026-11-09; event row, delete the row after its `endTime` (no store step) |
+| event-bf-supply-ticket | 冒險家公會的補給票券 | account-daily | 黑色星期五活動期間，每日可在商城領取 100 金幣的補給票券。活動至 2026/12/09（週三）06:00。 | user hand-added 2026-11-26; event row, delete the row after its `endTime` (no store step) |
 | guild-challenges | 公會挑戰 | account-weekly | 每週全公會完成 80 次公會挑戰，週一 06:00 重置。 | user hand-added (replaces acc-guild-weekly) |
 | weekly-challenge | 每週挑戰 | account-weekly counter 0/9 | 每週 9 個挑戰，會員有另外 2 個專屬挑戰，7 次拿滿額外獎勵。週一 06:00 重置。 | user hand-added 2026-09-04; max 11→9 (store v11→v12 caps over-max); moved weekly→account 2026-09-07 per user (store v13→v14 moves progress char→account, max wins) |
 | friend-challenges | 好友共同挑戰 | account-weekly | 每週與好友共同完成挑戰，週一 06:00 重置。 | user hand-added |

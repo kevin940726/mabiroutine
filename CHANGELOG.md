@@ -5,6 +5,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 ## Unreleased
 
 ### Features
+- The ended 100 日禮物箱 leaves the tracker, and 冒險家公會的補給票券 takes its slot: 100 金幣 per account per day in the shop, until 2026/12/09 06:00.
 - The material card now explains how to make the food a trade asks for: 南瓜派, 咖哩飯, 南瓜湯, 綠茶可麗餅蛋糕 and 金銀辣魚湯 joined the recipe data, so their give lines open the same breakdown as other craftables.
 - 山米爾平原 joins the shop tab with 伊萊恩's 8 rows: her potions, 皮革+ for 隕鐵礦石 and the 柔軟/堅硬原木 furniture barters for 最高級原木+.
 - 艾明馬夏 joins the shop tab with 13 merchants and 111 of their trades, from 佛瑞哲's ingredients and 克雷格's potions to 黛蓮's leather, cloth and 愛心幣 tools and 納里's instruments; each merchant has a portrait.
