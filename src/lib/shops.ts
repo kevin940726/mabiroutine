@@ -1,7 +1,7 @@
 import shopsJson from "@/data/shops.json";
 import { CURATED_ORDER } from "@/data/curatedOrder";
 import { displayName, formatItemQty, stringifyLimit } from "@/lib/materials";
-import type { BarterPriority, Task } from "@/lib/types";
+import type { Task } from "@/lib/types";
 
 export type DealKind = "shop" | "barter";
 const SHOP_PRIORITY_LIST = ["must", "extra", "once", "situational"] as const;
@@ -350,41 +350,36 @@ export function loadShopNpcs(): ShopNpc[] {
 }
 
 /**
- * Barter-shaped Task from the deal's composed display text: the single
- * constructor behind every pin → task resolver.
+ * Barter-shaped Task from the deal: the single constructor behind every pin →
+ * task resolver. The cap comes from the structured fields, and a pooled stock
+ * names every merchant that spends it, the same rule `shopDealToTask` uses.
  */
-export function dealToBarterTask(input: {
-  id: string;
-  name: string;
-  give: string;
-  get: string;
-  town: string;
-  npc: string | undefined;
-  priority: BarterPriority;
-  scopeAccount: boolean;
-  /** Null when the row has no cap, which renders no limit line. */
-  limit: string | null;
-}): Task {
-  const dayCount = Number(input.limit?.match(/每日\s*(\d+)\s*次/)?.[1] ?? 0);
-  const weekCount = Number(input.limit?.match(/每週\s*(\d+)\s*次/)?.[1] ?? 0);
-  const weekly = weekCount > 0;
-  const isCounter = (weekly ? weekCount : dayCount) > 1;
-  const section = weekly ? "weekly" : "daily";
+export function dealToBarterTask(deal: ShopDeal, name: string): Task {
+  const text = deal.barterText;
+  if (!text) throw new Error(`barter deal ${deal.key} carries no display text`);
+  const weekly = deal.limitPeriod === "weekly";
+  const times = deal.limitTimes ?? 0;
+  const isCounter = times > 1;
+  const members = poolMembers(deal.pinId);
+  const npcText =
+    members.length > 1 && new Set(members.map((m) => m.town)).size > 1
+      ? members.map((m) => `${m.npc}（${m.town}）`).join(" / ")
+      : members.map((m) => m.npc).join(" / ");
   return {
-    id: input.id,
-    name: input.name,
+    id: deal.pinId,
+    name,
     icon: "🔄",
-    desc: `${input.give} → ${input.get} · ${input.town} · ${input.town}`,
-    section,
+    desc: `${text.give} → ${text.get} · ${deal.town} · ${npcText || deal.npc}`,
+    section: weekly ? "weekly" : "daily",
     kind: weekly ? "weekly" : "daily",
     type: isCounter ? "counter" : "check",
-    max: isCounter ? (weekly ? weekCount : dayCount) : undefined,
+    max: isCounter ? times : undefined,
     source: "barter",
-    town: input.town,
-    priority: input.priority,
-    npc: input.npc,
-    serverShared: input.scopeAccount,
-    barterMeta: { give: input.give, get: input.get, ...(input.limit ? { limit: input.limit } : {}) },
+    town: deal.town,
+    priority: deal.priority ?? "situational",
+    npc: deal.npc,
+    serverShared: deal.scopeAccount,
+    barterMeta: { give: text.give, get: text.get, ...(text.limit ? { limit: text.limit } : {}) },
     order: weekly ? 150 : 80, // daily pins sit after builtin daily; weekly pins after builtin weekly
   };
 }
@@ -408,17 +403,7 @@ export function barterRowName(npc: string, get: string, give: string): string {
 export function barterTaskForPin(id: string): Task | null {
   const deal = shopDealsByPinId().get(id);
   if (!deal || !deal.barterText || !deal.id) return null;
-  return dealToBarterTask({
-    id: deal.id,
-    name: barterRowName(deal.npc, deal.barterText.get, deal.barterText.give),
-    give: deal.barterText.give,
-    get: deal.barterText.get,
-    town: deal.town,
-    npc: deal.npc,
-    priority: deal.priority ?? "situational",
-    scopeAccount: deal.scopeAccount,
-    limit: deal.barterText.limit,
-  });
+  return dealToBarterTask(deal, barterRowName(deal.npc, deal.barterText.get, deal.barterText.give));
 }
 /**
  * File-order NPC ranks: NPC sequence inside a town as the file owns it.

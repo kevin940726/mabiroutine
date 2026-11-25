@@ -11,7 +11,7 @@ import recipesJson from "@/data/recipes.json";
 import shopsJson from "@/data/shops.json";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { parseItemQty, stringifyLimit, twinTradeLeg } from "@/lib/materials";
+import { parseItemQty, twinTradeLeg } from "@/lib/materials";
 import { TOWN_ORDER } from "@/lib/towns";
 import { barterRowName, dealToBarterTask, loadShopNpcs, shopDeals, shopPinId, shopRowSearchText } from "@/lib/shops";
 
@@ -187,25 +187,14 @@ for (const t of townList) {
   }
 }
 // Task builder smoke: every id-bearing deal builds a barter-shaped Task
-// carrying its own fields (the deep row-vs-deal parity this replaced held
-// through the whole migration: 0/107 drift at every step).
+// carrying its own fields.
 {
   const built = shopDeals(loadShopNpcs()).filter((d) => d.id);
   if (built.length === 0) fail("tasks: no id-bearing deals to build from");
   for (const d of built) {
     if (!d.barterText) { fail(`tasks: option ${d.id} lacks barter display strings`); continue; }
-    const t = dealToBarterTask({
-      id: d.id!,
-      name: barterRowName(d.npc, d.barterText.get, d.barterText.give),
-      give: d.barterText.give,
-      get: d.barterText.get,
-      town: d.town,
-      npc: d.npc,
-      priority: d.priority ?? "situational",
-      scopeAccount: d.scopeAccount,
-      limit: d.barterText.limit,
-    });
-    if (t.id !== d.id || t.source !== "barter" || t.town !== d.town || t.npc !== d.npc) {
+    const t = dealToBarterTask(d, barterRowName(d.npc, d.barterText.get, d.barterText.give));
+    if (t.id !== d.pinId || t.source !== "barter" || t.town !== d.town || t.npc !== d.npc) {
       fail(`tasks: builder dropped fields for ${d.id}`);
     }
   }
@@ -535,17 +524,8 @@ for (const [item, e] of Object.entries(recipes)) {
 for (const deal of shopDeals(loadShopNpcs())) {
   if (!deal.id || !deal.barterText) continue;
   const twin = twinTradeLeg(deal.npc, deal.name, deal.outQty, deal.town);
-  const want = twin ? (twin.limit ?? null) : "twin-ambiguous";
-  if (twin && deal.barterText.limit !== want) {
+  if (twin && deal.barterText.limit !== (twin.limit ?? null)) {
     fail(`cap divergence ${deal.id}: display ${JSON.stringify(deal.barterText.limit)} vs structured ${JSON.stringify(twin.limit ?? null)}`);
-    continue;
-  }
-  if (!twin) {
-    const opt = { times: deal.limitTimes ?? undefined, period: deal.limitPeriod ?? undefined };
-    const rebuilt = (deal.limitTimes ?? 0) >= 1 ? stringifyLimit(opt, deal.scopeAccount ? "account" : "character") : null;
-    if (deal.barterText.limit !== rebuilt) {
-      fail(`cap divergence ${deal.id}: display ${JSON.stringify(deal.barterText.limit)} vs structured ${JSON.stringify(rebuilt)}`);
-    }
   }
 }
 

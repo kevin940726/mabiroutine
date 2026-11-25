@@ -425,6 +425,15 @@ const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((
   assert(weekly.length > 0, `N: at least one weekly curated row exists (found ${weekly.length})`);
 }
 
+// N2: a pooled barter row is one task that names every seller, and its cap
+// comes from the structured deal rather than a re-parsed display string.
+{
+  const task = barterTaskForPin("dun-i6");
+  assert(task !== null, "N2 premise: the 伊文/克雷格 pooled row exists");
+  assert(task.desc.includes("伊文") && task.desc.includes("克雷格"), "N2: a pooled barter task names every seller");
+  assert(task.section === "weekly" && task.max === undefined && task.type === "check", "N2: the weekly 1× cap reads as a weekly check");
+}
+
 // O: v14 save -> v15 deduplicates yen- twins and prunes, but NEVER seeds
 // pins (removed 2026-10-06: an upgrade that seeds volunteers pins blind and
 // resurrects a peer's unpin on the next push — desktop unpins

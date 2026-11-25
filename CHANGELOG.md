@@ -8,10 +8,10 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 - The ended 100 日禮物箱 leaves the tracker, and 冒險家公會的補給票券 takes its slot: 100 金幣 per account per day in the shop, until 2026/12/09 06:00.
 - The material card now explains how to make the food a trade asks for: 南瓜派, 咖哩飯, 南瓜湯, 綠茶可麗餅蛋糕 and 金銀辣魚湯 joined the recipe data, so their give lines open the same breakdown as other craftables.
 - 山米爾平原 joins the shop tab with 伊萊恩's 8 rows: her potions, 皮革+ for 隕鐵礦石 and the 柔軟/堅硬原木 furniture barters for 最高級原木+.
-- 艾明馬夏 joins the shop tab with 13 merchants and 111 of their trades, from 佛瑞哲's ingredients and 克雷格's potions to 黛蓮's leather, cloth and 愛心幣 tools and 納里's instruments; each merchant has a portrait.
-- The eight merchants already in the catalog carry the stock the client sells now: 88 new rows across 史帝華, 瓦爾特, 伊文, 茉莉, 蘿拉 and 麥爾坎, including 愛心幣 crafting tools, 深淵 wish-pot exchanges, 金銀辣魚湯 bandages and instruments.
+- 艾明馬夏 joins the shop tab with 13 merchants and 110 of their trades, from 佛瑞哲's ingredients and 克雷格's potions to 黛蓮's leather, cloth and 愛心幣 tools and 納里's instruments; each merchant has a portrait.
+- The six merchants already in the catalog carry the stock the client sells now: 88 new rows across 史帝華, 瓦爾特, 伊文, 茉莉, 蘿拉 and 麥爾坎, including 愛心幣 crafting tools, 深淵 wish-pot exchanges, 金銀辣魚湯 bandages and instruments.
 - Stocks sold at two merchants share one counter: 克雷格 draws on 伊文's 魔物討伐證明 stock, 黛蓮 on 瓦爾特's 裝飾製作零件, and 唐娜 on 安黛莉's 聖水, so a pin names every seller and one cap covers them all.
-- 麥爾坎, 尚 and 伊比 are the merchant names again, with 瑪姆斯汀, 史恩 and 貝蒂 kept as search-only aliases; 麥爾坎的鬆軟羊毛枕頭 follows the merchant, and a saved gold pin on its rows moves with it (store `v25`).
+- 麥爾坎, 尚 and 伊比 are the merchant names again, with 瑪姆斯汀, 史恩 and 貝蒂 kept as search-only aliases; 麥爾坎的鬆軟羊毛枕頭 follows the merchant, and a saved gold pin on its rows moves with it.
 
 ### Fixes
 - 瓦爾特's 空瓶 and 紙 are uncapped again; the client sells both without a weekly limit.
@@ -19,10 +19,11 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ### Chores
 - Source: TW client build `59826`, trio `#442/#439/#449`; the new rows come from the 2026-11-25 and 2026-11-26 handoffs and the envelopes the user curated.
+- The store schema moves to `v25`: a saved gold pin on 麥爾坎's rows follows the rename through `remapRenamedNpcPins`.
 - `scripts/crop-npc.py` reads the opaque square of a transparent-padded client sprite instead of running the 4-side colour trim, which could not find that square.
 - The legacy `barter` display block is gone from `shops.json`: the loader composes `give` / `get` / `limit` from cost, yield and cap, so the mechanics are the only copy and the data holds only the client's numbers. A bare name reads as one unit, so 68 tracker rows drop a redundant `×1` as a result.
 - An uncapped barter composes no limit text: the tracker shows no limit chip, as it already does for an uncapped gold pin, while the shop tile keeps its existing `不限次數` default.
-- Item art lands for the 94 names the intake added: 328 files in `public/items`, every lookup name covered, from the client's icon pool through the same 128px WebP pipeline as the existing set.
+- Item art lands for the 94 names the intake added: 342 files in `public/items`, every lookup name covered, from the client's icon pool through the same 128px WebP pipeline as the existing set.
 - `parseItemQty` gains its inverse, `formatItemQty`, so the composed barter text and its parser share one shape; the pool fixtures key on `pinId === id` instead of the pooled flag.
 - Six TW-published 加工 recipes join the recipe data (柔軟木材, 堅硬木材, 最高級木材+, 飯, 乾燥茶葉, 發酵茶葉) with their four missing icons, so the components of the new food recipes resolve to a source.
 - `最高級原木+` gains its gather route (伐木 Lv.30, 山米爾平原), so the log the furniture barters ask for resolves to a source instead of having none.
