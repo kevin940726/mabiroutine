@@ -2014,5 +2014,179 @@
     "outQty": 1
    }
   ]
+ },
+ "南瓜派": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物製作台",
+    "level": "5",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "南瓜",
+      "qty": 10
+     },
+     {
+      "name": "生薑",
+      "qty": 2
+     },
+     {
+      "name": "鮮奶油",
+      "qty": 3
+     },
+     {
+      "name": "麵粉",
+      "qty": 4
+     },
+     {
+      "name": "糖",
+      "qty": 2
+     }
+    ],
+    "skill": "料理 Lv.17"
+   }
+  ]
+ },
+ "咖哩飯": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物製作台",
+    "level": "5",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "肉",
+      "qty": 10
+     },
+     {
+      "name": "飯",
+      "qty": 3
+     },
+     {
+      "name": "胡蘿蔔",
+      "qty": 3
+     },
+     {
+      "name": "馬鈴薯",
+      "qty": 8
+     },
+     {
+      "name": "咖哩粉",
+      "qty": 2
+     }
+    ],
+    "skill": "料理 Lv.17"
+   }
+  ]
+ },
+ "南瓜湯": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物製作台",
+    "level": "5",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "南瓜",
+      "qty": 10
+     },
+     {
+      "name": "馬鈴薯",
+      "qty": 6
+     },
+     {
+      "name": "洋蔥",
+      "qty": 6
+     },
+     {
+      "name": "生薑",
+      "qty": 2
+     },
+     {
+      "name": "鮮奶油",
+      "qty": 5
+     }
+    ],
+    "skill": "料理 Lv.17"
+   }
+  ]
+ },
+ "綠茶可麗餅蛋糕": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物製作台",
+    "level": "5",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "乾燥茶葉",
+      "qty": 10
+     },
+     {
+      "name": "草莓",
+      "qty": 6
+     },
+     {
+      "name": "鮮奶油",
+      "qty": 6
+     },
+     {
+      "name": "麵粉",
+      "qty": 4
+     },
+     {
+      "name": "糖",
+      "qty": 6
+     }
+    ],
+    "skill": "料理 Lv.17"
+   }
+  ]
+ },
+ "金銀辣魚湯": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食物製作台",
+    "level": "5",
+    "outQty": 1,
+    "components": [
+     {
+      "name": "金鱗魚",
+      "qty": 4
+     },
+     {
+      "name": "銀鯽魚",
+      "qty": 4
+     },
+     {
+      "name": "白蘿蔔",
+      "qty": 6
+     },
+     {
+      "name": "裝水的瓶子",
+      "qty": 5
+     },
+     {
+      "name": "洋蔥",
+      "qty": 10
+     },
+     {
+      "name": "辣椒粉",
+      "qty": 4
+     }
+    ],
+    "skill": "料理 Lv.23"
+   }
+  ]
  }
 }

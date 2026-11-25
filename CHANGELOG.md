@@ -5,6 +5,7 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 ## Unreleased
 
 ### Features
+- The material card now explains how to make the food a trade asks for: 南瓜派, 咖哩飯, 南瓜湯, 綠茶可麗餅蛋糕 and 金銀辣魚湯 joined the recipe data, so their give lines open the same breakdown as other craftables.
 - 山米爾平原 joins the shop tab with 伊萊恩's 10 rows: her potions, the 入門用 tools and 皮革+ for 隕鐵礦石.
 - 艾明馬夏 joins the shop tab with 13 merchants and 110 of their trades, from 佛瑞哲's ingredients and 克雷格's potions to 黛蓮's leather, cloth and 愛心幣 tools and 納里's instruments; each merchant has a portrait.
 - The eight merchants already in the catalog carry the stock the client sells now: 88 new rows across 史帝華, 瓦爾特, 伊文, 茉莉, 蘿拉 and 麥爾坎, including 愛心幣 crafting tools, 深淵 wish-pot exchanges, 金銀辣魚湯 bandages and instruments.
