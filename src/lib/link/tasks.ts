@@ -4,7 +4,6 @@ import { shopDealsByPinId, type ShopDeal } from "@/lib/shops";
 import type { Task } from "@/lib/types";
 
 export const BLACK_HOLE = "black-hole";
-export const BLACK_HOLE_DAILY = "black-hole-daily";
 export const BLACK_HOLE_TODAY = "black-hole-today";
 export const BARRIER = "barrier";
 

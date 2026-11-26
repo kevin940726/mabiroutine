@@ -174,32 +174,41 @@ character switch with no row change arrives as a delta with `rows: []`.
 - `barrier`: the wire value is **remaining**; the app stores **used**, so the
   tile can show `max - used`.
 - `black-hole`: the app stores the weekly bank (0..7) and today's daily check.
-  The wire sends weekly remaining, today's remaining, and `black-hole-daily`.
-  Compose the trio once per message:
-  `bank = clamp(14 - weeklyRemaining - elapsed - todayUsed, 0, 7)`, where
-  `elapsed = 6 - blackHoleX(at)` and `todayUsed` comes from the daily check.
-  A check or count whose `at` is not in the current daily bucket is ignored:
-  after the 06:00 roll it belongs to yesterday, and trusting it stores a bank
-  one too low and shows the tile one too high.
-  `black-hole-today` is an aux input, not a stored row. The composite inputs are
-  stored even when `changed: false`, because the bank decays with `at`, unless a
-  local guard covers that input; the guard on the composite key decides whether
-  the bank is written.
+  The wire sends the weekly **7-bank remaining** (2026-11-25 onward), today's
+  remaining, and `black-hole-daily`. Compose the bank from the weekly value:
+  `bank = clamp(7 - weeklyRemaining, 0, 7)`.
+  A weekly value above 7 is a retired 14-scale total; the app ignores it, and
+  the next 7-bank snapshot is read normally. A pre-update row can also carry
+  0..7; the app does not decode `op`, so it cannot tell the two scales apart by
+  value, and a stale producer keeps the row wrong until it sends the 7-bank
+  scale.
+  A zero weekly count stores bank 7. The producer currently does not emit a
+  zero, so a fully spent bank can read wrong until the next non-zero snapshot,
+  and the week's last daily slot needs a local tap or drag to complete.
+  The today/daily inputs do not enter the bank; `black-hole-daily` drives the
+  tile's `8 - bank - today` and `resolved / 14`. `black-hole-today` is aux
+  telemetry, not a stored row.
+  The composite is stamped from the weekly input alone, so a daily-only frame
+  cannot carry last week's bank into a new week or block a newer weekly frame.
+  The weekly input is stored even when `changed: false`, so its stamp advances.
+  A frame that yields the same bank and is marked `changed: false` does not
+  overwrite it; otherwise the guard on the composite key decides whether the
+  bank is written.
 - `parttime-active` is aux telemetry; the app's row is `parttime`.
 - `tower`: the value is the attempts **used**. `finished` turns true at the
   150-floor cap and the app hides the row; nothing in the feed clears it.
 
 ## Device-local state
 
-The token, `match`, local write times, watermarks, the black-hole inputs and
-`lastFrameAt` live in `localStorage` under `mabiroutine:link`. They are **not** in
-the synced store: the token is private to the install, and `cid` is a local
-random id. A separate `mabiroutine:link:seen` flag records that this device
-received a producer's `hello`, which retires the download row. It proves a
-connection, never a download. A blocked write keeps the flag in memory for the
-session, so the row can return on the next load. Local write entries are pruned
-to the live daily, weekly and weekend buckets on load, so a daily entry ends at
-the next 06:00 and a weekly at Monday 06:00.
+The token, `match`, local write times, watermarks, the black-hole weekly
+input and `lastFrameAt` live in `localStorage` under `mabiroutine:link`. They
+are **not** in the synced store: the token is private to the install, and
+`cid` is a local random id. A separate `mabiroutine:link:seen` flag records
+that this device received a producer's `hello`, which retires the download
+row. It proves a connection, never a download. A blocked write keeps the flag
+in memory for the session, so the row can return on the next load. Local write
+entries are pruned to the live daily, weekly and weekend buckets on load, so a
+daily entry ends at the next 06:00 and a weekly at Monday 06:00.
 
 Local-write key: `account:{task}@{bucket}` or `{cid}:{task}@{bucket}`.
 Watermark key: the same shape.

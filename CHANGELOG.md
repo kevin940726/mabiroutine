@@ -4,6 +4,13 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-26 — The Link black-hole weekly count
+<!-- whats-new: none -->
+
+### Chores
+- The Link `black-hole` weekly row now reads the 7-bank remaining from the producer's identity snapshot after the 2026-11-25 update; a value above 7 is treated as the retired 14-scale and ignored.
+- A `black-hole` bank write is stamped from the weekly input alone, so a today/daily-only frame cannot move the bank across a week boundary.
+
 ## 2026-11-26 — Emain Macha, Senmai and the shop refresh
 
 ### Features

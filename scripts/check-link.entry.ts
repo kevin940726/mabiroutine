@@ -216,8 +216,13 @@ const bh = applyLinkRows(
   })
 );
 const bank = bh.writes.find((w) => w.taskId === BLACK_HOLE && w.charId === "c1");
-assert(bank?.value === 3, "black-hole 11 left + today 5 left + daily unused stores bank 3");
+assert(bank?.value === 3, "black-hole 4 left (7-bank) stores bank 3");
 assert(bh.writes.find((w) => w.taskId === "black-hole-daily")?.value === false, "the daily check still applies");
+assert(
+  bh.unresolved.length === 0 &&
+    !bh.writes.some((w) => w.taskId === "black-hole-today"),
+  "the black-hole aux row is ignored without a write or unresolved count"
+);
 
 if (!bank) throw new Error("black-hole bank write missing");
 const bankKey = linkKey("character", "c1", BLACK_HOLE, bank.bucket);
@@ -329,56 +334,117 @@ assert(
   "stale daily, weekly and weekend buckets are pruned on load"
 );
 
-const bhWire = [{ ...rows.blackHole, at: T }, { ...rows.blackHoleToday, at: T }];
-const withParts = (parts: {
-  daily?: { at: number; value: number | boolean; op?: number };
-  today?: { at: number; value: number | boolean; op?: number };
-}) => {
-  const device = emptyLinkDevice();
-  device.blackHole = {
-    c1: {
-      weekly: { at: T - 50, value: 11, op: 170695 },
-      today: parts.today,
-      daily: parts.daily,
-    },
-  };
-  return device;
+const weeklyOnly = applyLinkRows(base({ rows: [{ ...rows.blackHole, at: T }] }));
+const weeklyTap = {
+  ...weeklyOnly.device,
+  localWrites: { [bankKey]: T + 1 },
 };
-const staleDaily = applyLinkRows(
+const weeklyRepeat = applyLinkRows(
   base({
-    device: withParts({
-      today: { at: T - 45, value: 5, op: 170694 },
-      daily: { at: T - 86400, value: true, op: 170692 },
-    }),
-    rows: bhWire,
+    device: weeklyTap,
+    rows: [{ ...rows.blackHole, at: T + 2, value: 4, changed: false }],
   })
 );
 assert(
-  staleDaily.writes.find((w) => w.taskId === BLACK_HOLE && w.charId === "c1")?.value === 3,
-  "yesterday's daily check does not count against today"
+  !weeklyRepeat.writes.some((w) => w.taskId === BLACK_HOLE) &&
+    weeklyRepeat.device.localWrites[bankKey] === T + 1,
+  "a repeat weekly frame does not overwrite the tap"
 );
-const freshDaily = applyLinkRows(
+const weeklyChanged = applyLinkRows(
   base({
-    device: withParts({
-      today: { at: T - 45, value: 5, op: 170694 },
-      daily: { at: T - 60, value: true, op: 170692 },
-    }),
-    rows: bhWire,
+    device: weeklyTap,
+    rows: [{ ...rows.blackHole, at: T + 2, value: 4, changed: true }],
   })
 );
 assert(
-  freshDaily.writes.find((w) => w.taskId === BLACK_HOLE && w.charId === "c1")?.value === 2,
-  "today's used daily check still counts"
+  weeklyChanged.writes.some((w) => w.taskId === BLACK_HOLE),
+  "a changed weekly frame with the same bank still applies"
 );
-const staleToday = applyLinkRows(
+const dailyOnly = applyLinkRows(
   base({
-    device: withParts({ today: { at: T - 86400, value: 0, op: 170694 } }),
-    rows: [{ ...rows.blackHole, at: T }],
+    device: weeklyOnly.device,
+    rows: [{ ...rows.blackHoleDaily, at: T + 5, value: 1 }],
   })
 );
 assert(
-  staleToday.writes.find((w) => w.taskId === BLACK_HOLE && w.charId === "c1")?.value === 3,
-  "yesterday's empty count is not today's usage"
+  !dailyOnly.writes.some((w) => w.taskId === BLACK_HOLE),
+  "a later daily stamp does not rewrite the bank"
+);
+const weeklyLater = applyLinkRows(
+  base({
+    device: dailyOnly.device,
+    rows: [{ ...rows.blackHole, at: T + 1, value: 5 }],
+  })
+);
+assert(
+  weeklyLater.writes.find((w) => w.taskId === BLACK_HOLE && w.charId === "c1")?.value === 2,
+  "a newer weekly applies after a daily stamp"
+);
+
+if (
+  getTaipeiWeekKey(new Date(T * 1000)) ===
+  getTaipeiWeekKey(new Date((T - 86400) * 1000))
+) {
+  throw new Error("the rollover fixture no longer spans a weekly boundary");
+}
+const rollDevice = emptyLinkDevice();
+rollDevice.blackHole = {
+  c1: { weekly: { at: T - 86400, value: 2, op: 20590 } },
+};
+const roll = applyLinkRows(
+  base({
+    device: rollDevice,
+    rows: [
+      { ...rows.blackHoleToday, at: T, value: 0 },
+      { ...rows.blackHoleDaily, at: T, value: 1 },
+    ],
+  })
+);
+assert(
+  !roll.writes.some((w) => w.taskId === BLACK_HOLE),
+  "a Monday daily frame does not carry last week's bank into the new week"
+);
+
+const retired = applyLinkRows(
+  base({ rows: [{ ...rows.blackHole, value: 11, at: T, op: 170695 }] })
+);
+assert(
+  !retired.writes.some((w) => w.taskId === BLACK_HOLE),
+  "a retired 14-scale weekly value does not write the bank"
+);
+const zeroWeekly = applyLinkRows(
+  base({ rows: [{ ...rows.blackHole, value: 0, at: T }] })
+);
+assert(
+  zeroWeekly.writes.find((w) => w.taskId === BLACK_HOLE)?.value === 7,
+  "a zero weekly count stores bank 7"
+);
+const oldWeekly = applyLinkRows(
+  base({ rows: [{ ...rows.blackHole, at: T - 86400 }] })
+);
+assert(
+  oldWeekly.oldCycle.some((key) => key.includes(BLACK_HOLE)) &&
+    !oldWeekly.writes.some((w) => w.taskId === BLACK_HOLE),
+  "a weekly frame from last week is refused before it can write the bank"
+);
+
+const liveBh = applyLinkRows(
+  base({
+    characters: chars(),
+    rows: [
+      { ...rows.blackHole, value: 5, at: T, op: 20590 },
+      { ...rows.blackHoleToday, value: 0, at: T, op: 20590 },
+      { ...rows.blackHoleDaily, value: 1, at: T, op: 20590 },
+    ],
+  })
+);
+const liveBank = liveBh.writes.find(
+  (w) => w.taskId === BLACK_HOLE && w.charId === "c1"
+);
+assert(liveBank?.value === 2, "the 7-bank remaining 5 stores bank used 2");
+assert(
+  liveBh.writes.find((w) => w.taskId === "black-hole-daily" && w.charId === "c1")?.value === true,
+  "the daily row carries today's used flag"
 );
 
 const localChar = (

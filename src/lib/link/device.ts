@@ -1,10 +1,13 @@
 import { currentDailyBucket, currentWeekendBucket, getTaipeiWeekKey } from "@/lib/reset";
 
-export type LinkStamp = { at: number; value: number | boolean; op?: number };
+export type LinkStamp = {
+  at: number;
+  value: number | boolean;
+  op?: number;
+  changed?: boolean;
+};
 export type LinkBlackHole = {
   weekly?: LinkStamp;
-  today?: LinkStamp;
-  daily?: LinkStamp;
 };
 
 export type LinkDeviceState = {

@@ -1,6 +1,5 @@
-import { blackHoleX } from "@/lib/blackHole";
+import { BLACK_HOLE_BANK_MAX } from "@/lib/blackHole";
 import { carriesOverCycle, cycleBucketFor } from "@/lib/cycle";
-import { currentDailyBucket } from "@/lib/reset";
 import type { Character, Task } from "@/lib/types";
 import type { LinkRow } from "@/lib/link/protocol";
 import {
@@ -12,8 +11,6 @@ import {
 } from "@/lib/link/device";
 import {
   BLACK_HOLE,
-  BLACK_HOLE_DAILY,
-  BLACK_HOLE_TODAY,
   normalizeValue,
   resolveTarget,
   targetBucket,
@@ -104,19 +101,16 @@ function blackHoleBucket(customTasks: Task[], at: number): string {
 function blackHoleWrites(
   cid: string,
   device: LinkDeviceState,
-  characters: Character[],
   customTasks: Task[],
   nowMs: number
-): { write: LinkWrite; key: string } | { guard: LinkGuard } | null {
-  const parts = device.blackHole[cid];
-  const weekly = parts?.weekly;
+):
+  | { write: LinkWrite; key: string }
+  | { guard: LinkGuard }
+  | { repeat: { key: string; at: number; op?: number } }
+  | null {
+  const weekly = device.blackHole[cid]?.weekly;
   if (!weekly) return null;
-  const day = currentDailyBucket(new Date(nowMs));
-  const stampedToday = (stamp: LinkStamp | undefined): boolean =>
-    stamp !== undefined && currentDailyBucket(new Date(stamp.at * 1000)) === day;
-  const daily = stampedToday(parts.daily) ? parts.daily : undefined;
-  const today = stampedToday(parts.today) ? parts.today : undefined;
-  const at = Math.max(weekly.at, today?.at ?? 0, daily?.at ?? 0);
+  const at = weekly.at;
   const bucket = blackHoleBucket(customTasks, at);
   if (!bucket) return null;
   if (bucket !== cycleBucketFor(BLACK_HOLE, customTasks, new Date(nowMs))) return null;
@@ -126,19 +120,20 @@ function blackHoleWrites(
   }
   if (!stampOk(device.watermarks[key], at)) return null;
 
-  const elapsed = 6 - blackHoleX(new Date(at * 1000));
-  const storedDaily = characters.find((c) => c.id === cid)?.taskValues[BLACK_HOLE_DAILY];
-  const dailyValue = daily?.value ?? storedDaily;
-  const todayUsed =
-    dailyValue !== undefined
-      ? dailyValue === true || Number(dailyValue) >= 1
-        ? 1
-        : 0
-      : today !== undefined && Number(today.value) <= 0
-        ? 1
-        : 0;
   const weeklyValue = typeof weekly.value === "number" ? weekly.value : Number(weekly.value);
-  const bank = Math.max(0, Math.min(7, 14 - weeklyValue - elapsed - todayUsed));
+  if (!Number.isFinite(weeklyValue) || weeklyValue > BLACK_HOLE_BANK_MAX) return null;
+  const bank = Math.max(
+    0,
+    Math.min(BLACK_HOLE_BANK_MAX, BLACK_HOLE_BANK_MAX - weeklyValue)
+  );
+  const watermark = device.watermarks[key];
+  if (
+    watermark !== undefined &&
+    bank === watermark.value &&
+    weekly.changed === false
+  ) {
+    return { repeat: { key, at, op: weekly.op } };
+  }
   return {
     key,
     write: {
@@ -204,22 +199,7 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
     const cid = owner?.cid ?? null;
     if (cid) device.match[String(row.character.gameId)] = cid;
 
-    if (target.kind === "aux") {
-      if (!cid) continue;
-      if (row.task === BLACK_HOLE_TODAY) {
-        const inputKey = inputWatermarkKey(`${cid}:${row.task}`);
-        if (!stampOk(device.watermarks[inputKey], row.at)) {
-          older.push(inputKey);
-          continue;
-        }
-        const parts: LinkBlackHole = { ...(device.blackHole[cid] ?? {}) };
-        parts.today = { at: row.at, value: row.value, op: row.op };
-        device.blackHole[cid] = parts;
-        device.watermarks[inputKey] = { at: row.at, value: row.value, op: row.op };
-        touchedBh.add(cid);
-      }
-      continue;
-    }
+    if (target.kind === "aux") continue;
 
     let bucket = targetBucket(target, input.customTasks, row.at);
     if (!bucket) {
@@ -264,7 +244,12 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
         continue;
       }
       const parts: LinkBlackHole = { ...(device.blackHole[cid] ?? {}) };
-      parts.weekly = { at: row.at, value: row.value, op: row.op };
+      parts.weekly = {
+        at: row.at,
+        value: row.value,
+        op: row.op,
+        changed: row.changed,
+      };
       device.blackHole[cid] = parts;
       device.watermarks[inputKey] = { at: row.at, value: row.value, op: row.op };
       touchedBh.add(cid);
@@ -274,12 +259,6 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
     if (!stampOk(device.watermarks[key], row.at)) {
       older.push(key);
       continue;
-    }
-    if (row.task === BLACK_HOLE_DAILY && cid) {
-      const parts: LinkBlackHole = { ...(device.blackHole[cid] ?? {}) };
-      parts.daily = { at: row.at, value: row.value >= 1, op: row.op };
-      device.blackHole[cid] = parts;
-      touchedBh.add(cid);
     }
     const value = normalizeValue(target, row.value, row.kind);
     if (value === null) {
@@ -315,13 +294,25 @@ export function applyLinkRows(input: LinkApplyInput): LinkApplyResult {
     const composite = blackHoleWrites(
       cid,
       device,
-      input.characters,
       input.customTasks,
       nowMs
     );
     if (!composite) continue;
     if ("guard" in composite) {
       guarded.push(composite.guard);
+      continue;
+    }
+    if ("repeat" in composite) {
+      const prev = device.watermarks[composite.repeat.key];
+      if (prev) {
+        device.watermarks[composite.repeat.key] = {
+          ...prev,
+          at: composite.repeat.at,
+          ...(composite.repeat.op !== undefined
+            ? { op: composite.repeat.op }
+            : {}),
+        };
+      }
       continue;
     }
     push(composite.write);
