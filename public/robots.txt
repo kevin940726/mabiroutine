@@ -1,6 +1,9 @@
+# /api/ is deliberately NOT disallowed: it answers `X-Robots-Tag: noindex`
+# (vercel.json), and a noindex rule is invisible to a crawler that robots.txt
+# stops from fetching the response. Blocking here would leave the header dead
+# and the API listed as "blocked by robots.txt" instead of "excluded by noindex".
 User-agent: *
 Allow: /
-Disallow: /api/
 Disallow: /admin
 Disallow: /admin/
 Disallow: /_vercel/

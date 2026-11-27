@@ -127,7 +127,7 @@ only checks the changelog's structure, parity and code-free copy.
 
 ## Gates (run before every push)
 
-`pnpm check` runs all eighteen gates; `AGENTS.md` § Pre-push Gate is the
+`pnpm check` runs all nineteen gates; `AGENTS.md` § Pre-push Gate is the
 always-loaded copy of which gate fires on what. `scripts/check-all.mjs` is the
 runner: one line per gate (`ok <gate> 1.2s` / `FAIL <gate> <ms>`), stopping at the
 first failure, so the last lines of a run are the verdict — the old `&&` chain
@@ -209,6 +209,30 @@ the previous cut, and a reworded heading quietly re-keys nothing, so the seen
 state never advances. `## Unreleased` is exempt — its zh copy is written in the
 same cut that labels it, and the pre-push hook already requires it empty on
 `main`.
+SEO rule: `pnpm test:seo` after touching `index.html`, `public/robots.txt`,
+`public/sitemap.xml`, `public/manifest.webmanifest`, `vercel.json`'s crawl
+headers, the workbox `globPatterns`, `src/App.tsx`'s `<h1>`, or the icon set. It
+reads the files a crawler's view is built from (the served head, the three public
+files, the crawl headers, `vite.config.ts` and the `<h1>` source) and pins the
+decisions the
+2026-11-24 pass got wrong: `robots.txt` must leave fetchable every path that
+`vercel.json` marks `X-Robots-Tag: noindex` (a noindex rule behind a Disallow is
+never seen, and the URL is reported as blocked instead of excluded — Google's
+own `noindex` guidance), the `rel="icon"` size set is pinned at 16x16 and 32x32
+with no duplicate or missing file, the manifest's icons exist at the sizes they
+declare and one is maskable, `vite.config.ts` precaches `.webmanifest` (the
+installed app's icon and name come from there, not from `index.html`), the
+canonical is the production origin, the home page is `index`, the Search Console
+verification tag is present, the structured data parses as a plain `WebSite` node
+whose `alternateName` is only the bare hostname (a keyword list there is
+stuffing), the `<h1>` carries no visually hidden text, and the sitemap omits the
+fields Google ignores (`changefreq`/`priority`) while accepting a `lastmod` only
+when it is a real date no later than today — a hand-maintained date goes stale
+the next commit, so omitting it is the honest default. All of it fails silently
+in the browser, which is why the gate exists. `test:seo` also runs
+`scripts/check-seo-sabotage.mjs`, which applies 23 mutations to a temp copy and
+requires every one to go red: the gate's own proof runs before a push, the same
+way `test:prepush` pins the pre-push gate.
 Icon rule: `pnpm test:icons` after touching `src/lib/itemIcon.ts` or the item
 data (the emitted path per name shape — `+` → `%2B`, literal `(3級)` parens, CJK
 → percent-encoded). The encoding has a silent failure mode in two directions, so

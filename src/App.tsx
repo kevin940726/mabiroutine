@@ -296,7 +296,6 @@ export default function App() {
             <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-semibold leading-none truncate">
                 MabiRoutine
-                <span className="sr-only"> — 瑪奇 Mobile 日課・週課・以物易物追蹤器</span>
               </h1>
               {isMobile ? null : (
                 <p className="text-xs text-muted-foreground">瑪奇 Mobile 日課追蹤 · 06:00 重置</p>

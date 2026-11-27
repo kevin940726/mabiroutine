@@ -4,12 +4,18 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-27 — Emain stock and material sources
+
 ### Features
 - The shop page adds nine more shop rows at five 艾明馬夏 merchants: 鎮靜草 (at 安格妮絲 and 黛兒), 生薑, 空瓶, 旅行者點心, 箭花, 禮物用花束, 最高級生皮 and 最高級生皮+.
 - Default pins now include 伊萊恩's 柔軟原木 and 堅硬原木, 歐絲拉's 隕鐵錠 and 蓋維's 結實的繩索, all four now 必換; 萊莉's four 幼苗 leave the default seed (saved pins stay) and 咖哩粉 joins the 推薦 tier.
 
 ### Fixes
 - Material popovers resolve nine more ingredient legs: 泡水的米, 稻米, 南瓜, 茶葉, 隕鐵礦石, 金鱗魚, 銀鯽魚, 藍色繡球花 and 禮物用花束 now show a source instead of 找不到資料.
+
+### Chores
+- The installed app keeps its icon and name on a launch with no network: `manifest.webmanifest` joins the service worker precache, where every icon it names already was.
+- SEO follow-up: `robots.txt` stops disallowing `/api/`, which made the `X-Robots-Tag: noindex` header unreadable and had Search Console report session URLs as "blocked by robots.txt" instead of excluded; the home page drops the hidden keyword span from its `h1` and the `Organization` node plus keyword `alternateName` from its structured data, and the sitemap drops the fields Google ignores rather than carrying a `lastmod` that would go stale. `pnpm test:seo` now pins all of it, with a 23-case sabotage suite in `scripts/check-seo-sabotage.mjs`.
 
 ## 2026-11-26 — The Link black-hole weekly count
 <!-- whats-new: none -->

@@ -30,7 +30,7 @@ export default defineConfig({
       injectRegister: 'auto',
       manifest: false, // hand-owned public/manifest.webmanifest
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,ico}'],
+        globPatterns: ['**/*.{js,css,html,png,ico,webmanifest}'],
         // Reminder tap deep-link (public/sw-push.js): notificationclick
         // focuses/opens the app at ?task=&chars=. Precached like any hashed
         // asset, so tap handling versions with the shell.

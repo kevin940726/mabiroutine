@@ -42,6 +42,7 @@ const GATES = [
   "test:migrations",
   "test:sync",
   "test:whatsnew",
+  "test:seo",
   "build",
 ];
 
