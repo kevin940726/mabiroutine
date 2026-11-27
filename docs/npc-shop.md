@@ -448,8 +448,10 @@ Decided by the user 2026-09-27:
    an explicit exception to that test), and 2026-11-09, when 珍妮佛's 共鳴板
    joined it (user decision; the client flavor says it is a crafting part and
    the row is 必換, so it is the second explicit exception until a `recipes.json`
-   route consumes it). The rule stands: a gold row is seeded only with a stated
-   reason, never because it has a weekly cap.
+   route consumes it). The 幼苗 exception was retired 2026-11-27: the four rows
+   keep 必換 but are no longer default pins (user decision). The rule stands: a
+   gold row is seeded only with a stated reason, never because it has a weekly
+   cap.
    Reviewed again 2026-10-20 and deferred: "gold-only item, weekly cap" screens
    too broadly to seed as it stands. Most gold-only items have no barter output
    and no `recipes.json` route only because the source data does not model their
@@ -575,29 +577,29 @@ counts if `shops.json` or `curatedOrder.ts` change, and do not propagate a new t
 into the measurements above. Measure them by having a script write a UTF-8 file rather
 than printing to the console (see the terminal trap in section 0).
 
-- `shops.json`: 458 rows, 60 NPCs, 10 towns. 239 gold (`kind` omitted), 219 barter.
-- 27 NPCs are barter-only, 25 are mixed, 8 are gold-only.
+- `shops.json`: 467 rows, 60 NPCs, 10 towns. 245 gold (`kind` omitted), 222 barter.
+- 26 NPCs are barter-only, 26 are mixed, 8 are gold-only.
 - Every barter row carries a stable `id` and a `priority`, and the loader
   composes its `give` / `get` / `limit` display text from cost, yield and cap.
   The hand-written strings inherited from `barter.json` were dropped 2026-11-25,
-  so the mechanics are the only copy and only the 239 gold rows need a `shop::`
+  so the mechanics are the only copy and only the 245 gold rows need a `shop::`
   pin id. The ids, tiers and order live on the options plus `curatedOrder.ts`.
 - **Zero** curated rows lack a shop entry, and zero shop barter rows lack their
   inline curation, in both directions. `test:shops` asserts it directly now
   (check 6): a barter leg missing an `id` or a `priority` fails, and the
   composed display text is checked against the structured mechanics so
   the formatter cannot drift from them.
-- All 239 gold rows are unique on `npc::name`; none has a null price. This is the
+- All 245 gold rows are unique on `npc::name`; none has a null price. This is the
   invariant that lets the pin id be `shop::<npc>::<name>`, and `test:shops`
   now enforces it (check 0b) instead of merely measuring it.
 - Three stocks are one purchase counter sold at two merchants (15 partner rows,
   declared with `pool`): 克雷格 draws on 伊文's 魔物討伐證明 stock, 黛蓮 on
   瓦爾特's 裝飾製作零件, and 唐娜 on 安黛莉's 聖水. A partner takes the owner's
   pin id, so one cap covers the pair and the task description names both sellers.
-- Pin counts: **all 458 rows pinnable, 443 distinct ids** — every barter row
+- Pin counts: **all 467 rows pinnable, 452 distinct ids** — every barter row
   carries an explicit option `id` and every gold row a `shop::` id, but the 15
   pooled partners (9 barter, 6 gold) take their owner's id, so the distinct count
-  is 443 rather than 458.
+  is 452 rather than 467.
 
 ---
 

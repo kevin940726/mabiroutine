@@ -321,7 +321,7 @@
  },
  "完美繃帶": {
   "verified": "missing",
-  "note": "in-game item, no source, no yenyen page — skip squash (per user 2026-09-09)",
+  "note": "in-game item, no recorded source — skip squash (per user 2026-09-09)",
   "routes": []
  },
  "寵物飼料": {
@@ -1974,7 +1974,7 @@
     ]
    }
   ],
-  "note": "yenyen slug 棉 is a typo for 麵"
+  "note": "source slug 棉 is a typo for 麵"
  },
  "麵粉": {
   "verified": "tw",
@@ -2331,6 +2331,104 @@
       "qty": 1
      }
     ]
+   }
+  ]
+ },
+ "泡水的米": {
+  "verified": "tw",
+  "routes": [
+   {
+    "kind": "make",
+    "station": "食材加工設備",
+    "level": "5",
+    "outQty": 5,
+    "components": [
+     {
+      "name": "稻米",
+      "qty": 30
+     },
+     {
+      "name": "裝水的瓶子",
+      "qty": 6
+     }
+    ]
+   }
+  ]
+ },
+ "稻米": {
+  "verified": "tw",
+  "note": "稻田 · 一般野外 · 艾明馬夏（客戶端採集點「稻米」；等級未記錄）",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "收割",
+    "outQty": 1
+   }
+  ]
+ },
+ "南瓜": {
+  "verified": "tw",
+  "note": "菜園 · 一般野外 · 艾明馬夏（客戶端採集點「南瓜」；等級未記錄）",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "鋤地",
+    "outQty": 1
+   }
+  ]
+ },
+ "茶葉": {
+  "verified": "tw",
+  "note": "茶樹 · 一般野外 · 艾明馬夏（客戶端採集點「茶樹」；等級未記錄）",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "日常採集",
+    "outQty": 1
+   }
+  ]
+ },
+ "隕鐵礦石": {
+  "verified": "tw",
+  "note": "隕鐵礦脈 · 狩獵場 · 山米爾平原（客戶端採集點「隕鐵礦脈」；等級未記錄）",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "採礦",
+    "outQty": 1
+   }
+  ]
+ },
+ "金鱗魚": {
+  "verified": "tw",
+  "note": "釣魚（客戶端圖示 Gatherable_FishGoldenMandarinFish；等級未記錄）",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "釣魚",
+    "outQty": 1
+   }
+  ]
+ },
+ "銀鯽魚": {
+  "verified": "tw",
+  "note": "釣魚（等級未記錄）",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "釣魚",
+    "outQty": 1
+   }
+  ]
+ },
+ "藍色繡球花": {
+  "verified": "tw",
+  "note": "日常採集（花；使用者遊戲內確認 2026-11-27）",
+  "routes": [
+   {
+    "kind": "gather",
+    "station": "日常採集",
+    "outQty": 1
    }
   ]
  }

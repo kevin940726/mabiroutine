@@ -2760,7 +2760,7 @@
                 "times": 1
               },
               "id": "sen-伊萊恩-log-soft-furniture",
-              "priority": "situational"
+              "priority": "must"
             },
             {
               "name": "堅硬原木",
@@ -2776,7 +2776,7 @@
                 "times": 1
               },
               "id": "sen-伊萊恩-log-hard-furniture",
-              "priority": "situational"
+              "priority": "must"
             }
           ]
         }
@@ -2860,6 +2860,7 @@
             },
             {
               "name": "咖哩粉",
+              "priority": "extra",
               "cost": {
                 "amount": 3500
               },
@@ -3275,6 +3276,16 @@
               }
             },
             {
+              "name": "鎮靜草",
+              "cost": {
+                "amount": 1400
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
               "name": "鎮靜草粉末",
               "cost": {
                 "amount": 1700
@@ -3309,6 +3320,18 @@
         {
           "name": "布萊斯",
           "items": [
+            {
+              "name": "旅行者點心",
+              "cost": {
+                "amount": 600
+              }
+            },
+            {
+              "name": "空瓶",
+              "cost": {
+                "amount": 50
+              }
+            },
             {
               "name": "閃電火烤奶油玉米",
               "kind": "barter",
@@ -3388,7 +3411,7 @@
                 "period": "weekly"
               },
               "id": "ema-歐絲拉-bar-meteorite",
-              "priority": "situational"
+              "priority": "must"
             }
           ]
         },
@@ -3511,7 +3534,7 @@
               },
               "scope": "account",
               "id": "ema-蓋維-rope-strong",
-              "priority": "situational"
+              "priority": "must"
             }
           ]
         },
@@ -3619,6 +3642,16 @@
               }
             },
             {
+              "name": "生薑",
+              "cost": {
+                "amount": 7300
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
               "name": "白蘿蔔",
               "cost": {
                 "amount": 10000
@@ -3713,6 +3746,22 @@
               "scope": "account"
             },
             {
+              "name": "箭花",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "藍色繡球花"
+              },
+              "get": {
+                "amount": 10
+              },
+              "limit": {
+                "times": 3
+              },
+              "id": "ema-黛兒-herb-arrowhead",
+              "priority": "situational"
+            },
+            {
               "name": "躲躲花",
               "kind": "barter",
               "cost": {
@@ -3743,6 +3792,35 @@
               },
               "id": "ema-黛兒-herb-disinfection",
               "priority": "situational"
+            },
+            {
+              "name": "鎮靜草",
+              "kind": "barter",
+              "cost": {
+                "amount": 10,
+                "currency": "藍色繡球花"
+              },
+              "get": {
+                "amount": 10
+              },
+              "limit": {
+                "times": 3
+              },
+              "id": "ema-黛兒-herb-relax",
+              "priority": "situational"
+            },
+            {
+              "name": "禮物用花束",
+              "kind": "barter",
+              "cost": {
+                "amount": 100,
+                "currency": "黏土"
+              },
+              "limit": {
+                "times": 1
+              },
+              "id": "ema-黛兒-barter-bouquet-01",
+              "priority": "situational"
             }
           ]
         },
@@ -3765,6 +3843,26 @@
               "name": "生皮",
               "cost": {
                 "amount": 250
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "最高級生皮",
+              "cost": {
+                "amount": 900
+              },
+              "limit": {
+                "times": 30,
+                "period": "weekly"
+              }
+            },
+            {
+              "name": "最高級生皮+",
+              "cost": {
+                "amount": 1400
               },
               "limit": {
                 "times": 30,

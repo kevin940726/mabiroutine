@@ -208,17 +208,23 @@ for (const t of townList) {
     seen.add(d.id);
   }
 }
-// Shop-option priority must reach the deal: a curated barter row wins when both
-// exist, otherwise the option's own tier flows through. The pinned count below
-// covers only the 推薦 quest-board scrolls; 必換 gold rows (蜂蠟, 砂紙) carry the
-// other tier and are deliberately not counted here. If the extras count moves, the
-// new mark is either intended (update the count) or a stray tier leaking a chip
-// onto a tile.
 {
-  const marked = shopDeals(loadShopNpcs()).filter((d) => !d.barterId && d.priority !== null);
-  const extras = marked.filter((d) => d.priority === "extra");
-  if (extras.length !== 4) {
-    fail(`expected 4 shop-option extra marks, got ${extras.length}: ${extras.map((d) => d.pinId).join(" | ")}`);
+  const expected = new Set([
+    "shop::任務佈告欄::料理卷軸：煎蛋",
+    "shop::任務佈告欄::料理卷軸：蘋果汁",
+    "shop::任務佈告欄::料理卷軸：蒸蛤蠣",
+    "shop::任務佈告欄::料理卷軸：烤整顆馬鈴薯",
+    "shop::佛瑞哲::咖哩粉",
+  ]);
+  const extras = shopDeals(loadShopNpcs())
+    .filter((d) => !d.barterId && d.priority === "extra")
+    .map((d) => d.pinId);
+  const missing = [...expected].filter((id) => !extras.includes(id));
+  const unexpected = extras.filter((id) => !expected.has(id));
+  if (missing.length > 0 || unexpected.length > 0) {
+    fail(
+      `extra marks differ: missing ${missing.join(" | ") || "none"}; unexpected ${unexpected.join(" | ") || "none"}`,
+    );
   }
 }
 // Minted pin ids must be unique: a `shop::<npc>::<name>` id is persisted in

@@ -156,8 +156,11 @@ export const CURATED_ORDER: string[] = [
   "ema-蓋維-rope-strong", // 蓋維 結實的繩索 ← 分解的裝備零件 ×1000 · 每週 1 次（伺服器） · 艾明馬夏
   "ema-高登-flour-wheat", // 高登 麵粉 ×10 ← 稻米 ×30 · 每週 5 次 · 艾明馬夏
   "ema-高登-vegetable-potato-heavy", // 高登 厚實的馬鈴薯 ×5 ← 發酵茶葉 ×10 · 每週 1 次（伺服器） · 艾明馬夏
+  "ema-黛兒-herb-arrowhead", // 黛兒 箭花 ×10 ← 藍色繡球花 ×10 · 每日 3 次 · 艾明馬夏
   "ema-黛兒-herb-stanch", // 黛兒 躲躲花 ×10 ← 藍色繡球花 ×10 · 每日 3 次 · 艾明馬夏
   "ema-黛兒-herb-disinfection", // 黛兒 傷痕花 ×10 ← 藍色繡球花 ×10 · 每日 3 次 · 艾明馬夏
+  "ema-黛兒-herb-relax", // 黛兒 鎮靜草 ×10 ← 藍色繡球花 ×10 · 每日 3 次 · 艾明馬夏
+  "ema-黛兒-barter-bouquet-01", // 黛兒 禮物用花束 ← 黏土 ×100 · 每日 1 次 · 艾明馬夏
   "ema-黛蓮-facility-up-metal-shop-04", // 黛蓮 高級風箱 ← 愛心幣 ×27 · 艾明馬夏
   "ema-黛蓮-facility-up-wood-shop-04", // 黛蓮 高級木工用滑輪 ← 愛心幣 ×27 · 艾明馬夏
   "ema-黛蓮-facility-up-leather-shop-04", // 黛蓮 高級平刀 ← 愛心幣 ×27 · 艾明馬夏

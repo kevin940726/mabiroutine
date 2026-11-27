@@ -52,9 +52,9 @@ display one, rather than by remembering not to fold:
 `%2B`. That is the form the URL must carry, and production is the authority: Vercel
 resolves `%2B` to `public/items/皮革+.webp`, and a literal `+` in the path does not
 resolve (404; measured against the deployed preview, 2026-10-02, along with `%20`,
-which also 404s). The
-names that carry one — `布料+`, `皮革+`, `高級布料+`, `高級木材+`, `高級生皮+`,
-`裝飾製作零件+` — all
+which also 404s). Names
+that carry one — including `布料+`, `皮革+`, `高級布料+`, `高級木材+`, `高級生皮+`,
+`最高級生皮+` and `裝飾製作零件+` — all
 go out as `%2B`.
 
 The parens are the opposite case. `(` and `)` are RFC 3986 sub-delims like `+`, but
@@ -99,9 +99,9 @@ option's `icon` override collapses rows onto a shared file (the quest-board scro
 all use `任務卷軸`), the barter legs add the give/get names the loader composes from
 cost and yield, and the breakdown adds every recipe result and component, with the
 ` ×N` suffix stripped as `parseItemQty` does. The directory also holds spare art, so
-its 342 files are not the same set as those 334 names.
+its 344 files are not the same set as those 336 names.
 
-One spare file is not an item name at all: `public/items/金幣.webp` is the
+One lookup is not an item name at all: `public/items/金幣.webp` is the
 coin a gold PRICE is drawn with (`Cost` in `src/components/shop/Cost.tsx`). It lives
 here because that is where the currency art does — 喵幣 and 愛心幣 are looked up by
 their own names, while gold's currency token is `gold`, so its file is the single
