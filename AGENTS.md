@@ -64,6 +64,14 @@ The reverse also holds: never fold away a number that **did** ship, because a re
   player-facing changelog entry, and the per-commit Chores entry satisfies the
   changelog rule without putting it in the in-app changelog. When in doubt,
   Chores.
+- **Player-facing bullets are short and selective.** One line, one effect, the
+  shape a player would recognize — never an item inventory, a file count, or a
+  list of names. Say that the shop gained stock, not which nine rows; say the
+  material card now finds a source, not which nine ingredients. Details live in
+  the data and the commit. A release where the honest one-liner is "more stock
+  and a few fixes" gets exactly that, and a change too small to describe in one
+  plain sentence is omitted from Features/Fixes entirely — the Chores entry
+  still records it. Fewer true bullets beat complete ones.
 - **The push flow: gate, cut, chat review, one amended commit, push.** When the
   user says push, run `pnpm check` first. Then cut the release: rename
   `## Unreleased` to `## <YYYY-MM-DD> — <label>` (label from the range's content)

@@ -350,7 +350,10 @@ shipped code, and it takes the `whats-new: none` path in step 2.
 2. With the `tech-doc-zh-tw` skill loaded (`.agents/skills/tech-doc-zh-tw/SKILL.md`),
    add the zh section to `CHANGELOG-zh_TW.md`: same date, 1–3 bullets in player
    voice, and a `<!-- release: … -->` marker naming the English heading
-   **verbatim**. When nothing in the release is player-visible, write
+   **verbatim**. Each bullet is one plain sentence about what a player can now do
+   or see — no item lists, counts of named rows, or file names. Omit a bullet
+   entirely when the change is too small to matter to a player. When nothing in
+   the release is player-visible, write
    `<!-- whats-new: none -->` directly under the English heading instead —
    that is the only way to say "intentional" rather than "forgotten".
    Technical and borderline work in Chores counts as nothing player-visible.
