@@ -9,7 +9,7 @@ import { compareTowns } from "@/lib/towns";
 import { useAppStore } from "@/store/useAppStore";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { costText, getText, loadShopNpcs, merchantKey, shopCatalogRanks, shopDeals, shopRowSearchText, type ShopDeal } from "@/lib/shops";
-import { displayName, parseItemQty } from "@/lib/materials";
+import { craftTree, displayName, parseItemQty } from "@/lib/materials";
 import { ShopGrid } from "@/components/shop/ShopGrid";
 import { compareRows } from "@/components/shop/shared";
 import { writeShopJumpParams } from "@/lib/shopJump";
@@ -163,6 +163,22 @@ const ALL_SHOP_ITEMS: ShopRow[] = (() => {
   return [...curated, ...rest.filter((item) => item.kind === "barter"), ...rest.filter((item) => item.kind === "shop")];
 })();
 
+/** Fold both sides of a shop query into one comparable form.
+ *
+ *  Parenthesis width is presentation: `displayName` narrows it to half-width,
+ *  and the haystack fields are not uniformly spelled, so folding only the
+ *  query would miss a full-width `（` inside a name. The thin space before a
+ *  suffix is stripped too: a name pasted from the game arrives as
+ *  `設計圖(3級)`, and it has to match the spaced display form `設計圖 (3級)`.
+ */
+function foldSearch(v: string): string {
+  return displayName(v).replace(/\u2009/g, "").toLocaleLowerCase("zh-Hant");
+}
+
+// The direct haystack folded once. A live query otherwise re-folds every row on
+// every keystroke, and the craft-tree lookup now sits behind that miss.
+const ROW_SEARCH_TEXT = new Map(ALL_SHOP_ITEMS.map((item) => [item.key, foldSearch(shopRowSearchText(item))]));
+
 // File-order NPC ranks (shops.json owns NPC sequence within a town; town
 // sequence follows TOWN_ORDER). Module-level, memoized inside.
 const { npcRank: NPC_FILE_RANK } = shopCatalogRanks();
@@ -179,26 +195,34 @@ function merchantMatches(item: ShopRow, merchant: string): boolean {
   return sep >= 0 && merchant.slice(sep + 2) === "" && item.npc === merchant.slice(0, sep);
 }
 
-function rowMatches(item: ShopRow, query: string) {
-  // Fold BOTH sides, so a query typed or pasted in either paren width matches a row
-  // whose text carries the other. `displayName` narrows to half-width, and the fields
-  // below are not uniformly spelled (a `note` is free text), so folding only the query
-  // would still miss a full-width `（` sitting inside a note. Folding the haystack too
-  // makes the two comparable regardless of which width either side happens to use.
-  //
-  // The thin space `displayName` inserts before a suffix is STRIPPED here, on both
-  // sides, because it is typography rather than content: a name pasted from the game
-  // arrives as `設計圖(3級)` with no space, and it has to match the spaced display form
-  // `設計圖 (3級)`. Without this the search would fail on exactly the paste it exists
-  // to serve, and it would fail quietly.
-  const fold = (v: string) => displayName(v).replace(/\u2009/g, "").toLocaleLowerCase("zh-Hant");
-  const q = fold(query.trim());
-  if (!q) return true;
-  return fold(shopRowSearchText(item)).includes(q);
+/** A row's answer to one query: null when it fails, `via` set when the hit is
+ *  an ingredient behind the row's cost rather than text the row already shows. */
+function rowMatch(item: ShopRow, query: string): { via: string | null } | null {
+  const q = foldSearch(query.trim());
+  if (!q) return { via: null };
+  if ((ROW_SEARCH_TEXT.get(item.key) ?? foldSearch(shopRowSearchText(item))).includes(q)) return { via: null };
+  if (item.costCurrency === "gold") return null;
+  let via: string | null = null;
+  let depth = Number.MAX_SAFE_INTEGER;
+  for (const [name, path] of craftTree(item.costCurrency)) {
+    if (!foldSearch(name).includes(q)) continue;
+    if (path.length < depth || (path.length === depth && (via === null || name.length < via.length))) {
+      via = name;
+      depth = path.length;
+    }
+  }
+  return via ? { via } : null;
 }
 
-function filterItems(items: ShopRow[], town: string, query: string) {
-  return items.filter((item) => (town === "all" || item.town === town) && rowMatches(item, query));
+function filterItems(items: ShopRow[], town: string, query: string): ShopRow[] {
+  const out: ShopRow[] = [];
+  for (const item of items) {
+    if (town !== "all" && item.town !== town) continue;
+    const match = rowMatch(item, query);
+    if (!match) continue;
+    out.push(match.via ? { ...item, via: match.via } : item);
+  }
+  return out;
 }
 
 function groupItems(items: ShopRow[]) {

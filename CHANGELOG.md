@@ -4,6 +4,9 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+### Features
+- Shop search now finds a barter row by the recipe ingredients behind its cost, not just the cost's own name.
+
 ### Chores
 - The changelog rule now asks for short, selective player-facing bullets: one effect per line, no item inventories, and a change too small to state plainly is left out of Features/Fixes entirely. The 2026-11-27 copy is rewritten to match.
 

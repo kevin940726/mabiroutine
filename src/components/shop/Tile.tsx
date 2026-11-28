@@ -45,7 +45,7 @@
 //      name never reaches. 20px left clears the 4px priority stripe, 16px right and
 //      bottom match each other.
 import { cn } from "@/lib/utils";
-import { parseItemQty } from "@/lib/materials";
+import { displayName, parseItemQty } from "@/lib/materials";
 import { Cost } from "./Cost";
 import { ItemIcon } from "./ItemIcon";
 import { NpcFace } from "./NpcFace";
@@ -299,6 +299,13 @@ export function Tile({
             tile keep its own height instead of stretching the one-line tiles beside it. */}
         <div className="text-center leading-tight">
           <Price item={item} onViewInShop={onViewInShop} />
+          {/* Why the row matched, not another fact about the trade: search-only,
+              so the default grid keeps its uniform height. */}
+          {item.via && (
+            <p className="mt-1 truncate text-[11px] leading-4 text-muted-foreground" title={`材料含 ${displayName(item.via)}`}>
+              材料含 <span className="font-medium text-foreground/75">{displayName(item.via)}</span>
+            </p>
+          )}
         </div>
 
         {showMerchant && <MerchantBand item={item} onOpen={onOpenNpc} />}

@@ -11,7 +11,7 @@ import recipesJson from "@/data/recipes.json";
 import shopsJson from "@/data/shops.json";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { parseItemQty, twinTradeLeg } from "@/lib/materials";
+import { craftTree, parseItemQty, twinTradeLeg } from "@/lib/materials";
 import { TOWN_ORDER } from "@/lib/towns";
 import { barterRowName, dealToBarterTask, loadShopNpcs, shopDeals, shopPinId, shopRowSearchText } from "@/lib/shops";
 
@@ -184,6 +184,22 @@ for (const t of townList) {
     if (!twinTradeLeg(npc, name, qty, town)) {
       fail(`twin probe blind: ${town} ${npc} ${name} ×${qty} has no leg in the materials table`);
     }
+  }
+}
+// Craft-tree search probes: a barter row is findable by the make tree behind
+// its cost. 泡水的米 is not a cost anywhere, but 歐絲拉's 鐵錠 costs 咖哩飯,
+// whose chain reaches it. A barter-only item stays empty: a trade leg is one
+// way to acquire an item, not a requirement, so following it would drag 黏土
+// into 禮物用花束.
+{
+  for (const name of ["飯", "泡水的米", "稻米"]) {
+    if (!craftTree("咖哩飯").has(name)) fail(`craft tree missing ${name} behind 咖哩飯`);
+  }
+  for (const name of ["稻米", "裝水的瓶子"]) {
+    if (!craftTree("泡水的米").has(name)) fail(`craft tree missing ${name} behind 泡水的米`);
+  }
+  if (craftTree("禮物用花束").size !== 0) {
+    fail("craft tree followed a trade leg: 禮物用花束 is barter-only");
   }
 }
 // Task builder smoke: every id-bearing deal builds a barter-shaped Task

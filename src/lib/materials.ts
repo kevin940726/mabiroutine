@@ -540,6 +540,40 @@ export function barterProducers(name: string): RecipeRoute[] {
   });
 }
 
+/** Every ingredient behind an item's make recipes, with the path that reaches it.
+ *
+ *  The shop search uses this to find a barter row by what its cost is made of,
+ *  not only by the cost's own name. Only `make` components are followed: a
+ *  `shop` or `barter` leg is an acquisition trade, not a recipe, and an item
+ *  can have several (愛心幣 has three), so following one would be arbitrary and
+ *  following all would be noise. The path is root-first and is how the result
+ *  names the NEAREST match when a query hits more than one ingredient.
+ *
+ *  Memoized: the route table is module data and never changes.
+ */
+const craftTreeCache = new Map<string, Map<string, string[]>>();
+
+export function craftTree(name: string): Map<string, string[]> {
+  const hit = craftTreeCache.get(name);
+  if (hit) return hit;
+  const out = new Map<string, string[]>();
+  const walk = (item: string, path: string[]) => {
+    for (const route of RECIPES[item]?.routes ?? []) {
+      if (route.kind !== "make") continue;
+      for (const c of route.components ?? []) {
+        if (path.includes(c.name)) continue;
+        const next = [...path, c.name];
+        const prev = out.get(c.name);
+        if (!prev || next.length < prev.length) out.set(c.name, next);
+        walk(c.name, next);
+      }
+    }
+  };
+  walk(name, [name]);
+  craftTreeCache.set(name, out);
+  return out;
+}
+
 export type AssumedPlan = {
   title: string;
   directs: { name: string; qty: number }[];

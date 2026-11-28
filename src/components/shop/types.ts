@@ -58,4 +58,7 @@ export type ShopRow = {
    *  Above 1 the tile marks the stock 共用, because spending it at one merchant
    *  spends it at the others. */
   poolSize: number;
+  /** Set only while a search hit comes from the craft tree behind this row's
+   *  cost, not from the row's own text. The tile prints `材料含 <via>`. */
+  via?: string | null;
 };

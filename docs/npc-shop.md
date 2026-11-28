@@ -287,6 +287,13 @@ need a toggle because both kinds render as tiles and 類型 filters them.
   today the names are 尚, 麥爾坎 and 伊比 and the older spellings are the aliases. A
   rename that reaches a gold row also rewrites its pin id — see the pin-id note in
   `docs/tracker-data.md` § Item Inventory.
+- **Search reaches the recipe behind a barter cost.** A query matches the cost's
+  make tree at any depth, so 稻米 finds 歐絲拉's 鐵錠 through 咖哩飯 › 飯 ›
+  泡水的米. Only `make` components are followed: a `barter` or `shop` leg is an
+  acquisition trade, not a recipe, and the data often has several (愛心幣 has
+  three), so indexing one is arbitrary and indexing all is noise. Route labels
+  (收割, 食材加工設備) are not searchable. A deep hit prints `材料含 <ingredient>`
+  on the tile, naming the nearest match when several do.
 - **Deliberately not built:** item icons (see section 0), reminder bells and
   seeded gold pins (see section 2). Removal of `barterFilters` used to be on this
   list; it shipped at store v20 (see section 0).
