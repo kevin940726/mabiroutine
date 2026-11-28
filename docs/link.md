@@ -28,11 +28,13 @@ the status to 已連線.
 
 The feature is off by default and behind 實驗性功能 (footer). With it on, the
 menu shows one row (`即時連結` · 未連線 / 連線中 / 已連線 / 連線失敗 / 請允許本機網路權限 /
-本機網路權限被拒 / 已暫停 / 即時 / 未更新), plus the download row while this device has
-never seen a producer; there is no Link panel. A producer that paused capture
-says so on `/health`, so the row reads 已暫停 while the socket stays connected. A
-snapshot poller that took over after a socket drop keeps reading frames, so the
-freshness words still describe them. Support evidence lives on the desktop
+本機網路權限被拒 / 已暫停 / 資料未同步 / 部分未同步 / 即時 / 未更新), plus the download row
+while this device has never seen a producer; there is no Link panel. A producer
+that paused capture says so on `/health`, so the row reads 已暫停 while the
+socket stays connected. A producer that failed closed says 資料未同步
+(quarantined) or 部分未同步 (degraded), so a stale row is never shown as current.
+A snapshot poller that took over after a socket drop keeps reading frames, so
+the freshness words still describe them. Support evidence lives on the desktop
 (Link's log,
 and the tray menu once the desktop build is packaged) plus two browser-console
 lines the app prints itself: one on connect naming the producer's version and
@@ -42,9 +44,19 @@ bucket).
 | route | method | what |
 |---|---|---|
 | `/link/1/snapshot` | GET | one snapshot document |
-| `/link/1/health` | GET | producer id, version, mode, paused, `lastFrameAt`, uptime, counts |
+| `/link/1/health` | GET | producer id, version, mode, paused, `trust`, `trustReason`, `quarantinedRows`, `opcodeSource`, `pendingConns`, `gaps`, `lastFrameAt`, uptime, counts |
 | `/link/1/stream` | GET | server-sent events, same objects as the socket |
 | `/link/1/socket` | GET | WebSocket, `hello` then `snapshot` then `delta` |
+
+`/health` carries the listener's sync trust, read from its `health.json`:
+
+- `trust` is `trusted`, `degraded` or `quarantined`; `unknown` before the
+  listener has written health, and `trustReason` names the cause
+  (`schema-drift:<n>`, `shape-mismatch[:<protocol>]`,
+  `unknown-opcodes-on-bundled-map`, `metadata-unsupported`).
+- `quarantinedRows` lists the protocol names whose decoder is quarantined.
+- `opcodeSource` is `pc-metadata` or `bundled-map`, so a report shows whether
+  the table came from the installed game or the shipped fallback.
 
 - Bind is `127.0.0.1:6278` by default (`MBRT` on a phone keypad).
 - **Auto-link is the default.** A browser request with an allowed `Origin` needs

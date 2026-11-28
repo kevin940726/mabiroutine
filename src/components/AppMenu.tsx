@@ -72,6 +72,10 @@ function linkRow(
   }
   if (status.phase === "error") return { label: "連線失敗", tone: "text-destructive", retry: false };
   if (status.capturePaused) return { label: "已暫停", tone: "text-muted-foreground", retry: false };
+  if (status.trust === "quarantined")
+    return { label: "資料未同步", tone: "text-destructive", retry: false };
+  if (status.trust === "degraded")
+    return { label: "部分未同步", tone: WARN_TONE, retry: false };
   if (status.lastFrameAt === null) return { label: "已連線", tone: OK_TONE, retry: false };
   const age = Math.max(0, now / 1000 - status.lastFrameAt);
   return age > 30

@@ -1,5 +1,23 @@
 [
   {
+    "release": "2026-11-28 — Recipe search and Link sync status",
+    "date": "2026-11-28",
+    "kind": "feature",
+    "text": "商店搜尋會沿著材料的製作配方往下找，查材料也能找到需要它的以物易物商品。"
+  },
+  {
+    "release": "2026-11-28 — Recipe search and Link sync status",
+    "date": "2026-11-28",
+    "kind": "fix",
+    "text": "黛蓮的以物易物清單補上變形的魔力石。"
+  },
+  {
+    "release": "2026-11-28 — Recipe search and Link sync status",
+    "date": "2026-11-28",
+    "kind": "fix",
+    "text": "當解析結果與遊戲不符時，即時連結會顯示「資料未同步」或「部分未同步」，不再把過期資料當成最新。"
+  },
+  {
     "release": "2026-11-27 — Emain stock and material sources",
     "date": "2026-11-27",
     "kind": "feature",

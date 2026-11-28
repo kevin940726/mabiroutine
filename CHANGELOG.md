@@ -4,11 +4,14 @@ Reader-facing log. Features and Fixes are the player-visible changes; Chores are
 
 ## Unreleased
 
+## 2026-11-28 — Recipe search and Link sync status
+
 ### Features
 - Shop search now finds a barter row by the recipe ingredients behind its cost, not just the cost's own name.
 
 ### Fixes
 - 黛蓮's 以物易物 list gains the missing 變形的魔力石 trade.
+- 即時連結 now says 資料未同步 or 部分未同步 when decoding stops matching the game, instead of showing stale rows as current.
 
 ### Chores
 - The changelog rule now asks for short, selective player-facing bullets: one effect per line, no item inventories, and a change too small to state plainly is left out of Features/Fixes entirely. The 2026-11-27 copy is rewritten to match.

@@ -5,7 +5,7 @@ import { loadLinkDevice, saveLinkDevice } from "@/lib/link/device";
 import type { LinkHello, LinkMessage } from "@/lib/link/protocol";
 import { LinkClient } from "@/link/client";
 import { setLinkStatus } from "@/link/status";
-import type { LinkPhase } from "@/link/status";
+import type { LinkPhase, LinkTrust } from "@/link/status";
 import { markLinkSeen } from "@/lib/link/seen";
 import { watchLinkPermission, type BlockedPermission } from "@/link/permission";
 
@@ -79,7 +79,14 @@ function onMessage(message: LinkMessage): void {
 }
 
 function onPhase(phase: LinkPhase): void {
-  if (phase === "off") setLinkStatus({ phase, permission: null, capturePaused: false });
+  if (phase === "off")
+    setLinkStatus({
+      phase,
+      permission: null,
+      capturePaused: false,
+      trust: null,
+      trustReason: null,
+    });
   else setLinkStatus({ phase, permission: null });
 }
 
@@ -115,6 +122,18 @@ function onPaused(paused: boolean): void {
   setLinkStatus({ capturePaused: paused });
 }
 
+function onHealth(health: {
+  paused: boolean;
+  trust: LinkTrust;
+  trustReason: string | null;
+}): void {
+  setLinkStatus({
+    capturePaused: health.paused,
+    trust: health.trust,
+    trustReason: health.trustReason,
+  });
+}
+
 export function startLinkFeed(): void {
   if (client) return;
   client = new LinkClient(loadLinkDevice().token, {
@@ -123,6 +142,7 @@ export function startLinkFeed(): void {
     onPermission,
     onHello,
     onPaused,
+    onHealth,
   });
   client.start();
 }

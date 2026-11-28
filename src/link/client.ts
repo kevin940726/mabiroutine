@@ -6,7 +6,7 @@ import {
   type LinkHello,
   type LinkMessage,
 } from "@/lib/link/protocol";
-import type { LinkPhase } from "@/link/status";
+import type { LinkPhase, LinkTrust } from "@/link/status";
 import { linkPermission, type BlockedPermission, type LinkPermission } from "@/link/permission";
 
 const PING_MS = 20_000;
@@ -26,6 +26,11 @@ export type LinkHandlers = {
   onHello?: (producer: LinkHello["producer"]) => void;
   onPermission?: (state: BlockedPermission) => void;
   onPaused?: (paused: boolean) => void;
+  onHealth?: (health: {
+    paused: boolean;
+    trust: LinkTrust;
+    trustReason: string | null;
+  }) => void;
 };
 
 function backoff(attempt: number): number {
@@ -225,9 +230,10 @@ export class LinkClient {
     this.pongMissed = 0;
   }
 
-  /** `/health` is the only route that says the user paused capture. */
+  /** `/health` is the only route that says pause and sync trust. */
   private startHealth(): void {
-    if (this.healthTimer !== null || !this.handlers.onPaused) return;
+    if (this.healthTimer !== null) return;
+    if (!this.handlers.onPaused && !this.handlers.onHealth) return;
     void this.checkHealth();
     this.healthTimer = window.setInterval(() => void this.checkHealth(), HEALTH_MS);
   }
@@ -237,8 +243,22 @@ export class LinkClient {
     try {
       const response = await fetch(healthUrl(this.token), { cache: "no-store" });
       if (!response.ok) return;
-      const doc = (await response.json()) as { paused?: unknown };
-      this.handlers.onPaused?.(doc.paused === true);
+      const doc = (await response.json()) as {
+        paused?: unknown;
+        trust?: unknown;
+        trustReason?: unknown;
+      };
+      const paused = doc.paused === true;
+      this.handlers.onPaused?.(paused);
+      const trust: LinkTrust =
+        doc.trust === "trusted" || doc.trust === "degraded" || doc.trust === "quarantined"
+          ? doc.trust
+          : null;
+      this.handlers.onHealth?.({
+        paused,
+        trust,
+        trustReason: typeof doc.trustReason === "string" ? doc.trustReason : null,
+      });
     } catch {
       // A dead producer is the socket's story to tell, not this probe's.
     }

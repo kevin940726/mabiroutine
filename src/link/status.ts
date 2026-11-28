@@ -9,11 +9,15 @@ export type LinkPhase =
   | "error"
   | "permission";
 
+export type LinkTrust = "trusted" | "degraded" | "quarantined" | null;
+
 export type LinkStatus = {
   phase: LinkPhase;
   lastFrameAt: number | null;
   permission: BlockedPermission | null;
   capturePaused: boolean;
+  trust: LinkTrust;
+  trustReason: string | null;
 };
 
 const EMPTY: LinkStatus = {
@@ -21,6 +25,8 @@ const EMPTY: LinkStatus = {
   lastFrameAt: null,
   permission: null,
   capturePaused: false,
+  trust: null,
+  trustReason: null,
 };
 
 let current: LinkStatus = EMPTY;
