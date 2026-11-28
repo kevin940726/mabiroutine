@@ -4145,6 +4145,24 @@
               "priority": "situational"
             },
             {
+              "name": "變形的魔力石",
+              "kind": "barter",
+              "cost": {
+                "amount": 7,
+                "currency": "生命的魔力石"
+              },
+              "get": {
+                "amount": 7
+              },
+              "limit": {
+                "times": 5,
+                "period": "weekly"
+              },
+              "scope": "account",
+              "id": "ema-黛蓮-erg-crystal-metamorph",
+              "priority": "situational"
+            },
+            {
               "name": "裝飾製作零件+",
               "kind": "barter",
               "cost": {

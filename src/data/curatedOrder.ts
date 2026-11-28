@@ -175,6 +175,7 @@ export const CURATED_ORDER: string[] = [
   "ema-黛蓮-facility-up-deco-shop-03", // 黛蓮 高級作業用弓鋸 ← 愛心幣 ×15 · 艾明馬夏
   "ema-黛蓮-leather-processed-quality", // 黛蓮 最高級皮革+ ← 南瓜湯 ×2 · 每週 2 次 · 艾明馬夏
   "ema-黛蓮-wood-heavy", // 黛蓮 最高級木材+ ← 南瓜湯 ×2 · 每週 2 次 · 艾明馬夏
+  "ema-黛蓮-erg-crystal-metamorph", // 黛蓮 變形的魔力石 ×7 ← 生命的魔力石 ×7 · 每週 5 次（伺服器） · 艾明馬夏
   "ema-黛蓮-material-deco-parts-02", // 黛蓮 裝飾製作零件+ ×3 ← 南瓜湯 ×1 · 每週 2 次（伺服器） · 艾明馬夏
   "ema-黛蓮-material-deco-parts-03", // 黛蓮 高級裝飾製作零件 ×3 ← 綠茶可麗餅蛋糕 ×2 · 每週 1 次（伺服器） · 艾明馬夏
   "yen-卡琳馬鈴薯湯3寵物飼料1-38", // 卡琳 寵物飼料 ×10 ← 馬鈴薯湯 ×3 · 每日 1 次 · 冰霜峽谷臨時哨所
